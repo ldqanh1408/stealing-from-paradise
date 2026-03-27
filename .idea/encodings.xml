@@ -34,8 +34,8 @@
     <file url="file://$PROJECT_DIR$/backend/search-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/woker-service/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/woker-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/worker-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/worker-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/flash-sale-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/flash-sale-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/identity-api/src/main/java" charset="UTF-8" />

@@ -91,24 +91,18 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: fs-zookeeper
+    ports: ["2181:2181"]
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_SYNC_LIMIT: 5
-      ZOOKEEPER_INIT_LIMIT: 30
+      ZOOKEEPER_TICK_TIME: 2000
     volumes: [zookeeper_data:/var/lib/zookeeper/data]
     networks: [flashsale-net]
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo ruok | timeout 1 bash -i >& /dev/tcp/127.0.0.1/2181 && echo imok || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: fs-kafka
     depends_on:
-      zookeeper: { condition: service_started }
+      - zookeeper
     ports: ["9092:9092"]
     environment:
       KAFKA_BROKER_ID: 1
@@ -120,19 +114,11 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_LOG_CLEANUP_POLICY: delete
       KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824
-      KAFKA_CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka:29092
-      KAFKA_CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
-      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 30000
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 30000
     volumes: [kafka_data:/var/lib/kafka/data]
     networks: [flashsale-net]
-    command: bash -c "rm -f /var/lib/kafka/data/meta.properties && rm -rf /var/lib/kafka/data/log-* && /etc/confluent/docker/run"
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server=localhost:9092"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 90s
+    command: bash -c "sleep 10 && rm -f /var/lib/kafka/data/meta.properties && rm -rf /var/lib/kafka/data/log-* && /etc/confluent/docker/run"
 
   axonserver:
     image: axoniq/axonserver:latest
@@ -308,7 +294,7 @@ services:
 
   worker-service:
     build:
-      context: ./backend/woker-service
+      context: ./backend/worker-service
       dockerfile: Dockerfile
     container_name: fs-worker
     environment:

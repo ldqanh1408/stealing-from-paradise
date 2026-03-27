@@ -18,7 +18,7 @@
         <module>api-gateway</module>
         <module>flashsale-service</module>
         <module>search-service</module>
-        <module>woker-service</module>
+        <module>worker-service</module>
         <module>notification-service</module>
         <module>identity-service/identity-api</module>
         <module>identity-service/identity-domain</module>
