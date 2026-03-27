@@ -1,0 +1,25 @@
+server:
+  port: 8089
+spring:
+  application:
+    name: worker-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME_WORKER:fs_worker_prod}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+axon:
+  axonserver:
+    servers: ${AXON_SERVER:localhost:8124}
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+
+
+

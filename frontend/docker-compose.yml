@@ -1,0 +1,49 @@
+networks:
+  flashsale-net:
+    driver: bridge
+
+services:
+  # =================================================================
+  # FRONTEND APPLICATIONS
+  # =================================================================
+  customer-app:
+    build:
+      context: ./apps/customer-app
+      dockerfile: Dockerfile
+    container_name: fs-customer-fe
+    ports: ["3000:3000"]
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+    networks: [flashsale-net]
+    depends_on:
+      - api-gateway
+
+  seller-center:
+    build:
+      context: ./apps/seller-center
+      dockerfile: Dockerfile
+    container_name: fs-seller-fe
+    ports: ["3001:80"]
+    networks: [flashsale-net]
+    depends_on:
+      - api-gateway
+
+  admin-portal:
+    build:
+      context: ./apps/admin-portal
+      dockerfile: Dockerfile
+    container_name: fs-admin-fe
+    ports: ["3002:80"]
+    networks: [flashsale-net]
+    depends_on:
+      - api-gateway
+
+  # Reference to backend API Gateway (running in separate compose)
+  api-gateway:
+    image: busybox
+    container_name: fs-gateway-external
+    networks: [flashsale-net]
+    external_links:
+      - fs-gateway:api-gateway
+    command: sleep 1000
+

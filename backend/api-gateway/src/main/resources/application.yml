@@ -1,0 +1,40 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: flashsale-route
+          uri: lb://flashsale-service
+          predicates:
+            - Path=/api/v1/flash-sale/**
+        - id: order-domain-route
+          uri: lb://order-domain
+          predicates:
+            - Path=/api/v1/orders/**
+        - id: product-domain-route
+          uri: lb://product-domain
+          predicates:
+            - Path=/api/v1/products/**
+        - id: identity-domain-route
+          uri: lb://identity-domain
+          predicates:
+            - Path=/api/v1/auth/**, /api/v1/users/**
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      password: ${REDIS_PASSWORD:123456}
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+
+
+

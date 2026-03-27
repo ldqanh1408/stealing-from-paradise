@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="FrameworkDetectionExcludesConfiguration">
+    <file type="web" url="file://$PROJECT_DIR$/identity-domain" />
+  </component>
+  <component name="MavenProjectsManager">
+    <option name="originalFiles">
+      <list>
+        <option value="$PROJECT_DIR$/discovery-service/pom.xml" />
+        <option value="$PROJECT_DIR$/api-gateway/pom.xml" />
+        <option value="$PROJECT_DIR$/flash-sale-service/pom.xml" />
+        <option value="$PROJECT_DIR$/flashsale-service/pom.xml" />
+        <option value="$PROJECT_DIR$/order-api/pom.xml" />
+        <option value="$PROJECT_DIR$/order-domain/pom.xml" />
+        <option value="$PROJECT_DIR$/product-domain/pom.xml" />
+        <option value="$PROJECT_DIR$/product-api/pom.xml" />
+        <option value="$PROJECT_DIR$/search-service/pom.xml" />
+        <option value="$PROJECT_DIR$/identity-api/pom.xml" />
+        <option value="$PROJECT_DIR$/identity-domain/pom.xml" />
+        <option value="$PROJECT_DIR$/payment-api/pom.xml" />
+        <option value="$PROJECT_DIR$/payment-domain/pom.xml" />
+        <option value="$PROJECT_DIR$/promotion-api/pom.xml" />
+        <option value="$PROJECT_DIR$/promotion-domain/pom.xml" />
+        <option value="$PROJECT_DIR$/woker-service/pom.xml" />
+        <option value="$PROJECT_DIR$/pom.xml" />
+        <option value="$PROJECT_DIR$/notification-service/pom.xml" />
+        <option value="$PROJECT_DIR$/backend/pom.xml" />
+      </list>
+    </option>
+    <option name="ignoredFiles">
+      <set>
+        <option value="$PROJECT_DIR$/flash-sale-service/pom.xml" />
+      </set>
+    </option>
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="17" project-jdk-type="JavaSDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>

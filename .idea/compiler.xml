@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+      </profile>
+      <profile name="Annotation profile for FlashSale Parent" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar" />
+        </processorPath>
+        <module name="worker-service" />
+        <module name="order-domain" />
+        <module name="order-api" />
+        <module name="discovery-service" />
+        <module name="notification-service" />
+        <module name="payment-api" />
+        <module name="identity-api" />
+        <module name="payment-domain" />
+        <module name="promotion-domain" />
+        <module name="identity-domain" />
+        <module name="search-service" />
+        <module name="api-gateway" />
+        <module name="product-api" />
+        <module name="product-domain" />
+        <module name="promotion-api" />
+        <module name="flashsale-service" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="flashsale-parent (1)" target="17" />
+      <module name="flashsale-parent (2)" target="17" />
+      <module name="woker-service" target="17" />
+    </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="flashsale-parent" options="" />
+      <module name="flashsale-parent (1)" options="" />
+      <module name="flashsale-service" options="" />
+      <module name="identity-api" options="" />
+      <module name="notification-service" options="" />
+      <module name="order-api" options="" />
+      <module name="payment-api" options="" />
+      <module name="payment-domain" options="" />
+      <module name="product-api" options="" />
+      <module name="product-domain" options="" />
+      <module name="promotion-api" options="" />
+      <module name="promotion-domain" options="" />
+      <module name="search-service" options="" />
+      <module name="woker-service" options="" />
+    </option>
+  </component>
+</project>

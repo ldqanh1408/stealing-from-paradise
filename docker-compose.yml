@@ -1,0 +1,374 @@
+networks:
+  flashsale-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  elastic_data:
+  minio_data:
+  kafka_data:
+  zookeeper_data:
+  axon_data:
+
+services:
+  # =================================================================
+  # 1. INFRASTRUCTURE (HẠ TẦNG DỮ LIỆU & MESSAGE QUEUE)
+  # =================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: fs-postgres
+    ports: ["5432:5432"]
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d # Script tạo 5 DB tự động
+    networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  mongo:
+    image: mongo:6.0
+    container_name: fs-mongo
+    ports: ["27017:27017"]
+    volumes: [mongo_data:/data/db]
+    networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:alpine
+    container_name: fs-redis
+    ports: ["6379:6379"]
+    command: redis-server --appendonly yes
+    volumes: [redis_data:/data]
+    networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  elasticsearch:
+    image: elasticsearch:8.10.2
+    container_name: fs-elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports: ["9200:9200"]
+    volumes: [elastic_data:/usr/share/elasticsearch/data]
+    networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  minio:
+    image: minio/minio:latest
+    container_name: fs-minio
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes: [minio_data:/data]
+    networks: [flashsale-net]
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: fs-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SYNC_LIMIT: 5
+      ZOOKEEPER_INIT_LIMIT: 30
+    volumes: [zookeeper_data:/var/lib/zookeeper/data]
+    networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: fs-kafka
+    depends_on:
+      zookeeper: { condition: service_healthy }
+    ports: ["9092:9092"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_CLEANUP_POLICY: delete
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+    volumes: [kafka_data:/var/lib/kafka/data]
+    networks: [flashsale-net]
+    command: bash -c "rm -f /var/lib/kafka/data/meta.properties && rm -rf /var/lib/kafka/data/log-* && /etc/confluent/docker/run"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  axonserver:
+    image: axoniq/axonserver:latest
+    container_name: fs-axon
+    ports: ["8024:8024", "8124:8124"]
+    environment:
+      - AXONIQ_AXONSERVER_CONTEXTS=default
+      - AXONIQ_AXONSERVER_STANDALONE=true
+      - AXONIQ_AXONSERVER_DEVMODE_ENABLED=true
+      - AXONIQ_AXONSERVER_HOSTNAME=axonserver
+      - server.servlet.context-path=/
+    volumes:
+      - ./infra/axon-init:/docker-entrypoint-initdb.d
+      - axon_data:/axonserver/data
+    networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8024/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # =================================================================
+  # 2. RUNNABLE MICROSERVICES (Chỉ lấy các module chạy được)
+  # =================================================================
+
+  discovery-service:
+    build:
+      context: ./backend/discovery-service
+      dockerfile: Dockerfile
+    container_name: fs-discovery
+    ports: ["8761:8761"]
+    networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
+      interval: 10s
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: fs-gateway
+    ports: ["8080:8080"] # Mở cổng duy nhất ra ngoài cho Backend
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - REDIS_HOST=${REDIS_HOST}
+    depends_on:
+      redis: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  identity-domain:
+    build:
+      context: ./backend/identity-service/identity-domain
+      dockerfile: Dockerfile
+    container_name: fs-identity
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME_IDENTITY=${DB_NAME_IDENTITY}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AXON_SERVER=${AXON_SERVER}
+    depends_on:
+      postgres: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  product-domain:
+    build:
+      context: ./backend/product-service/product-domain
+      dockerfile: Dockerfile
+    container_name: fs-product
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - MONGO_HOST=${MONGO_HOST}
+      - PRODUCT_DB_NAME=${PRODUCT_DB_NAME}
+      - KAFKA_SERVER=${KAFKA_SERVER}
+      - AXON_SERVER=${AXON_SERVER}
+      - MINIO_URL=${MINIO_URL}
+    depends_on:
+      mongo: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  order-domain:
+    build:
+      context: ./backend/order-service/order-domain
+      dockerfile: Dockerfile
+    container_name: fs-order
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME_ORDER=${DB_NAME_ORDER}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - KAFKA_SERVER=${KAFKA_SERVER}
+      - AXON_SERVER=${AXON_SERVER}
+    depends_on:
+      postgres: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  payment-domain:
+    build:
+      context: ./backend/payment-service/payment-domain
+      dockerfile: Dockerfile
+    container_name: fs-payment
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME_PAYMENT=${DB_NAME_PAYMENT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - AXON_SERVER=${AXON_SERVER}
+    depends_on:
+      postgres: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  promotion-domain:
+    build:
+      context: ./backend/promotion-service/promotion-domain
+      dockerfile: Dockerfile
+    container_name: fs-promotion
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME_PROMOTION=${DB_NAME_PROMOTION}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - AXON_SERVER=${AXON_SERVER}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  flashsale-service:
+    build:
+      context: ./backend/flashsale-service
+      dockerfile: Dockerfile
+    container_name: fs-flashsale
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - REDIS_HOST=${REDIS_HOST}
+      - KAFKA_SERVER=${KAFKA_SERVER}
+    depends_on:
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  search-service:
+    build:
+      context: ./backend/search-service
+      dockerfile: Dockerfile
+    container_name: fs-search
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - ELASTIC_URI=http://elasticsearch:9200
+      - KAFKA_SERVER=${KAFKA_SERVER}
+    depends_on:
+      elasticsearch: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  notification-service:
+    build:
+      context: ./backend/notification-service
+      dockerfile: Dockerfile
+    container_name: fs-notification
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - MONGO_HOST=${MONGO_HOST}
+      - KAFKA_SERVER=${KAFKA_SERVER}
+    depends_on:
+      mongo: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  worker-service:
+    build:
+      context: ./backend/woker-service
+      dockerfile: Dockerfile
+    container_name: fs-worker
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME_WORKER=${DB_NAME_WORKER}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - KAFKA_SERVER=${KAFKA_SERVER}
+      - AXON_SERVER=${AXON_SERVER}
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]
+
+  # =================================================================
+  # 3. FRONTEND APPLICATIONS
+  # =================================================================
+  customer-app:
+    build:
+      context: ./frontend/apps/customer-app
+      dockerfile: Dockerfile
+    container_name: fs-customer-fe
+    ports: ["3000:3000"]
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+    networks: [flashsale-net]
+
+  seller-center:
+    build:
+      context: ./frontend/apps/seller-center
+      dockerfile: Dockerfile
+    container_name: fs-seller-fe
+    ports: ["3001:80"] # Ánh xạ port Nginx ra 3001
+    networks: [flashsale-net]
+
+  admin-portal:
+    build:
+      context: ./frontend/apps/admin-portal
+      dockerfile: Dockerfile
+    container_name: fs-admin-fe
+    ports: ["3002:80"] # Ánh xạ port Nginx ra 3002
+    networks: [flashsale-net]

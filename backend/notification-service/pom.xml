@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.flashsale</groupId>
+        <artifactId>flashsale-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>notification-service</artifactId>
+    <name>Notification Service (WebSocket)</name>
+    <description>Dịch vụ đẩy thông báo thời gian thực và lưu trữ lịch sử thông báo</description>
+
+    <dependencies>
+        <!-- 1. WEB SOCKET: Thay thế Socket.io, dùng để đẩy Real-time Noti xuống Client -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- 2. KAFKA CONSUMER: Lắng nghe sự kiện (Đơn hàng mới, Đổi tồn kho) từ các Service khác -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- 3. MONGODB: Lưu trữ lịch sử thông báo (Log) vì dữ liệu này lớn và phi cấu trúc -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
+
+        <!-- 4. EUREKA CLIENT: Đăng ký với máy chủ danh bạ để Gateway tìm thấy -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+
+        <!-- 5. (Tùy chọn) REDIS: Dùng làm Message Broker nếu chạy nhiều instance Notification Service
+             để đồng bộ WebSocket sessions giữa các node -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
