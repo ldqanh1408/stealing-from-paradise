@@ -222,60 +222,39 @@ services:
       discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
-  order-domain:
-    build:
-      context: ./order-service/order-domain
-      dockerfile: Dockerfile
-    container_name: fs-order
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_ORDER=${DB_NAME_ORDER}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
-    depends_on:
-      postgres: { condition: service_healthy }
-      axonserver: { condition: service_healthy }
-      discovery-service: { condition: service_healthy }
-    networks: [flashsale-net]
+   order-domain:
+     build:
+       context: ./order-service/order-domain
+       dockerfile: Dockerfile
+     container_name: fs-order
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - DB_HOST=${DB_HOST}
+       - DB_NAME_ORDER=${DB_NAME_ORDER}
+       - POSTGRES_USER=${POSTGRES_USER}
+       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+       - KAFKA_SERVER=${KAFKA_SERVER}
+       - AXON_SERVER=${AXON_SERVER}
+     depends_on:
+       postgres: { condition: service_healthy }
+       axonserver: { condition: service_healthy }
+       discovery-service: { condition: service_healthy }
+     networks: [flashsale-net]
 
-  payment-domain:
-    build:
-      context: ./payment-service/payment-domain
-      dockerfile: Dockerfile
-    container_name: fs-payment
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_PAYMENT=${DB_NAME_PAYMENT}
+    product-domain:
+      build:
+        context: .
+        dockerfile: product-service/product-domain/Dockerfile
+      container_name: fs-product
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - DB_HOST=${DB_HOST}
+       - DB_NAME_PAYMENT=${DB_NAME_PAYMENT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - AXON_SERVER=${AXON_SERVER}
     depends_on:
       postgres: { condition: service_healthy }
-      axonserver: { condition: service_healthy }
-      discovery-service: { condition: service_healthy }
-    networks: [flashsale-net]
-
-  promotion-domain:
-    build:
-      context: ./promotion-service/promotion-domain
-      dockerfile: Dockerfile
-    container_name: fs-promotion
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_PROMOTION=${DB_NAME_PROMOTION}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - AXON_SERVER=${AXON_SERVER}
-    depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
       axonserver: { condition: service_healthy }
       discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
@@ -345,3 +324,16 @@ services:
       discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
+   cart-service:
+     build:
+       context: .
+       dockerfile: ./cart-service/Dockerfile
+     container_name: fs-cart
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    depends_on:
+      redis: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+    networks: [flashsale-net]

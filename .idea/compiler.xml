@@ -12,9 +12,10 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
         </processorPath>
         <module name="worker-service" />
+        <module name="cart-service" />
         <module name="order-domain" />
         <module name="order-api" />
         <module name="discovery-service" />
@@ -22,30 +23,35 @@
         <module name="payment-api" />
         <module name="identity-api" />
         <module name="payment-domain" />
-        <module name="promotion-domain" />
         <module name="identity-domain" />
         <module name="search-service" />
         <module name="api-gateway" />
         <module name="product-api" />
         <module name="product-domain" />
-        <module name="promotion-api" />
         <module name="flashsale-service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="flashsale-parent (1)" target="17" />
       <module name="flashsale-parent (2)" target="17" />
+      <module name="promotion-api" target="17" />
+      <module name="promotion-domain" target="17" />
       <module name="woker-service" target="17" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="api-gateway" options="" />
+      <module name="cart-service" options="" />
+      <module name="discovery-service" options="" />
       <module name="flashsale-parent" options="" />
       <module name="flashsale-parent (1)" options="" />
       <module name="flashsale-service" options="" />
       <module name="identity-api" options="" />
+      <module name="identity-domain" options="" />
       <module name="notification-service" options="" />
       <module name="order-api" options="" />
+      <module name="order-domain" options="" />
       <module name="payment-api" options="" />
       <module name="payment-domain" options="" />
       <module name="product-api" options="" />
@@ -54,6 +60,7 @@
       <module name="promotion-domain" options="" />
       <module name="search-service" options="" />
       <module name="woker-service" options="" />
+      <module name="worker-service" options="" />
     </option>
   </component>
 </project>

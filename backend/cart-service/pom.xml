@@ -3,6 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>com.flashsale</groupId>
         <artifactId>flashsale-parent</artifactId>
@@ -10,32 +11,57 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>flashsale-service</artifactId>
-    <name>Flash Sale Service (Core)</name>
+    <artifactId>cart-service</artifactId>
+    <name>Cart Service</name>
 
     <dependencies>
+        <!-- 1. Web & Virtual Threads (Imperative Model) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-        <!-- Redis thực thi Lua Script -->
+
+        <!-- 2. Redis: Lưu trữ giỏ hàng tốc độ cao -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
-        <!-- Kafka đẩy đơn hàng đi -->
+
+        <!-- 3. Validation: Kiểm tra dữ liệu đầu vào (số lượng, mã SKU) -->
         <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-        <!-- Gọi sang Promotion Svc check Voucher (gRPC) -->
+
+        <!-- 4. gRPC Client: Gọi Identity/Product Service để check thông tin -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-client-spring-boot-starter</artifactId>
         </dependency>
+
+        <!-- 5. Cloud Discovery: Đăng ký với Eureka -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+
+        <!-- 6. Observability: Giám sát hiệu năng Redis và Request -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- 7. Resilience: Chốt chặn khi Redis hoặc các Service khác gặp sự cố -->
+
+        <!-- Lombok đã được khai báo ở Parent nên không cần version ở đây -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

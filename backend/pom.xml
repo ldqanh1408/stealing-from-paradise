@@ -10,21 +10,16 @@
     <packaging>pom</packaging>
 
     <name>FlashSale Parent</name>
-    <description>Hệ thống Microservices E-commerce Flash Sale (Java 17)</description>
+    <description>He thong Microservices Flash Sale (Java 25 &amp; Spring Boot)</description>
 
-    <!-- Khai báo toàn bộ các module con -->
     <modules>
-        <!-- Tầng Hạ tầng & Cổng -->
         <module>discovery-service</module>
+        <module>cart-service</module>
         <module>api-gateway</module>
-
-        <!-- Tầng High Performance (Fast-path) -->
         <module>flashsale-service</module>
         <module>search-service</module>
         <module>woker-service</module>
         <module>notification-service</module>
-
-        <!-- Tầng Axon CQRS (Đã tách API và Domain) -->
         <module>identity-service/identity-api</module>
         <module>identity-service/identity-domain</module>
         <module>product-service/product-api</module>
@@ -33,57 +28,36 @@
         <module>order-service/order-domain</module>
         <module>payment-service/payment-api</module>
         <module>payment-service/payment-domain</module>
-        <module>promotion-service/promotion-api</module>
-        <module>promotion-service/promotion-domain</module>
     </modules>
 
     <properties>
-        <java.version>17</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>25</java.version>
+        <spring-boot.version>4.0.4</spring-boot.version>
+        <spring-cloud.version>2025.1.1</spring-cloud.version>
+        <spring-boot-maven-plugin.version>4.0.4</spring-boot-maven-plugin.version>
+        <axon.version>4.13.0</axon.version>
 
-        <!-- Quản lý phiên bản tập trung -->
-        <spring-boot.version>3.2.4</spring-boot.version>
-        <spring-cloud.version>2023.0.1</spring-cloud.version>
-        <axon.version>4.9.3</axon.version>
+        <grpc.version>1.70.0</grpc.version>
+        <netty.version>4.1.112.Final</netty.version>
 
-        <!-- Fix conflict gRPC & Netty -->
-        <grpc.version>1.62.2</grpc.version>
-        <netty.version>4.1.100.Final</netty.version>
+        <!-- FIX: Đổi về bản RELEASE cao nhất thực tế có trên Maven Central -->
         <grpc-spring-boot.version>3.1.0.RELEASE</grpc-spring-boot.version>
+        <protobuf.version>4.33.1</protobuf.version>
 
-        <lombok.version>1.18.30</lombok.version>
+        <lombok.version>1.18.40</lombok.version>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <dependencyManagement>
         <dependencies>
-            <!-- 1. gRPC & Netty BOM: Phải nằm đầu tiên để chống conflict -->
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-bom</artifactId>
-                <version>${grpc.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-bom</artifactId>
-                <version>${netty.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <!-- 2. Axon BOM -->
-            <dependency>
-                <groupId>org.axonframework</groupId>
-                <artifactId>axon-bom</artifactId>
-                <version>${axon.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <!-- 3. Spring Boot & Cloud BOM -->
+            <!-- Spring Boot & Cloud -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -99,7 +73,7 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- gRPC Starter -->
+            <!-- Net.devh gRPC Starters -->
             <dependency>
                 <groupId>net.devh</groupId>
                 <artifactId>grpc-server-spring-boot-starter</artifactId>
@@ -110,46 +84,47 @@
                 <artifactId>grpc-client-spring-boot-starter</artifactId>
                 <version>${grpc-spring-boot.version}</version>
             </dependency>
+
+            <!-- gRPC & Netty BOM -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-bom</artifactId>
+                <version>${protobuf.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Axon BOM -->
+            <dependency>
+                <groupId>org.axonframework</groupId>
+                <artifactId>axon-bom</artifactId>
+                <version>${axon.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
-    <!-- Thư viện dùng chung cho MỌI service -->
-    <dependencies>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>${spring-boot.version}</version>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>repackage</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.13.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -160,8 +135,76 @@
                             <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
+
                 </configuration>
+            </plugin>
+            <!-- Spring Boot Maven Plugin for creating executable JARs -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot-maven-plugin.version}</version>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-snapshots</id>
+            <name>Spring Snapshots</name>
+            <url>https://repo.spring.io/snapshot</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </pluginRepository>
+        <pluginRepository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>spring-snapshots</id>
+            <name>Spring Snapshots</name>
+            <url>https://repo.spring.io/snapshot</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
 </project>

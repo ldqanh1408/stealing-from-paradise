@@ -12,39 +12,44 @@
     </parent>
 
     <artifactId>notification-service</artifactId>
-    <name>Notification Service (WebSocket)</name>
-    <description>Dịch vụ đẩy thông báo thời gian thực và lưu trữ lịch sử thông báo</description>
+    <name>Notification Service (Reactive)</name>
+    <description>Dịch vụ đẩy thông báo thời gian thực sử dụng Spring WebFlux &amp; Reactive Stack</description>
 
     <dependencies>
-        <!-- 1. WEB SOCKET: Thay thế Socket.io, dùng để đẩy Real-time Noti xuống Client -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
-        <!-- 2. KAFKA CONSUMER: Lắng nghe sự kiện (Đơn hàng mới, Đổi tồn kho) từ các Service khác -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
-        <!-- 3. MONGODB: Lưu trữ lịch sử thông báo (Log) vì dữ liệu này lớn và phi cấu trúc -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-mongodb</artifactId>
-        </dependency>
-
-        <!-- 4. EUREKA CLIENT: Đăng ký với máy chủ danh bạ để Gateway tìm thấy -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
-        <!-- 5. (Tùy chọn) REDIS: Dùng làm Message Broker nếu chạy nhiều instance Notification Service
-             để đồng bộ WebSocket sessions giữa các node -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

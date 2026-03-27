@@ -1,0 +1,36 @@
+server:
+  port: 8089 # Or any specific port
+  servlet:
+    context-path: /api/cart
+
+spring:
+  application:
+    name: cart-service
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+
+  # Observability
+  actuator:
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
