@@ -25,9 +25,19 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 
 > **Note**: Nếu gặp lỗi `cannot be loaded because running scripts is disabled`, chạy lệnh Set-ExecutionPolicy trên.
 
+### 3. **build-and-compose.sh** (Linux / macOS / Dev Container)
+Script dành cho bash shell. File này build backend trong thư mục `backend/` rồi chạy Docker Compose ở project cha.
+
+**Cách sử dụng:**
+```bash
+cd /workspaces/stealing-from-paradise/backend
+chmod +x build-and-compose.sh
+./build-and-compose.sh
+```
+
 ## 🔄 Quy Trình Script
 
-Cả hai script đều thực hiện các bước sau:
+Các script đều thực hiện các bước sau:
 
 1. ✅ **Kiểm tra Maven** - Đảm bảo Maven được cài đặt
 2. ✅ **Kiểm tra Docker** - Đảm bảo Docker được cài đặt
@@ -37,6 +47,8 @@ Cả hai script đều thực hiện các bước sau:
 6. ✅ **Dừng containers cũ** - Chạy `docker-compose down -v --remove-orphans`
 7. ✅ **Khởi động Docker Compose** - Chạy `docker-compose up -d`
 8. ✅ **Hiển thị trạng thái** - Liệt kê tất cả containers và tình trạng của chúng
+
+Script `build-and-compose.sh` trên Linux/macOS thực hiện cùng quy trình, nhưng chạy Docker Compose từ thư mục cha của backend để dùng file `docker-compose.yml` ở root.
 
 ## 📝 Build Log
 
