@@ -1,0 +1,45 @@
+package com.flashsale.commonlib.exception;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.flashsale.commonlib.dto.ApiResponse;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<ApiResponse<Void>> handleApp(AppException ex) {
+        log.warn("[{}] {}", ex.getErrorCode().getCode(), ex.getMessage());
+        return ResponseEntity.status(ex.getErrorCode().getHttpStatus())
+            .body(ApiResponse.error(ex.getErrorCode().getCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidation(
+            MethodArgumentNotValidException ex) {
+        Map<String, String> errors = ex.getBindingResult().getFieldErrors().stream()
+            .collect(Collectors.toMap(
+                e -> e.getField(),
+                e -> e.getDefaultMessage(),
+                (a, b) -> a
+            ));
+        return ResponseEntity.badRequest()
+            .body(ApiResponse.<Map<String,String>>builder()
+                .success(false).errorCode(ErrorCode.VALIDATION_FAILED.getCode())
+                .message("Dữ liệu không hợp lệ").data(errors).build());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
+        log.error("Unhandled", ex);
+        return ResponseEntity.internalServerError()
+            .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR.getCode(), "Lỗi nội bộ"));
+    }
+}
+

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -15,35 +15,36 @@
     <name>Cart Service</name>
 
     <dependencies>
+        <!-- Common Library -->
+        <dependency>
+            <groupId>com.flashsale</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <!-- 1. Web & Virtual Threads (Imperative Model) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- 2. Redis: Lưu trữ giỏ hàng tốc độ cao -->
+        <!-- 2. Redis: LÆ°u trá»¯ giá» hÃ ng tá»‘c Ä‘á»™ cao -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- 3. Validation: Kiểm tra dữ liệu đầu vào -->
+        <!-- 3. Validation: Kiá»ƒm tra dá»¯ liá»‡u Ä‘áº§u vÃ o -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- 4. gRPC Client: Gọi Identity/Product Service -->
-        <dependency>
-            <groupId>net.devh</groupId>
-            <artifactId>grpc-client-spring-boot-starter</artifactId>
-        </dependency>
-
-        <!-- 5. Cloud Discovery: Đăng ký với Eureka -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-        </dependency>
+         <!-- 4. Cloud Discovery: ÄÄƒng kÃ½ vá»›i Eureka -->
+         <dependency>
+             <groupId>org.springframework.cloud</groupId>
+             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+         </dependency>
 
         <!-- 6. Observability -->
         <dependency>
@@ -61,6 +62,14 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+         <dependency>
+             <groupId>org.springframework.boot</groupId>
+             <artifactId>spring-boot-starter-data-mongodb</artifactId>
+         </dependency>
     </dependencies>
 
     <build>
@@ -73,3 +82,4 @@
         </plugins>
     </build>
 </project>
+

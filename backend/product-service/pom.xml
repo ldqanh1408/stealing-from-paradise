@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -11,23 +11,35 @@
     </parent>
 
     <artifactId>product-service</artifactId>
-    <name>Product Domain</name>
+    <name>Product Service</name>
 
     <dependencies>
-        <!-- Catalog lưu bằng MongoDB -->
+        <!-- Common Library -->
+        <dependency>
+            <groupId>com.flashsale</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Catalog lÆ°u báº±ng MongoDB -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
 
-        <!-- Tương tác MinIO -->
+        <!-- TÆ°Æ¡ng tÃ¡c MinIO -->
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
-            <version>8.5.7</version>
+            <version>8.6.0</version>
         </dependency>
 
-        <!-- Đẩy dữ liệu sang Kafka để đồng bộ Search -->
+        <!-- Äáº©y dá»¯ liá»‡u sang Kafka Ä‘á»ƒ Ä‘á»“ng bá»™ Search -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
@@ -36,6 +48,11 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -49,3 +66,4 @@
         </plugins>
     </build>
 </project>
+

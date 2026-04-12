@@ -3,9 +3,8 @@ package com.flashsale.apigateway;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
-import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.flashsale"})
 @EnableDiscoveryClient
 public class ApiGatewayApplication {
 

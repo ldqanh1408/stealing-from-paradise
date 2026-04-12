@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -12,9 +12,16 @@
     </parent>
 
     <artifactId>worker-service</artifactId>
-    <description>Cronjobs, DLQ Retry, Hủy đơn quá hạn</description>
+    <description>Cronjobs, DLQ Retry, Há»§y Ä‘Æ¡n quÃ¡ háº¡n</description>
 
     <dependencies>
+        <!-- Common Library -->
+        <dependency>
+            <groupId>com.flashsale</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -29,13 +36,13 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Thư viện lập lịch Quartz -->
+        <!-- ThÆ° viá»‡n láº­p lá»‹ch Quartz -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-quartz</artifactId>
         </dependency>
 
-        <!-- Khóa phân tán ShedLock -->
+        <!-- KhÃ³a phÃ¢n tÃ¡n ShedLock -->
         <dependency>
             <groupId>net.javacrumbs.shedlock</groupId>
             <artifactId>shedlock-spring</artifactId>
@@ -51,6 +58,21 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
+
+        <!-- Flyway for database migration -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -62,3 +84,4 @@
         </plugins>
     </build>
 </project>
+

@@ -9,35 +9,32 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
-      routes:
-        - id: flashsale-route
-          uri: lb://flashsale-service
-          predicates:
-            - Path=/api/v1/flash-sale/**
-        - id: order-domain-route
-          uri: lb://order-domain
-          predicates:
-            - Path=/api/v1/orders/**
-        - id: product-domain-route
-          uri: lb://product-domain
-          predicates:
-            - Path=/api/v1/products/**
-        - id: identity-domain-route
-          uri: lb://identity-domain
-          predicates:
-            - Path=/api/v1/auth/**, /api/v1/users/**
-          # ⚠️ /api/internal/** KHÔNG đăng ký ở đây — chỉ Gateway nội bộ gọi
+      routes: []  # defined in RouteConfig.java
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: 6379
       password: ${REDIS_PASSWORD:}
 jwt:
-  secret: ${JWT_SECRET:bXktc3VwZXItc2VjcmV0LWtleS1mb3ItZmxhc2hzYWxlLXByb2R1Y3Rpb24tMjAyNA==}
-  expiration: ${JWT_EXPIRATION_MS:86400000}
+  secret: ${JWT_SECRET:super_secret_jwt_key_for_flashsale_project_that_is_very_long_32_chars_minimum}
+  expiration: ${JWT_EXPIRATION:3600}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway,prometheus
+
 eureka:
   instance:
     prefer-ip-address: true
   client:
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+    registry-fetch-interval-seconds: 30
+    initial-instance-info-replication-interval-seconds: 40
+    should-enforce-registration-at-init: false
+    fetch-registry: true
+    register-with-eureka: true
+    enabled: true

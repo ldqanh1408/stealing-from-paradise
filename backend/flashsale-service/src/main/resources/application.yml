@@ -10,6 +10,11 @@ spring:
     pool:
       initial-size: 5
       max-size: 20
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -17,9 +22,39 @@ spring:
       password: ${REDIS_PASSWORD:123456}
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: ${spring.application.name}-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: com.flashsale.*
 eureka:
   instance:
     prefer-ip-address: true
   client:
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+    registry-fetch-interval-seconds: 30
+    initial-instance-info-replication-interval-seconds: 40
+    should-enforce-registration-at-init: false
+    fetch-registry: true
+    register-with-eureka: true
+    enabled: true
+axon:
+  axonserver:
+    servers: ${AXON_SERVER:localhost:8124}
+  eventhandling:
+    poolsize: 10
+  serializer:
+    general: xstream
+  repository:
+    snapshot-filter: 10

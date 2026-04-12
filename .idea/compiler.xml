@@ -6,7 +6,6 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="common-lib" />
       </profile>
       <profile name="Annotation profile for FlashSale Parent" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -21,20 +20,12 @@
         <module name="search-service" />
         <module name="api-gateway" />
         <module name="product-service" />
+        <module name="common-lib" />
         <module name="order-service" />
+        <module name="identity-service" />
         <module name="discovery-service" />
         <module name="notification-service" />
         <module name="flashsale-service" />
-      </profile>
-      <profile name="Annotation profile for identity-service" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
-        </processorPath>
-        <module name="identity-service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -54,7 +45,7 @@
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="api-gateway" options="" />
       <module name="cart-service" options="" />
-      <module name="common-lib" options="-parameters" />
+      <module name="common-lib" options="" />
       <module name="discovery-service" options="" />
       <module name="flashsale-api" options="" />
       <module name="flashsale-parent" options="" />
