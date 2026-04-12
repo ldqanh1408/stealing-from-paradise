@@ -10,43 +10,57 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>flashsale-service</artifactId>
-    <name>Flash Sale Service (Core)</name>
+    <artifactId>order-service</artifactId>
+    <name>Order Domain (Saga and Event Store)</name>
 
     <dependencies>
+    <dependency>
+            <groupId>com.flashsale</groupId>
+            <artifactId>order-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Spring Web để chạy độc lập -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- LƯU Ý: Không còn HACK HTTP để chặn truy cập trực tiếp -->
+
+        <!-- Axon: Trái tim xử lý Aggregate & Saga -->
+        <dependency>
+            <groupId>org.axonframework</groupId>
+            <artifactId>axon-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Kafka: Hứng đơn hàng từ FlashSale Svc -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- Ghi dữ liệu vào PostgreSQL -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>r2dbc-postgresql</artifactId>
-            <scope>runtime</scope>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <!-- Redis thực thi Lua Script -->
+
+        <!-- gRPC (Cung cấp và gọi sang các service khác như Payment) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
         </dependency>
-        <!-- Kafka đẩy đơn hàng đi -->
-        <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka</artifactId>
-        </dependency>
-        <!-- Gọi sang Promotion Svc check Voucher (gRPC) -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-client-spring-boot-starter</artifactId>
         </dependency>
+
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
@@ -63,3 +77,4 @@
         </plugins>
     </build>
 </project>
+

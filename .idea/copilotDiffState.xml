@@ -3,6 +3,15 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
+        <entry key="/application (snapshot).yml">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="/application (snapshot).yml" />
+              <option name="originalContent" value="server:&#10;  port: 8085&#10;spring:&#10;  application:&#10;    name: flashsale-service&#10;  r2dbc:&#10;    url: r2dbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME_FLASHSALE:flashsale_db}&#10;    username: ${POSTGRES_USER:postgres}&#10;    password: ${POSTGRES_PASSWORD:postgres123!}&#10;    pool:&#10;      initial-size: 5&#10;      max-size: 20&#10;  data:&#10;    redis:&#10;      host: ${REDIS_HOST:localhost}&#10;      port: 6379&#10;      password: ${REDIS_PASSWORD:123456}&#10;  kafka:&#10;    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}&#10;axon:&#10;  axonserver:&#10;    servers: ${AXON_SERVER:localhost:8124}&#10;eureka:&#10;  instance:&#10;    prefer-ip-address: true&#10;  client:&#10;    service-url:&#10;      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}&#10;" />
+              <option name="updatedContent" value="server:&#10;  port: 8085&#10;spring:&#10;  application:&#10;    name: flashsale-service&#10;  r2dbc:&#10;    url: r2dbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME_FLASHSALE:flashsale_db}&#10;    username: ${POSTGRES_USER:postgres}&#10;    password: ${POSTGRES_PASSWORD:postgres123!}&#10;    pool:&#10;      initial-size: 5&#10;      max-size: 20&#10;  data:&#10;    redis:&#10;      host: ${REDIS_HOST:localhost}&#10;      port: 6379&#10;      password: ${REDIS_PASSWORD:123456}&#10;  kafka:&#10;    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}&#10;eureka:&#10;  instance:&#10;    prefer-ip-address: true&#10;  client:&#10;    service-url:&#10;      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
         <entry key="/docker-compose (snapshot).yml">
           <value>
             <PendingDiffInfo>

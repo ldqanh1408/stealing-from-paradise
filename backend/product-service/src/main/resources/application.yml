@@ -1,0 +1,19 @@
+server:
+  port: 8090
+spring:
+  application:
+    name: product-domain
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+  mongodb:
+    uri: mongodb://${MONGO_INITDB_ROOT_USERNAME:root}:${MONGO_INITDB_ROOT_PASSWORD:root}@${MONGO_HOST:localhost}:27017/${DB_NAME_PRODUCT:fs_product_prod}?authSource=admin
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  access-key: ${MINIO_ROOT_USER:minioadmin}
+  secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}

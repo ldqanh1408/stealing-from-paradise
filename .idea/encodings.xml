@@ -4,28 +4,30 @@
     <file url="file://$PROJECT_DIR$/backend/api-gateway/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/api-gateway/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/cart-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/common-lib/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/discovery-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/discovery-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/flashsale-service/flashsale-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/flashsale-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/flashsale-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/identity-service/identity-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/identity-service/identity-api/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/identity-service/identity-domain/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/identity-service/identity-domain/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/identity-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/identity-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/notification-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/notification-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/order-service/order-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/order-service/order-api/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/order-service/order-domain/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/order-service/order-domain/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/order-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/order-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/payment-service/payment-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/payment-service/payment-api/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/payment-service/payment-domain/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/payment-service/payment-domain/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/payment-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/payment-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/product-service/product-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/product-service/product-api/src/main/resources" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/product-service/product-domain/src/main/java" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/backend/product-service/product-domain/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/product-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/product-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/promotion-service/promotion-api/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/promotion-service/promotion-api/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/promotion-service/promotion-domain/src/main/java" charset="UTF-8" />

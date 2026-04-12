@@ -10,43 +10,31 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>flashsale-service</artifactId>
-    <name>Flash Sale Service (Core)</name>
+    <artifactId>product-service</artifactId>
+    <name>Product Domain</name>
 
     <dependencies>
+
+
+        <!-- Catalog lưu bằng MongoDB -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
+
+        <!-- Tương tác MinIO -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.7</version>
         </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>r2dbc-postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <!-- Redis thực thi Lua Script -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
-        </dependency>
-        <!-- Kafka đẩy đơn hàng đi -->
+
+        <!-- Đẩy dữ liệu sang Kafka để đồng bộ Search -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
-        <!-- Gọi sang Promotion Svc check Voucher (gRPC) -->
-        <dependency>
-            <groupId>net.devh</groupId>
-            <artifactId>grpc-client-spring-boot-starter</artifactId>
-        </dependency>
+
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
@@ -63,3 +51,4 @@
         </plugins>
     </build>
 </project>
+

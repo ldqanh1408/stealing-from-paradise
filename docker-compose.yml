@@ -93,6 +93,7 @@ services:
     container_name: fs-zookeeper
     ports: ["2181:2181"]
     environment:
+      ZOOKEEPER_SERVER_ID: 1
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     volumes: [zookeeper_data:/var/lib/zookeeper/data]
@@ -175,7 +176,7 @@ services:
 
   identity-domain:
     build:
-      context: ./backend/identity-service/identity-domain
+      context: ./backend/identity-service
       dockerfile: Dockerfile
     container_name: fs-identity
     environment:
@@ -184,16 +185,14 @@ services:
       - DB_NAME_IDENTITY=${DB_NAME_IDENTITY}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - AXON_SERVER=${AXON_SERVER}
     depends_on:
       postgres: { condition: service_started }
-      axonserver: { condition: service_started }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
   product-domain:
     build:
-      context: ./backend/product-service/product-domain
+      context: ./backend/product-service
       dockerfile: Dockerfile
     container_name: fs-product
     environment:
@@ -201,18 +200,16 @@ services:
       - MONGO_HOST=${MONGO_HOST}
       - PRODUCT_DB_NAME=${PRODUCT_DB_NAME}
       - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
       - MINIO_URL=${MINIO_URL}
     depends_on:
       mongo: { condition: service_started }
       kafka: { condition: service_started }
-      axonserver: { condition: service_started }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
   order-domain:
     build:
-      context: ./backend/order-service/order-domain
+      context: ./backend/order-service
       dockerfile: Dockerfile
     container_name: fs-order
     environment:
@@ -231,7 +228,7 @@ services:
 
   payment-domain:
     build:
-      context: ./backend/payment-service/payment-domain
+      context: ./backend/payment-service
       dockerfile: Dockerfile
     container_name: fs-payment
     environment:
@@ -256,7 +253,12 @@ services:
       - EUREKA_URI=${EUREKA_URI}
       - REDIS_HOST=${REDIS_HOST}
       - KAFKA_SERVER=${KAFKA_SERVER}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME_FLASHSALE=${DB_NAME_FLASHSALE}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
+      postgres: { condition: service_started }
       redis: { condition: service_started }
       kafka: { condition: service_started }
       discovery-service: { condition: service_started }
@@ -285,9 +287,11 @@ services:
     environment:
       - EUREKA_URI=${EUREKA_URI}
       - MONGO_HOST=${MONGO_HOST}
+      - REDIS_HOST=${REDIS_HOST}
       - KAFKA_SERVER=${KAFKA_SERVER}
     depends_on:
       mongo: { condition: service_started }
+      redis: { condition: service_started }
       kafka: { condition: service_started }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
@@ -303,12 +307,8 @@ services:
       - DB_NAME_WORKER=${DB_NAME_WORKER}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
     depends_on:
       postgres: { condition: service_started }
-      kafka: { condition: service_started }
-      axonserver: { condition: service_started }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 

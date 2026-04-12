@@ -252,7 +252,7 @@ services:
 
   flashsale-service:
     build:
-      context: ./flashsale-service
+      context: flashsale-domain
       dockerfile: Dockerfile
     container_name: fs-flashsale
     environment:

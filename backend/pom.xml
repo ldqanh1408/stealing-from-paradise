@@ -20,14 +20,10 @@
         <module>search-service</module>
         <module>worker-service</module>
         <module>notification-service</module>
-        <module>identity-service/identity-api</module>
-        <module>identity-service/identity-domain</module>
-        <module>product-service/product-api</module>
-        <module>product-service/product-domain</module>
-        <module>order-service/order-api</module>
-        <module>order-service/order-domain</module>
-        <module>payment-service/payment-api</module>
-        <module>payment-service/payment-domain</module>
+        <module>identity-service</module>
+        <module>product-service</module>
+        <module>order-service</module>
+        <module>payment-service</module>
     </modules>
 
     <properties>

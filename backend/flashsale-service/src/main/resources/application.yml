@@ -3,6 +3,13 @@ server:
 spring:
   application:
     name: flashsale-service
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME_FLASHSALE:flashsale_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres123!}
+    pool:
+      initial-size: 5
+      max-size: 20
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -16,6 +23,3 @@ eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
-
-
-
