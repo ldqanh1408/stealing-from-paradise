@@ -82,3 +82,67 @@ build/
 .output/
 .data/
 .vuepress/dist/
+
+# ========================================
+# DOCKER DATA VOLUMES & DATABASE FILES
+# ========================================
+
+# PostgreSQL Data
+/postgres_data/
+/pgdata/
+
+# MongoDB Data
+/mongo_data/
+/mongodb_data/
+
+# Redis Data
+/redis_data/
+/redisdata/
+
+# Elasticsearch Data
+/elastic_data/
+/elasticsearch_data/
+
+# MinIO Data
+/minio_data/
+/miniodata/
+
+# Kafka Data
+/kafka_data/
+/kafkadata/
+
+# Zookeeper Data
+/zookeeper_data/
+/zookeeperdata/
+
+# AxonServer Data
+/axon_data/
+/axondata/
+
+# Generic data folders
+/data/
+/db/
+/storage/
+/cache/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.sqlitedb
+*.ldf
+*.mdf
+
+# Backup files
+*.bak
+*.backup
+*.sql
+*.dump
+
+# Temporary files
+/tmp/
+/temp/
+*.tmp
+
+# .gitkeep files (keep empty directories)
+!.gitkeep
