@@ -32,14 +32,10 @@
         <spring-cloud.version>2025.1.1</spring-cloud.version>
         <spring-boot-maven-plugin.version>4.0.4</spring-boot-maven-plugin.version>
         <axon.version>4.13.0</axon.version>
-
         <grpc.version>1.70.0</grpc.version>
         <netty.version>4.1.112.Final</netty.version>
-
-        <!-- FIX: Đổi về bản RELEASE cao nhất thực tế có trên Maven Central -->
         <grpc-spring-boot.version>3.1.0.RELEASE</grpc-spring-boot.version>
         <protobuf.version>4.33.1</protobuf.version>
-
         <lombok.version>1.18.40</lombok.version>
     </properties>
 
@@ -131,10 +127,8 @@
                             <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
-
                 </configuration>
             </plugin>
-            <!-- Spring Boot Maven Plugin for creating executable JARs -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

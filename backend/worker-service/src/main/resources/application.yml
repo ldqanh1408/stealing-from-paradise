@@ -1,5 +1,5 @@
 server:
-  port: 8089
+  port: 8088   # ← đã đổi từ 8089 (conflict với Cart Service)
 spring:
   application:
     name: worker-service

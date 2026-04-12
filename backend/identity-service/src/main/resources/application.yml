@@ -24,3 +24,6 @@ eureka:
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_for_flashsale_project_that_is_very_long}
   expiration: ${JWT_EXPIRATION_MS:86400000}
+grpc:
+  server:
+    port: 9091   # gRPC server port — service-to-service calls (Order, Payment, Cart...)

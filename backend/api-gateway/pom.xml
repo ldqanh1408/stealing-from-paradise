@@ -28,7 +28,7 @@
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
 
-        <!-- 3. REDIS REACTIVE: Cực kỳ quan trọng để thực hiện Rate Limiting (chặn spam/bot) -->
+        <!-- 3. REDIS REACTIVE: Rate Limiting -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
@@ -40,7 +40,7 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- 5. SECURITY (Tùy chọn nhưng khuyên dùng): Để Gateway check JWT ban đầu -->
+        <!-- 5. SECURITY: Để Gateway check JWT ban đầu -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
@@ -59,7 +59,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <!-- Không cần version ở đây vì đã kế thừa từ parent-parent của Spring Boot -->
             </plugin>
         </plugins>
     </build>

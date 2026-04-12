@@ -1,20 +1,16 @@
 server:
-  port: 8089 # Or any specific port
+  port: 8089
   servlet:
     context-path: /api/cart
 
 spring:
   application:
     name: cart-service
-
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-
-
-  # Observability
   actuator:
     metrics:
       export:
@@ -33,4 +29,3 @@ eureka:
     fetch-registry: true
   instance:
     prefer-ip-address: true
-

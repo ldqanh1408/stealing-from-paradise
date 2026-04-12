@@ -14,7 +14,7 @@
     <name>Order Domain (Saga and Event Store)</name>
 
     <dependencies>
-    <dependency>
+        <dependency>
             <groupId>com.flashsale</groupId>
             <artifactId>order-api</artifactId>
             <version>1.0.0-SNAPSHOT</version>
@@ -25,8 +25,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
-        <!-- LƯU Ý: Không còn HACK HTTP để chặn truy cập trực tiếp -->
 
         <!-- Axon: Trái tim xử lý Aggregate & Saga -->
         <dependency>
@@ -77,4 +75,3 @@
         </plugins>
     </build>
 </project>
-

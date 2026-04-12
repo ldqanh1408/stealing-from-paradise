@@ -14,7 +14,6 @@
     <name>Identity Domain</name>
 
     <dependencies>
-
         <!-- Spring Web để chạy độc lập -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

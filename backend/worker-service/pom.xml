@@ -35,7 +35,7 @@
             <artifactId>spring-boot-starter-quartz</artifactId>
         </dependency>
 
-        <!-- Khóa phân tán ShedLock để tránh 2 worker chạy trùng Cronjob -->
+        <!-- Khóa phân tán ShedLock -->
         <dependency>
             <groupId>net.javacrumbs.shedlock</groupId>
             <artifactId>shedlock-spring</artifactId>

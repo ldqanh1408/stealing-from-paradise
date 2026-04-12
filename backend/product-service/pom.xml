@@ -14,8 +14,6 @@
     <name>Product Domain</name>
 
     <dependencies>
-
-
         <!-- Catalog lưu bằng MongoDB -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -51,4 +49,3 @@
         </plugins>
     </build>
 </project>
-
