@@ -364,8 +364,10 @@ services:
 
   customer-app:
     build:
-      context: ./frontend/apps/customer
-      dockerfile: Dockerfile
+      context: ./frontend
+      dockerfile: ./apps/customer/Dockerfile
+      args:
+        - APP_PATH=apps/customer
     container_name: fs-customer-fe
     ports: ["3000:80"]
     environment:
@@ -383,8 +385,10 @@ services:
 
   seller-app:
     build:
-      context: ./frontend/apps/seller
-      dockerfile: Dockerfile
+      context: ./frontend
+      dockerfile: ./apps/seller/Dockerfile
+      args:
+        - APP_PATH=apps/seller
     container_name: fs-seller-fe
     ports: ["3001:80"]
     environment:
@@ -402,8 +406,10 @@ services:
 
   admin-app:
     build:
-      context: ./frontend/apps/admin
-      dockerfile: Dockerfile
+      context: ./frontend
+      dockerfile: ./apps/admin/Dockerfile
+      args:
+        - APP_PATH=apps/admin
     container_name: fs-admin-fe
     ports: ["3002:80"]
     environment:
@@ -418,5 +424,4 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
 

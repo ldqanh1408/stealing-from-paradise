@@ -5,13 +5,22 @@ FROM node:20-alpine as builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json ./
+COPY apps/customer/package.json apps/customer/package-lock.json ./
 
 # Install dependencies
 RUN npm ci --prefer-offline --no-audit
 
-# Copy source code
-COPY . .
+# Copy shared files
+COPY shared ./shared
+
+# Copy source code and config files
+COPY apps/customer/src ./src
+COPY apps/customer/vite.config.ts ./
+COPY apps/customer/tsconfig.json ./
+COPY apps/customer/tsconfig.app.json ./
+COPY apps/customer/tsconfig.node.json ./
+COPY apps/customer/eslint.config.js ./
+COPY apps/customer/index.html ./
 
 # Build the app
 RUN npm run build
@@ -20,7 +29,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/customer/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -34,4 +43,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
-

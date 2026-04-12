@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@shared/store/authStore';
 
-const LoginPage          = lazy(() => import('@/pages/LoginPage'));
-const RegisterPage       = lazy(() => import('@/pages/RegisterPage'));
+const LoginPage          = lazy(() => import('@shared/pages/LoginPage'));
+const RegisterPage       = lazy(() => import('@shared/pages/RegisterPage'));
 const ProductListPage    = lazy(() => import('@/pages/ProductListPage'));
 const CartPage           = lazy(() => import('@/pages/CartPage'));
 const CheckoutPage       = lazy(() => import('@/pages/CheckoutPage'));
@@ -39,4 +39,3 @@ export default function App() {
     </Suspense>
   );
 }
-

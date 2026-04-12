@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '@shared/store/authStore';
 
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
-const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
+const LoginPage = lazy(() => import('@shared/pages/LoginPage'));
+const RegisterPage = lazy(() => import('@shared/pages/RegisterPage'));
 const SellerDashboard = lazy(() => import('@/pages/SellerDashboard'));
 const ProductManagementPage = lazy(() => import('@/pages/ProductManagementPage'));
 const SellerOrdersPage = lazy(() => import('@/pages/SellerOrdersPage'));
@@ -22,8 +22,8 @@ export default function App() {
     <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
       <Routes>
         {/* Public */}
-        <Route path="/login"    element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login"    element={<LoginPage title="Cửa hàng" redirectTo="/dashboard" />} />
+        <Route path="/register" element={<RegisterPage title="Đăng ký Cửa hàng" redirectTo="/dashboard" />} />
 
         {/* Protected — SELLER */}
         <Route path="/dashboard"            element={<PrivateRoute role="SELLER"><SellerDashboard /></PrivateRoute>} />
@@ -37,4 +37,3 @@ export default function App() {
     </Suspense>
   );
 }
-
