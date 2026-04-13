@@ -16,9 +16,7 @@ COPY shared ./shared
 # Copy source code and config files
 COPY apps/admin/src ./src
 COPY apps/admin/vite.config.ts ./
-COPY apps/admin/tsconfig.json ./
-COPY apps/admin/tsconfig.app.json ./
-COPY apps/admin/tsconfig.node.json ./
+COPY apps/admin/tsconfig*.json ./
 COPY apps/admin/eslint.config.js ./
 COPY apps/admin/index.html ./
 

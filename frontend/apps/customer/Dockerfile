@@ -16,9 +16,7 @@ COPY shared ./shared
 # Copy source code and config files
 COPY apps/customer/src ./src
 COPY apps/customer/vite.config.ts ./
-COPY apps/customer/tsconfig.json ./
-COPY apps/customer/tsconfig.app.json ./
-COPY apps/customer/tsconfig.node.json ./
+COPY apps/customer/tsconfig*.json ./
 COPY apps/customer/eslint.config.js ./
 COPY apps/customer/index.html ./
 
