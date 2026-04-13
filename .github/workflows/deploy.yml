@@ -200,7 +200,7 @@ jobs:
           log_info "Step 7: Stopping current services..."
           
           if [ -f docker-compose.yml ]; then
-            docker-compose down || true
+            docker compose down || true
             log_success "Old services stopped"
           fi
           
@@ -258,9 +258,9 @@ jobs:
           log_success "All Docker images built successfully"
           
           # ====== STEP 9: START SERVICES ======
-          log_info "Step 9: Starting services with docker-compose..."
+          log_info "Step 9: Starting services with docker compose..."
           
-          docker-compose -f docker-compose.yml up -d
+          docker compose -f docker-compose.yml up -d
           
           log_success "Services started"
           
@@ -278,7 +278,7 @@ jobs:
           fi
           
           log_info "Running containers:"
-          docker-compose ps
+          docker compose ps
           
           echo ""
           echo "╔══════════════════════════════════════════════════════════════╗"
