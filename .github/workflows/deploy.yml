@@ -248,7 +248,7 @@ jobs:
               log_info "Building $app-app Docker image..."
               # Build from frontend root so Dockerfile can COPY apps/$app/**
               docker build -t flashsale_${app}_app:latest \
-                -f ./apps/$app/Dockerfile \
+                -f ./frontend/apps/$app/Dockerfile \
                 --build-arg APP_PATH=apps/$app \
                 ./frontend
               log_success "$app-app image built"
@@ -367,8 +367,3 @@ jobs:
             echo "  cd /opt/flashsale && docker-compose logs"
           fi
           echo ""
-
-
-
-
-
