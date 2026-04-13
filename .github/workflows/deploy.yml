@@ -91,14 +91,22 @@ jobs:
           # ====== STEP 1: INITIALIZE ======
           log_info "Step 1: Initializing deployment..."
           
-          if [ ! -d "$PROJECT_DIR" ]; then
-            log_error "Project directory does not exist at $PROJECT_DIR"
-            echo "Please run: git clone <repo> $PROJECT_DIR"
+          # Check if repo is directly in /opt/flashsale or in subfolder
+          if [ -d "$PROJECT_DIR/.git" ]; then
+            # Repo cloned correctly to /opt/flashsale
+            cd "$PROJECT_DIR"
+            log_success "Found repo at $PROJECT_DIR"
+          elif [ -d "$PROJECT_DIR/stealing-from-paradise/.git" ]; then
+            # Repo cloned into subfolder (stealing-from-paradise/)
+            PROJECT_DIR="$PROJECT_DIR/stealing-from-paradise"
+            cd "$PROJECT_DIR"
+            log_warning "Found repo in subfolder, using: $PROJECT_DIR"
+          else
+            log_error "Git repository not found at $PROJECT_DIR"
             exit 1
           fi
           
-          cd "$PROJECT_DIR"
-          log_success "Project directory ready"
+          log_success "Project directory ready: $PROJECT_DIR"
           
           # ====== STEP 2: GIT PULL ======
           log_info "Step 2: Pulling latest code from repository..."
