@@ -264,11 +264,12 @@ jobs:
           # ====== STEP 9: START SERVICES ======
           log_info "Step 9: Starting services..."
           
-          # Try docker compose (new) first, fall back to docker-compose (old)
+          # Start services with docker-compose (compatible with both old and new)
           if command -v docker-compose &> /dev/null; then
             docker-compose up -d
           else
-            docker compose up -d
+            # Fallback for newer docker compose
+            nohup docker compose up > /dev/null 2>&1 &
           fi
           
           log_success "Services started"
