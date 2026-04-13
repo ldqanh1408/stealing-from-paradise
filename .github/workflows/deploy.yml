@@ -290,8 +290,10 @@ jobs:
           log_info "Running containers:"
           if command -v docker-compose &> /dev/null; then
             docker-compose ps
-          else
+          elif docker compose ps > /dev/null 2>&1; then
             docker compose ps
+          else
+            log_warning "docker-compose not available, skipping ps command"
           fi
           
           echo ""
