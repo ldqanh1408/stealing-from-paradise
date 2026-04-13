@@ -186,8 +186,8 @@ services:
       - EUREKA_URI=${EUREKA_URI}
       - REDIS_HOST=${REDIS_HOST}
     depends_on:
-      redis: { condition: service_started }
-      discovery-service: { condition: service_started }
+      redis: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   identity-domain:
@@ -202,8 +202,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
-      postgres: { condition: service_started }
-      discovery-service: { condition: service_started }
+      postgres: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   product-domain:
@@ -223,10 +223,10 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
     depends_on:
-      mongo: { condition: service_started }
-      kafka: { condition: service_started }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
+      mongo: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   order-domain:
@@ -243,10 +243,10 @@ services:
       - KAFKA_SERVER=${KAFKA_SERVER}
       - AXON_SERVER=${AXON_SERVER}
     depends_on:
-      postgres: { condition: service_started }
-      kafka: { condition: service_started }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   payment-domain:
@@ -262,9 +262,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - AXON_SERVER=${AXON_SERVER}
     depends_on:
-      postgres: { condition: service_started }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
+      postgres: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   flashsale-service:
@@ -281,10 +281,10 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
-      postgres: { condition: service_started }
-      redis: { condition: service_started }
-      kafka: { condition: service_started }
-      discovery-service: { condition: service_started }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   search-service:
@@ -297,9 +297,9 @@ services:
       - ELASTIC_URI=http://elasticsearch:9200
       - KAFKA_SERVER=${KAFKA_SERVER}
     depends_on:
-      elasticsearch: { condition: service_started }
-      kafka: { condition: service_started }
-      discovery-service: { condition: service_started }
+      elasticsearch: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   notification-service:
@@ -316,10 +316,10 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - KAFKA_SERVER=${KAFKA_SERVER}
     depends_on:
-      mongo: { condition: service_started }
-      redis: { condition: service_started }
-      kafka: { condition: service_started }
-      discovery-service: { condition: service_started }
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   worker-service:
@@ -336,10 +336,10 @@ services:
       - KAFKA_SERVER=${KAFKA_SERVER}
       - AXON_SERVER=${AXON_SERVER}
     depends_on:
-      postgres: { condition: service_started }
-      kafka: { condition: service_started }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      axonserver: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
   cart-service:
@@ -352,7 +352,7 @@ services:
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     depends_on:
-      redis: { condition: service_started }
-      discovery-service: { condition: service_started }
+      redis: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
     networks: [flashsale-net]
 
