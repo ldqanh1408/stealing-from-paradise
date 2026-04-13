@@ -21,11 +21,6 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.flashsale</groupId>
-            <artifactId>order-api</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
 
         <!-- Spring Web để chạy độc lập -->
         <dependency>
