@@ -201,9 +201,9 @@ jobs:
           
           if [ -f docker-compose.yml ]; then
             if command -v docker-compose &> /dev/null; then
-              docker-compose down || true
+              docker-compose down -v --remove-orphans || true
             else
-              docker compose down || true
+              docker-compose down -v --remove-orphans || true
             fi
             log_success "Old services stopped"
           fi
