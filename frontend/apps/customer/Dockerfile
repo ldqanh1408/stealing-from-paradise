@@ -21,7 +21,7 @@ COPY apps/customer/eslint.config.js ./
 COPY apps/customer/index.html ./
 
 # Build the app
-RUN npm run build || vite build
+RUN npm run vite build 2>/dev/null || npm exec vite build
 
 # Stage 2: Production with Nginx
 FROM nginx:alpine
