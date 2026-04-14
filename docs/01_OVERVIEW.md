@@ -1033,15 +1033,50 @@ curl -X POST http://localhost:9200/products/_reindex
 
 ## 📚 Documentation Files
 
-| File | Content |
-|------|---------|
-| **README.md** | Quick start guide |
-| **BACKEND_GUIDE.md** | Backend architecture & services |
-| **FRONTEND_GUIDE.md** | Frontend structure & development |
-| **BUILD_AND_DOCKER_GUIDE.md** | Build & deployment commands |
-| **JAVA_SPRING_BOOT_CONFIG.md** | Java 25 & Spring Boot 4.0.4 config |
-| **AXON_EXPLANATION.md** | Axon Framework detailed guide |
-| **PROJECT_OVERVIEW.md** | This file - comprehensive overview |
+### Core Documentation
+
+| File | Purpose | Details |
+|------|---------|---------|
+| **README.md** | Quick start guide | Project overview, setup, quick links |
+| **PROJECT_OVERVIEW.md** | **START HERE** - Comprehensive guide | Architecture, tech stack, setup, deployment |
+| **DOCUMENTATION_INDEX.md** | Documentation navigation | Index of all docs, role-based guides |
+
+### Technical Documentation
+
+| File | Purpose | Details |
+|------|---------|---------|
+| **BACKEND_GUIDE.md** | Backend architecture & development | 11 services, Axon vs Traditional, setup |
+| **FRONTEND_GUIDE.md** | Frontend structure & development | 3 React apps, shared code, dev guide |
+| **JAVA_SPRING_BOOT_CONFIG.md** | Java 25 & Spring Boot 4.0.4 | Configuration, performance, deployment |
+| **AXON_EXPLANATION.md** | Axon Framework detailed guide | Event sourcing, CQRS, architecture |
+
+### Operations & Deployment
+
+| File | Purpose | Details |
+|------|---------|---------|
+| **BUILD_AND_DOCKER_GUIDE.md** | Build & deployment commands | Docker, health checks, scaling |
+| **DATA_RETENTION_POLICY_v4_rts.md** | Data retention & 22 cronjobs | Cleanup jobs, retention periods, SQL logic |
+
+### Business & Policies
+
+| File | Purpose | Details |
+|------|---------|---------|
+| **BUSINESS_DOC_v5_3_rts_unified.md** | Business logic & workflows (v5.3) | 9 workflows, 6 policies, trust score, refunds |
+| **SYSTEM_POLICY_v3_rts_unified.md** | System policies & configuration (v3.0) | Trust score, flash sale, seller, loyalty, refunds |
+
+### API & Architecture
+
+| File | Purpose | Details |
+|------|---------|---------|
+| **API_SPEC_v5_3_RTS.md** | Complete API specification (v5.3) | All endpoints, request/response, Kafka topics |
+| **erd.mermaid** | Entity-Relationship Diagram | Database schema visualization |
+
+### Summary
+
+- **Total Files**: 10 markdown docs + 1 ERD diagram
+- **Total Lines**: 7,000+ lines of documentation
+- **Coverage**: Architecture, backend, frontend, deployment, business logic, policies, API
+- **Latest Update**: Tracking number for refunds added to API & Business docs (2026-04-15)
 
 ---
 
@@ -1086,6 +1121,65 @@ git commit -m "docs(readme): update setup instructions"
 
 ---
 
+## 📖 Related Documentation
+
+### How to Find Documentation
+
+**For Quick Start**: Start with [README.md](../README.md)  
+**For Complete Overview**: Read [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)  
+**For Navigation Guide**: See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)
+
+### Documentation by Role
+
+| Role | Recommended Reading Order |
+|------|---------------------------|
+| **New Developer** | README.md → PROJECT_OVERVIEW.md → BACKEND/FRONTEND_GUIDE.md |
+| **Backend Dev** | BACKEND_GUIDE.md → JAVA_SPRING_BOOT_CONFIG.md → AXON_EXPLANATION.md |
+| **Frontend Dev** | FRONTEND_GUIDE.md → BUILD_AND_DOCKER_GUIDE.md |
+| **DevOps/Ops** | BUILD_AND_DOCKER_GUIDE.md → DATA_RETENTION_POLICY_v4_rts.md |
+| **Product Manager** | PROJECT_OVERVIEW.md → BUSINESS_DOC_v5_3_rts_unified.md |
+
+### Key Business & Technical References
+
+**Business Logic** (v5.3 RTS):
+- [BUSINESS_DOC_v5_3_rts_unified.md](BUSINESS_DOC_v5_3_rts_unified.md) - 9 workflows, 6 policies, Trust Score, Refunds (with tracking number v5.3)
+- [SYSTEM_POLICY_v3_rts_unified.md](SYSTEM_POLICY_v3_rts_unified.md) - System rules, configuration
+
+**Operations**:
+- [DATA_RETENTION_POLICY_v4_rts.md](DATA_RETENTION_POLICY_v4_rts.md) - 22 cronjobs, retention periods
+- [BUILD_AND_DOCKER_GUIDE.md](BUILD_AND_DOCKER_GUIDE.md) - Deployment procedures
+
+**API & Architecture**:
+- [API_SPEC_v5_3_RTS.md](API_SPEC_v5_3_RTS.md) - Complete API specification (includes tracking number for refunds)
+- [erd.mermaid](erd.mermaid) - Database schema diagram
+
+### Latest Updates (v5.3)
+
+✅ **Tracking Number for Refunds**
+- Admin can now input tracking number when approving refunds
+- Tracked in REFUND_ITEMS for audit trail
+- Notification includes tracking info for Buyer
+- See: BUSINESS_DOC_v5_3_rts_unified.md (Admin Duyệt Hoàn Tiền section)
+- See: API_SPEC_v5_3_RTS.md (POST /admin/refunds/{refundId}/approve)
+
+### Complete Documentation List
+
+**Documentation files in `/docs` directory:**
+
+1. [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - This file - Comprehensive overview
+2. [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) - Index & navigation guide
+3. [API_SPEC_v5_3_RTS.md](API_SPEC_v5_3_RTS.md) - Complete API specification (v5.3)
+4. [BUSINESS_DOC_v5_3_rts_unified.md](BUSINESS_DOC_v5_3_rts_unified.md) - Business logic & workflows (v5.3)
+5. [SYSTEM_POLICY_v3_rts_unified.md](SYSTEM_POLICY_v3_rts_unified.md) - System policies & configuration (v3.0)
+6. [DATA_RETENTION_POLICY_v4_rts.md](DATA_RETENTION_POLICY_v4_rts.md) - Data retention & 22 cronjobs (v4.0)
+7. [erd.mermaid](erd.mermaid) - Entity-Relationship Diagram
+
+**Additional documentation in project root:**
+- README.md - Quick start guide
+- Other technical guides - See README.md for complete list
+
+---
+
 ## 📞 Support & Contact
 
 - **Issues**: GitHub Issues
@@ -1107,10 +1201,14 @@ This project is a **production-ready e-commerce platform** with:
 - ✅ **Scalable architecture**: Microservices with service discovery
 - ✅ **Event-driven core**: Axon Framework for critical flows
 - ✅ **Multiple frontends**: Separate apps for customers, sellers, admins
-- ✅ **Advanced features**: Flash sales, Stripe payments, full-text search
+- ✅ **Advanced features**: Flash sales, Stripe payments, full-text search, tracking for refunds
 - ✅ **Modern stack**: Java 25, Spring Boot 4.0, React 19, Vite
 - ✅ **Containerized**: Docker & Docker Compose for easy deployment
-- ✅ **Well-documented**: Comprehensive guides and documentation
+- ✅ **Comprehensive documentation**: 13 files covering all aspects (7,000+ lines)
+
+**Documentation Last Updated**: 2026-04-15  
+**Latest Feature**: Tracking number for refunds (v5.3)  
+**Status**: Production-Ready ✅
 
 **Ready for production deployment! 🚀**
 
