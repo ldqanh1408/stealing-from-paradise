@@ -148,7 +148,7 @@ services:
       - AXONIQ_AXONSERVER_HOSTNAME=axonserver
       - server.servlet.context-path=/
     volumes:
-      - ./infra/axon-init:/docker-entrypoint-initdb.d
+      - ./backend/docker/axon-init:/docker-entrypoint-initdb.d
       - axon_data:/axonserver/data
     networks: [flashsale-net]
     healthcheck:

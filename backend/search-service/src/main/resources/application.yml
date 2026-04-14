@@ -1,6 +1,9 @@
 server:
-  port: 8086
+  port: 8091
 spring:
+  main:
+    allow-bean-definition-overriding: true  # Fix potential bean conflicts
+    lazy-initialization: false               # Initialize all beans at startup
   application:
     name: search-service
   profiles:
@@ -14,6 +17,10 @@ spring:
     default-property-inclusion: non_null
   elasticsearch:
     uris: ${ELASTIC_URI:http://localhost:9200}
+    socket-keep-alive: true
+    socket-timeout: 60000
+    repository:
+      type: none  # Don't auto-create indices on startup
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
     producer:

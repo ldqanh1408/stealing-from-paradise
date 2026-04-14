@@ -1,6 +1,8 @@
 server:
   port: 8080
 spring:
+  main:
+    allow-bean-definition-overriding: true  # Cho phép override bean definition (fix WebFlux + Security conflict)
   application:
     name: api-gateway
   cloud:

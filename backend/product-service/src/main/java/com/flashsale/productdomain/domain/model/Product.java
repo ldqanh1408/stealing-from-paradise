@@ -30,7 +30,7 @@ public class Product {
     private Long sellerId;
 
     @Indexed
-    private String categoryId;
+    private String categoryId;  // FK -> MG_CATEGORIES._id
 
     private String name;
     private String description;

@@ -40,7 +40,7 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- 5. SECURITY: Để Gateway check JWT ban đầu -->
+        <!-- 5. SECURITY (REACTIVE ONLY): Để Gateway check JWT ban đầu -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>

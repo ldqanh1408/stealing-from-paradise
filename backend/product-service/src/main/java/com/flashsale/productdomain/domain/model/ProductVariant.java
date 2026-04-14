@@ -1,4 +1,4 @@
-package com.flashsale.cartservice.domain.model;
+package com.flashsale.productdomain.domain.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,32 +7,31 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * MG_CARTS - Shopping cart container
- *
- * DESIGN DECISION:
- * - Cart stores metadata only (userId, totals, timestamps)
- * - Actual CartItems are stored in separate collection (cart_items)
- * - This allows independent query/update of cart items without loading entire cart
- * - Denormalized total_items field for fast cart preview queries
- */
-@Document(collection = "carts")
+@Document(collection = "product_variants")
+@CompoundIndex(name = "idx_product_sku", def = "{'product_id': 1, 'sku_code': 1}")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Cart {
+public class ProductVariant {
     @Id
     private String id;
 
-    @Indexed(unique = true)
-    private Long userId;
+    @Indexed
+    private String productId;  // FK -> MG_PRODUCTS._id
 
-    private Integer totalItems;  // Denormalized count for fast queries
+    @Indexed(unique = true)
+    private String skuCode;  // Unique SKU code (e.g., "SKU-IPHONE-BLACK-256GB")
+
+    private String tierName;  // Tier/variant name (e.g., "Black - 256GB")
+
+    private BigDecimal price;  // Selling price
 
     @CreatedDate
     private LocalDateTime createdAt;
