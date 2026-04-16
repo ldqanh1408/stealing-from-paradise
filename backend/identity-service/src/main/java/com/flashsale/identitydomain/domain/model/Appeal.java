@@ -34,7 +34,7 @@ public class Appeal {
     private String evidenceUrls;
 
     @Column(nullable = false)
-    private String status = "PENDING";  // PENDING | APPROVED | REJECTED
+    private String status = "PENDING";
 
     @Column(name = "reviewed_by")
     private Long reviewedBy;
@@ -42,9 +42,10 @@ public class Appeal {
     @Column(name = "admin_note", columnDefinition = "text")
     private String adminNote;
 
+    @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

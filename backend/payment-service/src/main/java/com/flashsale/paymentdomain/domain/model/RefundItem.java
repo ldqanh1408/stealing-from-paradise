@@ -28,16 +28,22 @@ public class RefundItem {
     @Column(nullable = false)
     private Integer quantity;
 
-    @Column(name = "refund_amount", nullable = false)
+    @Column(name = "refund_amount")
     private BigDecimal refundAmount;
 
+    @Column(name = "item_reason", columnDefinition = "TEXT")
     private String itemReason;
-    private String status = "PENDING";  // PENDING | RETURNED | COMPLETED
+
+    @Column(nullable = false)
+    private String status = "PENDING";
+
+    @Column(name = "return_tracking_number")
     private String returnTrackingNumber;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(name = "return_evidence_images", columnDefinition = "jsonb")
     private String returnEvidenceImages;
 
+    @Column(name = "returned_at")
     private LocalDateTime returnedAt;
 }
 

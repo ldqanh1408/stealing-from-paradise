@@ -29,13 +29,13 @@ public class FailedEvent {
     @Column(name = "error_reason", columnDefinition = "text")
     private String errorReason;
 
-    @Column(name = "retry_count", nullable = false)
+    @Column(name = "retry_count")
     private Integer retryCount = 0;
 
     @Column(nullable = false)
-    private String status = "PENDING";  // PENDING | RESOLVED | ARCHIVED
+    private String status = "PENDING";
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

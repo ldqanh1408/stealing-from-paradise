@@ -9,7 +9,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "fs_items")
+@Table(name = "fs_items", indexes = {
+    @Index(columnList = "session_id")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,7 +24,7 @@ public class FlashSaleItem {
     @Column(name = "session_id", nullable = false)
     private Long sessionId;
 
-    @Column(nullable = false)
+    @Column(name = "sku_code", nullable = false)
     private String skuCode;
 
     @Column(name = "flash_price", nullable = false)
@@ -31,19 +33,19 @@ public class FlashSaleItem {
     @Column(name = "flash_stock", nullable = false)
     private Integer flashStock;
 
-    @Column(name = "limit_per_user", nullable = false)
+    @Column(name = "limit_per_user")
     private Integer limitPerUser = 1;
 
-    @Column(name = "sold_qty", nullable = false)
+    @Column(name = "sold_qty")
     private Integer soldQty = 0;
 
     @Column(nullable = false)
-    private String status = "PENDING";  // PENDING | APPROVED | REJECTED | ONGOING | ENDED
+    private String status = "PENDING";
 
     @Version
     private Integer version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

@@ -3,13 +3,17 @@ package com.flashsale.identitydomain.controller;
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.AuthResponse;
 import com.flashsale.commonlib.dto.LoginRequest;
+import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.identitydomain.domain.model.User;
+import com.flashsale.identitydomain.domain.repository.RoleRepository;
 import com.flashsale.identitydomain.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final RoleRepository roleRepository;
 
     @Value("${jwt.expiration:3600}")
     private long accessTokenExpiration;
@@ -70,12 +75,17 @@ public class AuthController {
                     registerRequest.getPassword()
             );
 
+            // Fetch role from roles table using user ID
+            String roleName = roleRepository.findByUserId(newUser.getId())
+                    .map(role -> role.getRoleName())
+                    .orElse("BUYER"); // Default to BUYER if no role found
+
             // Generate tokens
             AuthResponse authResponse = AuthResponse.builder()
                     .userId(newUser.getId())
                     .username(newUser.getUsername())
                     .email(newUser.getEmail())
-                    .role(newUser.getRole() != null ? newUser.getRole() : "BUYER")
+                    .role(roleName)
                     .expiresIn(accessTokenExpiration)
                     .build();
 
@@ -92,13 +102,22 @@ public class AuthController {
 
     /**
      * Refresh access token using refresh token
+     * Can provide refresh token via:
+     * 1. Authorization header: "Bearer <refreshToken>"
+     * 2. X-Refresh-Token header
      */
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-Refresh-Token", required = false) String refreshTokenHeader) {
         log.info("Token refresh requested");
         try {
-            String refreshToken = extractTokenFromHeader(authHeader);
+            // Try to get refresh token from X-Refresh-Token header first, then Authorization header
+            String refreshToken = refreshTokenHeader;
+            if (refreshToken == null || refreshToken.isBlank()) {
+                refreshToken = extractTokenFromHeader(authHeader);
+            }
+
             if (refreshToken == null) {
                 return ResponseEntity
                         .status(HttpStatus.UNAUTHORIZED)
@@ -117,17 +136,22 @@ public class AuthController {
 
     /**
      * Logout endpoint
+     * Requires authentication - @PreAuthorize checks if user is authenticated
+     * API Gateway sets SecurityContext via JwtTokenDecoderFilter
+     * @AuthenticationPrincipal injects the authenticated UserDetailsImpl
      */
     @PostMapping("/logout")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        log.info("Logout requested");
+            @AuthenticationPrincipal UserDetailsImpl user,
+            @RequestHeader(value = "X-Access-Token", required = false) String accessToken) {
+        log.info("Logout requested for userId: {}", user.getId());
         try {
-            String token = extractTokenFromHeader(authHeader);
-            if (token != null) {
-                // In production, add token to blacklist
-                authService.logout(token);
+            // Blacklist the access token if provided
+            if (accessToken != null && !accessToken.isBlank()) {
+                authService.logout(accessToken);
             }
+
             return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully"));
         } catch (Exception e) {
             log.warn("Logout failed: {}", e.getMessage());

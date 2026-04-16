@@ -10,7 +10,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", indexes = {
+    @Index(columnList = "user_id"),
+    @Index(columnList = "seller_id"),
+    @Index(columnList = "parent_order_id"),
+    @Index(columnList = "status")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,38 +28,46 @@ public class Order {
     @Column(name = "parent_order_id", nullable = false)
     private Long parentOrderId;
 
-    @Column(nullable = false)
+    @Column(name = "seller_id", nullable = false)
     private Long sellerId;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "order_code", unique = true, nullable = false)
     private String orderCode;
 
-    @Column(nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
+    @Column(name = "total_amt", nullable = false)
     private BigDecimal totalAmt;
 
-    @Column(nullable = false)
+    @Column(name = "final_amt", nullable = false)
     private BigDecimal finalAmt;
 
     @Column(nullable = false)
-    private String status = "PENDING";  // PENDING | PAID | SHIPPED | DELIVERED | CANCELLED
+    private String status = "PENDING";
 
+    @Column(name = "cancelled_by")
     private String cancelledBy;
+
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
+
+    @Column(name = "is_flash_sale")
     private Boolean isFlashSale = false;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(name = "shipping_address", columnDefinition = "jsonb")
     private String shippingAddress;
 
+    @Column(name = "tracking_number")
     private String trackingNumber;
+
+    @Column(name = "shipping_deadline")
     private LocalDateTime shippingDeadline;
 
     @Version
     private Integer version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

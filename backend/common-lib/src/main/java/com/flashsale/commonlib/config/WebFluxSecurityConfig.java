@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -17,6 +18,7 @@ import org.springframework.web.reactive.DispatcherHandler;
  * ✅ Automatically disables security headers
  * ✅ Disable CSRF, HTTP Basic
  * ✅ Stateless reactive setup
+ * ✅ Enable method-level security (@PreAuthorize, @PostAuthorize, etc.)
  *
  * Usage: Add @EnableWebFluxSecurity to service config
  */
@@ -24,6 +26,7 @@ import org.springframework.web.reactive.DispatcherHandler;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
 @ConditionalOnClass(DispatcherHandler.class)
 @EnableWebFluxSecurity
+@EnableMethodSecurity  // Enable @PreAuthorize, @PostAuthorize, @Secured, @RolesAllowed
 @Slf4j
 public class WebFluxSecurityConfig {
 

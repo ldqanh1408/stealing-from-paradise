@@ -9,10 +9,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "point_transactions", indexes = {
-    @Index(name = "idx_pt_user_id", columnList = "user_id"),
-    @Index(name = "idx_pt_order_id", columnList = "order_id")
+    @Index(columnList = "user_id"),
+    @Index(columnList = "order_id")
 }, uniqueConstraints = {
-    @UniqueConstraint(name = "uq_point_txn_order_earned", columnNames = {"order_id", "type"})
+    @UniqueConstraint(columnNames = {"order_id", "type"})
 })
 @Data
 @Builder
@@ -26,17 +26,34 @@ public class PointTransaction {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Column(name = "order_id")
     private Long orderId;
+
+    @Column(name = "order_code")
     private String orderCode;
-    private Integer delta;  // có thể âm (refund)
+
+    @Column(nullable = false)
+    private Integer delta;
+
+    @Column(name = "remaining_delta")
     private Integer remainingDelta;
-    private String type;  // EARNED | USED | EXPIRED | REFUNDED
-    private String status = "PENDING";  // PENDING | CONFIRMED
+
+    @Column(nullable = false)
+    private String type;
+
+    @Column(nullable = false)
+    private String status = "PENDING";
+
+    @Column(name = "balance_after")
     private Integer balanceAfter;
+
+    @Column(columnDefinition = "TEXT")
     private String note;
+
+    @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

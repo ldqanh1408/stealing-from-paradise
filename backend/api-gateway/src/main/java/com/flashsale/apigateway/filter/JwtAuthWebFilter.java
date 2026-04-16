@@ -7,6 +7,7 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import com.flashsale.commonlib.security.JwtUtils;
+import com.flashsale.apigateway.service.TokenBlacklistCheckService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 public class JwtAuthWebFilter implements WebFilter {
 
     private final JwtUtils jwtUtils;
+    private final TokenBlacklistCheckService tokenBlacklistCheckService;
 
     /**
      * Filter logic: Validate JWT and add user info to headers
@@ -59,6 +61,11 @@ public class JwtAuthWebFilter implements WebFilter {
                 return onError(exchange, "AUTH_004", "Token không hợp lệ", HttpStatus.UNAUTHORIZED);
             }
 
+            // Check if token is blacklisted
+            if (tokenBlacklistCheckService.isTokenBlacklisted(token)) {
+                return onError(exchange, "AUTH_005", "Token đã bị hủy (logout)", HttpStatus.UNAUTHORIZED);
+            }
+
             // API Gateway DECODE token - extract user info
             String userId = jwtUtils.extractUserId(token);
             String email = jwtUtils.extractEmail(token);
@@ -72,6 +79,7 @@ public class JwtAuthWebFilter implements WebFilter {
                 .header("X-User-Email", email != null ? email : "")
                 .header("X-User-Role", role != null ? role : "")
                 .header("X-Token-Jti", jti != null ? jti : "")
+                .header("X-Access-Token", token)  // Forward the access token for logout/blacklist
                 .build();
 
             return chain.filter(exchange.mutate().request(mutated).build());

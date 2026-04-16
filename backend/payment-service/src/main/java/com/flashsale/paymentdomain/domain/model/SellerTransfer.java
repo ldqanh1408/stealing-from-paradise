@@ -19,19 +19,22 @@ public class SellerTransfer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "order_id", nullable = false)
     private Long orderId;
 
-    @Column(nullable = false)
+    @Column(name = "seller_id", nullable = false)
     private Long sellerId;
 
     @Column(name = "transfer_amount", nullable = false)
     private BigDecimal transferAmount;
 
+    @Column(name = "stripe_transfer_id")
     private String stripeTransferId;
-    private String status = "PENDING";  // PENDING | PROCESSING | COMPLETED | FAILED
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(nullable = false)
+    private String status = "PENDING";
+
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

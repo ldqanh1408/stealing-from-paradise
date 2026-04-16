@@ -18,25 +18,25 @@ public class LoyaltyAccount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "user_id", unique = true, nullable = false)
     private Long userId;
 
-    @Column(name = "total_earned_points", nullable = false)
+    @Column(name = "total_earned_points")
     private Integer totalEarnedPoints = 0;
 
-    @Column(name = "available_points", nullable = false)
+    @Column(name = "available_points")
     private Integer availablePoints = 0;
 
-    @Column(name = "used_points", nullable = false)
+    @Column(name = "used_points")
     private Integer usedPoints = 0;
 
-    @Column(name = "expired_points", nullable = false)
+    @Column(name = "expired_points")
     private Integer expiredPoints = 0;
 
     @Version
     private Integer version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

@@ -1,11 +1,14 @@
 package com.flashsale.orderdomain.controller;
 
+import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.orderdomain.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import com.flashsale.commonlib.dto.ApiResponse;
-import com.flashsale.orderdomain.service.OrderService;
 
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -16,33 +19,37 @@ public class OrderController {
     private final OrderService orderService;
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> getMyOrders(
-            @RequestHeader("X-User-Id") String userId) {
-        log.info("Getting orders for user: {}", userId);
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        log.info("Getting orders for user: {}", user.getId());
         return ResponseEntity.ok(ApiResponse.success("orders list"));
     }
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> createOrder(
-            @RequestHeader("X-User-Id") String userId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @RequestBody String orderRequest) {
-        log.info("Creating order for user: {}", userId);
+        log.info("Creating order for user: {}", user.getId());
         return ResponseEntity.ok(ApiResponse.success("order created"));
     }
 
     @GetMapping("/{orderId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> getOrder(
             @PathVariable String orderId,
-            @RequestHeader("X-User-Id") String userId) {
-        log.info("Getting order: {}", orderId);
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        log.info("Getting order: {} for user: {}", orderId, user.getId());
         return ResponseEntity.ok(ApiResponse.success("order detail"));
     }
 
     @PostMapping("/{orderId}/cancel")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> cancelOrder(
             @PathVariable String orderId,
-            @RequestHeader("X-User-Id") String userId) {
-        log.info("Cancelling order: {}", orderId);
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        log.info("Cancelling order: {} for user: {}", orderId, user.getId());
         return ResponseEntity.ok(ApiResponse.success("order cancelled"));
     }
 }
