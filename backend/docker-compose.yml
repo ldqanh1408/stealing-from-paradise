@@ -229,7 +229,7 @@ services:
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
-  order-domain:
+  order-service:
     build:
       context: ./backend/order-service
       dockerfile: Dockerfile
@@ -249,7 +249,7 @@ services:
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
-  payment-domain:
+  payment-service:
     build:
       context: ./backend/payment-service
       dockerfile: Dockerfile

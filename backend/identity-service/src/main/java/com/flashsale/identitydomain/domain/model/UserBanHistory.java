@@ -5,17 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "trust_score_logs", indexes = {
-    @Index(columnList = "user_id")
-})
+@Table(name = "user_ban_history")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TrustScoreLog {
+public class UserBanHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,17 +22,20 @@ public class TrustScoreLog {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
-    private Integer delta;
+    @Column(name = "action", nullable = false)
+    private String action; // LOCKED | UNLOCKED
 
-    @Column(name = "event_code")
-    private String eventCode;
-
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "reason", columnDefinition = "TEXT")
     private String reason;
 
-    @Column(name = "changed_by")
-    private String changedBy;
+    @Column(name = "performed_by", nullable = false)
+    private String performedBy; // ADMIN | SYSTEM
+
+    @Column(name = "admin_id")
+    private Long adminId;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

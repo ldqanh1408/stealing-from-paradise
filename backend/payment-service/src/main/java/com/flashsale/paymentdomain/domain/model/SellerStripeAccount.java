@@ -18,27 +18,28 @@ public class SellerStripeAccount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "seller_id", unique = true, nullable = false)
     private Long sellerId;
 
-    @Column(nullable = false)
+    @Column(name = "stripe_account_id", nullable = false)
     private String stripeAccountId;
 
-    @Column(nullable = false)
-    private String accountStatus = "PENDING";  // PENDING | ACTIVE | RESTRICTED | INACTIVE
+    @Column(name = "account_status", nullable = false)
+    private String accountStatus = "PENDING";
 
-    @Column(nullable = false)
+    @Column(name = "charges_enabled", nullable = false)
     private Boolean chargesEnabled = false;
 
-    @Column(nullable = false)
+    @Column(name = "payouts_enabled", nullable = false)
     private Boolean payoutsEnabled = false;
 
-    @Column(nullable = false)
+    @Column(name = "details_submitted", nullable = false)
     private Boolean detailsSubmitted = false;
 
+    @Column(name = "onboarding_url", columnDefinition = "TEXT")
     private String onboardingUrl;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

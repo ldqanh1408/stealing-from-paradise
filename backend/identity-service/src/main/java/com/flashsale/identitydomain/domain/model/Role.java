@@ -5,17 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "trust_score_logs", indexes = {
-    @Index(columnList = "user_id")
-})
+@Table(name = "roles")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TrustScoreLog {
+public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,24 +22,24 @@ public class TrustScoreLog {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
-    private Integer delta;
-
-    @Column(name = "event_code")
-    private String eventCode;
-
-    @Column(columnDefinition = "TEXT")
-    private String reason;
-
-    @Column(name = "changed_by")
-    private String changedBy;
+    @Column(name = "role_name", nullable = false)
+    private String roleName; // BUYER | SELLER | ADMIN
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }
 

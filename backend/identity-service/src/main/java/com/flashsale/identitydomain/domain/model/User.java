@@ -3,6 +3,7 @@ package com.flashsale.identitydomain.domain.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,8 +16,8 @@ import java.util.Collections;
 
 @Entity
 @Table(name = "users", indexes = {
-    @Index(name = "idx_email", columnList = "email", unique = true),
-    @Index(name = "idx_username", columnList = "username", unique = true)
+    @Index(columnList = "email", unique = true),
+    @Index(columnList = "username", unique = true)
 })
 @Data
 @Builder
@@ -35,23 +36,44 @@ public class User implements UserDetails {
 
     private String phone;
     private String password;
+    @Column(name = "full_name")
     private String fullName;
+    @Column(name = "avatar_url")
     private String avatarUrl;
-    private String status;  // ACTIVE | SUSPENDED | LOCKED
-    private String role;    // BUYER | SELLER | ADMIN (default: BUYER)
+    private String status;
+    @Column(name = "trust_score")
     private Integer trustScore = 80;
+    @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
+    @Column(name = "lock_reason")
     private String lockReason;
-    private Integer appealCount = 0;
-    private Boolean productPostingSuspended = false;
+     @Column(name = "appeal_count")
+     @Default
+     private Integer appealCount = 0;
+     @Column(name = "product_posting_suspended", nullable = false)
+     @Default
+     private Boolean productPostingSuspended = false;
+
+    @Column(name = "last_cancellation_penalty_at")
+    private LocalDateTime lastCancellationPenaltyAt;
+
+    @Column(name = "last_warning_at")
+    private LocalDateTime lastWarningAt;
+
+    @Column(name = "last_posting_suspension_at")
+    private LocalDateTime lastPostingSuspensionAt;
+
+    @Column(name = "reward_10_orders_accumulated")
+    @Default
+    private Integer reward10OrdersAccumulated = 0;
 
     @Version
     private Integer version;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @PrePersist
@@ -67,7 +89,7 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singleton(new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "BUYER")));
+        return Collections.singleton(new SimpleGrantedAuthority("ROLE_BUYER"));
     }
 
     @Override
@@ -100,4 +122,3 @@ public class User implements UserDetails {
         return "ACTIVE".equals(this.status);
     }
 }
-

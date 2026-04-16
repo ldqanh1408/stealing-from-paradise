@@ -26,7 +26,7 @@ public class FlashSaleReminder {
     @Column(name = "session_id", nullable = false)
     private Long sessionId;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

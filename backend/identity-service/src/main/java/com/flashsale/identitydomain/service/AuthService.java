@@ -5,6 +5,7 @@ import com.flashsale.commonlib.dto.LoginRequest;
 import com.flashsale.commonlib.security.JwtUtils;
 import com.flashsale.identitydomain.domain.model.User;
 import com.flashsale.identitydomain.domain.repository.UserRepository;
+import com.flashsale.identitydomain.domain.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,8 +19,10 @@ import java.util.Optional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Value("${jwt.expiration:3600}")
     private long accessTokenExpiration;
@@ -50,7 +53,6 @@ public class AuthService {
                 .email(email)
                 .password(hashedPassword)
                 .status("ACTIVE")
-                .role("BUYER")
                 .trustScore(80)
                 .build();
 
@@ -72,10 +74,15 @@ public class AuthService {
             throw new RuntimeException("Invalid username or password");
         }
 
+        // Fetch role from roles table using user ID
+        String roleName = roleRepository.findByUserId(user.getId())
+                .map(role -> role.getRoleName())
+                .orElse("BUYER"); // Default to BUYER if no role found
+
         String accessToken = jwtUtils.generateAccessToken(
                 user.getId().toString(),
                 user.getEmail(),
-                user.getRole() != null ? user.getRole() : "BUYER"
+                roleName
         );
 
         String refreshToken = jwtUtils.generateRefreshToken(user.getId().toString());
@@ -88,7 +95,7 @@ public class AuthService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .role(user.getRole() != null ? user.getRole() : "BUYER")
+                .role(roleName)
                 .expiresIn(accessTokenExpiration)
                 .build();
     }
@@ -112,10 +119,15 @@ public class AuthService {
         User user = userRepository.findById(Long.parseLong(userId))
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Fetch role from roles table using user ID
+        String roleName = roleRepository.findByUserId(user.getId())
+                .map(role -> role.getRoleName())
+                .orElse("BUYER"); // Default to BUYER if no role found
+
         String newAccessToken = jwtUtils.generateAccessToken(
                 user.getId().toString(),
                 user.getEmail(),
-                user.getRole() != null ? user.getRole() : "BUYER"
+                roleName
         );
 
         log.info("Access token refreshed for user: {}", user.getUsername());
@@ -126,13 +138,17 @@ public class AuthService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .role(user.getRole() != null ? user.getRole() : "BUYER")
+                .role(roleName)
                 .expiresIn(accessTokenExpiration)
                 .build();
     }
 
-    public void logout(String userId) {
-        log.info("User logged out: {}", userId);
+    public void logout(String token) {
+        if (token != null && !token.isEmpty()) {
+            tokenBlacklistService.blacklistToken(token);
+            String userId = jwtUtils.extractUserId(token);
+            log.info("User logged out - userId: {}", userId);
+        }
     }
 
     public User getUserById(Long userId) {

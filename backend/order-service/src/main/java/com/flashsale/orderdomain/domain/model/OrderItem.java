@@ -9,7 +9,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "order_items")
+@Table(name = "order_items", indexes = {
+    @Index(columnList = "order_id")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,18 +25,31 @@ public class OrderItem {
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    @Column(nullable = false)
+    @Column(name = "sku_code", nullable = false)
     private String skuCode;
 
+    @Column(name = "variant_id")
     private String variantId;
+
+    @Column(name = "name_snapshot")
     private String nameSnapshot;
+
+    @Column(name = "image_snapshot")
     private String imageSnapshot;
+
+    @Column(name = "price_snapshot")
     private BigDecimal priceSnapshot;
+
+    @Column(nullable = false)
     private Integer quantity;
+
+    @Column(name = "refunded_quantity")
     private Integer refundedQuantity = 0;
+
+    @Column(name = "fs_item_id")
     private Long fsItemId;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

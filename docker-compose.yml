@@ -190,23 +190,23 @@ services:
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
-  identity-domain:
-    build:
-      context: ./backend/identity-service
-      dockerfile: Dockerfile
-    container_name: fs-identity
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_IDENTITY=${DB_NAME_IDENTITY}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    depends_on:
-      postgres: { condition: service_started }
-      discovery-service: { condition: service_started }
-    networks: [flashsale-net]
+  identity-service:
+     build:
+       context: ./backend/identity-service
+       dockerfile: Dockerfile
+     container_name: fs-identity
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - DB_HOST=${DB_HOST}
+       - DB_NAME_IDENTITY=${DB_NAME_IDENTITY}
+       - POSTGRES_USER=${POSTGRES_USER}
+       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+     depends_on:
+       postgres: { condition: service_healthy }
+       discovery-service: { condition: service_started }
+     networks: [flashsale-net]
 
-  product-domain:
+  product-service:
     build:
       context: ./backend/product-service
       dockerfile: Dockerfile
@@ -229,65 +229,65 @@ services:
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
-  order-domain:
-    build:
-      context: ./backend/order-service
-      dockerfile: Dockerfile
-    container_name: fs-order
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_ORDER=${DB_NAME_ORDER}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
-    depends_on:
-      postgres: { condition: service_started }
-      kafka: { condition: service_started }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
-    networks: [flashsale-net]
+  order-service:
+     build:
+       context: ./backend/order-service
+       dockerfile: Dockerfile
+     container_name: fs-order
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - DB_HOST=${DB_HOST}
+       - DB_NAME_ORDER=${DB_NAME_ORDER}
+       - POSTGRES_USER=${POSTGRES_USER}
+       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+       - KAFKA_SERVER=${KAFKA_SERVER}
+       - AXON_SERVER=${AXON_SERVER}
+     depends_on:
+       postgres: { condition: service_healthy }
+       kafka: { condition: service_started }
+       axonserver: { condition: service_started }
+       discovery-service: { condition: service_started }
+     networks: [flashsale-net]
 
   payment-domain:
-    build:
-      context: ./backend/payment-service
-      dockerfile: Dockerfile
-    container_name: fs-payment
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_PAYMENT=${DB_NAME_PAYMENT}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - AXON_SERVER=${AXON_SERVER}
-    depends_on:
-      postgres: { condition: service_started }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
-    networks: [flashsale-net]
+     build:
+       context: ./backend/payment-service
+       dockerfile: Dockerfile
+     container_name: fs-payment
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - DB_HOST=${DB_HOST}
+       - DB_NAME_PAYMENT=${DB_NAME_PAYMENT}
+       - POSTGRES_USER=${POSTGRES_USER}
+       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+       - AXON_SERVER=${AXON_SERVER}
+     depends_on:
+       postgres: { condition: service_healthy }
+       axonserver: { condition: service_started }
+       discovery-service: { condition: service_started }
+     networks: [flashsale-net]
 
   flashsale-service:
-    build:
-      context: ./backend/flashsale-service
-      dockerfile: Dockerfile
-    container_name: fs-flashsale
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - REDIS_HOST=${REDIS_HOST}
-      - KAFKA_SERVER=${KAFKA_SERVER}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_FLASHSALE=${DB_NAME_FLASHSALE}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - AXON_SERVER=${AXON_SERVER}
-    depends_on:
-      postgres: { condition: service_started }
-      redis: { condition: service_started }
-      kafka: { condition: service_started }
-      discovery-service: { condition: service_started }
-      axonserver: { condition: service_started }
-    networks: [flashsale-net]
+     build:
+       context: ./backend/flashsale-service
+       dockerfile: Dockerfile
+     container_name: fs-flashsale
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - REDIS_HOST=${REDIS_HOST}
+       - KAFKA_SERVER=${KAFKA_SERVER}
+       - DB_HOST=${DB_HOST}
+       - DB_NAME_FLASHSALE=${DB_NAME_FLASHSALE}
+       - POSTGRES_USER=${POSTGRES_USER}
+       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+       - AXON_SERVER=${AXON_SERVER}
+     depends_on:
+       postgres: { condition: service_healthy }
+       redis: { condition: service_started }
+       kafka: { condition: service_started }
+       discovery-service: { condition: service_started }
+       axonserver: { condition: service_started }
+     networks: [flashsale-net]
 
   search-service:
     build:
@@ -325,24 +325,24 @@ services:
     networks: [flashsale-net]
 
   worker-service:
-    build:
-      context: ./backend/worker-service
-      dockerfile: Dockerfile
-    container_name: fs-worker
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME_WORKER=${DB_NAME_WORKER}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
-    depends_on:
-      postgres: { condition: service_started }
-      kafka: { condition: service_started }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
-    networks: [flashsale-net]
+     build:
+       context: ./backend/worker-service
+       dockerfile: Dockerfile
+     container_name: fs-worker
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - DB_HOST=${DB_HOST}
+       - DB_NAME_WORKER=${DB_NAME_WORKER}
+       - POSTGRES_USER=${POSTGRES_USER}
+       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+       - KAFKA_SERVER=${KAFKA_SERVER}
+       - AXON_SERVER=${AXON_SERVER}
+     depends_on:
+       postgres: { condition: service_healthy }
+       kafka: { condition: service_started }
+       axonserver: { condition: service_started }
+       discovery-service: { condition: service_started }
+     networks: [flashsale-net]
 
   cart-service:
     build:

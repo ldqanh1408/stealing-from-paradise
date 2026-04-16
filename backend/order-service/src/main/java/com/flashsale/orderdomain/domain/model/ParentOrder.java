@@ -1,4 +1,4 @@
-package com.flashsale.flashsaleservice.domain.model;
+package com.flashsale.orderdomain.domain.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -6,39 +6,42 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
-@Table(name = "fs_sessions")
+@Table(name = "parent_orders")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FlashSaleSession {
+public class ParentOrder {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String name;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    @Column(name = "start_time", nullable = false)
-    private LocalDateTime startTime;
+    @Column(name = "total_amt", nullable = false)
+    private BigDecimal totalAmt;
 
-    @Column(name = "end_time", nullable = false)
-    private LocalDateTime endTime;
+    @Column(name = "loyalty_discount")
+    private BigDecimal loyaltyDiscount = BigDecimal.ZERO;
 
-    @Column(nullable = false)
-    private String status = "UPCOMING";
-
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    @Column(name = "final_amt", nullable = false)
+    private BigDecimal finalAmt;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "parent_order_id")
+    private List<Order> orders;
 
     @PrePersist
     protected void onCreate() {

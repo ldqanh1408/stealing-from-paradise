@@ -1,11 +1,14 @@
 package com.flashsale.paymentdomain.controller;
 
+import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.paymentdomain.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import com.flashsale.commonlib.dto.ApiResponse;
-import com.flashsale.paymentdomain.service.PaymentService;
 
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -16,19 +19,21 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping("/create-intent")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> createPaymentIntent(
-            @RequestHeader("X-User-Id") String userId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @RequestBody String request) {
-        log.info("Creating payment intent for user: {}", userId);
+        log.info("Creating payment intent for user: {}", user.getId());
         // TODO: Call Stripe API to create PaymentIntent
         return ResponseEntity.ok(ApiResponse.success("{\"clientSecret\": \"pi_xxx\"}"));
     }
 
     @GetMapping("/{paymentId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> getPayment(
             @PathVariable String paymentId,
-            @RequestHeader("X-User-Id") String userId) {
-        log.info("Getting payment: {}", paymentId);
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        log.info("Getting payment: {} for user: {}", paymentId, user.getId());
         return ResponseEntity.ok(ApiResponse.success("payment details"));
     }
 

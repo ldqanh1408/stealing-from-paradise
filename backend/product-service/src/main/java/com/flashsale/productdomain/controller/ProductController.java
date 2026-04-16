@@ -1,11 +1,14 @@
 package com.flashsale.productdomain.controller;
 
+import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.productdomain.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import com.flashsale.commonlib.dto.ApiResponse;
-import com.flashsale.productdomain.service.ProductService;
 
 @RestController
 @RequestMapping("/api/v1/products")
@@ -31,19 +34,21 @@ public class ProductController {
     }
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> createProduct(
-            @RequestHeader("X-User-Id") String userId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @RequestBody String productRequest) {
-        log.info("Creating product for seller: {}", userId);
+        log.info("Creating product for seller: {}", user.getId());
         return ResponseEntity.ok(ApiResponse.success("product created"));
     }
 
     @PutMapping("/{productId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<String>> updateProduct(
             @PathVariable String productId,
-            @RequestHeader("X-User-Id") String userId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @RequestBody String productRequest) {
-        log.info("Updating product: {}", productId);
+        log.info("Updating product: {} for seller: {}", productId, user.getId());
         return ResponseEntity.ok(ApiResponse.success("product updated"));
     }
 }

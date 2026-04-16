@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -15,17 +16,19 @@ import org.springframework.web.servlet.DispatcherServlet;
 
 /**
  * Common Security Configuration for MVC Services
- * 
+ *
  * ✅ Automatically disables security headers
  * ✅ Disable CSRF, Form Login, HTTP Basic
  * ✅ Stateless session management
- * 
+ * ✅ Enable method-level security (@PreAuthorize, @PostAuthorize, etc.)
+ *
  * Usage: Add @EnableWebSecurity to service config
  */
 @Configuration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass({DispatcherServlet.class, SecurityFilterChain.class})
 @EnableWebSecurity
+@EnableMethodSecurity  // Enable @PreAuthorize, @PostAuthorize, @Secured, @RolesAllowed
 @Slf4j
 public class MvcSecurityConfig {
 

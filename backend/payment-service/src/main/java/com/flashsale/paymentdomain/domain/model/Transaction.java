@@ -9,7 +9,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions", indexes = {
+    @Index(columnList = "parent_order_id")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -28,18 +30,28 @@ public class Transaction {
     @Column(nullable = false)
     private String method = "STRIPE";
 
+    @Column(name = "trans_ref")
     private String transRef;
-    private String stripeTransferId;
-    private BigDecimal applicationFeeAmount;
-    private String stripeConnectMode;
-    private String status;  // PENDING | SUCCESS | FAILED | REFUNDED
 
-    @Column(columnDefinition = "jsonb")
+    @Column(name = "stripe_transfer_id")
+    private String stripeTransferId;
+
+    @Column(name = "application_fee_amount")
+    private BigDecimal applicationFeeAmount;
+
+    @Column(name = "stripe_connect_mode")
+    private String stripeConnectMode;
+
+    @Column(nullable = false)
+    private String status;
+
+    @Column(name = "raw_response", columnDefinition = "jsonb")
     private String rawResponse;
 
+    @Column(name = "pay_at")
     private LocalDateTime payAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
