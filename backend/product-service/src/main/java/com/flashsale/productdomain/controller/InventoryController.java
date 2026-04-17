@@ -38,7 +38,7 @@ public class InventoryController {
             @PathVariable String skuCode,
             @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody InventoryRestockRequest req) {
-        InventoryResponse result = inventoryService.restock(skuCode, Long.parseLong(user.getId()), req);
+        InventoryResponse result = inventoryService.restock(skuCode, user.getId(), req);
         return ResponseEntity.ok(ApiResponse.success(result, "Nhập thêm hàng thành công"));
     }
 
@@ -49,7 +49,7 @@ public class InventoryController {
     public ResponseEntity<ApiResponse<InventoryResponse>> adjust(
             @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody InventoryAdjustRequest req) {
-        InventoryResponse result = inventoryService.adjust(Long.parseLong(user.getId()), req);
+        InventoryResponse result = inventoryService.adjust(user.getId(), req);
         return ResponseEntity.ok(ApiResponse.success(result, "Điều chỉnh tồn kho thành công"));
     }
 }

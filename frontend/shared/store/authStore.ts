@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import Cookies from 'js-cookie';
+import apiClient from '../lib/axios';
 import { authApi, type RegisterRequest } from '../api/auth.api';
+import type { ApiResponse } from '../types/api';
+import type { AuthResponse } from '../api/auth.api';
 
 export interface AuthUser {
   userId: number;
@@ -15,6 +18,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (req: RegisterRequest) => Promise<void>;
+  registerSeller: (req: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -39,6 +43,22 @@ export const useAuthStore = create<AuthState>()(
 
       register: async (req) => {
         const { data } = await authApi.register(req);
+        const auth = data.data!;
+        Cookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'strict' });
+        if (auth.refreshToken) {
+          Cookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'strict' });
+        }
+        set({
+          user: { userId: auth.userId, username: auth.username, email: auth.email, role: auth.role },
+          isAuthenticated: true,
+        });
+      },
+
+      registerSeller: async (req) => {
+        const { data } = await apiClient.post<ApiResponse<AuthResponse>>(
+          '/auth/register/seller',
+          req
+        );
         const auth = data.data!;
         Cookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'strict' });
         if (auth.refreshToken) {

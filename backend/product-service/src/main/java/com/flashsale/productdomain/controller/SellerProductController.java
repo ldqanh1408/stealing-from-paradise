@@ -36,7 +36,7 @@ public class SellerProductController {
     public ResponseEntity<ApiResponse<List<VariantResponse>>> listVariants(
             @PathVariable String productId,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        List<VariantResponse> variants = variantService.listVariants(productId, Long.parseLong(user.getId()));
+        List<VariantResponse> variants = variantService.listVariants(productId, user.getId());
         return ResponseEntity.ok(ApiResponse.success(variants));
     }
 
@@ -46,7 +46,7 @@ public class SellerProductController {
             @PathVariable String productId,
             @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody CreateVariantRequest req) {
-        VariantResponse created = variantService.createVariant(productId, Long.parseLong(user.getId()), req);
+        VariantResponse created = variantService.createVariant(productId, user.getId(), req);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(created));
     }
 
@@ -56,7 +56,7 @@ public class SellerProductController {
             @PathVariable String variantId,
             @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody UpdateVariantRequest req) {
-        VariantResponse updated = variantService.updateVariant(variantId, Long.parseLong(user.getId()), req);
+        VariantResponse updated = variantService.updateVariant(variantId, user.getId(), req);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 
@@ -65,7 +65,7 @@ public class SellerProductController {
     public ResponseEntity<ApiResponse<Void>> deleteVariant(
             @PathVariable String variantId,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        variantService.deleteVariant(variantId, Long.parseLong(user.getId()));
+        variantService.deleteVariant(variantId, user.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa variant thành công"));
     }
 
@@ -76,7 +76,7 @@ public class SellerProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> submitForReview(
             @PathVariable String productId,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        ProductResponse result = productService.submitForReview(productId, Long.parseLong(user.getId()));
+        ProductResponse result = productService.submitForReview(productId, user.getId());
         return ResponseEntity.ok(ApiResponse.success(result, "Sản phẩm đã được gửi duyệt"));
     }
 
@@ -85,7 +85,7 @@ public class SellerProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> publishProduct(
             @PathVariable String productId,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        ProductResponse result = productService.publishProduct(productId, Long.parseLong(user.getId()));
+        ProductResponse result = productService.publishProduct(productId, user.getId());
         return ResponseEntity.ok(ApiResponse.success(result, "Mở bán sản phẩm thành công"));
     }
 
@@ -94,7 +94,7 @@ public class SellerProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> unpublishProduct(
             @PathVariable String productId,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        ProductResponse result = productService.unpublishProduct(productId, Long.parseLong(user.getId()));
+        ProductResponse result = productService.unpublishProduct(productId, user.getId());
         return ResponseEntity.ok(ApiResponse.success(result, "Tạm ẩn sản phẩm thành công"));
     }
 }

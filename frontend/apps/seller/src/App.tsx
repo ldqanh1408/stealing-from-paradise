@@ -4,7 +4,7 @@ import Layout from '@shared/components/Layout';
 import PrivateRoute from '@shared/components/PrivateRoute';
 
 const LoginPage             = lazy(() => import('@shared/pages/LoginPage'));
-const RegisterPage          = lazy(() => import('@shared/pages/RegisterPage'));
+const SellerRegisterPage    = lazy(() => import('@/pages/SellerRegisterPage'));
 const SellerDashboard       = lazy(() => import('@/pages/SellerDashboard'));
 const ProductManagementPage = lazy(() => import('@/pages/ProductManagementPage'));
 const SellerOrdersPage      = lazy(() => import('@/pages/SellerOrdersPage'));
@@ -23,7 +23,7 @@ export default function App() {
       <Routes>
         {/* Auth pages — no layout */}
         <Route path="/login"    element={<LoginPage title="Cửa hàng" redirectTo="/dashboard" showRegisterLink={false} />} />
-        <Route path="/register" element={<RegisterPage title="Đăng ký Cửa hàng" redirectTo="/dashboard" />} />
+        <Route path="/register" element={<SellerRegisterPage />} />
 
         {/* Protected pages — wrapped in Layout */}
         <Route

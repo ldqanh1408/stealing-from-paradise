@@ -22,6 +22,6 @@ public class CreateVariantRequest {
     private String tierName;
 
     @NotNull
-    @DecimalMin(value = "0", exclusive = true)
+    @DecimalMin(value = "0", inclusive = true)
     private BigDecimal price;
 }

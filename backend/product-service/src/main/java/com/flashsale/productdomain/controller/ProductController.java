@@ -42,7 +42,7 @@ public class ProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
             @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody CreateProductRequest req) {
-        ProductResponse created = productService.createProduct(Long.parseLong(user.getId()), req);
+        ProductResponse created = productService.createProduct(user.getId(), req);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(created));
     }
 
@@ -54,7 +54,7 @@ public class ProductController {
             @PathVariable String productId,
             @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody UpdateProductRequest req) {
-        ProductResponse updated = productService.updateProduct(productId, Long.parseLong(user.getId()), req);
+        ProductResponse updated = productService.updateProduct(productId, user.getId(), req);
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 
@@ -65,7 +65,7 @@ public class ProductController {
     public ResponseEntity<ApiResponse<Void>> deleteProduct(
             @PathVariable String productId,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        productService.deleteProduct(productId, Long.parseLong(user.getId()));
+        productService.deleteProduct(productId, user.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa mềm sản phẩm thành công"));
     }
 
@@ -79,7 +79,7 @@ public class ProductController {
             @RequestParam @NotBlank String fileName,
             @RequestParam @NotBlank String contentType) {
         PresignedUrlResponse url = minioService.generatePresignedUrl(
-                Long.parseLong(user.getId()), productId, fileName, contentType);
+                user.getId(), productId, fileName, contentType);
         return ResponseEntity.ok(ApiResponse.success(url));
     }
 
@@ -91,7 +91,7 @@ public class ProductController {
             @AuthenticationPrincipal UserDetailsImpl user,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<ProductResponse> result = productService.getSellerProducts(Long.parseLong(user.getId()), page, size);
+        Page<ProductResponse> result = productService.getSellerProducts(user.getId(), page, size);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }
