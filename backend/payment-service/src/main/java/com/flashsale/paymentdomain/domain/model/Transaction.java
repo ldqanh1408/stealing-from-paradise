@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "transactions", indexes = {
-    @Index(columnList = "parent_order_id")
+    @Index(columnList = "parent_order_id"),
+    @Index(columnList = "stripe_pi_id")
 })
 @Data
 @Builder
@@ -33,11 +34,17 @@ public class Transaction {
     @Column(name = "trans_ref")
     private String transRef;
 
+    @Column(name = "stripe_pi_id")
+    private String stripePiId;
+
     @Column(name = "stripe_transfer_id")
     private String stripeTransferId;
 
     @Column(name = "application_fee_amount")
     private BigDecimal applicationFeeAmount;
+
+    @Column(name = "application_fee_pct")
+    private BigDecimal applicationFeePct;
 
     @Column(name = "stripe_connect_mode")
     private String stripeConnectMode;
@@ -68,4 +75,3 @@ public class Transaction {
         updatedAt = LocalDateTime.now();
     }
 }
-

@@ -17,6 +17,8 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     // Product  (Producer: Product Service / Identity Service)
     // ──────────────────────────────────────────────
+    public static final String PRODUCT_CREATED          = "product.created";
+    public static final String PRODUCT_PENDING_REVIEW   = "product.pending_review";
     public static final String PRODUCT_APPROVED         = "product.approved";
     public static final String PRODUCT_REJECTED         = "product.rejected";
     public static final String PRODUCT_UPDATED          = "product.updated";
@@ -39,14 +41,17 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     public static final String PAYMENT_SUCCESS          = "payment.success";
     public static final String PAYMENT_FAILED           = "payment.failed";
+    public static final String STRIPE_ACCOUNT_SUSPENDED = "stripe.account_suspended";
 
     // ──────────────────────────────────────────────
     // Refund  (Producer: Payment Service)
     // ──────────────────────────────────────────────
     public static final String REFUND_REQUESTED         = "refund.requested";
+    public static final String REFUND_FULL_REQUESTED    = "refund.full_requested";
     public static final String REFUND_ADMIN_APPROVED    = "refund.admin_approved";
     public static final String REFUND_REJECTED          = "refund.rejected";
     public static final String REFUND_RTS_COMPLETED     = "refund.rts_completed";
+    public static final String REFUND_STRIPE_AUTO       = "refund.stripe_auto";
 
     // ──────────────────────────────────────────────
     // Flash Sale  (Producer: Flash Sale Service / Worker)

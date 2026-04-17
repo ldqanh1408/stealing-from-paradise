@@ -82,6 +82,13 @@ eureka:
     register-with-eureka: true
     enabled: true
 
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_placeholder}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder}
+  platform-fee-percentage: ${STRIPE_PLATFORM_FEE_PERCENT:5.0}
+  onboarding-return-url: ${STRIPE_RETURN_URL:http://localhost:3001/stripe/return}
+  onboarding-refresh-url: ${STRIPE_REFRESH_URL:http://localhost:3001/stripe/refresh}
+
 logging:
   level:
     org.flywaydb: DEBUG

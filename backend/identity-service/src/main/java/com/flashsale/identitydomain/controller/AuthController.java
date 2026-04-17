@@ -3,6 +3,7 @@ package com.flashsale.identitydomain.controller;
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.AuthResponse;
 import com.flashsale.commonlib.dto.LoginRequest;
+import com.flashsale.commonlib.dto.RegisterRequest;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.identitydomain.domain.model.User;
 import com.flashsale.identitydomain.domain.repository.RoleRepository;
@@ -53,7 +54,7 @@ public class AuthController {
      * Register endpoint
      */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody LoginRequest registerRequest) {
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest registerRequest) {
         log.info("Registration attempt for username: {}", registerRequest.getUsername());
         try {
             // Validate input
@@ -62,16 +63,20 @@ public class AuthController {
                         .status(HttpStatus.BAD_REQUEST)
                         .body(ApiResponse.error("REG_001", "Username is required"));
             }
+            if (registerRequest.getEmail() == null || registerRequest.getEmail().isEmpty()) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("REG_002", "Email is required"));
+            }
             if (registerRequest.getPassword() == null || registerRequest.getPassword().isEmpty()) {
                 return ResponseEntity
                         .status(HttpStatus.BAD_REQUEST)
-                        .body(ApiResponse.error("REG_002", "Password is required"));
+                        .body(ApiResponse.error("REG_003", "Password is required"));
             }
 
-            // Create user (assuming registerRequest.username is actually email or we need a dedicated endpoint)
             User newUser = authService.registerUser(
                     registerRequest.getUsername(),
-                    registerRequest.getUsername(),  // Use username as email for now
+                    registerRequest.getEmail(),
                     registerRequest.getPassword()
             );
 
