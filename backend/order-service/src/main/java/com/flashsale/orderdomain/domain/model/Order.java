@@ -31,6 +31,9 @@ public class Order {
     @Column(name = "seller_id", nullable = false)
     private Long sellerId;
 
+    @Column(name = "seller_name")
+    private String sellerName;
+
     @Column(name = "order_code", unique = true, nullable = false)
     private String orderCode;
 
@@ -52,6 +55,12 @@ public class Order {
     @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
 
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
+
     @Column(name = "is_flash_sale")
     private Boolean isFlashSale = false;
 
@@ -61,8 +70,14 @@ public class Order {
     @Column(name = "tracking_number")
     private String trackingNumber;
 
+    @Column(name = "carrier")
+    private String carrier;
+
     @Column(name = "shipping_deadline")
     private LocalDateTime shippingDeadline;
+
+    @Column(name = "return_tracking_number")
+    private String returnTrackingNumber;
 
     @Version
     private Integer version;
@@ -87,4 +102,3 @@ public class Order {
         updatedAt = LocalDateTime.now();
     }
 }
-

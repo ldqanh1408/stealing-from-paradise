@@ -25,6 +25,9 @@ public class OrderItem {
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
+    @Column(name = "product_id")
+    private String productId;
+
     @Column(name = "sku_code", nullable = false)
     private String skuCode;
 
@@ -32,7 +35,10 @@ public class OrderItem {
     private String variantId;
 
     @Column(name = "name_snapshot")
-    private String nameSnapshot;
+    private String nameSnapshot;       // product name
+
+    @Column(name = "variant_name")
+    private String variantName;        // e.g. "Đỏ / XL"
 
     @Column(name = "image_snapshot")
     private String imageSnapshot;
@@ -57,4 +63,3 @@ public class OrderItem {
         createdAt = LocalDateTime.now();
     }
 }
-

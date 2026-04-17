@@ -32,5 +32,25 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
         Pageable pageable
     );
 
+    @Query("""
+        SELECT r FROM Refund r
+        WHERE r.userId = :userId
+          AND (:status IS NULL OR r.status = :status)
+          AND (:type IS NULL OR r.type = :type)
+          AND (:fromDate IS NULL OR r.createdAt >= :fromDate)
+          AND (:toDate IS NULL OR r.createdAt <= :toDate)
+        ORDER BY r.createdAt DESC
+        """)
+    Page<Refund> findAllByUserIdWithFilters(
+        @Param("userId") Long userId,
+        @Param("status") String status,
+        @Param("type") String type,
+        @Param("fromDate") LocalDateTime fromDate,
+        @Param("toDate") LocalDateTime toDate,
+        Pageable pageable
+    );
+
     boolean existsByOrderIdAndStatus(Long orderId, String status);
+
+    boolean existsByOrderIdAndStatusIn(Long orderId, List<String> statuses);
 }

@@ -45,21 +45,8 @@ spring:
         order_updates: true
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      properties:
-        spring.json.add.type.headers: false
     consumer:
-      group-id: ${spring.application.name}-group
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      auto-offset-reset: earliest
-      enable-auto-commit: false
-      properties:
-        spring.json.trusted.packages: com.flashsale.*
+      group-id: ${spring.application.name}-group   # Dùng trong KafkaConfig bean
 axon:
   axonserver:
     servers: ${AXON_SERVER:localhost:8124}

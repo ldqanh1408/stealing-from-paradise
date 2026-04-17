@@ -1,5 +1,7 @@
 package com.flashsale.paymentdomain.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
@@ -22,11 +24,11 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,7 +40,8 @@ public class PaymentService {
     private final SellerTransferRepository sellerTransferRepository;
     private final SellerStripeAccountRepository sellerStripeAccountRepository;
     private final StripeConfig stripeConfig;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     // ─── Query ────────────────────────────────────────────────────────
 
@@ -65,14 +68,9 @@ public class PaymentService {
 
         Long remainingSeconds = null;
         if ("PENDING".equals(tx.getStatus()) && tx.getCreatedAt() != null) {
-            long secondsElapsed = java.time.Duration.between(tx.getCreatedAt(), LocalDateTime.now()).getSeconds();
-            long timeout = 600; // 10 minutes
-            remainingSeconds = Math.max(0, timeout - secondsElapsed);
+            long elapsed = java.time.Duration.between(tx.getCreatedAt(), LocalDateTime.now()).getSeconds();
+            remainingSeconds = Math.max(0, 600 - elapsed);
         }
-
-        Instant paidAt = tx.getPayAt() != null
-                ? tx.getPayAt().toInstant(ZoneOffset.UTC)
-                : null;
 
         return TransactionDetailResponse.builder()
                 .transactionId(tx.getId())
@@ -84,7 +82,7 @@ public class PaymentService {
                 .applicationFee(tx.getApplicationFeeAmount())
                 .applicationFeePercentage(tx.getApplicationFeePct())
                 .transRef(tx.getTransRef())
-                .paidAt(paidAt)
+                .paidAt(tx.getPayAt() != null ? tx.getPayAt().toInstant(ZoneOffset.UTC) : null)
                 .remainingSeconds(remainingSeconds)
                 .sellers(sellerInfos)
                 .build();
@@ -105,11 +103,11 @@ public class PaymentService {
         log.info("Processing Stripe webhook event: type={}, id={}", event.getType(), event.getId());
 
         switch (event.getType()) {
-            case "payment_intent.succeeded" -> handlePaymentIntentSucceeded(event);
+            case "payment_intent.succeeded"      -> handlePaymentIntentSucceeded(event);
             case "payment_intent.payment_failed" -> handlePaymentIntentFailed(event);
-            case "charge.refunded" -> handleChargeRefunded(event);
-            case "account.updated" -> handleAccountUpdated(event);
-            case "transfer.created" -> handleTransferCreated(event);
+            case "charge.refunded"               -> handleChargeRefunded(event);
+            case "account.updated"               -> handleAccountUpdated(event);
+            case "transfer.created"              -> handleTransferCreated(event);
             default -> log.debug("Unhandled Stripe event type: {}", event.getType());
         }
     }
@@ -118,20 +116,19 @@ public class PaymentService {
         StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
         if (!(stripeObject instanceof PaymentIntent pi)) return;
 
-        transactionRepository.findByParentOrderId(extractParentOrderIdFromMetadata(pi.getMetadata()))
+        transactionRepository.findByParentOrderId(extractParentOrderId(pi.getMetadata()))
                 .ifPresent(tx -> {
                     tx.setStatus("SUCCESS");
                     tx.setStripePiId(pi.getId());
                     tx.setPayAt(LocalDateTime.now());
                     transactionRepository.save(tx);
 
-                    kafkaTemplate.send(KafkaTopics.PAYMENT_SUCCESS, String.valueOf(tx.getParentOrderId()),
-                            java.util.Map.of(
-                                "parent_order_id", tx.getParentOrderId(),
-                                "transaction_id", tx.getId(),
-                                "stripe_pi_id", pi.getId(),
-                                "amount", tx.getAmount()
-                            ));
+                    publish(KafkaTopics.PAYMENT_SUCCESS, String.valueOf(tx.getParentOrderId()), Map.of(
+                            "parent_order_id", tx.getParentOrderId(),
+                            "transaction_id",  tx.getId(),
+                            "stripe_pi_id",    pi.getId(),
+                            "amount",          tx.getAmount()
+                    ));
                     log.info("Payment succeeded: parentOrderId={}, piId={}", tx.getParentOrderId(), pi.getId());
                 });
     }
@@ -140,17 +137,16 @@ public class PaymentService {
         StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
         if (!(stripeObject instanceof PaymentIntent pi)) return;
 
-        transactionRepository.findByParentOrderId(extractParentOrderIdFromMetadata(pi.getMetadata()))
+        transactionRepository.findByParentOrderId(extractParentOrderId(pi.getMetadata()))
                 .ifPresent(tx -> {
                     tx.setStatus("FAILED");
                     transactionRepository.save(tx);
 
-                    kafkaTemplate.send(KafkaTopics.PAYMENT_FAILED, String.valueOf(tx.getParentOrderId()),
-                            java.util.Map.of(
-                                "parent_order_id", tx.getParentOrderId(),
-                                "transaction_id", tx.getId(),
-                                "stripe_pi_id", pi.getId()
-                            ));
+                    publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(tx.getParentOrderId()), Map.of(
+                            "parent_order_id", tx.getParentOrderId(),
+                            "transaction_id",  tx.getId(),
+                            "stripe_pi_id",    pi.getId()
+                    ));
                     log.info("Payment failed: parentOrderId={}", tx.getParentOrderId());
                 });
     }
@@ -159,14 +155,12 @@ public class PaymentService {
         StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
         if (!(stripeObject instanceof Charge charge)) return;
 
+        publish(KafkaTopics.REFUND_STRIPE_AUTO, charge.getId(), Map.of(
+                "charge_id",       charge.getId(),
+                "amount_refunded", charge.getAmountRefunded(),
+                "timestamp",       Instant.now().toString()
+        ));
         log.info("Stripe charge refunded: chargeId={}, amount={}", charge.getId(), charge.getAmountRefunded());
-        // Publish auto-refund event for order/loyalty services
-        kafkaTemplate.send(KafkaTopics.REFUND_STRIPE_AUTO, charge.getId(),
-                java.util.Map.of(
-                    "charge_id", charge.getId(),
-                    "amount_refunded", charge.getAmountRefunded(),
-                    "timestamp", Instant.now().toString()
-                ));
     }
 
     private void handleAccountUpdated(Event event) {
@@ -180,15 +174,17 @@ public class PaymentService {
 
             if ("restricted".equals(account.getRequirements().getDisabledReason())) {
                 seller.setAccountStatus("SUSPENDED");
-                kafkaTemplate.send(KafkaTopics.STRIPE_ACCOUNT_SUSPENDED, account.getId(),
-                        java.util.Map.of("seller_id", seller.getSellerId(), "stripe_account_id", account.getId()));
+                publish(KafkaTopics.STRIPE_ACCOUNT_SUSPENDED, account.getId(), Map.of(
+                        "seller_id",         seller.getSellerId(),
+                        "stripe_account_id", account.getId()
+                ));
             } else if (Boolean.TRUE.equals(account.getDetailsSubmitted())) {
                 seller.setAccountStatus("ACTIVE");
                 seller.setOnboardingUrl(null);
                 seller.setOnboardingUrlExpiresAt(null);
             }
             sellerStripeAccountRepository.save(seller);
-            log.info("Seller Stripe account updated: sellerId={}, status={}", seller.getSellerId(), seller.getAccountStatus());
+            log.info("Seller Stripe account synced: sellerId={}, status={}", seller.getSellerId(), seller.getAccountStatus());
         });
     }
 
@@ -196,7 +192,7 @@ public class PaymentService {
         StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
         if (!(stripeObject instanceof Transfer transfer)) return;
 
-        Long orderId = extractOrderIdFromMetadata(transfer.getMetadata());
+        Long orderId = extractOrderId(transfer.getMetadata());
         if (orderId == null) return;
 
         sellerTransferRepository.findByOrderId(orderId).ifPresent(st -> {
@@ -207,30 +203,32 @@ public class PaymentService {
         });
     }
 
-    // ─── Kafka Consumers ──────────────────────────────────────────────
+    // ─── Kafka ────────────────────────────────────────────────────────
 
     @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "payment-service-group")
-    public void onPaymentSuccess(String transactionId) {
-        log.info("Payment successful event received: {}", transactionId);
+    public void onPaymentSuccess(String message) {
+        log.info("Payment success event received: {}", message);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────
 
-    private Long extractParentOrderIdFromMetadata(java.util.Map<String, String> metadata) {
-        if (metadata == null || !metadata.containsKey("parent_order_id")) return null;
+    private void publish(String topic, String key, Object payload) {
         try {
-            return Long.parseLong(metadata.get("parent_order_id"));
-        } catch (NumberFormatException e) {
-            return null;
+            kafkaTemplate.send(topic, key, objectMapper.writeValueAsString(payload));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize Kafka payload for topic {}: {}", topic, e.getMessage());
         }
     }
 
-    private Long extractOrderIdFromMetadata(java.util.Map<String, String> metadata) {
-        if (metadata == null || !metadata.containsKey("order_id")) return null;
-        try {
-            return Long.parseLong(metadata.get("order_id"));
-        } catch (NumberFormatException e) {
-            return null;
-        }
+    private Long extractParentOrderId(Map<String, String> metadata) {
+        if (metadata == null) return null;
+        try { return Long.parseLong(metadata.get("parent_order_id")); }
+        catch (Exception e) { return null; }
+    }
+
+    private Long extractOrderId(Map<String, String> metadata) {
+        if (metadata == null) return null;
+        try { return Long.parseLong(metadata.get("order_id")); }
+        catch (Exception e) { return null; }
     }
 }

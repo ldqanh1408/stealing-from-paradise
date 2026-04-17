@@ -1,5 +1,8 @@
 package com.flashsale.paymentdomain.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
@@ -15,7 +18,6 @@ import com.flashsale.paymentdomain.dto.request.AdminRefundRejectRequest;
 import com.flashsale.paymentdomain.dto.response.AdminRefundApproveResponse;
 import com.flashsale.paymentdomain.dto.response.RefundListResponse;
 import com.stripe.exception.StripeException;
-import com.stripe.model.PaymentIntent;
 import com.stripe.param.RefundCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,9 +34,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,9 +45,10 @@ public class RefundService {
     private final RefundRepository refundRepository;
     private final RefundItemRepository refundItemRepository;
     private final TransactionRepository transactionRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
-    // ─── Admin: List Refunds ─────────────────────────────────────────
+    // ─── Admin: List Refunds ─────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public PageResponse<RefundListResponse> listAllRefunds(
@@ -55,23 +56,15 @@ public class RefundService {
             String fromDate, String toDate,
             int page, int size) {
 
-        LocalDateTime from = fromDate != null
-                ? LocalDateTime.parse(fromDate + "T00:00:00")
-                : null;
-        LocalDateTime to = toDate != null
-                ? LocalDateTime.parse(toDate + "T23:59:59")
-                : null;
+        LocalDateTime from = fromDate != null ? LocalDateTime.parse(fromDate + "T00:00:00") : null;
+        LocalDateTime to   = toDate   != null ? LocalDateTime.parse(toDate   + "T23:59:59") : null;
 
         Page<Refund> result = refundRepository.findAllWithFilters(
                 status, type, from, to,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
 
-        List<RefundListResponse> content = result.getContent().stream()
-                .map(this::toListResponse)
-                .collect(Collectors.toList());
-
         return PageResponse.<RefundListResponse>builder()
-                .content(content)
+                .content(result.getContent().stream().map(this::toListResponse).collect(Collectors.toList()))
                 .page(result.getNumber())
                 .size(result.getSize())
                 .totalElements(result.getTotalElements())
@@ -80,7 +73,7 @@ public class RefundService {
                 .build();
     }
 
-    // ─── Admin: Approve Refund ────────────────────────────────────────
+    // ─── Admin: Approve Refund ───────────────────────────────────────────────
 
     @Transactional
     public AdminRefundApproveResponse approveRefund(Long refundId, Long adminId, AdminRefundApproveRequest req) {
@@ -93,10 +86,8 @@ public class RefundService {
         }
 
         BigDecimal finalAmount = req.getAdjustAmount() != null ? req.getAdjustAmount() : refund.getAmount();
-
         String stripeRefundId = executeStripeRefund(refund.getTransactionId(), finalAmount);
 
-        // Update tracking numbers on refund items if provided
         List<AdminRefundApproveResponse.ReturnEvidence> returnEvidence = new ArrayList<>();
         if (req.getTrackingNumber() != null) {
             List<RefundItem> items = refundItemRepository.findAllByRefundId(refundId);
@@ -106,7 +97,6 @@ public class RefundService {
                 item.setReturnedAt(LocalDateTime.ofInstant(now, ZoneOffset.UTC));
             }
             refundItemRepository.saveAll(items);
-
             returnEvidence.add(AdminRefundApproveResponse.ReturnEvidence.builder()
                     .type("tracking")
                     .trackingNumber(req.getTrackingNumber())
@@ -122,17 +112,15 @@ public class RefundService {
         refund.setRefundRef(stripeRefundId);
         refundRepository.save(refund);
 
-        // Publish Kafka event
-        kafkaTemplate.send(KafkaTopics.REFUND_ADMIN_APPROVED, String.valueOf(refundId),
-                Map.of(
-                    "refund_id", refundId,
-                    "order_id", refund.getOrderId(),
-                    "amount", finalAmount,
-                    "admin_id", adminId,
-                    "caused_by", req.getCausedBy() != null ? req.getCausedBy() : "",
-                    "tracking_number", req.getTrackingNumber() != null ? req.getTrackingNumber() : "",
-                    "timestamp", Instant.now().toString()
-                ));
+        publish(KafkaTopics.REFUND_ADMIN_APPROVED, String.valueOf(refundId), Map.of(
+                "refund_id",       refundId,
+                "order_id",        refund.getOrderId(),
+                "amount",          finalAmount,
+                "admin_id",        adminId,
+                "caused_by",       req.getCausedBy() != null ? req.getCausedBy() : "",
+                "tracking_number", req.getTrackingNumber() != null ? req.getTrackingNumber() : "",
+                "timestamp",       Instant.now().toString()
+        ));
 
         log.info("Refund approved: refundId={}, adminId={}, amount={}, stripeRefundId={}",
                 refundId, adminId, finalAmount, stripeRefundId);
@@ -153,7 +141,7 @@ public class RefundService {
                 .build();
     }
 
-    // ─── Admin: Reject Refund ─────────────────────────────────────────
+    // ─── Admin: Reject Refund ────────────────────────────────────────────────
 
     @Transactional
     public void rejectRefund(Long refundId, Long adminId, AdminRefundRejectRequest req) {
@@ -171,21 +159,379 @@ public class RefundService {
         refund.setReviewedAt(LocalDateTime.now());
         refundRepository.save(refund);
 
-        // Publish Kafka event
-        kafkaTemplate.send(KafkaTopics.REFUND_REJECTED, String.valueOf(refundId),
-                Map.of(
-                    "refund_id", refundId,
-                    "order_id", refund.getOrderId(),
-                    "reject_reason", req.getRejectReason(),
-                    "fraud_evidence", Boolean.TRUE.equals(req.getFraudEvidence()),
-                    "admin_id", adminId,
-                    "timestamp", Instant.now().toString()
-                ));
+        publish(KafkaTopics.REFUND_REJECTED, String.valueOf(refundId), Map.of(
+                "refund_id",      refundId,
+                "order_id",       refund.getOrderId(),
+                "user_id",        refund.getUserId() != null ? refund.getUserId() : 0L,
+                "reject_reason",  req.getRejectReason(),
+                "fraud_evidence", Boolean.TRUE.equals(req.getFraudEvidence()),
+                "admin_id",       adminId,
+                "timestamp",      Instant.now().toString()
+        ));
 
         log.info("Refund rejected: refundId={}, adminId={}", refundId, adminId);
     }
 
-    // ─── Internal helpers ─────────────────────────────────────────────
+    // ─── Kafka Consumer: REFUND_REQUESTED (Buyer Partial Refund) ────────────
+
+    /**
+     * Nhận event từ order-service khi Buyer yêu cầu hoàn tiền một phần.
+     * Tạo Refund + RefundItems trong DB. Không cần Admin duyệt ở đây
+     * — Stripe sẽ chỉ chạy sau khi Admin approve (xem approveRefund).
+     *
+     * Payload từ order-service:
+     * { refund_type, order_id, parent_order_id, user_id, seller_id,
+     *   reason, amount, group_ref, refund_reason_type, items[], evidence_images[], timestamp }
+     */
+    @KafkaListener(topics = KafkaTopics.REFUND_REQUESTED, groupId = "payment-service-group")
+    @Transactional
+    public void onRefundRequested(Map<String, Object> payload) {
+        try {
+            Long orderId       = toLong(payload.get("order_id"));
+            Long parentOrderId = toLong(payload.get("parent_order_id"));
+            Long userId        = toLong(payload.get("user_id"));
+            String groupRef    = (String) payload.get("group_ref");
+            String reason      = (String) payload.get("reason");
+            BigDecimal amount  = toBigDecimal(payload.get("amount"));
+            String reasonType  = (String) payload.get("refund_reason_type");
+
+            // Idempotency: bỏ qua nếu đã có PENDING refund cho đơn này
+            if (refundRepository.existsByOrderIdAndStatusIn(orderId, List.of("PENDING", "SUCCESS"))) {
+                log.warn("Duplicate REFUND_REQUESTED for orderId={}, skipping", orderId);
+                return;
+            }
+
+            // Tìm transaction theo parentOrderId
+            Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
+                    .orElse(null);
+            if (tx == null) {
+                log.error("Transaction not found for parentOrderId={}, cannot create refund", parentOrderId);
+                return;
+            }
+
+            // Serialize evidence images
+            List<String> evidenceImages = toStringList(payload.get("evidence_images"));
+            String evidenceJson = toJson(evidenceImages);
+
+            Refund refund = Refund.builder()
+                    .transactionId(tx.getId())
+                    .orderId(orderId)
+                    .userId(userId)
+                    .groupRef(groupRef)
+                    .type("PARTIAL")
+                    .initiatedBy("BUYER")
+                    .refundReasonType(reasonType)
+                    .amount(amount)
+                    .reason(reason)
+                    .status("PENDING")
+                    .evidenceImages(evidenceImages.isEmpty() ? null : evidenceJson)
+                    .build();
+            refund = refundRepository.save(refund);
+
+            // Tạo RefundItems
+            List<?> items = (List<?>) payload.get("items");
+            if (items != null) {
+                for (Object raw : items) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> item = (Map<String, Object>) raw;
+                    RefundItem ri = RefundItem.builder()
+                            .refundId(refund.getId())
+                            .itemId(toLong(item.get("order_item_id")))
+                            .quantity(toInt(item.get("quantity")))
+                            .refundAmount(toBigDecimal(item.get("refund_amount")))
+                            .itemReason((String) item.get("item_reason"))
+                            .status("PENDING")
+                            .build();
+                    refundItemRepository.save(ri);
+                }
+            }
+
+            // Publish event cho notification-service
+            publish(KafkaTopics.REFUND_REQUESTED, String.valueOf(refund.getId()), Map.of(
+                    "refund_id", refund.getId(),
+                    "order_id",  orderId,
+                    "user_id",   userId,
+                    "amount",    amount,
+                    "status",    "PENDING",
+                    "timestamp", Instant.now().toString()
+            ));
+
+            log.info("Refund created from REFUND_REQUESTED: refundId={}, orderId={}, amount={}",
+                    refund.getId(), orderId, amount);
+
+        } catch (Exception e) {
+            log.error("Error processing REFUND_REQUESTED: {}", e.getMessage(), e);
+        }
+    }
+
+    // ─── Kafka Consumer: REFUND_FULL_REQUESTED (Buyer Full Refund) ──────────
+
+    /**
+     * Nhận event từ order-service khi Buyer yêu cầu hoàn tiền toàn bộ đơn cha.
+     * Tạo N Refund records (N = số sub-orders), cùng group_ref.
+     *
+     * Payload:
+     * { parent_order_id, user_id, group_ref, total_amount,
+     *   refunds: [{ order_id, seller_id, amount, item_count }], timestamp }
+     */
+    @KafkaListener(topics = KafkaTopics.REFUND_FULL_REQUESTED, groupId = "payment-service-group")
+    @Transactional
+    public void onRefundFullRequested(Map<String, Object> payload) {
+        try {
+            Long parentOrderId = toLong(payload.get("parent_order_id"));
+            Long userId        = toLong(payload.get("user_id"));
+            String groupRef    = (String) payload.get("group_ref");
+
+            Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
+                    .orElse(null);
+            if (tx == null) {
+                log.error("Transaction not found for parentOrderId={}, cannot create full refund", parentOrderId);
+                return;
+            }
+
+            List<?> refundList = (List<?>) payload.get("refunds");
+            if (refundList == null || refundList.isEmpty()) return;
+
+            List<Long> createdIds = new ArrayList<>();
+            for (Object raw : refundList) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = (Map<String, Object>) raw;
+                Long orderId  = toLong(r.get("order_id"));
+                BigDecimal amt = toBigDecimal(r.get("amount"));
+
+                if (refundRepository.existsByOrderIdAndStatusIn(orderId, List.of("PENDING", "SUCCESS"))) {
+                    log.warn("Duplicate REFUND_FULL_REQUESTED for orderId={}, skipping sub-order", orderId);
+                    continue;
+                }
+
+                Refund refund = Refund.builder()
+                        .transactionId(tx.getId())
+                        .orderId(orderId)
+                        .userId(userId)
+                        .groupRef(groupRef)
+                        .type("FULL")
+                        .initiatedBy("BUYER")
+                        .refundReasonType("BUYER_CANCEL")
+                        .amount(amt)
+                        .reason("Full refund requested by buyer")
+                        .status("PENDING")
+                        .build();
+                refund = refundRepository.save(refund);
+                createdIds.add(refund.getId());
+            }
+
+            log.info("Full refund created from REFUND_FULL_REQUESTED: parentOrderId={}, refundCount={}",
+                    parentOrderId, createdIds.size());
+
+        } catch (Exception e) {
+            log.error("Error processing REFUND_FULL_REQUESTED: {}", e.getMessage(), e);
+        }
+    }
+
+    // ─── Kafka Consumer: ORDER_RETURNED_RTS (Auto Refund, No Admin needed) ──
+
+    /**
+     * Nhận event từ order-service khi Seller xác nhận hàng hoàn (RTS).
+     * Hoàn tiền tự động qua Stripe, KHÔNG cần Admin duyệt.
+     *
+     * Payload từ order-service.publishOrderReturned():
+     * { order_id, parent_order_id, user_id, seller_id, refund_reason_type,
+     *   return_tracking_number, total_amount, evidence_count, timestamp }
+     */
+    @KafkaListener(topics = KafkaTopics.ORDER_RETURNED_RTS, groupId = "payment-service-group")
+    @Transactional
+    public void onOrderReturnedRts(Map<String, Object> payload) {
+        try {
+            Long orderId       = toLong(payload.get("order_id"));
+            Long parentOrderId = toLong(payload.get("parent_order_id"));
+            Long userId        = toLong(payload.get("user_id"));
+            BigDecimal amount  = toBigDecimal(payload.get("total_amount"));
+            String returnTracking = (String) payload.get("return_tracking_number");
+
+            // Idempotency
+            if (refundRepository.existsByOrderIdAndStatusIn(orderId, List.of("PENDING", "SUCCESS"))) {
+                log.warn("RTS refund already exists for orderId={}, skipping", orderId);
+                return;
+            }
+
+            Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
+                    .orElse(null);
+            if (tx == null) {
+                log.error("Transaction not found for parentOrderId={} (RTS), cannot refund", parentOrderId);
+                return;
+            }
+
+            // Tạo Refund record
+            Refund refund = Refund.builder()
+                    .transactionId(tx.getId())
+                    .orderId(orderId)
+                    .userId(userId)
+                    .type("FULL")
+                    .initiatedBy("SELLER")
+                    .refundReasonType("RETURN_TO_SENDER")
+                    .amount(amount)
+                    .reason("Hàng hoàn về Seller (Return To Sender)")
+                    .status("PENDING")
+                    .build();
+            refund = refundRepository.save(refund);
+
+            // Cập nhật tracking trên RefundItem nếu có
+            if (returnTracking != null && !returnTracking.isBlank()) {
+                RefundItem ri = RefundItem.builder()
+                        .refundId(refund.getId())
+                        .itemId(orderId) // placeholder — all items of this order
+                        .quantity(1)
+                        .refundAmount(amount)
+                        .itemReason("Return To Sender")
+                        .status("PENDING")
+                        .returnTrackingNumber(returnTracking)
+                        .build();
+                refundItemRepository.save(ri);
+            }
+
+            // Thực hiện Stripe refund tự động
+            String stripeRefundId;
+            try {
+                stripeRefundId = executeStripeRefund(tx.getId(), amount);
+                refund.setStatus("SUCCESS");
+                refund.setRefundRef(stripeRefundId);
+                refund.setReviewedAt(LocalDateTime.now());
+            } catch (AppException e) {
+                log.error("Stripe refund failed for RTS orderId={}: {}", orderId, e.getMessage());
+                refund.setStatus("FAILED");
+                stripeRefundId = null;
+            }
+            refundRepository.save(refund);
+
+            // Publish REFUND_RTS_COMPLETED
+            Map<String, Object> event = new HashMap<>();
+            event.put("refund_id",    refund.getId());
+            event.put("order_id",     orderId);
+            event.put("user_id",      userId);
+            event.put("amount",       amount);
+            event.put("status",       refund.getStatus());
+            event.put("stripe_refund_id", stripeRefundId != null ? stripeRefundId : "");
+            event.put("timestamp",    Instant.now().toString());
+            publish(KafkaTopics.REFUND_RTS_COMPLETED, String.valueOf(orderId), event);
+
+            log.info("RTS refund processed: refundId={}, orderId={}, status={}, stripeRefundId={}",
+                    refund.getId(), orderId, refund.getStatus(), stripeRefundId);
+
+        } catch (Exception e) {
+            log.error("Error processing ORDER_RETURNED_RTS: {}", e.getMessage(), e);
+        }
+    }
+
+    // ─── Kafka Consumer: ORDER_REFUNDS_REQUEST (Reply handler for order-service) ──
+
+    /**
+     * order-service gửi request để lấy danh sách refunds theo orderId hoặc userId.
+     *
+     * Request modes:
+     * - { correlation_id, order_id } → lấy refunds của 1 sub-order
+     * - { correlation_id, user_id, status?, from_date?, to_date?, page, size } → lấy refunds của Buyer
+     */
+    @KafkaListener(topics = KafkaTopics.ORDER_REFUNDS_REQUEST, groupId = "payment-service-reply-group")
+    public void onOrderRefundsRequest(Map<String, Object> payload) {
+        String correlationId = (String) payload.get("correlation_id");
+        if (correlationId == null) return;
+
+        try {
+            List<Map<String, Object>> refundData;
+            long totalElements = 0;
+            int totalPages = 1;
+
+            if (payload.containsKey("order_id")) {
+                // Mode 1: refunds cho 1 sub-order
+                Long orderId = toLong(payload.get("order_id"));
+                List<Refund> refunds = refundRepository.findAllByOrderId(orderId);
+                refundData = refunds.stream().map(this::toRefundMap).collect(Collectors.toList());
+                totalElements = refundData.size();
+
+            } else if (payload.containsKey("user_id")) {
+                // Mode 2: tất cả refunds của Buyer
+                Long userId    = toLong(payload.get("user_id"));
+                String status  = (String) payload.get("status");
+                String type    = (String) payload.get("type");
+                int page       = toInt(payload.getOrDefault("page", 0));
+                int size       = toInt(payload.getOrDefault("size", 20));
+                String fromStr = (String) payload.get("from_date");
+                String toStr   = (String) payload.get("to_date");
+
+                LocalDateTime from = fromStr != null ? LocalDateTime.parse(fromStr + "T00:00:00") : null;
+                LocalDateTime to   = toStr   != null ? LocalDateTime.parse(toStr   + "T23:59:59") : null;
+
+                Page<Refund> pageResult = refundRepository.findAllByUserIdWithFilters(
+                        userId, status, type, from, to,
+                        PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                refundData = pageResult.getContent().stream().map(this::toRefundMap).collect(Collectors.toList());
+                totalElements = pageResult.getTotalElements();
+                totalPages    = pageResult.getTotalPages();
+
+            } else {
+                refundData = List.of();
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("correlation_id",  correlationId);
+            response.put("refunds",          refundData);
+            response.put("total_elements",   totalElements);
+            response.put("total_pages",      totalPages);
+
+            kafkaTemplate.send(KafkaTopics.ORDER_REFUNDS_RESPONSE, correlationId, toJson(response));
+
+        } catch (Exception e) {
+            log.error("Error processing ORDER_REFUNDS_REQUEST: {}", e.getMessage(), e);
+            // Reply with error
+            Map<String, Object> errorResp = Map.of(
+                    "correlation_id", correlationId,
+                    "error", true,
+                    "refunds", List.of()
+            );
+            kafkaTemplate.send(KafkaTopics.ORDER_REFUNDS_RESPONSE, correlationId, toJson(errorResp));
+        }
+    }
+
+    // ─── Kafka Consumer: ORDER_PAYMENT_STATUS_REQUEST ───────────────────────
+
+    /**
+     * order-service hỏi transaction status theo parentOrderId.
+     * Dùng để order-service kiểm tra xem đơn đã thanh toán chưa trước khi tạo refund.
+     */
+    @KafkaListener(topics = KafkaTopics.ORDER_PAYMENT_STATUS_REQUEST, groupId = "payment-service-reply-group")
+    public void onOrderPaymentStatusRequest(Map<String, Object> payload) {
+        String correlationId = (String) payload.get("correlation_id");
+        if (correlationId == null) return;
+
+        try {
+            Long parentOrderId = toLong(payload.get("parent_order_id"));
+            Optional<Transaction> txOpt = transactionRepository.findByParentOrderId(parentOrderId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("correlation_id",   correlationId);
+            response.put("parent_order_id",  parentOrderId);
+            if (txOpt.isPresent()) {
+                Transaction tx = txOpt.get();
+                response.put("transaction_id", tx.getId());
+                response.put("stripe_pi_id",   tx.getStripePiId());
+                response.put("status",         tx.getStatus());
+                response.put("amount",         tx.getAmount());
+                response.put("error",          false);
+            } else {
+                response.put("error",  true);
+                response.put("status", "NOT_FOUND");
+            }
+
+            kafkaTemplate.send(KafkaTopics.ORDER_PAYMENT_STATUS_RESPONSE, correlationId, toJson(response));
+
+        } catch (Exception e) {
+            log.error("Error processing ORDER_PAYMENT_STATUS_REQUEST: {}", e.getMessage(), e);
+            kafkaTemplate.send(KafkaTopics.ORDER_PAYMENT_STATUS_RESPONSE, correlationId,
+                    toJson(Map.of("correlation_id", correlationId, "error", true)));
+        }
+    }
+
+    // ─── Internal helpers ────────────────────────────────────────────────────
 
     private String executeStripeRefund(Long transactionId, BigDecimal amount) {
         Transaction tx = transactionRepository.findById(transactionId)
@@ -202,11 +548,9 @@ public class RefundService {
                     .setPaymentIntent(tx.getStripePiId())
                     .setAmount(amountInCents)
                     .build();
-
             com.stripe.model.Refund stripeRefund = com.stripe.model.Refund.create(params);
             log.info("Stripe refund created: refundId={}, amount={}", stripeRefund.getId(), amountInCents);
             return stripeRefund.getId();
-
         } catch (StripeException e) {
             log.error("Stripe refund failed for transaction {}: {}", transactionId, e.getMessage());
             throw new AppException(ErrorCode.INTERNAL_ERROR, "Stripe refund failed: " + e.getMessage());
@@ -234,35 +578,84 @@ public class RefundService {
                 .build();
     }
 
+    /**
+     * Serialize Refund thành Map để gửi qua Kafka reply.
+     */
+    private Map<String, Object> toRefundMap(Refund r) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("refund_id",          r.getId());
+        m.put("refund_code",        buildRefundCode(r));
+        m.put("order_id",           r.getOrderId());
+        m.put("group_ref",          r.getGroupRef());
+        m.put("type",               r.getType());
+        m.put("status",             r.getStatus());
+        m.put("amount",             r.getAmount());
+        m.put("adjust_amount",      r.getAdjustAmount());
+        m.put("reason",             r.getReason());
+        m.put("refund_reason_type", r.getRefundReasonType());
+        m.put("initiated_by",       r.getInitiatedBy());
+        m.put("admin_note",         r.getAdminNote());
+        m.put("reject_reason",      r.getRejectReason());
+        m.put("reviewed_by",        r.getReviewedBy());
+        m.put("reviewed_at",        r.getReviewedAt() != null ? r.getReviewedAt().toInstant(ZoneOffset.UTC).toString() : null);
+        m.put("refund_ref",         r.getRefundRef());
+        m.put("created_at",         r.getCreatedAt().toInstant(ZoneOffset.UTC).toString());
+        return m;
+    }
+
     private String buildRefundCode(Refund r) {
         return "RF-" + r.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-" + r.getId();
     }
 
-    // ─── Kafka Consumers ──────────────────────────────────────────────
+    // ─── Kafka helpers ────────────────────────────────────────────────────────
 
-    @KafkaListener(topics = KafkaTopics.REFUND_REQUESTED, groupId = "payment-service-group")
-    public void onRefundRequested(String message) {
-        log.info("Refund requested event received: {}", message);
+    private void publish(String topic, String key, Object payload) {
+        try {
+            kafkaTemplate.send(topic, key, objectMapper.writeValueAsString(payload));
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize Kafka payload for topic {}: {}", topic, e.getMessage());
+        }
     }
 
-    @KafkaListener(topics = KafkaTopics.REFUND_ADMIN_APPROVED, groupId = "payment-service-group")
-    public void onRefundApproved(String message) {
-        log.info("Refund admin approved event received: {}", message);
+    private String toJson(Object payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize to JSON: {}", e.getMessage());
+            return "{}";
+        }
     }
 
-    // ─── Legacy compat methods ────────────────────────────────────────
+    // ─── Type conversion helpers ──────────────────────────────────────────────
 
-    public void requestRefund(Long orderId, String reason, String initiatedBy) {
-        log.info("Requesting refund for order: {}, reason: {}", orderId, reason);
-        Refund refund = Refund.builder()
-            .orderId(orderId)
-            .reason(reason)
-            .initiatedBy(initiatedBy)
-            .status("PENDING")
-            .type("PARTIAL")
-            .amount(BigDecimal.ZERO)
-            .transactionId(0L)
-            .build();
-        refundRepository.save(refund);
+    private Long toLong(Object v) {
+        if (v == null) return null;
+        if (v instanceof Long l) return l;
+        if (v instanceof Integer i) return i.longValue();
+        if (v instanceof Number n) return n.longValue();
+        try { return Long.parseLong(v.toString()); } catch (Exception e) { return null; }
+    }
+
+    private int toInt(Object v) {
+        if (v == null) return 0;
+        if (v instanceof Integer i) return i;
+        if (v instanceof Number n) return n.intValue();
+        try { return Integer.parseInt(v.toString()); } catch (Exception e) { return 0; }
+    }
+
+    private BigDecimal toBigDecimal(Object v) {
+        if (v == null) return BigDecimal.ZERO;
+        if (v instanceof BigDecimal bd) return bd;
+        if (v instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+        try { return new BigDecimal(v.toString()); } catch (Exception e) { return BigDecimal.ZERO; }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> toStringList(Object v) {
+        if (v == null) return List.of();
+        if (v instanceof List<?> list) {
+            return list.stream().map(Object::toString).collect(Collectors.toList());
+        }
+        return List.of();
     }
 }
