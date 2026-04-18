@@ -524,8 +524,9 @@ public class OrderService {
      * Nhận sự kiện payment.success → cập nhật trạng thái tất cả sub-orders thành PAID.
      */
     @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "order-service-group")
-    public void onPaymentSuccess(Map<String, Object> payload) {
+    public void onPaymentSuccess(String message) {
         try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
             Object parentOrderIdObj = payload.get("parent_order_id");
             if (parentOrderIdObj == null) return;
 
@@ -546,8 +547,9 @@ public class OrderService {
      * Nhận sự kiện payment.failed → hủy các sub-orders ở trạng thái PENDING.
      */
     @KafkaListener(topics = KafkaTopics.PAYMENT_FAILED, groupId = "order-service-group")
-    public void onPaymentFailed(Map<String, Object> payload) {
+    public void onPaymentFailed(String message) {
         try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
             Object parentOrderIdObj = payload.get("parent_order_id");
             if (parentOrderIdObj == null) return;
 

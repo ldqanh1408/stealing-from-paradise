@@ -185,8 +185,9 @@ public class RefundService {
      */
     @KafkaListener(topics = KafkaTopics.REFUND_REQUESTED, groupId = "payment-service-group")
     @Transactional
-    public void onRefundRequested(Map<String, Object> payload) {
+    public void onRefundRequested(String message) {
         try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
             Long orderId       = toLong(payload.get("order_id"));
             Long parentOrderId = toLong(payload.get("parent_order_id"));
             Long userId        = toLong(payload.get("user_id"));
@@ -276,8 +277,9 @@ public class RefundService {
      */
     @KafkaListener(topics = KafkaTopics.REFUND_FULL_REQUESTED, groupId = "payment-service-group")
     @Transactional
-    public void onRefundFullRequested(Map<String, Object> payload) {
+    public void onRefundFullRequested(String message) {
         try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
             Long parentOrderId = toLong(payload.get("parent_order_id"));
             Long userId        = toLong(payload.get("user_id"));
             String groupRef    = (String) payload.get("group_ref");
@@ -340,8 +342,9 @@ public class RefundService {
      */
     @KafkaListener(topics = KafkaTopics.ORDER_RETURNED_RTS, groupId = "payment-service-group")
     @Transactional
-    public void onOrderReturnedRts(Map<String, Object> payload) {
+    public void onOrderReturnedRts(String message) {
         try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
             Long orderId       = toLong(payload.get("order_id"));
             Long parentOrderId = toLong(payload.get("parent_order_id"));
             Long userId        = toLong(payload.get("user_id"));
@@ -432,11 +435,13 @@ public class RefundService {
      * - { correlation_id, user_id, status?, from_date?, to_date?, page, size } → lấy refunds của Buyer
      */
     @KafkaListener(topics = KafkaTopics.ORDER_REFUNDS_REQUEST, groupId = "payment-service-reply-group")
-    public void onOrderRefundsRequest(Map<String, Object> payload) {
-        String correlationId = (String) payload.get("correlation_id");
-        if (correlationId == null) return;
-
+    public void onOrderRefundsRequest(String message) {
+        String correlationId = null;
         try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
+            correlationId = (String) payload.get("correlation_id");
+            if (correlationId == null) return;
+
             List<Map<String, Object>> refundData;
             long totalElements = 0;
             int totalPages = 1;
@@ -482,13 +487,14 @@ public class RefundService {
 
         } catch (Exception e) {
             log.error("Error processing ORDER_REFUNDS_REQUEST: {}", e.getMessage(), e);
-            // Reply with error
-            Map<String, Object> errorResp = Map.of(
-                    "correlation_id", correlationId,
-                    "error", true,
-                    "refunds", List.of()
-            );
-            kafkaTemplate.send(KafkaTopics.ORDER_REFUNDS_RESPONSE, correlationId, toJson(errorResp));
+            if (correlationId != null) {
+                Map<String, Object> errorResp = Map.of(
+                        "correlation_id", correlationId,
+                        "error", true,
+                        "refunds", List.of()
+                );
+                kafkaTemplate.send(KafkaTopics.ORDER_REFUNDS_RESPONSE, correlationId, toJson(errorResp));
+            }
         }
     }
 
@@ -499,11 +505,12 @@ public class RefundService {
      * Dùng để order-service kiểm tra xem đơn đã thanh toán chưa trước khi tạo refund.
      */
     @KafkaListener(topics = KafkaTopics.ORDER_PAYMENT_STATUS_REQUEST, groupId = "payment-service-reply-group")
-    public void onOrderPaymentStatusRequest(Map<String, Object> payload) {
-        String correlationId = (String) payload.get("correlation_id");
-        if (correlationId == null) return;
-
+    public void onOrderPaymentStatusRequest(String message) {
+        String correlationId = null;
         try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
+            correlationId = (String) payload.get("correlation_id");
+            if (correlationId == null) return;
             Long parentOrderId = toLong(payload.get("parent_order_id"));
             Optional<Transaction> txOpt = transactionRepository.findByParentOrderId(parentOrderId);
 

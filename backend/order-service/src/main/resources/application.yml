@@ -73,3 +73,7 @@ logging:
   level:
     org.flywaydb: DEBUG
     org.hibernate.engine.transaction.internal.TransactionImpl: DEBUG
+    # Suppress Kafka client spam logs
+    org.apache.kafka: WARN
+    org.springframework.kafka: WARN
+    kafka: WARN

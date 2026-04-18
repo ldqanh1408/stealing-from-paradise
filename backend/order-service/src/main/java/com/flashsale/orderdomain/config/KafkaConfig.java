@@ -1,6 +1,5 @@
 package com.flashsale.orderdomain.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -12,7 +11,6 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.support.converter.StringJsonMessageConverter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,10 +27,6 @@ public class KafkaConfig {
 
     // ─── Producer ─────────────────────────────────────────────────────────────
 
-    /**
-     * Dùng StringSerializer — payload đã được serialize thành JSON string
-     * bởi ObjectMapper trước khi đưa vào KafkaTemplate.
-     */
     @Bean
     public ProducerFactory<String, String> producerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -53,10 +47,6 @@ public class KafkaConfig {
 
     // ─── Consumer ─────────────────────────────────────────────────────────────
 
-    /**
-     * Dùng StringDeserializer — payload nhận về là JSON string,
-     * được parse thành Map bởi StringJsonMessageConverter.
-     */
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -70,19 +60,14 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
-    /**
-     * StringJsonMessageConverter cho phép @KafkaListener nhận thẳng Map<String, Object>
-     * — Spring tự parse JSON string thành Map qua Jackson mà không cần deprecated JsonDeserializer.
-     */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            ObjectMapper objectMapper) {
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
-        factory.setRecordMessageConverter(new StringJsonMessageConverter(objectMapper));
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.BATCH);
+        factory.setMissingTopicsFatal(false);
         return factory;
     }
 }

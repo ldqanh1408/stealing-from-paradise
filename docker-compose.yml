@@ -140,6 +140,17 @@ services:
     networks: [flashsale-net]
     command: bash -c "sleep 15 && rm -f /var/lib/kafka/data/meta.properties && rm -rf /var/lib/kafka/data/log-* && /etc/confluent/docker/run"
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: fs-kafka-init
+    depends_on:
+      kafka: { condition: service_started }
+    networks: [flashsale-net]
+    volumes:
+      - ./backend/docker/kafka/create-topics.sh:/create-topics.sh
+    command: bash /create-topics.sh
+    restart: on-failure
+
   axonserver:
     image: axoniq/axonserver:latest
     container_name: fs-axon
@@ -227,7 +238,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
     depends_on:
       mongo: { condition: service_started }
-      kafka: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
       axonserver: { condition: service_started }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
@@ -245,9 +256,12 @@ services:
        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
        - KAFKA_SERVER=${KAFKA_SERVER}
        - AXON_SERVER=${AXON_SERVER}
+       - LOGGING_LEVEL_ORG_APACHE_KAFKA=WARN
+       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA=WARN
+       - LOGGING_LEVEL_KAFKA=WARN
      depends_on:
        postgres: { condition: service_healthy }
-       kafka: { condition: service_started }
+       kafka-init: { condition: service_completed_successfully }
        axonserver: { condition: service_started }
        discovery-service: { condition: service_started }
      networks: [flashsale-net]
@@ -263,9 +277,16 @@ services:
        - DB_NAME=${DB_NAME}
        - POSTGRES_USER=${POSTGRES_USER}
        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+       - KAFKA_SERVER=${KAFKA_SERVER}
        - AXON_SERVER=${AXON_SERVER}
+       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+       - LOGGING_LEVEL_ORG_APACHE_KAFKA=WARN
+       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA=WARN
+       - LOGGING_LEVEL_KAFKA=WARN
      depends_on:
        postgres: { condition: service_healthy }
+       kafka-init: { condition: service_completed_successfully }
        axonserver: { condition: service_started }
        discovery-service: { condition: service_started }
      networks: [flashsale-net]
@@ -287,7 +308,7 @@ services:
      depends_on:
        postgres: { condition: service_healthy }
        redis: { condition: service_started }
-       kafka: { condition: service_started }
+       kafka-init: { condition: service_completed_successfully }
        discovery-service: { condition: service_started }
        axonserver: { condition: service_started }
      networks: [flashsale-net]
@@ -303,7 +324,7 @@ services:
       - KAFKA_SERVER=${KAFKA_SERVER}
     depends_on:
       elasticsearch: { condition: service_started }
-      kafka: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
@@ -323,7 +344,7 @@ services:
     depends_on:
       mongo: { condition: service_started }
       redis: { condition: service_started }
-      kafka: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
@@ -342,7 +363,7 @@ services:
        - AXON_SERVER=${AXON_SERVER}
      depends_on:
        postgres: { condition: service_healthy }
-       kafka: { condition: service_started }
+       kafka-init: { condition: service_completed_successfully }
        axonserver: { condition: service_started }
        discovery-service: { condition: service_started }
      networks: [flashsale-net]

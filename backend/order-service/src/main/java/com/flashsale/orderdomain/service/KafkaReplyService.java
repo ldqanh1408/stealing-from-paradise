@@ -1,6 +1,7 @@
 package com.flashsale.orderdomain.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
@@ -84,20 +85,25 @@ public class KafkaReplyService {
             },
             groupId = "order-service-reply-group"
     )
-    public void onReply(Map<String, Object> payload) {
-        Object correlationIdObj = payload.get("correlation_id");
-        if (correlationIdObj == null) {
-            log.warn("Received Kafka reply without correlation_id — ignored");
-            return;
-        }
+    public void onReply(String message) {
+        try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
+            Object correlationIdObj = payload.get("correlation_id");
+            if (correlationIdObj == null) {
+                log.warn("Received Kafka reply without correlation_id — ignored");
+                return;
+            }
 
-        String correlationId = correlationIdObj.toString();
-        CompletableFuture<Map<String, Object>> future = pendingRequests.get(correlationId);
-        if (future != null) {
-            future.complete(payload);
-            log.debug("Kafka reply matched: correlationId={}", correlationId);
-        } else {
-            log.warn("Received Kafka reply for unknown correlationId={}", correlationId);
+            String correlationId = correlationIdObj.toString();
+            CompletableFuture<Map<String, Object>> future = pendingRequests.get(correlationId);
+            if (future != null) {
+                future.complete(payload);
+                log.debug("Kafka reply matched: correlationId={}", correlationId);
+            } else {
+                log.warn("Received Kafka reply for unknown correlationId={}", correlationId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse Kafka reply: {}", e.getMessage(), e);
         }
     }
 
