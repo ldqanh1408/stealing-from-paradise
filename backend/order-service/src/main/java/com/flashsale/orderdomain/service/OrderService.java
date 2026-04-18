@@ -7,6 +7,7 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.flashsale.orderdomain.axon.event.*;
 import com.flashsale.orderdomain.client.dto.AddressInfo;
 import com.flashsale.orderdomain.client.dto.CartItemInfo;
 import com.flashsale.orderdomain.domain.model.Order;
@@ -22,9 +23,9 @@ import com.flashsale.orderdomain.dto.request.UpdateTrackingRequest;
 import com.flashsale.orderdomain.dto.response.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.axonframework.eventhandling.gateway.EventGateway;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ public class OrderService {
     private final KafkaReplyService kafkaReplyService;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final EventGateway eventGateway;
 
     // Thời gian timeout thanh toán: 30 phút
     private static final int PAYMENT_TIMEOUT_MINUTES = 30;
@@ -199,10 +201,31 @@ public class OrderService {
                     .build());
         }
 
-        // 9. Publish Kafka event: order.created
-        publishOrderCreated(parentOrder, subOrders, userId, loyaltyPointsUsed);
+        // 9. Emit one OrderCreatedEvent per sub-order → Saga starts, publishes order.created to Kafka
+        final int finalLoyaltyPointsUsed = loyaltyPointsUsed;
+        final ParentOrder finalParentOrder = parentOrder;
+        subOrders.forEach(o -> eventGateway.publish(new OrderCreatedEvent(
+                o.getId(),
+                finalParentOrder.getId(),
+                userId,
+                o.getSellerId(),
+                o.getSellerName(),
+                o.getOrderCode(),
+                o.getTotalAmt(),
+                finalLoyaltyPointsUsed,
+                Boolean.TRUE.equals(o.getIsFlashSale()),
+                finalParentOrder.getTimeoutAt()
+        )));
 
-        // 10. Publish Kafka event: order.checkout_completed → Cart Service xóa items
+        // 10. Emit parent-order event so Axon saga can orchestrate payment flow once per checkout
+        eventGateway.publish(new ParentOrderCheckoutCreatedEvent(
+                parentOrder.getId(),
+                userId,
+                finalAmt,
+                parentOrder.getTimeoutAt()
+        ));
+
+        // 11. Publish order.checkout_completed → Cart Service xóa items (no Saga needed)
         publishCheckoutCompleted(userId, req.getItemIds(), parentOrder.getId());
 
         log.info("Checkout completed: parentOrderId={}, userId={}, totalAmt={}", parentOrder.getId(), userId, totalAmt);
@@ -350,11 +373,16 @@ public class OrderService {
         order.setCancelledAt(LocalDateTime.now());
         orderRepository.save(order);
 
-        // Publish Kafka events
-        publishOrderCancelled(order, userId, cancelledBy, req.getReason());
-        if ("SELLER".equals(cancelledBy)) {
-            publishSellerOrderCancelled(order, userId);
-        }
+        // Emit Axon event → Saga publishes order.cancelled (and seller.order_cancelled if needed)
+        eventGateway.publish(new OrderCancelledEvent(
+                order.getId(),
+                order.getParentOrderId(),
+                userId,
+                order.getSellerId(),
+                cancelledBy,
+                cancelReason,
+                order.getTotalAmt()
+        ));
 
         log.info("Order cancelled: orderId={}, cancelledBy={}", orderId, cancelledBy);
 
@@ -390,8 +418,15 @@ public class OrderService {
         order.setShippingDeadline(shippingDeadline);
         orderRepository.save(order);
 
-        // Publish Kafka event: order.shipped
-        publishOrderShipped(order);
+        // Emit Axon event → Saga publishes order.shipped and schedules shipping deadline
+        eventGateway.publish(new OrderShippedEvent(
+                order.getId(),
+                order.getUserId(),
+                order.getSellerId(),
+                req.getTrackingNumber(),
+                req.getCarrier(),
+                shippingDeadline
+        ));
 
         log.info("Order tracking updated: orderId={}, trackingNumber={}", orderId, req.getTrackingNumber());
 
@@ -430,8 +465,15 @@ public class OrderService {
                 .multiply(BigDecimal.valueOf(LOYALTY_POINTS_PER_10K))
                 .intValue();
 
-        // Publish Kafka event: order.delivered
-        publishOrderDelivered(order, loyaltyPoints);
+        // Emit Axon event → Saga publishes order.delivered (ends saga)
+        eventGateway.publish(new OrderDeliveredEvent(
+                order.getId(),
+                order.getUserId(),
+                order.getSellerId(),
+                order.getFinalAmt(),
+                loyaltyPoints,
+                "BUYER"
+        ));
 
         log.info("Order delivered confirmed: orderId={}, loyaltyPoints={}", orderId, loyaltyPoints);
 
@@ -476,8 +518,16 @@ public class OrderService {
         String refundCode = "RF-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + "-" + order.getId();
 
-        // Publish Kafka event: order.returned
-        publishOrderReturned(order, req.getReturnTrackingNumber(), images.size());
+        // Emit Axon event → Saga publishes order.returned (ends saga)
+        eventGateway.publish(new OrderReturnedEvent(
+                order.getId(),
+                order.getParentOrderId(),
+                order.getUserId(),
+                order.getSellerId(),
+                order.getFinalAmt(),
+                req.getReturnTrackingNumber(),
+                images.size()
+        ));
 
         log.info("Return-to-sender processed: orderId={}, evidenceCount={}", orderId, images.size());
 
@@ -518,82 +568,10 @@ public class OrderService {
         return PageResponse.of(mapped);
     }
 
-    // ─── Kafka Consumers ──────────────────────────────────────────────────────
 
-    /**
-     * Nhận sự kiện payment.success → cập nhật trạng thái tất cả sub-orders thành PAID.
-     */
-    @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "order-service-group")
-    public void onPaymentSuccess(String message) {
-        try {
-            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
-            Object parentOrderIdObj = payload.get("parent_order_id");
-            if (parentOrderIdObj == null) return;
+    // ─── Kafka Producers (internal only) ──────────────────────────────────────
 
-            Long parentOrderId = Long.parseLong(parentOrderIdObj.toString());
-
-            List<Order> orders = orderRepository.findAllByParentOrderIdAndStatus(parentOrderId, "PENDING");
-            orders.forEach(o -> {
-                o.setStatus("PAID");
-                orderRepository.save(o);
-            });
-            log.info("Orders updated to PAID: parentOrderId={}, count={}", parentOrderId, orders.size());
-        } catch (Exception e) {
-            log.error("Error processing payment.success event: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Nhận sự kiện payment.failed → hủy các sub-orders ở trạng thái PENDING.
-     */
-    @KafkaListener(topics = KafkaTopics.PAYMENT_FAILED, groupId = "order-service-group")
-    public void onPaymentFailed(String message) {
-        try {
-            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
-            Object parentOrderIdObj = payload.get("parent_order_id");
-            if (parentOrderIdObj == null) return;
-
-            Long parentOrderId = Long.parseLong(parentOrderIdObj.toString());
-
-            List<Order> orders = orderRepository.findAllByParentOrderIdAndStatus(parentOrderId, "PENDING");
-            orders.forEach(o -> {
-                o.setStatus("CANCELLED");
-                o.setCancelledBy("SYSTEM");
-                o.setCancelReason("Thanh toán thất bại");
-                o.setCancelledAt(LocalDateTime.now());
-                orderRepository.save(o);
-            });
-            log.info("Orders cancelled due to payment failure: parentOrderId={}", parentOrderId);
-        } catch (Exception e) {
-            log.error("Error processing payment.failed event: {}", e.getMessage(), e);
-        }
-    }
-
-    // ─── Kafka Producers ──────────────────────────────────────────────────────
-
-    private void publishOrderCreated(ParentOrder parentOrder, List<Order> subOrders,
-                                     Long userId, int loyaltyPointsUsed) {
-        List<Map<String, Object>> ordersInfo = subOrders.stream()
-                .map(o -> Map.<String, Object>of(
-                        "order_id", o.getId(),
-                        "seller_id", o.getSellerId(),
-                        "total_amount", o.getTotalAmt(),
-                        "items_count", o.getItems() != null ? o.getItems().size() : 0
-                ))
-                .collect(Collectors.toList());
-
-        Map<String, Object> event = Map.of(
-                "parent_order_id", parentOrder.getId(),
-                "user_id", userId,
-                "orders", ordersInfo,
-                "total_amount", parentOrder.getTotalAmt(),
-                "loyalty_points_used", loyaltyPointsUsed,
-                "timestamp", Instant.now().toString()
-        );
-
-        kafkaTemplate.send(KafkaTopics.ORDER_CREATED, String.valueOf(parentOrder.getId()), toJson(event));
-    }
-
+    /** order.checkout_completed → cart-service removes purchased items. */
     private void publishCheckoutCompleted(Long userId, List<String> itemIds, Long parentOrderId) {
         Map<String, Object> event = Map.of(
                 "user_id", userId,
@@ -604,74 +582,8 @@ public class OrderService {
         kafkaTemplate.send(KafkaTopics.ORDER_CHECKOUT_COMPLETED, String.valueOf(userId), toJson(event));
     }
 
-    private void publishOrderCancelled(Order order, Long userId, String cancelledBy, String reason) {
-        Map<String, Object> event = new HashMap<>();
-        event.put("order_id", order.getId());
-        event.put("parent_order_id", order.getParentOrderId());
-        event.put("user_id", userId);
-        event.put("seller_id", order.getSellerId());
-        event.put("cancelled_by", cancelledBy);
-        event.put("cancel_reason", reason);
-        event.put("total_amount", order.getTotalAmt());
-        event.put("timestamp", Instant.now().toString());
-        kafkaTemplate.send(KafkaTopics.ORDER_CANCELLED, String.valueOf(order.getId()), toJson(event));
-    }
-
-    private void publishSellerOrderCancelled(Order order, Long sellerId) {
-        Map<String, Object> event = Map.of(
-                "order_id", order.getId(),
-                "seller_id", sellerId,
-                "buyer_id", order.getUserId(),
-                "timestamp", Instant.now().toString()
-        );
-        kafkaTemplate.send(KafkaTopics.SELLER_ORDER_CANCELLED, String.valueOf(sellerId), toJson(event));
-    }
-
-    private void publishOrderShipped(Order order) {
-        Map<String, Object> event = Map.of(
-                "order_id", order.getId(),
-                "user_id", order.getUserId(),
-                "seller_id", order.getSellerId(),
-                "tracking_number", order.getTrackingNumber(),
-                "carrier", Optional.ofNullable(order.getCarrier()).orElse(""),
-                "shipped_at", Instant.now().toString()
-        );
-        kafkaTemplate.send(KafkaTopics.ORDER_SHIPPED, String.valueOf(order.getId()), toJson(event));
-    }
-
-    private void publishOrderDelivered(Order order, int loyaltyPoints) {
-        Map<String, Object> event = Map.of(
-                "order_id", order.getId(),
-                "user_id", order.getUserId(),
-                "seller_id", order.getSellerId(),
-                "total_amount", order.getFinalAmt(),
-                "loyalty_points", loyaltyPoints,
-                "delivered_at", Instant.now().toString(),
-                "timestamp", Instant.now().toString()
-        );
-        kafkaTemplate.send(KafkaTopics.ORDER_DELIVERED, String.valueOf(order.getId()), toJson(event));
-    }
-
-    private void publishOrderReturned(Order order, String returnTrackingNumber, int evidenceCount) {
-        Map<String, Object> event = new HashMap<>();
-        event.put("order_id", order.getId());
-        event.put("parent_order_id", order.getParentOrderId());
-        event.put("user_id", order.getUserId());
-        event.put("seller_id", order.getSellerId());
-        event.put("refund_reason_type", "RETURN_TO_SENDER");
-        event.put("return_tracking_number", returnTrackingNumber != null ? returnTrackingNumber : "");
-        event.put("total_amount", order.getFinalAmt());
-        event.put("evidence_count", evidenceCount);
-        event.put("timestamp", Instant.now().toString());
-        kafkaTemplate.send(KafkaTopics.ORDER_RETURNED_RTS, String.valueOf(order.getId()), toJson(event));
-    }
-
     // ─── Kafka Request-Reply Helpers ──────────────────────────────────────────
 
-    /**
-     * Lấy địa chỉ giao hàng từ identity-service qua Kafka request-reply.
-     * identity-service lắng nghe {@code ORDER_ADDRESS_REQUEST} và reply lên {@code ORDER_ADDRESS_RESPONSE}.
-     */
     private AddressInfo fetchAddress(Long addressId, Long userId) {
         Map<String, Object> request = new HashMap<>();
         request.put("address_id", addressId);
@@ -686,10 +598,6 @@ public class OrderService {
         return objectMapper.convertValue(response, AddressInfo.class);
     }
 
-    /**
-     * Lấy danh sách cart items từ cart-service qua Kafka request-reply.
-     * cart-service lắng nghe {@code ORDER_CART_ITEMS_REQUEST} và reply lên {@code ORDER_CART_ITEMS_RESPONSE}.
-     */
     @SuppressWarnings("unchecked")
     private List<CartItemInfo> fetchCartItems(Long userId, List<String> itemIds) {
         Map<String, Object> request = new HashMap<>();
@@ -706,7 +614,6 @@ public class OrderService {
         return objectMapper.convertValue(items, new TypeReference<List<CartItemInfo>>() {});
     }
 
-    /** Serialize payload thành JSON string để gửi qua StringSerializer. */
     private String toJson(Object payload) {
         try {
             return objectMapper.writeValueAsString(payload);

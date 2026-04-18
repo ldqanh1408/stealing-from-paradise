@@ -42,8 +42,10 @@ public class KafkaTopicConfig {
 
     // ─── Topics order-service produces ────────────────────────────────────────
     @Bean public NewTopic orderCreated()           { return topic(KafkaTopics.ORDER_CREATED); }
+    @Bean public NewTopic paymentRequested()       { return topic(KafkaTopics.PAYMENT_REQUESTED); }
     @Bean public NewTopic orderCheckoutCompleted() { return topic(KafkaTopics.ORDER_CHECKOUT_COMPLETED); }
     @Bean public NewTopic orderCancelled()         { return topic(KafkaTopics.ORDER_CANCELLED); }
+    @Bean public NewTopic orderAutoCancelled()     { return topic(KafkaTopics.ORDER_AUTO_CANCELLED); }
     @Bean public NewTopic sellerOrderCancelled()   { return topic(KafkaTopics.SELLER_ORDER_CANCELLED); }
     @Bean public NewTopic orderShipped()           { return topic(KafkaTopics.ORDER_SHIPPED); }
     @Bean public NewTopic orderDelivered()         { return topic(KafkaTopics.ORDER_DELIVERED); }

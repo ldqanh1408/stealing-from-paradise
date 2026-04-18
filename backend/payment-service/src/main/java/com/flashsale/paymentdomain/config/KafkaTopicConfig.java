@@ -31,6 +31,7 @@ public class KafkaTopicConfig {
     }
 
     // ─── Topics payment-service consumes ──────────────────────────────────────
+    @Bean public NewTopic paymentRequested()         { return topic(KafkaTopics.PAYMENT_REQUESTED); }
     @Bean public NewTopic paymentSuccess()           { return topic(KafkaTopics.PAYMENT_SUCCESS); }
     @Bean public NewTopic orderPaymentStatusReq()    { return topic(KafkaTopics.ORDER_PAYMENT_STATUS_REQUEST); }
     @Bean public NewTopic refundRequested()          { return topic(KafkaTopics.REFUND_REQUESTED); }

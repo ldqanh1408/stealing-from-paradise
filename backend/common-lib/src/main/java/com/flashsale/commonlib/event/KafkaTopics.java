@@ -41,6 +41,7 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     // Payment  (Producer: Payment Service)
     // ──────────────────────────────────────────────
+    public static final String PAYMENT_REQUESTED        = "payment.requested";
     public static final String PAYMENT_SUCCESS          = "payment.success";
     public static final String PAYMENT_FAILED           = "payment.failed";
     public static final String STRIPE_ACCOUNT_SUSPENDED = "stripe.account_suspended";
@@ -84,4 +85,3 @@ public final class KafkaTopics {
     public static final String ORDER_REFUNDS_RESPONSE        = "order.refunds.response";
 
 }
-

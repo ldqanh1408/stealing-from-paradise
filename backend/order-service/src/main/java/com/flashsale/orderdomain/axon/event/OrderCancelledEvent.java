@@ -3,19 +3,16 @@ package com.flashsale.orderdomain.axon.event;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Getter
 @AllArgsConstructor
-public class OrderCreatedEvent {
+public class OrderCancelledEvent {
     private Long orderId;
     private Long parentOrderId;
     private Long userId;
     private Long sellerId;
-    private String sellerName;
-    private String orderCode;
+    /** "BUYER" | "SELLER" | "SYSTEM" | "PAYMENT_FAILED" */
+    private String cancelledBy;
+    private String cancelReason;
     private BigDecimal totalAmount;
-    private int loyaltyPointsUsed;
-    private boolean isFlashSale;
-    private LocalDateTime timeoutAt;
 }

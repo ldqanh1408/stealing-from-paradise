@@ -1,5 +1,6 @@
 package com.flashsale.paymentdomain.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
@@ -17,6 +18,7 @@ import com.flashsale.paymentdomain.dto.response.TransactionDetailResponse;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.*;
 import com.stripe.net.Webhook;
+import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -27,8 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.math.RoundingMode;
 import java.util.stream.Collectors;
 
 @Service
@@ -205,12 +209,95 @@ public class PaymentService {
 
     // ─── Kafka ────────────────────────────────────────────────────────
 
+    @KafkaListener(topics = KafkaTopics.PAYMENT_REQUESTED, groupId = "payment-service-group")
+    @Transactional
+    public void onPaymentRequested(String message) {
+        Long parentOrderId = null;
+        try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
+            parentOrderId = toLong(payload.get("parent_order_id"));
+            Long userId = toLong(payload.get("user_id"));
+            java.math.BigDecimal totalAmount = toBigDecimal(payload.get("total_amount"));
+
+            if (parentOrderId == null || totalAmount == null || totalAmount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+                log.warn("Ignore payment.requested with invalid payload: {}", message);
+                return;
+            }
+
+            Transaction existing = transactionRepository.findByParentOrderId(parentOrderId).orElse(null);
+            if (existing != null && ("PENDING".equals(existing.getStatus()) || "SUCCESS".equals(existing.getStatus()))) {
+                log.info("Skip payment.requested because transaction already exists: parentOrderId={}, status={}",
+                        parentOrderId, existing.getStatus());
+                return;
+            }
+
+            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                    .setAmount(toStripeAmount(totalAmount))
+                    .setCurrency("vnd")
+                    .setAutomaticPaymentMethods(
+                            PaymentIntentCreateParams.AutomaticPaymentMethods.builder().setEnabled(true).build()
+                    )
+                    .putMetadata("parent_order_id", String.valueOf(parentOrderId))
+                    .putMetadata("user_id", userId != null ? String.valueOf(userId) : "")
+                    .build();
+
+            PaymentIntent pi = PaymentIntent.create(params);
+
+            Transaction tx = existing != null ? existing : new Transaction();
+            tx.setParentOrderId(parentOrderId);
+            tx.setAmount(totalAmount);
+            tx.setMethod("STRIPE");
+            tx.setStatus("PENDING");
+            tx.setStripePiId(pi.getId());
+            tx.setTransRef(buildTransRef(parentOrderId));
+            tx.setRawResponse(pi.toJson());
+            transactionRepository.save(tx);
+
+            log.info("Payment initialized: parentOrderId={}, txId={}, piId={}", parentOrderId, tx.getId(), pi.getId());
+        } catch (Exception e) {
+            log.error("Failed to initialize payment from payment.requested: {}", e.getMessage(), e);
+            if (parentOrderId != null) {
+                publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(parentOrderId), Map.of(
+                        "parent_order_id", parentOrderId,
+                        "reason", "Khoi tao thanh toan that bai",
+                        "timestamp", Instant.now().toString()
+                ));
+            }
+        }
+    }
+
     @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "payment-service-group")
     public void onPaymentSuccess(String message) {
         log.info("Payment success event received: {}", message);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────
+
+    private long toStripeAmount(java.math.BigDecimal amount) {
+        return amount.setScale(0, RoundingMode.HALF_UP).longValueExact();
+    }
+
+    private String buildTransRef(Long parentOrderId) {
+        return "TXN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "-" + parentOrderId;
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) return null;
+        try {
+            return Long.parseLong(value.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private java.math.BigDecimal toBigDecimal(Object value) {
+        if (value == null) return null;
+        try {
+            return new java.math.BigDecimal(value.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private void publish(String topic, String key, Object payload) {
         try {
