@@ -16,6 +16,7 @@ import com.flashsale.paymentdomain.domain.repository.TransactionRepository;
 import com.flashsale.paymentdomain.dto.request.AdminRefundApproveRequest;
 import com.flashsale.paymentdomain.dto.request.AdminRefundRejectRequest;
 import com.flashsale.paymentdomain.dto.response.AdminRefundApproveResponse;
+import com.flashsale.paymentdomain.dto.response.RefundDetailResponse;
 import com.flashsale.paymentdomain.dto.response.RefundListResponse;
 import com.stripe.exception.StripeException;
 import com.stripe.param.RefundCreateParams;
@@ -70,6 +71,83 @@ public class RefundService {
                 .totalElements(result.getTotalElements())
                 .totalPages(result.getTotalPages())
                 .last(result.isLast())
+                .build();
+    }
+
+    // ─── Admin: Get Refund Detail ────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public RefundDetailResponse getRefundById(Long refundId) {
+        Refund refund = refundRepository.findById(refundId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Refund không tồn tại: " + refundId));
+
+        List<RefundItem> items = refundItemRepository.findAllByRefundId(refundId);
+
+        // Parse evidence images from JSON
+        List<String> evidenceImages = null;
+        if (refund.getEvidenceImages() != null) {
+            try {
+                evidenceImages = objectMapper.readValue(refund.getEvidenceImages(),
+                        new TypeReference<List<String>>() {});
+            } catch (Exception e) {
+                log.warn("Failed to parse evidence_images for refundId={}", refundId);
+            }
+        }
+
+        // Build return evidence from RefundItems that have tracking
+        List<AdminRefundApproveResponse.ReturnEvidence> returnEvidence = items.stream()
+                .filter(ri -> ri.getReturnTrackingNumber() != null)
+                .map(ri -> AdminRefundApproveResponse.ReturnEvidence.builder()
+                        .type("tracking")
+                        .trackingNumber(ri.getReturnTrackingNumber())
+                        .recordedAt(ri.getReturnedAt() != null
+                                ? ri.getReturnedAt().toInstant(ZoneOffset.UTC) : null)
+                        .build())
+                .collect(Collectors.toList());
+
+        // Collect tracking number (first non-null)
+        String trackingNumber = items.stream()
+                .map(RefundItem::getReturnTrackingNumber)
+                .filter(t -> t != null && !t.isBlank())
+                .findFirst().orElse(null);
+
+        List<RefundDetailResponse.RefundItemInfo> itemInfos = items.stream()
+                .map(ri -> RefundDetailResponse.RefundItemInfo.builder()
+                        .itemId(ri.getItemId())
+                        .quantity(ri.getQuantity())
+                        .refundAmount(ri.getRefundAmount())
+                        .itemReason(ri.getItemReason())
+                        .status(ri.getStatus())
+                        .returnTrackingNumber(ri.getReturnTrackingNumber())
+                        .returnedAt(ri.getReturnedAt() != null
+                                ? ri.getReturnedAt().toInstant(ZoneOffset.UTC) : null)
+                        .build())
+                .collect(Collectors.toList());
+
+        return RefundDetailResponse.builder()
+                .refundId(refund.getId())
+                .refundCode(buildRefundCode(refund))
+                .orderId(refund.getOrderId())
+                .groupRef(refund.getGroupRef())
+                .type(refund.getType())
+                .status(refund.getStatus())
+                .amount(refund.getAmount())
+                .adjustAmount(refund.getAdjustAmount())
+                .reason(refund.getReason())
+                .initiatedBy(refund.getInitiatedBy())
+                .refundReasonType(refund.getRefundReasonType())
+                .evidenceImages(evidenceImages)
+                .adminNote(refund.getAdminNote())
+                .rejectReason(refund.getRejectReason())
+                .trackingNumber(trackingNumber)
+                .returnEvidence(returnEvidence.isEmpty() ? null : returnEvidence)
+                .reviewedBy(refund.getReviewedBy())
+                .reviewedAt(refund.getReviewedAt() != null
+                        ? refund.getReviewedAt().toInstant(ZoneOffset.UTC) : null)
+                .stripeRefundId(refund.getRefundRef())
+                .items(itemInfos)
+                .createdAt(refund.getCreatedAt().toInstant(ZoneOffset.UTC))
+                .updatedAt(refund.getUpdatedAt().toInstant(ZoneOffset.UTC))
                 .build();
     }
 

@@ -16,6 +16,7 @@ import com.flashsale.orderdomain.domain.repository.OrderRepository;
 import com.flashsale.orderdomain.domain.repository.ParentOrderRepository;
 import com.flashsale.orderdomain.dto.request.BuyerPartialRefundItem;
 import com.flashsale.orderdomain.dto.request.BuyerPartialRefundRequest;
+import com.flashsale.orderdomain.dto.request.FullRefundRequest;
 import com.flashsale.orderdomain.dto.response.FullRefundCreatedResponse;
 import com.flashsale.orderdomain.dto.response.OrderRefundInfo;
 import com.flashsale.orderdomain.dto.response.RefundCreatedResponse;
@@ -130,8 +131,12 @@ public class RefundController {
                         .orderId(orderId)
                         .type("PARTIAL")
                         .status("PENDING")
-                        .amount(totalRefundAmount)
+                        .totalAmount(order.getFinalAmt())
+                        .refundAmount(totalRefundAmount)
                         .itemCount(req.getItems().size())
+                        .items(refundItems)
+                        .evidenceImages(req.getEvidenceImages())
+                        .estimatedDays(3)
                         .message("Yêu cầu hoàn tiền đã được ghi nhận và đang chờ xử lý")
                         .createdAt(Instant.now())
                         .build(),
@@ -143,12 +148,13 @@ public class RefundController {
 
     /**
      * Buyer yêu cầu hoàn tiền toàn bộ đơn cha.
-     * Điều kiện: tất cả sub-orders phải đang ở trạng thái PAID.
+     * Điều kiện: tất cả sub-orders phải đang ở trạng thái DELIVERED trong vòng 7 ngày.
      */
     @PostMapping("/orders/parent/{parentOrderId}/refund")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<FullRefundCreatedResponse>> createFullRefund(
             @PathVariable Long parentOrderId,
+            @Valid @RequestBody FullRefundRequest req,
             @AuthenticationPrincipal UserDetailsImpl user) {
 
         Long userId = user.getId();
@@ -164,13 +170,9 @@ public class RefundController {
             throw new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy đơn con nào");
         }
 
-        // 3. Kiểm tra tất cả đơn con phải PAID
+        // 3. Kiểm tra tất cả đơn con phải DELIVERED (trong vòng 7 ngày)
         for (Order o : subOrders) {
-            if (!"PAID".equals(o.getStatus())) {
-                throw new AppException(ErrorCode.VALIDATION_FAILED,
-                        "Chỉ có thể hoàn tiền toàn bộ khi tất cả đơn con đang ở trạng thái PAID. "
-                                + "Đơn " + o.getOrderCode() + " đang ở " + o.getStatus());
-            }
+            validateOrderStatusForRefund(o);
         }
 
         // 4. Build per-seller refund data
@@ -193,17 +195,21 @@ public class RefundController {
                     .sellerId(o.getSellerId())
                     .amount(o.getFinalAmt())
                     .itemCount(itemCount)
+                    .status("PENDING")
                     .build());
         }
 
         // 5. Publish REFUND_FULL_REQUESTED
         Map<String, Object> event = new HashMap<>();
-        event.put("parent_order_id", parentOrderId);
-        event.put("user_id",         userId);
-        event.put("group_ref",       groupRef);
-        event.put("total_amount",    totalAmount);
-        event.put("refunds",         refundList);
-        event.put("timestamp",       Instant.now().toString());
+        event.put("parent_order_id",  parentOrderId);
+        event.put("user_id",          userId);
+        event.put("group_ref",        groupRef);
+        event.put("reason",           req.getReason());
+        event.put("total_amount",     totalAmount);
+        event.put("refunds",          refundList);
+        event.put("evidence_images",  req.getEvidenceImages() != null ? req.getEvidenceImages() : List.of());
+        event.put("refund_reason_type", "BUYER_REQUEST");
+        event.put("timestamp",        Instant.now().toString());
         kafkaTemplate.send(KafkaTopics.REFUND_FULL_REQUESTED, String.valueOf(parentOrderId), toJson(event));
 
         log.info("Full refund requested: parentOrderId={}, userId={}, total={}", parentOrderId, userId, totalAmount);
@@ -216,6 +222,7 @@ public class RefundController {
                         .totalAmount(totalAmount)
                         .status("PENDING")
                         .refunds(subInfos)
+                        .estimatedDays(3)
                         .message("Yêu cầu hoàn tiền toàn bộ đã được ghi nhận")
                         .createdAt(Instant.now())
                         .build(),
@@ -476,21 +483,20 @@ public class RefundController {
 
     /**
      * Kiểm tra order status hợp lệ để tạo refund.
-     * - PAID / SHIPPING / DELIVERED / PARTIALLY_REFUNDED
-     * - Nếu DELIVERED: trong vòng 7 ngày
+     * Theo chính sách: chỉ cho phép khi đơn đã DELIVERED (trong vòng 7 ngày)
+     * hoặc PARTIALLY_REFUNDED (đã hoàn một phần, vẫn trong cửa sổ 7 ngày).
      */
     private void validateOrderStatusForRefund(Order order) {
-        List<String> valid = List.of("PAID", "SHIPPING", "DELIVERED", "PARTIALLY_REFUNDED");
-        if (!valid.contains(order.getStatus())) {
+        String status = order.getStatus();
+        if (!"DELIVERED".equals(status) && !"PARTIALLY_REFUNDED".equals(status)) {
             throw new AppException(ErrorCode.VALIDATION_FAILED,
-                    "Không thể tạo yêu cầu hoàn tiền khi đơn ở trạng thái " + order.getStatus());
+                    "Chỉ có thể yêu cầu hoàn tiền khi đơn hàng đã được giao (DELIVERED). "
+                            + "Đơn " + order.getOrderCode() + " đang ở trạng thái " + status);
         }
-        if ("DELIVERED".equals(order.getStatus())) {
-            if (order.getDeliveredAt() == null
-                    || Duration.between(order.getDeliveredAt(), LocalDateTime.now()).toDays() > 7) {
-                throw new AppException(ErrorCode.VALIDATION_FAILED,
-                        "Đã quá 7 ngày kể từ khi nhận hàng, không thể yêu cầu hoàn tiền");
-            }
+        if (order.getDeliveredAt() == null
+                || Duration.between(order.getDeliveredAt(), LocalDateTime.now()).toDays() > 7) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "Đã quá 7 ngày kể từ khi nhận hàng, không thể yêu cầu hoàn tiền");
         }
     }
 

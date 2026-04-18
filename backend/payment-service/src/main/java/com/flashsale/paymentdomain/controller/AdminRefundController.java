@@ -6,6 +6,7 @@ import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.paymentdomain.dto.request.AdminRefundApproveRequest;
 import com.flashsale.paymentdomain.dto.request.AdminRefundRejectRequest;
 import com.flashsale.paymentdomain.dto.response.AdminRefundApproveResponse;
+import com.flashsale.paymentdomain.dto.response.RefundDetailResponse;
 import com.flashsale.paymentdomain.dto.response.RefundListResponse;
 import com.flashsale.paymentdomain.service.RefundService;
 import jakarta.validation.Valid;
@@ -49,6 +50,21 @@ public class AdminRefundController {
         log.info("Admin list refunds: status={}, type={}, page={}", status, type, page);
         PageResponse<RefundListResponse> result = refundService.listAllRefunds(status, type, fromDate, toDate, page, size);
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * GET /api/v1/admin/refunds/{refundId}
+     * Chi tiết một yêu cầu hoàn tiền (Admin).
+     * Trả về đầy đủ thông tin refund, danh sách items, tracking number, return evidence.
+     */
+    @GetMapping("/{refundId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<RefundDetailResponse>> getRefund(
+            @PathVariable Long refundId) {
+
+        log.info("Admin get refund detail: refundId={}", refundId);
+        RefundDetailResponse response = refundService.getRefundById(refundId);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**

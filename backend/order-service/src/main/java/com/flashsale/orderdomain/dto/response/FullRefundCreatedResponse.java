@@ -29,6 +29,14 @@ public class FullRefundCreatedResponse {
     @JsonProperty("refunds")
     private List<SubRefundInfo> refunds;
 
+    /** Số điểm Loyalty sẽ được hoàn lại khi refund thành công */
+    @JsonProperty("loyalty_points_to_return")
+    private Integer loyaltyPointsToReturn;
+
+    /** Số ngày dự kiến tiền về tài khoản Buyer */
+    @JsonProperty("estimated_days")
+    private Integer estimatedDays;
+
     @JsonProperty("message")
     private String message;
 
@@ -49,5 +57,9 @@ public class FullRefundCreatedResponse {
 
         @JsonProperty("item_count")
         private int itemCount;
+
+        /** Trạng thái ban đầu luôn là PENDING — sẽ được payment-service cập nhật */
+        @JsonProperty("status")
+        private String status;
     }
 }
