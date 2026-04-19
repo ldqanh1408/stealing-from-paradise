@@ -1,7 +1,58 @@
-# Environment Variables
+# ========================================
+# ENVIRONMENT VARIABLES - Comprehensive
+# ========================================
+# Root level .env
 .env
+.env.bak
+.env.backup
+.env.old
+
+# Local development
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.staging.local
+
+# Environment-specific (never commit)
+.env.development
+.env.test
+.env.staging
+.env.production
+.env.example.backup
+
+# Backend .env
+backend/.env
+backend/.env.local
+backend/.env.*.local
+backend/.env.development
+backend/.env.production
+backend/.env.test
+backend/.env.staging
+
+# Frontend .env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/.env.development
+frontend/.env.production
+frontend/.env.test
+frontend/.env.staging
+
+# Individual service .env files (if any)
+backend/**/.env
+backend/**/.env.local
+frontend/**/.env
+frontend/**/.env.local
+
+# Private keys and secrets (just in case)
+*.key
+*.pem
+*.crt
+*.pfx
+*.p12
+*.p8
 
 # IDE
 .vscode/
@@ -60,11 +111,6 @@ logs/
 npm-debug.log*
 lerna-debug.log*
 
-# Runtime
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # OS
 .DS_Store
