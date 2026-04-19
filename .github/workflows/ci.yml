@@ -162,7 +162,14 @@ jobs:
 
       - name: TypeScript check
         working-directory: ./frontend/apps/${{ matrix.app }}
-        run: npm run tsc 2>/dev/null || echo "No TypeScript check configured"
+        shell: bash
+        run: |
+          if [ -f tsconfig.json ]; then
+            echo "Found tsconfig.json; running typecheck..."
+            npx tsc -p tsconfig.json --noEmit
+          else
+            echo "No tsconfig.json found; skipping TypeScript check."
+          fi
 
       - name: Build app
         working-directory: ./frontend/apps/${{ matrix.app }}
