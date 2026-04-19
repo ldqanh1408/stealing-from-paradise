@@ -156,10 +156,10 @@ jobs:
         working-directory: ./frontend/apps/${{ matrix.app }}
         run: npm ci
 
-      - name: ESLint check
+      - name: Lint & TypeScript check
         working-directory: ./frontend/apps/${{ matrix.app }}
-        run: npm run lint 2>/dev/null || echo "No linter configured"
-
+        run: npm run lint
+        
       - name: TypeScript check
         working-directory: ./frontend/apps/${{ matrix.app }}
         shell: bash
