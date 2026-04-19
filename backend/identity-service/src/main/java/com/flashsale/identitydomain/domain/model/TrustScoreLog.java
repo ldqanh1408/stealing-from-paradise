@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "trust_score_logs", indexes = {
-    @Index(name = "idx_tsl_user_id", columnList = "user_id")
+    @Index(columnList = "user_id")
 })
 @Data
 @Builder
@@ -29,10 +29,13 @@ public class TrustScoreLog {
     @Column(name = "event_code")
     private String eventCode;
 
+    @Column(columnDefinition = "TEXT")
     private String reason;
-    private String changedBy;  // ADMIN | SYSTEM
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "changed_by")
+    private String changedBy;
+
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

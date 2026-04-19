@@ -1,54 +1,49 @@
 package com.flashsale.flashsaleservice.domain.model;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "fs_sessions")
+@Table("fs_sessions")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class FlashSaleSession {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column("name")
     private String name;
 
-    @Column(nullable = false)
+    @Column("start_time")
     private LocalDateTime startTime;
 
-    @Column(nullable = false)
+    @Column("end_time")
     private LocalDateTime endTime;
 
-    @Column(nullable = false)
-    private String status = "UPCOMING";  // UPCOMING | ONGOING | ENDED
+    @Default
+    @Column("status")
+    private String status = "UPCOMING";
 
+    @Column("deleted_at")
     private LocalDateTime deletedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }
-

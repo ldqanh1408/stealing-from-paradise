@@ -9,7 +9,14 @@ import com.flashsale.commonlib.security.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;
-@Component
+
+/**
+ * DEPRECATED: Sử dụng JwtAuthWebFilter thay vì GatewayFilterFactory
+ * JwtAuthWebFilter cung cấp authentication ở cấp độ WebFilter (reactive) cho cả API Gateway
+ * @deprecated Use JwtAuthWebFilter instead
+ */
+@Deprecated(since = "1.0.0", forRemoval = true)
+// @Component  ← DISABLED: Use JwtAuthWebFilter instead
 @Slf4j
 public class JwtAuthGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtAuthGatewayFilterFactory.Config> {
     private final JwtUtils jwtUtils;

@@ -9,7 +9,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "seller_transfers")
+@Table(name = "seller_transfers", indexes = {
+    @Index(columnList = "order_id"),
+    @Index(columnList = "parent_order_id")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,19 +22,34 @@ public class SellerTransfer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "parent_order_id")
+    private Long parentOrderId;
+
+    @Column(name = "order_id", nullable = false)
     private Long orderId;
 
-    @Column(nullable = false)
+    @Column(name = "seller_id", nullable = false)
     private Long sellerId;
+
+    @Column(name = "seller_name")
+    private String sellerName;
 
     @Column(name = "transfer_amount", nullable = false)
     private BigDecimal transferAmount;
 
-    private String stripeTransferId;
-    private String status = "PENDING";  // PENDING | PROCESSING | COMPLETED | FAILED
+    @Column(name = "fee_amount")
+    private BigDecimal feeAmount;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "net_amount")
+    private BigDecimal netAmount;
+
+    @Column(name = "stripe_transfer_id")
+    private String stripeTransferId;
+
+    @Column(nullable = false)
+    private String status = "PENDING";
+
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
@@ -48,4 +66,3 @@ public class SellerTransfer {
         updatedAt = LocalDateTime.now();
     }
 }
-

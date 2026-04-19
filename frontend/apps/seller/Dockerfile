@@ -18,10 +18,12 @@ COPY apps/seller/src ./src
 COPY apps/seller/vite.config.ts ./
 COPY apps/seller/tsconfig*.json ./
 COPY apps/seller/eslint.config.js ./
+COPY apps/seller/tailwind.config.js ./
+COPY apps/seller/postcss.config.cjs ./
 COPY apps/seller/index.html ./
 
 # Build the app
-RUN npm run vite build 2>/dev/null || npm exec vite build
+RUN npm run build
 
 # Stage 2: Production with Nginx
 FROM nginx:alpine

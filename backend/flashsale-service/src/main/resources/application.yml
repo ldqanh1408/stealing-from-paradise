@@ -4,17 +4,25 @@ spring:
   application:
     name: flashsale-service
   r2dbc:
-    url: r2dbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME_FLASHSALE:flashsale_db}
+    url: r2dbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?options=--search_path%3Dflashsale
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres123!}
     pool:
       initial-size: 5
       max-size: 20
   flyway:
+    # Flyway dùng JDBC riêng — không cần spring.datasource
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?currentSchema=flashsale
+    user: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres123!}
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-    validate-on-migrate: true
+    baseline-version: 0
+    schemas: flashsale
+    default-schema: flashsale
+    create-schemas: true
+    clean-disabled: true
   data:
     redis:
       host: ${REDIS_HOST:localhost}

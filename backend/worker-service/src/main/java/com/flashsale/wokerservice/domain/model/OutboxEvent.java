@@ -27,14 +27,15 @@ public class OutboxEvent {
     private String payload;
 
     @Column(nullable = false)
-    private String status = "PENDING";  // PENDING | PUBLISHED | FAILED
+    private String status = "PENDING";
 
-    @Column(name = "retry_count", nullable = false)
+    @Column(name = "retry_count")
     private Integer retryCount = 0;
 
+    @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

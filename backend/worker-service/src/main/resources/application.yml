@@ -13,15 +13,24 @@ spring:
       fail-on-unknown-properties: false
     default-property-inclusion: non_null
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME_WORKER:fs_worker_prod}
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?currentSchema=worker
     username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    password: ${POSTGRES_PASSWORD:postgres123!}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      auto-commit: true
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-    validate-on-migrate: false
+    baseline-version: 0
+    schemas: worker
+    default-schema: worker
+    create-schemas: true
+    clean-disabled: true
   jpa:
     defer-datasource-initialization: true
     hibernate:
@@ -63,3 +72,8 @@ eureka:
     register-with-eureka: true
     enabled: true
     initial-instance-info-replication-interval-seconds: 40
+
+logging:
+  level:
+    org.flywaydb: DEBUG
+    org.hibernate.engine.transaction.internal.TransactionImpl: DEBUG

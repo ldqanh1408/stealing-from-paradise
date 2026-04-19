@@ -2,7 +2,7 @@ server:
   port: 8090
 spring:
   application:
-    name: product-domain
+    name: product-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   threads:
@@ -16,11 +16,9 @@ spring:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
       retries: 3
-      properties:
-        spring.json.add.type.headers: false
     consumer:
       group-id: ${spring.application.name}-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer

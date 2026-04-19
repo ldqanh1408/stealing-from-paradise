@@ -9,7 +9,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "refunds")
+@Table(name = "refunds", indexes = {
+    @Index(columnList = "order_id")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,31 +24,58 @@ public class Refund {
     @Column(name = "transaction_id", nullable = false)
     private Long transactionId;
 
-    @Column(nullable = false)
+    @Column(name = "order_id", nullable = false)
     private Long orderId;
 
-    private String groupRef;
-    private String type;  // FULL | PARTIAL | RTS
-    private String initiatedBy;  // BUYER | SELLER | ADMIN
-    private String refundReasonType;
-    private BigDecimal amount;
-    private String reason;
-    private String status = "PENDING";  // PENDING | APPROVED | REJECTED | PROCESSED
+    @Column(name = "user_id")
+    private Long userId;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(name = "group_ref")
+    private String groupRef;
+
+    @Column(nullable = false)
+    private String type;
+
+    @Column(name = "initiated_by", nullable = false)
+    private String initiatedBy;
+
+    @Column(name = "refund_reason_type")
+    private String refundReasonType;
+
+    @Column(nullable = false)
+    private BigDecimal amount;
+
+    @Column(columnDefinition = "TEXT")
+    private String reason;
+
+    @Column(nullable = false)
+    private String status = "PENDING";
+
+    @Column(name = "evidence_images", columnDefinition = "jsonb")
     private String evidenceImages;
 
+    @Column(name = "reject_reason", columnDefinition = "TEXT")
     private String rejectReason;
+
+    @Column(name = "admin_note", columnDefinition = "TEXT")
     private String adminNote;
+
+    @Column(name = "adjust_amount")
     private BigDecimal adjustAmount;
+
+    @Column(name = "reviewed_by")
     private Long reviewedBy;
+
+    @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
+
+    @Column(name = "refund_ref")
     private String refundRef;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(name = "raw_response", columnDefinition = "jsonb")
     private String rawResponse;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)

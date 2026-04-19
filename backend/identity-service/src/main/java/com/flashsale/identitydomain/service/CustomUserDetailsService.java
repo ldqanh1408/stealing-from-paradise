@@ -3,6 +3,7 @@ package com.flashsale.identitydomain.service;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.identitydomain.domain.model.User;
 import com.flashsale.identitydomain.domain.repository.UserRepository;
+import com.flashsale.identitydomain.domain.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
@@ -33,12 +35,17 @@ public class CustomUserDetailsService implements UserDetailsService {
     private UserDetailsImpl buildUserDetails(User user) {
         boolean enabled = "ACTIVE".equals(user.getStatus());
 
+        // Fetch role from roles table using user ID
+        String roleName = roleRepository.findByUserId(user.getId())
+                .map(role -> role.getRoleName())
+                .orElse("BUYER"); // Default to BUYER if no role found
+
         return UserDetailsImpl.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .password(user.getPassword())
-                .role(user.getRole() != null ? user.getRole() : "BUYER")
+                .role(roleName)
                 .enabled(enabled)
                 .build();
     }
