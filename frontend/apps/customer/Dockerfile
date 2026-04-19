@@ -2,21 +2,27 @@
 # Stage 1: Build
 FROM node:20-alpine as builder
 
-WORKDIR /app
+# Set up working directory structure matching source tree:
+# /build/apps/customer (app work dir)
+# /build/shared (shared lib)
+WORKDIR /build
 
-# Copy package files
+# Copy shared library first
+COPY shared ./shared
+
+# Copy and install dependencies
+WORKDIR /build/apps/customer
 COPY apps/customer/package.json apps/customer/package-lock.json ./
 
 # Install dependencies
 RUN npm ci --prefer-offline --no-audit
 
-# Copy shared files
-COPY shared ./shared
-
 # Copy source code and config files
 COPY apps/customer/src ./src
 COPY apps/customer/vite.config.ts ./
-COPY apps/customer/tsconfig*.json ./
+COPY apps/customer/tsconfig.json ./
+COPY apps/customer/tsconfig.app.json ./
+COPY apps/customer/tsconfig.node.json ./
 COPY apps/customer/eslint.config.js ./
 COPY apps/customer/tailwind.config.js ./
 COPY apps/customer/postcss.config.cjs ./
@@ -32,7 +38,7 @@ FROM nginx:alpine
 COPY apps/customer/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built files from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /build/apps/customer/dist /usr/share/nginx/html
 
 # Expose port
 EXPOSE 80

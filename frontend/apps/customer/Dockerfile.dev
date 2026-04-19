@@ -12,7 +12,12 @@
 
 FROM node:22-alpine
 
-# Keep WORKDIR at the app level to preserve ../../shared alias
+WORKDIR /app
+
+# Copy shared first to establish the directory structure
+COPY shared ./shared
+
+# Set working directory to app level
 WORKDIR /app/apps/customer
 
 # Install deps as a separate layer — cached unless package.json changes.
