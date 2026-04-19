@@ -11,6 +11,9 @@ volumes:
   kafka_data:
   zookeeper_data:
   axon_data:
+  customer_nm:
+  seller_nm:
+  admin_nm:
 
 services:
   # =================================================================
@@ -137,6 +140,17 @@ services:
     networks: [flashsale-net]
     command: bash -c "sleep 15 && rm -f /var/lib/kafka/data/meta.properties && rm -rf /var/lib/kafka/data/log-* && /etc/confluent/docker/run"
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: fs-kafka-init
+    depends_on:
+      kafka: { condition: service_started }
+    networks: [flashsale-net]
+    volumes:
+      - ./backend/docker/kafka/create-topics.sh:/create-topics.sh
+    command: bash /create-topics.sh
+    restart: on-failure
+
   axonserver:
     image: axoniq/axonserver:latest
     container_name: fs-axon
@@ -198,7 +212,7 @@ services:
      environment:
        - EUREKA_URI=${EUREKA_URI}
        - DB_HOST=${DB_HOST}
-       - DB_NAME_IDENTITY=${DB_NAME_IDENTITY}
+       - DB_NAME=${DB_NAME}
        - POSTGRES_USER=${POSTGRES_USER}
        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
      depends_on:
@@ -224,7 +238,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
     depends_on:
       mongo: { condition: service_started }
-      kafka: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
       axonserver: { condition: service_started }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
@@ -237,14 +251,17 @@ services:
      environment:
        - EUREKA_URI=${EUREKA_URI}
        - DB_HOST=${DB_HOST}
-       - DB_NAME_ORDER=${DB_NAME_ORDER}
+       - DB_NAME=${DB_NAME}
        - POSTGRES_USER=${POSTGRES_USER}
        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
        - KAFKA_SERVER=${KAFKA_SERVER}
        - AXON_SERVER=${AXON_SERVER}
+       - LOGGING_LEVEL_ORG_APACHE_KAFKA=WARN
+       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA=WARN
+       - LOGGING_LEVEL_KAFKA=WARN
      depends_on:
        postgres: { condition: service_healthy }
-       kafka: { condition: service_started }
+       kafka-init: { condition: service_completed_successfully }
        axonserver: { condition: service_started }
        discovery-service: { condition: service_started }
      networks: [flashsale-net]
@@ -257,12 +274,19 @@ services:
      environment:
        - EUREKA_URI=${EUREKA_URI}
        - DB_HOST=${DB_HOST}
-       - DB_NAME_PAYMENT=${DB_NAME_PAYMENT}
+       - DB_NAME=${DB_NAME}
        - POSTGRES_USER=${POSTGRES_USER}
        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+       - KAFKA_SERVER=${KAFKA_SERVER}
        - AXON_SERVER=${AXON_SERVER}
+       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+       - LOGGING_LEVEL_ORG_APACHE_KAFKA=WARN
+       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA=WARN
+       - LOGGING_LEVEL_KAFKA=WARN
      depends_on:
        postgres: { condition: service_healthy }
+       kafka-init: { condition: service_completed_successfully }
        axonserver: { condition: service_started }
        discovery-service: { condition: service_started }
      networks: [flashsale-net]
@@ -277,14 +301,14 @@ services:
        - REDIS_HOST=${REDIS_HOST}
        - KAFKA_SERVER=${KAFKA_SERVER}
        - DB_HOST=${DB_HOST}
-       - DB_NAME_FLASHSALE=${DB_NAME_FLASHSALE}
+       - DB_NAME=${DB_NAME}
        - POSTGRES_USER=${POSTGRES_USER}
        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
        - AXON_SERVER=${AXON_SERVER}
      depends_on:
        postgres: { condition: service_healthy }
        redis: { condition: service_started }
-       kafka: { condition: service_started }
+       kafka-init: { condition: service_completed_successfully }
        discovery-service: { condition: service_started }
        axonserver: { condition: service_started }
      networks: [flashsale-net]
@@ -300,7 +324,7 @@ services:
       - KAFKA_SERVER=${KAFKA_SERVER}
     depends_on:
       elasticsearch: { condition: service_started }
-      kafka: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
@@ -320,7 +344,7 @@ services:
     depends_on:
       mongo: { condition: service_started }
       redis: { condition: service_started }
-      kafka: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
@@ -332,14 +356,14 @@ services:
      environment:
        - EUREKA_URI=${EUREKA_URI}
        - DB_HOST=${DB_HOST}
-       - DB_NAME_WORKER=${DB_NAME_WORKER}
+       - DB_NAME=${DB_NAME}
        - POSTGRES_USER=${POSTGRES_USER}
        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
        - KAFKA_SERVER=${KAFKA_SERVER}
        - AXON_SERVER=${AXON_SERVER}
      depends_on:
        postgres: { condition: service_healthy }
-       kafka: { condition: service_started }
+       kafka-init: { condition: service_completed_successfully }
        axonserver: { condition: service_started }
        discovery-service: { condition: service_started }
      networks: [flashsale-net]
@@ -375,6 +399,13 @@ services:
       - NODE_ENV=production
     depends_on:
       api-gateway: { condition: service_started }
+    volumes:
+      # Mount source — changes trigger Vite HMR
+      - ./frontend/apps/customer:/app/apps/customer
+      # Mount shared components/store/api used by @shared alias
+      - ./frontend/shared:/app/shared
+      # Preserve container node_modules (not overwritten by host mount above)
+      - customer_nm:/app/apps/customer/node_modules
     networks: [flashsale-net]
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
@@ -396,6 +427,10 @@ services:
       - NODE_ENV=production
     depends_on:
       api-gateway: { condition: service_started }
+    volumes:
+      - ./frontend/apps/seller:/app/apps/seller
+      - ./frontend/shared:/app/shared
+      - seller_nm:/app/apps/seller/node_modules
     networks: [flashsale-net]
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
@@ -417,6 +452,10 @@ services:
       - NODE_ENV=production
     depends_on:
       api-gateway: { condition: service_started }
+    volumes:
+      - ./frontend/apps/admin:/app/apps/admin
+      - ./frontend/shared:/app/shared
+      - admin_nm:/app/apps/admin/node_modules
     networks: [flashsale-net]
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]

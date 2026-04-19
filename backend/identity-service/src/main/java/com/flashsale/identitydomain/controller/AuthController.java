@@ -3,7 +3,9 @@ package com.flashsale.identitydomain.controller;
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.AuthResponse;
 import com.flashsale.commonlib.dto.LoginRequest;
+import com.flashsale.commonlib.dto.RegisterRequest;
 import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.commonlib.security.JwtUtils;
 import com.flashsale.identitydomain.domain.model.User;
 import com.flashsale.identitydomain.domain.repository.RoleRepository;
 import com.flashsale.identitydomain.service.AuthService;
@@ -15,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Authentication Controller
@@ -28,18 +31,25 @@ public class AuthController {
 
     private final AuthService authService;
     private final RoleRepository roleRepository;
+    private final JwtUtils jwtUtils;
 
     @Value("${jwt.expiration:3600}")
     private long accessTokenExpiration;
 
     /**
      * Login endpoint
+     * Extracts domain from request to determine role automatically
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(
+            @RequestBody LoginRequest loginRequest,
+            HttpServletRequest request) {
         log.info("Login attempt for user: {}", loginRequest.getUsername());
         try {
-            AuthResponse authResponse = authService.authenticateUser(loginRequest);
+            // Extract domain from request (e.g., "seller.localhost", "admin.localhost", etc.)
+            String domain = request.getServerName();
+
+            AuthResponse authResponse = authService.authenticateUser(loginRequest, domain);
             return ResponseEntity.ok(ApiResponse.success(authResponse, "Login successful"));
         } catch (Exception e) {
             log.warn("Login failed: {}", e.getMessage());
@@ -53,7 +63,7 @@ public class AuthController {
      * Register endpoint
      */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody LoginRequest registerRequest) {
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@RequestBody RegisterRequest registerRequest) {
         log.info("Registration attempt for username: {}", registerRequest.getUsername());
         try {
             // Validate input
@@ -62,16 +72,20 @@ public class AuthController {
                         .status(HttpStatus.BAD_REQUEST)
                         .body(ApiResponse.error("REG_001", "Username is required"));
             }
+            if (registerRequest.getEmail() == null || registerRequest.getEmail().isEmpty()) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("REG_002", "Email is required"));
+            }
             if (registerRequest.getPassword() == null || registerRequest.getPassword().isEmpty()) {
                 return ResponseEntity
                         .status(HttpStatus.BAD_REQUEST)
-                        .body(ApiResponse.error("REG_002", "Password is required"));
+                        .body(ApiResponse.error("REG_003", "Password is required"));
             }
 
-            // Create user (assuming registerRequest.username is actually email or we need a dedicated endpoint)
             User newUser = authService.registerUser(
                     registerRequest.getUsername(),
-                    registerRequest.getUsername(),  // Use username as email for now
+                    registerRequest.getEmail(),
                     registerRequest.getPassword()
             );
 
@@ -94,6 +108,69 @@ public class AuthController {
                     .body(ApiResponse.success(authResponse, "Registration successful"));
         } catch (Exception e) {
             log.warn("Registration failed: {}", e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("REG_003", e.getMessage()));
+        }
+    }
+
+    /**
+     * Seller Registration endpoint
+     * Same as /register but automatically assigns SELLER role via roles table
+     */
+    @PostMapping("/register/seller")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerSeller(@RequestBody RegisterRequest registerRequest) {
+        log.info("Seller registration attempt for username: {}", registerRequest.getUsername());
+        try {
+            // Validate input
+            if (registerRequest.getUsername() == null || registerRequest.getUsername().isEmpty()) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("REG_001", "Username is required"));
+            }
+            if (registerRequest.getEmail() == null || registerRequest.getEmail().isEmpty()) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("REG_002", "Email is required"));
+            }
+            if (registerRequest.getPassword() == null || registerRequest.getPassword().isEmpty()) {
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("REG_003", "Password is required"));
+            }
+
+            User newUser = authService.registerUserWithRole(
+                    registerRequest.getUsername(),
+                    registerRequest.getEmail(),
+                    registerRequest.getPassword(),
+                    "SELLER"  // Automatically assign SELLER role
+            );
+
+            // Get role from roles table
+            String roleName = roleRepository.findByUserId(newUser.getId())
+                    .map(role -> role.getRoleName())
+                    .orElse("SELLER");
+
+            // Generate tokens for the newly registered seller
+            String accessToken = jwtUtils.generateAccessToken(newUser.getId().toString(), newUser.getEmail(), roleName);
+            String refreshToken = jwtUtils.generateRefreshToken(newUser.getId().toString());
+
+            // Generate response
+            AuthResponse authResponse = AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .userId(newUser.getId())
+                    .username(newUser.getUsername())
+                    .email(newUser.getEmail())
+                    .role(roleName)
+                    .expiresIn(accessTokenExpiration)
+                    .build();
+
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(ApiResponse.success(authResponse, "Seller registration successful"));
+        } catch (Exception e) {
+            log.warn("Seller registration failed: {}", e.getMessage());
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error("REG_003", e.getMessage()));
@@ -171,4 +248,3 @@ public class AuthController {
         return null;
     }
 }
-

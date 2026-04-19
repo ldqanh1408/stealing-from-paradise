@@ -1,4 +1,9 @@
-tsconfig.json
+# Ignore root tsconfig.json if generated, but NOT in apps/
+# (app-level tsconfig files should be committed for Docker builds)
+/tsconfig.json
+!/apps/*/tsconfig.json
+!/apps/*/tsconfig.*.json
+
 node_modules/
 dist/
 build/

@@ -1,65 +1,62 @@
 package com.flashsale.flashsaleservice.domain.model;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "fs_items", indexes = {
-    @Index(columnList = "session_id")
-})
+@Table("fs_items")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class FlashSaleItem {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "session_id", nullable = false)
+    @Column("session_id")
     private Long sessionId;
 
-    @Column(name = "sku_code", nullable = false)
+    @Column("sku_code")
     private String skuCode;
 
-    @Column(name = "flash_price", nullable = false)
+    @Column("flash_price")
     private BigDecimal flashPrice;
 
-    @Column(name = "flash_stock", nullable = false)
+    @Column("flash_stock")
     private Integer flashStock;
 
-    @Column(name = "limit_per_user")
+    @Default
+    @Column("limit_per_user")
     private Integer limitPerUser = 1;
 
-    @Column(name = "sold_qty")
+    @Default
+    @Column("sold_qty")
     private Integer soldQty = 0;
 
-    @Column(nullable = false)
+    @Default
+    @Column("status")
     private String status = "PENDING";
 
     @Version
     private Integer version;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }
-

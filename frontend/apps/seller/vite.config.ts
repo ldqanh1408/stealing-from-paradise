@@ -9,11 +9,23 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
       '@shared': path.resolve(__dirname, '../../shared'),
     },
+    dedupe: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'zustand', 'axios', 'js-cookie'],
   },
   server: {
     port: 3001,
+    host: true,
+    fs: {
+      allow: ['../..'],
+    },
     proxy: {
       '/api': { target: 'http://localhost:8080', changeOrigin: true },
     },
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'zustand', 'axios', 'js-cookie'],
   },
 });

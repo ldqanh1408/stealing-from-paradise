@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload backend logs on failure
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: backend-build-logs
           path: backend/**/target/
@@ -125,7 +125,7 @@ jobs:
 
       - name: Publish test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
           path: backend/**/target/surefire-reports/
@@ -156,20 +156,27 @@ jobs:
         working-directory: ./frontend/apps/${{ matrix.app }}
         run: npm ci
 
-      - name: ESLint check
+      - name: Lint & TypeScript check
         working-directory: ./frontend/apps/${{ matrix.app }}
-        run: npm run lint 2>/dev/null || echo "No linter configured"
-
+        run: npm run lint
+        
       - name: TypeScript check
         working-directory: ./frontend/apps/${{ matrix.app }}
-        run: npm run tsc 2>/dev/null || echo "No TypeScript check configured"
+        shell: bash
+        run: |
+          if [ -f tsconfig.json ]; then
+            echo "Found tsconfig.json; running typecheck..."
+            npx tsc -p tsconfig.json --noEmit
+          else
+            echo "No tsconfig.json found; skipping TypeScript check."
+          fi
 
       - name: Build app
         working-directory: ./frontend/apps/${{ matrix.app }}
         run: npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-${{ matrix.app }}-dist
           path: frontend/apps/${{ matrix.app }}/dist/

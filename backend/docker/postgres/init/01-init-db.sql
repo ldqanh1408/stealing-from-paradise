@@ -3,17 +3,22 @@
 
 \c postgres;
 
-CREATE DATABASE fs_identity_prod;
-CREATE DATABASE fs_order_prod;
-CREATE DATABASE fs_payment_prod;
-CREATE DATABASE fs_promo_prod;
-CREATE DATABASE fs_worker_prod;
-CREATE DATABASE fs_flashsale_prod;
+-- Tất cả services PostgreSQL dùng CHUNG 1 database, phân tách bằng schema
+CREATE DATABASE flashsale_platform;
 
--- Grant quyền cho user
-GRANT ALL PRIVILEGES ON DATABASE fs_identity_prod  TO postgres;
-GRANT ALL PRIVILEGES ON DATABASE fs_order_prod     TO postgres;
-GRANT ALL PRIVILEGES ON DATABASE fs_payment_prod   TO postgres;
-GRANT ALL PRIVILEGES ON DATABASE fs_promo_prod     TO postgres;
-GRANT ALL PRIVILEGES ON DATABASE fs_worker_prod    TO postgres;
-GRANT ALL PRIVILEGES ON DATABASE fs_flashsale_prod TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE flashsale_platform TO postgres;
+
+-- Tạo schemas cho từng service trong cùng database
+\c flashsale_platform;
+
+CREATE SCHEMA IF NOT EXISTS identity;
+CREATE SCHEMA IF NOT EXISTS orders;
+CREATE SCHEMA IF NOT EXISTS payment;
+CREATE SCHEMA IF NOT EXISTS flashsale;
+CREATE SCHEMA IF NOT EXISTS worker;
+
+GRANT ALL ON SCHEMA identity  TO postgres;
+GRANT ALL ON SCHEMA orders    TO postgres;
+GRANT ALL ON SCHEMA payment   TO postgres;
+GRANT ALL ON SCHEMA flashsale TO postgres;
+GRANT ALL ON SCHEMA worker    TO postgres;

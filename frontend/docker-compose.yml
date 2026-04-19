@@ -9,8 +9,8 @@ services:
 
   customer-app:
     build:
-      context: ./apps/customer
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: apps/customer/Dockerfile
     container_name: fs-customer-fe
     ports: ["3000:80"]
     environment:
@@ -27,8 +27,8 @@ services:
 
   seller-app:
     build:
-      context: ./apps/seller
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: apps/seller/Dockerfile
     container_name: fs-seller-fe
     ports: ["3001:80"]
     environment:
@@ -45,8 +45,8 @@ services:
 
   admin-app:
     build:
-      context: ./apps/admin
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: apps/admin/Dockerfile
     container_name: fs-admin-fe
     ports: ["3002:80"]
     environment:

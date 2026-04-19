@@ -21,6 +21,9 @@ public class ParentOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "order_code", nullable = false, unique = true)
+    private String orderCode;
+
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
@@ -30,8 +33,17 @@ public class ParentOrder {
     @Column(name = "loyalty_discount")
     private BigDecimal loyaltyDiscount = BigDecimal.ZERO;
 
+    @Column(name = "loyalty_points_used")
+    private Integer loyaltyPointsUsed = 0;
+
     @Column(name = "final_amt", nullable = false)
     private BigDecimal finalAmt;
+
+    @Column(name = "address_id")
+    private Long addressId;
+
+    @Column(name = "timeout_at")
+    private LocalDateTime timeoutAt;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -54,4 +66,3 @@ public class ParentOrder {
         updatedAt = LocalDateTime.now();
     }
 }
-

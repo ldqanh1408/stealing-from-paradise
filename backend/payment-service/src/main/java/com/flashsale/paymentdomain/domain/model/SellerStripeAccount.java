@@ -39,6 +39,9 @@ public class SellerStripeAccount {
     @Column(name = "onboarding_url", columnDefinition = "TEXT")
     private String onboardingUrl;
 
+    @Column(name = "onboarding_url_expires_at")
+    private LocalDateTime onboardingUrlExpiresAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -55,5 +58,17 @@ public class SellerStripeAccount {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-}
 
+    public String getOnboardingStatus() {
+        if (Boolean.TRUE.equals(detailsSubmitted) && Boolean.TRUE.equals(chargesEnabled)) {
+            return "COMPLETE";
+        }
+        if ("SUSPENDED".equals(accountStatus)) {
+            return "SUSPENDED";
+        }
+        if (onboardingUrl != null) {
+            return "IN_PROGRESS";
+        }
+        return "PENDING";
+    }
+}

@@ -2,21 +2,20 @@ package com.flashsale.orderdomain.axon.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Getter
 @AllArgsConstructor
 public class OrderCreatedEvent {
-    private String orderId;
-    private String buyerId;
-    private Long totalAmount;
+    private Long orderId;
+    private Long parentOrderId;
+    private Long userId;
+    private Long sellerId;
+    private String sellerName;
+    private String orderCode;
+    private BigDecimal totalAmount;
+    private int loyaltyPointsUsed;
     private boolean isFlashSale;
+    private LocalDateTime timeoutAt;
 }
-
-@Getter
-@AllArgsConstructor
-class OrderCancelledEvent {
-    private String orderId;
-    private String reason;
-    private String cancelledBy;
-}
-

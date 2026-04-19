@@ -1,14 +1,13 @@
 package com.flashsale.flashsaleservice.domain.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 import com.flashsale.flashsaleservice.domain.model.FlashSaleItem;
-import java.util.List;
-import java.util.Optional;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Repository
-public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, Long> {
-    List<FlashSaleItem> findBySessionId(Long sessionId);
-    Optional<FlashSaleItem> findBySkuCode(String skuCode);
+public interface FlashSaleItemRepository extends ReactiveCrudRepository<FlashSaleItem, Long> {
+    Flux<FlashSaleItem> findBySessionId(Long sessionId);
+    Mono<FlashSaleItem> findBySkuCode(String skuCode);
 }
-

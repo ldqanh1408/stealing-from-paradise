@@ -59,8 +59,32 @@ public class AuthService {
         return userRepository.save(user);
     }
 
-    public AuthResponse authenticateUser(LoginRequest loginRequest) {
-        log.info("Attempting to authenticate user: {}", loginRequest.getUsername());
+    public User registerUserWithRole(String username, String email, String password, String roleParam) {
+        log.info("Registering user: {} with role: {}", username, roleParam);
+
+        User user = registerUser(username, email, password);
+
+        // Create role entry in roles table
+        String assignedRole = (roleParam != null && !roleParam.isEmpty()) ? roleParam : "BUYER";
+        com.flashsale.identitydomain.domain.model.Role role = com.flashsale.identitydomain.domain.model.Role.builder()
+                .userId(user.getId())
+                .roleName(assignedRole)
+                .build();
+        roleRepository.save(role);
+
+        return user;
+    }
+
+
+
+    /**
+     * Authenticate user with domain detection
+     * Seller domain -> SELLER role
+     * Admin domain -> ADMIN role
+     * Other -> use role from roles table or BUYER
+     */
+    public AuthResponse authenticateUser(LoginRequest loginRequest, String domain) {
+        log.info("Attempting to authenticate user: {} from domain: {}", loginRequest.getUsername(), domain);
 
         User user = userRepository.findByUsername(loginRequest.getUsername())
                 .or(() -> userRepository.findByEmail(loginRequest.getUsername()))
@@ -74,10 +98,13 @@ public class AuthService {
             throw new RuntimeException("Invalid username or password");
         }
 
-        // Fetch role from roles table using user ID
-        String roleName = roleRepository.findByUserId(user.getId())
+        // Fetch role from roles table
+        String dbRole = roleRepository.findByUserId(user.getId())
                 .map(role -> role.getRoleName())
-                .orElse("BUYER"); // Default to BUYER if no role found
+                .orElse("BUYER");
+
+        // Determine role based on domain
+        String roleName = determineRoleFromDomain(domain, dbRole);
 
         String accessToken = jwtUtils.generateAccessToken(
                 user.getId().toString(),
@@ -87,7 +114,7 @@ public class AuthService {
 
         String refreshToken = jwtUtils.generateRefreshToken(user.getId().toString());
 
-        log.info("User authenticated successfully: {}", user.getUsername());
+        log.info("User authenticated successfully: {} with role: {}", user.getUsername(), roleName);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -98,6 +125,31 @@ public class AuthService {
                 .role(roleName)
                 .expiresIn(accessTokenExpiration)
                 .build();
+    }
+
+    /**
+     * Determine role based on domain
+     * seller.* domain -> SELLER
+     * admin.* domain -> ADMIN
+     * customer/app domain -> BUYER
+     * other -> user's existing role or BUYER
+     */
+    private String determineRoleFromDomain(String domain, String userRole) {
+        if (domain == null || domain.isEmpty()) {
+            return (userRole != null && !userRole.isEmpty()) ? userRole : "BUYER";
+        }
+
+        String domainLower = domain.toLowerCase();
+
+        if (domainLower.contains("seller")) {
+            return "SELLER";
+        } else if (domainLower.contains("admin")) {
+            return "ADMIN";
+        } else if (domainLower.contains("customer") || domainLower.contains("app")) {
+            return "BUYER";
+        }
+
+        return (userRole != null && !userRole.isEmpty()) ? userRole : "BUYER";
     }
 
     public boolean validatePassword(String rawPassword, String hashedPassword) {
@@ -156,5 +208,3 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }
-
-

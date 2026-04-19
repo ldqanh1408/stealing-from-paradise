@@ -1,0 +1,449 @@
+version: "3.9"
+
+# Backend services standalone - Tất cả infrastructure + backend services
+# Chạy độc lập, không phụ thuộc frontend
+
+networks:
+  flashsale-backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  elastic_data:
+  minio_data:
+  kafka_data:
+  zookeeper_data:
+  axon_data:
+
+services:
+  # =================================================================
+  # INFRASTRUCTURE (HẠ TẦNG DỮ LIỆU & MESSAGE QUEUE)
+  # =================================================================
+  
+  postgres:
+    image: postgres:${POSTGRES_VER:-15.4-alpine}
+    container_name: backend-postgres
+    restart: unless-stopped
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../backend/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [flashsale-backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:${MONGO_VER:-6.0.8}
+    container_name: backend-mongo
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+      - ../backend/docker/mongo/init:/docker-entrypoint-initdb.d:ro
+    networks: [flashsale-backend]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:${REDIS_VER:-7.2.1-alpine}
+    container_name: backend-redis
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks: [flashsale-backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
+  elasticsearch:
+    image: elasticsearch:${ELASTIC_VER:-8.10.2}
+    container_name: backend-elasticsearch
+    restart: unless-stopped
+    ports: ["9200:9200"]
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    networks: [flashsale-backend]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: backend-minio
+    restart: unless-stopped
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks: [flashsale-backend]
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:${KAFKA_VER:-7.4.0}
+    container_name: backend-zookeeper
+    restart: unless-stopped
+    ports: ["2181:2181"]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - ./docker/kafka/zookeeper.properties:/etc/kafka/zookeeper.properties.template:ro
+    networks: [flashsale-backend]
+
+  kafka:
+    image: confluentinc/cp-kafka:${KAFKA_VER:-7.4.0}
+    container_name: backend-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports: ["9092:9092", "29092:29092"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      - ./docker/kafka/topics-create.sh:/docker-entrypoint-initdb.d/topics-create.sh:ro
+    networks: [flashsale-backend]
+
+  axonserver:
+    image: axoniq/axonserver:${AXON_VER:-latest}
+    container_name: backend-axonserver
+    restart: unless-stopped
+    ports: ["8124:8124", "8024:8024"]
+    volumes:
+      - axon_data:/data
+    networks: [flashsale-backend]
+    environment:
+      AXONSERVER_HOSTNAME: axonserver
+
+  # =================================================================
+  # BACKEND SERVICES
+  # =================================================================
+
+  discovery-service:
+    build:
+      context: ../backend/discovery-service
+      dockerfile: Dockerfile
+    container_name: backend-discovery
+    restart: unless-stopped
+    ports: ["8761:8761"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      TZ: ${TZ}
+    networks: [flashsale-backend]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ../backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: backend-api-gateway
+    restart: unless-stopped
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    ports: ["8080:8080"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION_MS}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_GATEWAY}
+    networks: [flashsale-backend]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  identity-service:
+    build:
+      context: ../backend/identity-service
+      dockerfile: Dockerfile
+    container_name: backend-identity
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports: ["8081:8081"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION_MS}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_COMMON}
+    networks: [flashsale-backend]
+
+  payment-service:
+    build:
+      context: ../backend/payment-service
+      dockerfile: Dockerfile
+    container_name: backend-payment
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      axonserver:
+        condition: service_started
+    ports: ["8082:8082"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      KAFKA_SERVER: ${KAFKA_SERVER}
+      AXON_SERVER: ${AXON_SERVER}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PLATFORM_FEE_PERCENTAGE: ${STRIPE_PLATFORM_FEE_PERCENTAGE}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_PAYMENT}
+    networks: [flashsale-backend]
+
+  order-service:
+    build:
+      context: ../backend/order-service
+      dockerfile: Dockerfile
+    container_name: backend-order
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      axonserver:
+        condition: service_started
+    ports: ["8083:8083"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      KAFKA_SERVER: ${KAFKA_SERVER}
+      AXON_SERVER: ${AXON_SERVER}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_ORDER}
+    networks: [flashsale-backend]
+
+  flashsale-service:
+    build:
+      context: ../backend/flashsale-service
+      dockerfile: Dockerfile
+    container_name: backend-flashsale
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      axonserver:
+        condition: service_started
+    ports: ["8085:8085"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      KAFKA_SERVER: ${KAFKA_SERVER}
+      AXON_SERVER: ${AXON_SERVER}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_FLASHSALE}
+    networks: [flashsale-backend]
+
+  product-service:
+    build:
+      context: ../backend/product-service
+      dockerfile: Dockerfile
+    container_name: backend-product
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      minio:
+        condition: service_started
+    ports: ["8090:8090"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      DB_NAME_PRODUCT: ${DB_NAME_PRODUCT}
+      KAFKA_SERVER: ${KAFKA_SERVER}
+      MINIO_URL: ${MINIO_URL}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_COMMON}
+    networks: [flashsale-backend]
+
+  cart-service:
+    build:
+      context: ../backend/cart-service
+      dockerfile: Dockerfile
+    container_name: backend-cart
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports: ["8089:8089"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_COMMON}
+    networks: [flashsale-backend]
+
+  search-service:
+    build:
+      context: ../backend/search-service
+      dockerfile: Dockerfile
+    container_name: backend-search
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    ports: ["8091:8091"]
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      ELASTIC_URI: ${ELASTIC_URI}
+      KAFKA_SERVER: ${KAFKA_SERVER}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_COMMON}
+    networks: [flashsale-backend]
+
+  notification-service:
+    build:
+      context: ../backend/notification-service
+      dockerfile: Dockerfile
+    container_name: backend-notification
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      DB_NAME_NOTIFICATION: ${DB_NAME_NOTIFICATION}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      KAFKA_SERVER: ${KAFKA_SERVER}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_COMMON}
+    networks: [flashsale-backend]
+
+  worker-service:
+    build:
+      context: ../backend/worker-service
+      dockerfile: Dockerfile
+    container_name: backend-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      axonserver:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      EUREKA_URI: ${EUREKA_URI}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      KAFKA_SERVER: ${KAFKA_SERVER}
+      AXON_SERVER: ${AXON_SERVER}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: ${TZ}
+      JVM_OPTS: ${JVM_OPTS_COMMON}
+    networks: [flashsale-backend]
+
