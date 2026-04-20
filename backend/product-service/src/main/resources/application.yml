@@ -29,6 +29,12 @@ spring:
         spring.json.trusted.packages: com.flashsale.*
   mongodb:
     uri: mongodb://${MONGO_INITDB_ROOT_USERNAME:root}:${MONGO_INITDB_ROOT_PASSWORD_ENCODED:root}@${MONGO_HOST:localhost}:27017/${DB_NAME_PRODUCT:fs_product_prod}?authSource=admin
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+      timeout: 60000ms
 minio:
   url: ${MINIO_URL:http://localhost:9000}
   access-key: ${MINIO_ROOT_USER:minioadmin}

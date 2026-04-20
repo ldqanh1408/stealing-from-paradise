@@ -13,31 +13,31 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
         </processorPath>
         <module name="worker-service" />
-        <module name="cart-service" />
         <module name="payment-service" />
         <module name="search-service" />
         <module name="api-gateway" />
-        <module name="product-service" />
         <module name="common-lib" />
         <module name="order-service" />
         <module name="identity-service" />
+        <module name="discovery-service" />
         <module name="notification-service" />
         <module name="flashsale-service" />
       </profile>
-      <profile name="Annotation profile for discovery-service" enabled="true">
+      <profile name="Annotation profile for product-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
         </processorPath>
-        <module name="discovery-service" />
+        <module name="product-service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="cart-service" target="25" />
       <module name="flashsale-api" target="25" />
       <module name="flashsale-parent (1)" target="17" />
       <module name="flashsale-parent (2)" target="17" />

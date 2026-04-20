@@ -221,27 +221,30 @@ services:
      networks: [flashsale-net]
 
   product-service:
-    build:
-      context: ./backend/product-service
-      dockerfile: Dockerfile
-    container_name: fs-product
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - MONGO_HOST=${MONGO_HOST}
-      - DB_NAME_PRODUCT=${DB_NAME_PRODUCT}
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD_ENCODED=S3cr3t_M0ng0_P%40ssw0rd%212024
-      - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
-      - MINIO_URL=${MINIO_URL}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-    depends_on:
-      mongo: { condition: service_started }
-      kafka-init: { condition: service_completed_successfully }
-      axonserver: { condition: service_started }
-      discovery-service: { condition: service_started }
-    networks: [flashsale-net]
+     build:
+       context: ./backend/product-service
+       dockerfile: Dockerfile
+     container_name: fs-product
+     environment:
+       - EUREKA_URI=${EUREKA_URI}
+       - MONGO_HOST=${MONGO_HOST}
+       - DB_NAME_PRODUCT=${DB_NAME_PRODUCT}
+       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+       - MONGO_INITDB_ROOT_PASSWORD_ENCODED=S3cr3t_M0ng0_P%40ssw0rd%212024
+       - KAFKA_SERVER=${KAFKA_SERVER}
+       - AXON_SERVER=${AXON_SERVER}
+       - MINIO_URL=${MINIO_URL}
+       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+       - REDIS_HOST=${REDIS_HOST}
+       - REDIS_PASSWORD=${REDIS_PASSWORD}
+     depends_on:
+       mongo: { condition: service_started }
+       kafka-init: { condition: service_completed_successfully }
+       axonserver: { condition: service_started }
+       discovery-service: { condition: service_started }
+       redis: { condition: service_started }
+     networks: [flashsale-net]
 
   order-service:
      build:
@@ -349,42 +352,28 @@ services:
     networks: [flashsale-net]
 
   worker-service:
-     build:
-       context: ./backend/worker-service
-       dockerfile: Dockerfile
-     container_name: fs-worker
-     environment:
-       - EUREKA_URI=${EUREKA_URI}
-       - DB_HOST=${DB_HOST}
-       - DB_NAME=${DB_NAME}
-       - POSTGRES_USER=${POSTGRES_USER}
-       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-       - KAFKA_SERVER=${KAFKA_SERVER}
-       - AXON_SERVER=${AXON_SERVER}
-     depends_on:
-       postgres: { condition: service_healthy }
-       kafka-init: { condition: service_completed_successfully }
-       axonserver: { condition: service_started }
-       discovery-service: { condition: service_started }
-     networks: [flashsale-net]
+      build:
+        context: ./backend/worker-service
+        dockerfile: Dockerfile
+      container_name: fs-worker
+      environment:
+        - EUREKA_URI=${EUREKA_URI}
+        - DB_HOST=${DB_HOST}
+        - DB_NAME=${DB_NAME}
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        - KAFKA_SERVER=${KAFKA_SERVER}
+        - AXON_SERVER=${AXON_SERVER}
+      depends_on:
+        postgres: { condition: service_healthy }
+        kafka-init: { condition: service_completed_successfully }
+        axonserver: { condition: service_started }
+        discovery-service: { condition: service_started }
+      networks: [flashsale-net]
 
-  cart-service:
-    build:
-      context: ./backend/cart-service
-      dockerfile: Dockerfile
-    container_name: fs-cart
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-    depends_on:
-      redis: { condition: service_started }
-      discovery-service: { condition: service_started }
-    networks: [flashsale-net]
-
-  # =================================================================
-  # 3. FRONTEND APPLICATIONS (React + Vite)
-  # =================================================================
+   # =================================================================
+   # 3. FRONTEND APPLICATIONS (React + Vite)
+   # =================================================================
 
   customer-app:
     build:
