@@ -220,7 +220,7 @@ services:
        discovery-service: { condition: service_started }
      networks: [flashsale-net]
 
-   product-service:
+  product-service:
      build:
        context: ./backend/product-service
        dockerfile: Dockerfile
@@ -351,7 +351,7 @@ services:
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
-   worker-service:
+  worker-service:
       build:
         context: ./backend/worker-service
         dockerfile: Dockerfile

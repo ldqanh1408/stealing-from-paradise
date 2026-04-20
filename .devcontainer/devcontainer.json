@@ -1,10 +1,15 @@
 {
   "name": "Stealing From Paradise - Java 25 + React + Docker",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
-
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "features": {
+      "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
   "containerEnv": {
-    "JAVA_HOME": "/usr/local/sdkman/candidates/java/current",
-    "MAVEN_HOME": "/usr/local/sdkman/candidates/maven/current",
+    "JAVA_HOME": "/opt/java/openjdk",
+    "MAVEN_HOME": "/usr/share/maven",
     "MAVEN_OPTS": "-Xmx2048m -XX:+UseG1GC",
     "POSTGRES_USER": "flashsale",
     "POSTGRES_PASSWORD": "devpassword123",
