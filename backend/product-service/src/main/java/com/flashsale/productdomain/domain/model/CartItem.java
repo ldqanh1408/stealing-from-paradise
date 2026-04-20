@@ -1,4 +1,4 @@
-package com.flashsale.cartservice.domain.model;
+package com.flashsale.productdomain.domain.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

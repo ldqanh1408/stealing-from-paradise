@@ -15,7 +15,6 @@
     <modules>
         <module>common-lib</module>
         <module>discovery-service</module>
-        <module>cart-service</module>
         <module>api-gateway</module>
         <module>flashsale-service</module>
         <module>search-service</module>

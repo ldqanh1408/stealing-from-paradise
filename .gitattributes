@@ -1,0 +1,62 @@
+# Auto detect text files and normalize line endings to LF
+* text=auto
+
+# Shell scripts - always use LF
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Batch scripts - use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Source code - use LF
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.jsx text eol=lf
+*.java text eol=lf
+*.py text eol=lf
+*.kt text eol=lf
+*.scala text eol=lf
+*.go text eol=lf
+*.rs text eol=lf
+*.c text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+
+# Config files - use LF
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.xml text eol=lf
+*.properties text eol=lf
+*.gradle text eol=lf
+*.maven text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Markdown - use LF
+*.md text eol=lf
+README* text eol=lf
+
+# Docker - use LF
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+.dockerignore text eol=lf
+
+# Binary files
+*.jar binary
+*.class binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mov binary
+*.mp4 binary
+*.mp3 binary
+*.gz binary
+*.zip binary
+*.7z binary
+

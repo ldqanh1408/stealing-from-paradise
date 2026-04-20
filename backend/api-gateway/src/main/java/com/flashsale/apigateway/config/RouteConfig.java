@@ -44,10 +44,10 @@ public class RouteConfig {
                 .and().method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE)
                 .uri("lb://product-service"))
 
-            // ===== Cart Service (requires JWT) =====
+            // ===== Cart Service (now part of Product Service - requires JWT) =====
             .route("cart", r -> r
                 .path("/api/v1/cart/**")
-                .uri("lb://cart-service"))
+                .uri("lb://product-service"))
 
             // ===== Order Service (requires JWT) =====
             .route("order", r -> r
