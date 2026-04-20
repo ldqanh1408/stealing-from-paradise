@@ -1,53 +1,94 @@
-# 🎉 Cart Service Consolidation - Documentation Index
+# 📚 stealing-from-paradise Documentation
 
-## 📋 Overview
+## 🚀 Quick Start
 
-The standalone **cart-service** microservice has been successfully consolidated into the **product-service**. This reduces the total microservice count from 11 to 10 while maintaining full functionality.
-
-**Status**: ✅ **COMPLETE & READY FOR DEPLOYMENT**
+**New to the project?** Start here:
+1. Read [CLAUDE.md](CLAUDE.md) for build & run commands
+2. Read [README.md](README.md) for project overview
+3. Explore [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) for architecture
 
 ---
 
-## 📚 Documentation Files
+## 📖 Documentation Structure
 
-### 1. **CONSOLIDATION_COMPLETE.md** ⭐ START HERE
-**Detailed technical reference with verification checklist**
-- Complete file-by-file changelog
-- Before/after architecture diagrams
-- Kafka topics and data models
-- Rollback instructions
-- Comprehensive verification checklist
+### Root Level
+- **[CLAUDE.md](CLAUDE.md)** - Build commands, setup, architecture summary
+- **[README.md](README.md)** - Quick start guide
+- **[AGENTS.md](AGENTS.md)** - Code review agent guidelines
 
-**Best for**: Technical review, deployment verification, troubleshooting
+### In `/docs` Folder
+- **[00_INDEX.md](docs/00_INDEX.md)** - Complete documentation index (START HERE for details)
+- **[01_OVERVIEW.md](docs/01_OVERVIEW.md)** - Full project architecture & setup
+- **[02_API.md](docs/02_API.md)** - API specification (v5.3) with all endpoints
+- **[03_BUSINESS.md](docs/03_BUSINESS.md)** - Business logic & workflows (v5.3)
+- **[04_POLICIES.md](docs/04_POLICIES.md)** - System policies & rules (v3)
+- **[05_OPERATIONS.md](docs/05_OPERATIONS.md)** - Data retention & 23 cronjobs (v4)
+- **[06_PAYMENT_SAGA_FLOW.md](docs/06_PAYMENT_SAGA_FLOW.md)** - Payment flow details
+- **[07_TESTING_GUIDE.md](docs/07_TESTING_GUIDE.md)** - Testing guide
+- **[08_PAYMENT_ORDER_INTEGRATION.md](docs/08_PAYMENT_ORDER_INTEGRATION.md)** - Integration details
+- **[erd.mermaid](docs/erd.mermaid)** - Database schema diagram
 
-### 2. **QUICK_REFERENCE.md** 🚀 FOR OPERATORS
-**Quick start guide for building and running**
-- What changed (summary)
-- How to build and run
-- API endpoints reference
-- Kafka topics table
-- Troubleshooting guide
-- Files reference
+---
 
-**Best for**: DevOps, system operators, quick lookups
+## 🎯 By Role
 
-### 3. **CART_CONSOLIDATION_SUMMARY.md** 📊 FOR ARCHITECTS
-**Implementation summary and architectural changes**
-- Changes made (organized by phase)
-- Architecture before/after
-- Integration points
-- Data models
-- Next steps
+### I'm a Developer (Backend)
+1. [CLAUDE.md](CLAUDE.md) - Setup
+2. [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) - Architecture
+3. [docs/02_API.md](docs/02_API.md) - Endpoints
+4. [docs/03_BUSINESS.md](docs/03_BUSINESS.md) - Business logic
+5. [docs/04_POLICIES.md](docs/04_POLICIES.md) - Rules
 
-**Best for**: Architects, tech leads, sprint planning
+### I'm a Developer (Frontend)
+1. [CLAUDE.md](CLAUDE.md) - Setup
+2. [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) - Frontend architecture
+3. [docs/02_API.md](docs/02_API.md) - API examples
+4. [README.md](README.md) - Quick start
 
-### 4. **This File** 📑 NAVIGATION
-**Index and quick navigation guide**
-- Links to all documentation
-- Reading recommendations
-- Quick decision tree
+### I'm DevOps / Operations
+1. [CLAUDE.md](CLAUDE.md) - Deployment
+2. [docs/05_OPERATIONS.md](docs/05_OPERATIONS.md) - Cronjobs
+3. [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) - Tech stack
 
-**Best for**: Finding what you need
+### I'm a Product Manager
+1. [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) - Overview
+2. [docs/03_BUSINESS.md](docs/03_BUSINESS.md) - Workflows
+3. [README.md](README.md) - Features
+
+---
+
+## 📊 Project Stats
+
+| Aspect | Count |
+|--------|-------|
+| Backend Microservices | 11 |
+| Frontend Apps | 3 |
+| API Endpoints | 40+ |
+| Kafka Topics | 35+ |
+| Cronjobs | 23 |
+| Documentation Files | 10 |
+| Total Doc Lines | 9,000+ |
+
+---
+
+## ✨ Key Features
+
+- ✅ Multi-vendor marketplace
+- ✅ Stripe Connect payment
+- ✅ Flash Sale system (anti-oversell)
+- ✅ Event-driven architecture (Axon + Kafka)
+- ✅ Refund with RTS (Return To Sender)
+- ✅ Trust Score & Loyalty Points
+- ✅ 3 user roles (Buyer, Seller, Admin)
+- ✅ Production-ready with Docker
+
+---
+
+## 🔄 For Navigation
+
+👉 **[Go to Complete Index →](docs/00_INDEX.md)**
+
+This INDEX file provides quick navigation. For complete documentation index with all cross-references, see [docs/00_INDEX.md](docs/00_INDEX.md).
 
 ---
 

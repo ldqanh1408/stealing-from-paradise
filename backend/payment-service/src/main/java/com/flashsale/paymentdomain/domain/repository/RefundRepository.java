@@ -53,4 +53,6 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     boolean existsByOrderIdAndStatus(Long orderId, String status);
 
     boolean existsByOrderIdAndStatusIn(Long orderId, List<String> statuses);
+
+    Optional<Refund> findByRefundRef(String refundRef);
 }

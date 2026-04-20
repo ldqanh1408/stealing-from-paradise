@@ -31,8 +31,12 @@ public class KafkaTopicConfig {
     }
 
     // ─── Topics order-service consumes ────────────────────────────────────────
-    @Bean public NewTopic paymentSuccess()   { return topic(KafkaTopics.PAYMENT_SUCCESS); }
-    @Bean public NewTopic paymentFailed()    { return topic(KafkaTopics.PAYMENT_FAILED); }
+    @Bean public NewTopic paymentSuccess()       { return topic(KafkaTopics.PAYMENT_SUCCESS); }
+    @Bean public NewTopic paymentFailed()        { return topic(KafkaTopics.PAYMENT_FAILED); }
+    @Bean public NewTopic refundAdminApproved()  { return topic(KafkaTopics.REFUND_ADMIN_APPROVED); }
+    @Bean public NewTopic refundRejected()       { return topic(KafkaTopics.REFUND_REJECTED); }
+    @Bean public NewTopic refundRtsCompleted()   { return topic(KafkaTopics.REFUND_RTS_COMPLETED); }
+    @Bean public NewTopic refundCreated()        { return topic(KafkaTopics.REFUND_CREATED); }
 
     // ─── Reply topics (request-reply pattern) ─────────────────────────────────
     @Bean public NewTopic orderCartItemsResponse()    { return topic(KafkaTopics.ORDER_CART_ITEMS_RESPONSE); }

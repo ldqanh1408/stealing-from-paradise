@@ -52,6 +52,9 @@ public class Transaction {
     @Column(nullable = false)
     private String status;
 
+    @Column(name = "client_secret")
+    private String clientSecret;
+
     @Column(name = "raw_response", columnDefinition = "jsonb")
     private String rawResponse;
 

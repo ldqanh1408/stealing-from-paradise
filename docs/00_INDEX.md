@@ -1,396 +1,243 @@
-# 📚 Project Documentation Index
+# 📚 Documentation Index - stealing-from-paradise
 
 **Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)  
-**Last Updated**: 2026-04-15  
+**Last Updated**: 2026-04-20  
 **Status**: Complete & Production-Ready  
-**Latest Update**: Tracking number for refunds (v5.3) added to API & Business docs
+**Latest Update**: Documentation consolidated & updated
 
 ---
 
-## 🎯 Quick Links
+## 🎯 Quick Navigation
 
-| Document | Purpose | Type |
-|----------|---------|------|
-| [PROJECT_OVERVIEW.md](#project_overviewmd) | **START HERE** - Complete project guide | Comprehensive |
-| [API_SPEC_v5_3_RTS.md](#api_spec) | Complete API specification (v5.3) | Technical |
-| [API_DETAILED_JSON_v5_3_RTS.md](#api_detailed_json) | **JSON Requests/Responses & Kafka Payloads** | Technical Reference |
-| [BUSINESS_DOC_v5_3_rts_unified.md](#business_doc) | Business requirements & workflows | Business |
-| [SYSTEM_POLICY_v3_rts_unified.md](#system_policy) | System policies & configuration | Technical |
-| [DATA_RETENTION_POLICY_v4_rts.md](#data_retention) | Data retention & cronjobs (22 jobs) | Operations |
-| [DOCUMENTATION_INDEX.md](#documentation_indexmd) | This file - Documentation navigation | Reference |
-| [erd.mermaid](#erd_mermaid) | Database Entity-Relationship Diagram | Architecture |
+### For Getting Started
+1. **[01_OVERVIEW.md](01_OVERVIEW.md)** - Project overview, tech stack, architecture, setup & running services
+2. **[CLAUDE.md](/CLAUDE.md)** - Quick setup & build commands
 
----
+### For Development
+3. **[02_API.md](02_API.md)** - Complete API specification (v5.3 RTS) with all endpoints & Kafka topics
+4. **[03_BUSINESS.md](03_BUSINESS.md)** - Business logic, workflows & 9 workflows (v5.3)
+5. **[04_POLICIES.md](04_POLICIES.md)** - System policies, trust score rules, account lifecycle (v3)
+6. **[05_OPERATIONS.md](05_OPERATIONS.md)** - Data retention, 23 cronjobs & maintenance (v4)
 
-## 📄 Documentation Details
+### For Deep Dives
+7. **[06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md)** - Stripe multi-vendor payment & Saga pattern
+8. **[07_TESTING_GUIDE.md](07_TESTING_GUIDE.md)** - Testing guide & QA procedures
+9. **[08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md)** - Integration details
 
-**Status**: ✅ **8 Core Documentation Files** (2026-04-15)
-**Latest Update**: API_DETAILED_JSON_v5_3_RTS.md with full JSON examples & Kafka payloads
-**Total**: 8 markdown files + diagrams (7,000+ lines)
-
----
-
-### PROJECT_OVERVIEW.md
-
-**Contents**:
-- Project overview with features
-- Complete tech stack
-- Backend architecture (11 services)
-- Axon Framework services structure
-- Traditional database services structure
-- Frontend architecture (3 apps)
-- Project root structure
-- Setup & installation guide
-- Running services (3 options: Docker, Local, Production)
-- Development workflow
-- Database initialization
-- API endpoints reference
-- Monitoring & logging
-- Deployment procedures
-- Troubleshooting guide
-- Contributing guidelines
-- Support information
-
-**Who Should Read**: Everyone (new team members, developers, DevOps, managers)
-
-**Key Sections**:
-1. Project Overview (features, roles, capabilities)
-2. Tech Stack (versions, components, tools)
-3. Backend Architecture (services diagram, detailed descriptions)
-4. Backend Directory Structures (Axon vs Traditional comparison)
-5. Frontend Architecture (3 apps, shared code, data flow)
-6. Setup & Installation (prerequisites, environment)
-7. Running Services (Docker, Local, Production)
-8. Development Workflow (backend & frontend)
-9. Database Initialization
-10. API Endpoints (base URL, authentication, resources)
-11. Monitoring & Logging
-12. Deployment (checklist, steps, Kubernetes)
-13. Troubleshooting
-14. Contributing
+### Architecture
+10. **[erd.mermaid](erd.mermaid)** - Database entity-relationship diagram
 
 ---
 
-### API_DETAILED_JSON_v5_3_RTS.md
+## 📊 Documentation Overview
 
-**Status**: ✅ **NEW (2026-04-15)**  
-**Size**: 1,200+ lines with complete examples
+| Document | Version | Focus | Size |
+|----------|---------|-------|------|
+| 01_OVERVIEW.md | v1 | Project architecture, setup | 1,200+ lines |
+| 02_API.md | v5.3 RTS | All endpoints, Kafka topics | 5,200+ lines |
+| 03_BUSINESS.md | v5.3 RTS | Workflows, policies, 23 cronjobs | 719 lines |
+| 04_POLICIES.md | v3 RTS | Trust score, account lifecycle | 514 lines |
+| 05_OPERATIONS.md | v4.0 RTS | Data retention, cleanup | 713 lines |
+| 06_PAYMENT_SAGA_FLOW.md | v2 | Payment flow, Stripe, Saga | TBD |
+| 07_TESTING_GUIDE.md | v1 | Test scenarios | TBD |
+| 08_PAYMENT_ORDER_INTEGRATION.md | v2 | Integration details | TBD |
 
-**Contents**:
-- 🔐 Identity Service APIs (register, login, logout, trust score appeal)
-- 📦 Product Service APIs (create, variants, submit, inventory)
-- 🔍 Search Service APIs (products search, autocomplete)
-- 🛒 Cart Service APIs (get, add items, update, delete)
-- 📋 Order Service APIs (checkout multi-vendor, cancel, tracking, confirm, RTS)
-- ↩️ Refund APIs (full, partial, admin approval with tracking number - NEW v5.3)
-- 💳 Payment Service APIs (Stripe onboarding, payment status)
-- ⭐ Loyalty Service APIs (balance, estimate, transactions)
-- ⚡ Flash Sale Service APIs (sessions, items, buy)
-- 🔔 Notification Service APIs (stream SSE, list, read status)
-- 🛡️ Admin APIs (user management, trust score, appeals, failed events)
-- 🧭 Kafka Topics & Payloads (35+ topics with full JSON)
-- ❌ Error Response Formats (standard, validation, invalid state, locked)
-
-**Key Features**:
-- ✅ **Complete JSON Examples**: All request/response objects
-- ✅ **Validation Rules**: Every field with type, range, constraints
-- ✅ **Kafka Payloads**: All 35+ event topics with detailed fields
-- ✅ **Multi-Vendor Examples**: Order checkout with 2+ sellers
-- ✅ **RTS (Return To Sender)**: Complete v5.3 workflow
-- ✅ **Tracking Numbers**: Admin refund approval with tracking
-- ✅ **Error Scenarios**: All error response types
-- ✅ **Side Effects**: Redis, Database, and Kafka impacts
-
-**Who Should Read**: Frontend developers (API integration), Backend developers (implementation reference), QA (test data structures), API consumers
+**Total**: ~9,000+ lines of documentation covering all aspects
 
 ---
 
-### BUSINESS_DOC_v5_3_rts_unified.md
+## 🚀 By Role
 
-**Status**: ✅ **NEW (2026-04-14)**  
-**Size**: 719 lines, 25,314 bytes
+### New Developer
+1. Read [01_OVERVIEW.md](01_OVERVIEW.md) — Full project picture
+2. Read [CLAUDE.md](/CLAUDE.md) — Build & run commands
+3. Use [02_API.md](02_API.md) — API integration reference
 
-**Contents**:
-- Project overview & statistics (9 workflows, 6 policies, 23 cronjobs)
-- Vai trò & Quyền hạn (Buyer, Seller, Admin)
-- 9 Luồng nghiệp vụ chính:
-  - Xác thực & Quản lý tài khoản
-  - Vòng đời sản phẩm
-  - Vòng đời đơn hàng (8 trạng thái)
-  - Thanh toán Stripe multi-vendor
-  - Hoàn tiền Buyer (Refund)
-  - Return To Sender (RTS) - NEW v5.3
-  - Flash Sale (chống oversell)
-  - Điểm Tích Lũy (Loyalty Points)
-  - Trust Score & Khiếu Nại (Appeal)
-- 6 Chính sách chi tiết
-- 23 Cronjobs định kỳ
+### Backend Developer
+1. [01_OVERVIEW.md](01_OVERVIEW.md) - Backend architecture section
+2. [02_API.md](02_API.md) - Endpoint specifications
+3. [03_BUSINESS.md](03_BUSINESS.md) - Business logic & workflows
+4. [04_POLICIES.md](04_POLICIES.md) - Rules & constraints
+5. [05_OPERATIONS.md](05_OPERATIONS.md) - Cronjobs & data retention
 
-**Key Features**:
-- ✅ Complete workflow diagrams
-- ✅ State transition models
-- ✅ Stripe multi-vendor payment flow
-- ✅ Return To Sender (RTS) process (NEW v5.3)
-- ✅ Tracking number for refunds
-- ✅ Trust Score tier mapping
-- ✅ Loyalty points detailed breakdown
-- ✅ Flash Sale concurrency handling
+### Frontend Developer
+1. [01_OVERVIEW.md](01_OVERVIEW.md) - Frontend architecture section
+2. [02_API.md](02_API.md) - API request/response examples
+3. [CLAUDE.md](/CLAUDE.md) - Frontend build & dev commands
 
-**Who Should Read**: Product managers, business analysts, team leads, technical stakeholders
+### DevOps / Operations
+1. [CLAUDE.md](/CLAUDE.md) - Deployment & Docker commands
+2. [01_OVERVIEW.md](01_OVERVIEW.md) - Tech stack & architecture
+3. [05_OPERATIONS.md](05_OPERATIONS.md) - Maintenance & cronjobs
+
+### Product Manager / Team Lead
+1. [01_OVERVIEW.md](01_OVERVIEW.md) - Project overview & features
+2. [03_BUSINESS.md](03_BUSINESS.md) - Business workflows & policies
+3. [CLAUDE.md](/CLAUDE.md) - Tech stack summary
 
 ---
 
-#### SYSTEM_POLICY_v3_rts_unified.md
+## ✨ Key Features Documented
 
-**Status**: ✅ **NEW (2026-04-14)**  
-**Size**: 645 lines, 22,441 bytes
+### Architecture
+- ✅ 11 microservices (4 Axon + 7 traditional)
+- ✅ Multi-vendor payment with Stripe Connect
+- ✅ Event-driven with Kafka & Axon Framework
+- ✅ Reactive services (WebFlux, R2DBC)
+- ✅ 3 React frontend apps
 
-**Contents**:
-- 1. Nguyên Tắc Chung (7 nguyên tắc)
-- 2. Danh Sách Cronjob - chi tiết toàn bộ 22 jobs
-- 3. Policy Tổng Hợp Theo Bảng (PostgreSQL, MongoDB, Elasticsearch)
-- 4. Bảng Tóm Tắt Cronjob
-- 5. External Storage & Cache Policy (Redis, MinIO)
-- 6. Checklist Triển Khai
+### Business Logic
+- ✅ 9 core workflows (auth, products, orders, payments, refunds, Flash Sale, loyalty, trust score, RTS)
+- ✅ Order lifecycle (8 statuses)
+- ✅ Refund system with RTS (Return To Sender) - v5.3
+- ✅ Trust Score with appeal system
+- ✅ Loyalty Points system
+- ✅ Flash Sale anti-oversell mechanism
 
-**Key Features**:
-- Trust Score policy (thang điểm, sự kiện trừ/cộng, ngưỡng kích hoạt)
-- Account Lifecycle (trạng thái, khóa tạm thời, JWT revocation)
-- Flash Sale participation rules
-- Seller policies & onboarding
-- Refund policy
-- Loyalty points system
-- Schema bổ sung (v3 RTS)
-
-**Who Should Read**: Backend developers, system architects, DevOps engineers
-
----
-
-#### DATA_RETENTION_POLICY_v4_rts.md
-
-**Status**: ✅ **NEW (2026-04-14)**  
-**Size**: 892 lines, 36,851 bytes
-
-**Contents**:
-- 1. NGUYÊN TẮC CHUNG (7 nguyên tắc core)
-- 2. DANH SÁCH CRONJOB (22 jobs chi tiết):
-  - JOB-01: Flash Sale Session Lifecycle Manager
-  - JOB-02: Flash Sale Reminder Dispatcher
-  - JOB-03: Loyalty Points Expiry
-  - JOB-04 — JOB-22: Cleanup, auto-lock, detection, reconciliation
-  - [GAP-PATCH] JOB-21: Stock Reconciliation
-  - [GAP-PATCH R1] JOB-22: Auto-Delivered Stale SHIPPING Orders
-- 3. POLICY TỔNG HỢP THEO BẢNG (PostgreSQL, MongoDB, Elasticsearch)
-- 4. BẢNG TÓM TẮT CRONJOB
-- 5. EXTERNAL STORAGE & CACHE POLICY (Redis, MinIO)
-- 6. CHECKLIST TRIỂN KHAI
-
-**Key Features**:
-- Complete retention policies for all tables
-- Cron schedules for all 22 jobs
-- SQL logic for each job
-- MongoDB/JavaScript examples
-- Redis key patterns
-- MinIO bucket policies
-- Deployment checklist
-
-**Who Should Read**: DevOps engineers, system operators, database admins, infrastructure team
+### Technical
+- ✅ 40+ API endpoints documented
+- ✅ 35+ Kafka topics with payloads
+- ✅ 23 cronjobs with SQL logic
+- ✅ Complete API JSON examples
+- ✅ Error handling & validation rules
 
 ---
 
-## 📊 Documentation Statistics
+## 📖 How to Use Documentation
 
-### Coverage
+### Find Information Quick
+| Need | Where |
+|------|-------|
+| How to start development? | [CLAUDE.md](/CLAUDE.md) |
+| API endpoint details? | [02_API.md](02_API.md) |
+| Business workflow? | [03_BUSINESS.md](03_BUSINESS.md) |
+| System rules & policies? | [04_POLICIES.md](04_POLICIES.md) |
+| Database schema? | [erd.mermaid](erd.mermaid) |
+| Cronjob details? | [05_OPERATIONS.md](05_OPERATIONS.md) |
+| How does payment work? | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) |
 
-| Area | Status | Details |
-|------|--------|---------|
-| **Project Overview** | ✅ Complete | Full project description |
-| **Backend Architecture** | ✅ Complete | 11 services documented |
-| **Axon Services** | ✅ Complete | 4 services + structures |
-| **Traditional Services** | ✅ Complete | 7 services documented |
-| **Frontend Apps** | ✅ Complete | 3 apps + shared code |
-| **Setup & Installation** | ✅ Complete | 3 options provided |
-| **API Reference** | ✅ Complete | All endpoints listed |
-| **API JSON Examples** | ✅ Complete | 60+ request/response examples (NEW) |
-| **Kafka Payloads** | ✅ Complete | 35+ topics with full JSON (NEW) |
-| **Deployment** | ✅ Complete | Production-ready |
-| **Troubleshooting** | ✅ Complete | Common issues solved |
-| **Business Requirements** | ✅ Complete | 9 workflows, 6 policies (v5.3) |
-| **System Policies** | ✅ Complete | Trust Score, Flash Sale, Refund, Loyalty (v3.0) |
-| **Data Retention** | ✅ Complete | 22 cronjobs, retention policies (v4.0) |
-
-### Quantity
-
-- **Total Documentation Files**: 8 markdown files
-- **Total Lines**: 7,000+ lines
-- **Code Examples**: 150+ real examples
-- **Tables**: 50+ reference tables
-- **SQL Queries**: 100+ database operations
-- **Diagrams**: Architecture diagrams + ERD
-- **Commands**: 250+ executable commands
-- **Cronjobs**: 22 documented jobs
-- **JSON Payloads**: 60+ request/response examples
-- **Kafka Topics**: 35+ event topics documented
+### Common Tasks
+| Task | Document | Section |
+|------|----------|---------|
+| Set up local environment | CLAUDE.md | Build & Run Commands |
+| Implement new API endpoint | 02_API.md | Any endpoint section |
+| Understand order workflow | 03_BUSINESS.md | Luồng: Vòng Đời Đơn Hàng |
+| Configure cronjob | 05_OPERATIONS.md | DANH SÁCH CRONJOB |
+| Debug payment issue | 06_PAYMENT_SAGA_FLOW.md | Full document |
+| Write test cases | 07_TESTING_GUIDE.md | Test scenarios |
 
 ---
 
-## 🎓 How to Use This Documentation
+## 🔄 Document Relationships
 
-### For Different Roles
-
-#### **New Developer**
-1. Start: PROJECT_OVERVIEW.md (full picture)
-2. Read: BACKEND_GUIDE.md or FRONTEND_GUIDE.md (based on role)
-3. API Ref: API_DETAILED_JSON_v5_3_RTS.md (JSON examples for integration)
-4. Setup: Follow setup instructions
-5. Reference: AXON_EXPLANATION.md (if backend), BUILD_AND_DOCKER_GUIDE.md (for builds)
-
-#### **Backend Developer**
-1. Start: PROJECT_OVERVIEW.md (Backend Architecture section)
-2. Deep dive: BACKEND_GUIDE.md
-3. Event sourcing: AXON_EXPLANATION.md
-4. Configuration: JAVA_SPRING_BOOT_CONFIG.md
-5. Build/Deploy: BUILD_AND_DOCKER_GUIDE.md
-
-#### **Frontend Developer**
-1. Start: PROJECT_OVERVIEW.md (Frontend Architecture section)
-2. Deep dive: FRONTEND_GUIDE.md
-3. Build: BUILD_AND_DOCKER_GUIDE.md
-4. Troubleshoot: FRONTEND_GUIDE.md + BUILD_AND_DOCKER_GUIDE.md
-
-#### **DevOps Engineer**
-1. Start: PROJECT_OVERVIEW.md (Tech Stack & Deployment)
-2. Deployment: BUILD_AND_DOCKER_GUIDE.md
-3. Configuration: JAVA_SPRING_BOOT_CONFIG.md
-4. Reference: BACKEND_GUIDE.md (service config)
-
-#### **Team Lead / Manager**
-1. Start: PROJECT_OVERVIEW.md (Project Overview + Tech Stack)
-2. Architecture: Backend Architecture section
-3. Deployment: Deployment section
-
----
-
-## 🔍 Finding Specific Information
-
-### "How do I...?"
-
-| Question | Document | Section |
-|----------|----------|---------|
-| Start development locally? | PROJECT_OVERVIEW.md | Running Services → Local Development |
-| Deploy to production? | BUILD_AND_DOCKER_GUIDE.md | Deployment |
-| Understand Axon Framework? | AXON_EXPLANATION.md | Full document |
-| Set up Java 25? | JAVA_SPRING_BOOT_CONFIG.md | Prerequisites |
-| Create new Axon service? | BACKEND_GUIDE.md | Event Sourcing with Axon |
-| Add new frontend page? | FRONTEND_GUIDE.md | Common Tasks |
-| Debug build error? | BUILD_AND_DOCKER_GUIDE.md | Troubleshooting |
-| Understand project structure? | PROJECT_OVERVIEW.md | Project Structure section |
-| Integrate with APIs? | API_DETAILED_JSON_v5_3_RTS.md | Identity/Product/Order/etc endpoints |
-| Handle Kafka events? | API_DETAILED_JSON_v5_3_RTS.md | Kafka Topics & Payloads |
-| Implement multi-vendor checkout? | API_DETAILED_JSON_v5_3_RTS.md | Order Service → POST /orders/checkout |
-| Handle refund with tracking number? | API_DETAILED_JSON_v5_3_RTS.md | Refund APIs → Admin approve (v5.3) |
-
----
-
-## 🚀 Quick Start Path
-
-### Path 1: Full Setup (5 minutes)
 ```
-1. PROJECT_OVERVIEW.md → Setup & Installation
-2. docker-compose up -d
-3. Open: http://localhost:3000 (customer), 3001 (seller), 3002 (admin)
-```
+01_OVERVIEW.md
+  ↓ (project structure)
+  ├→ CLAUDE.md (quick start)
+  ├→ 02_API.md (technical details)
+  └→ 03_BUSINESS.md (business logic)
+     ├→ 04_POLICIES.md (system rules)
+     ├→ 05_OPERATIONS.md (cronjobs)
+     └→ 06_PAYMENT_SAGA_FLOW.md (payment detail)
+        ├→ 08_PAYMENT_ORDER_INTEGRATION.md
+        └→ 07_TESTING_GUIDE.md (testing)
 
-### Path 2: Local Backend (10 minutes)
-```
-1. BACKEND_GUIDE.md → Setup & Build
-2. JAVA_SPRING_BOOT_CONFIG.md → Prerequisites
-3. cd backend; mvn clean install
-4. Start services individually
-```
-
-### Path 3: Local Frontend (5 minutes)
-```
-1. FRONTEND_GUIDE.md → Setup & Install Dependencies
-2. cd frontend/apps/customer; npm install
-3. npm run dev
-4. Open: http://localhost:3000
+erd.mermaid (database schema)
+  └→ Used by all technical docs
 ```
 
 ---
 
-## ✨ Key Features
+## 📝 Version Information
 
-### Comprehensive
-✅ Covers every aspect of the project  
-✅ Multiple perspectives (developer, DevOps, manager)  
-✅ Real-world examples and commands  
+### Current Versions
+- **API**: v5.3 RTS (includes tracking number for refunds)
+- **Business**: v5.3 RTS (includes Return To Sender)
+- **Policies**: v3 RTS (with trust score & account lifecycle)
+- **Operations**: v4.0 RTS (23 cronjobs)
 
-### Organized
-✅ Clear table of contents  
-✅ Logical flow and structure  
-✅ Cross-referenced between documents  
-
-### Practical
-✅ Copy-paste commands  
-✅ Step-by-step instructions  
-✅ Troubleshooting guides  
-
-### Visual
-✅ Architecture diagrams  
-✅ Reference tables  
-✅ Code examples  
-
-### Actionable
-✅ Specific, not vague  
-✅ Complete, not partial  
-✅ Current, regularly updated  
-
----
-
-## 📞 Support & Updates
-
-### Version Info
-- **Last Updated**: 2026-04-14
+### Tech Stack
 - **Java**: 25 (LTS)
 - **Spring Boot**: 4.0.4 (Latest)
 - **React**: 19 (Latest)
-- **Axon Framework**: 4.13.0 (Latest stable)
-- **Business Doc Version**: v5.3 RTS
-- **System Policy Version**: v3.0 RTS Unified
-- **Data Retention Version**: v4.0 RTS
-
-### Keep Documentation Updated
-- Update when tech versions change
-- Add new services or features
-- Fix discovered issues
-- Clarify confusing sections
-- Add real-world examples
+- **Axon Framework**: 4.13.0
+- **Kafka**: 7.4.0
+- **PostgreSQL**: 15.4
+- **MongoDB**: 6.0
+- **Redis**: 7.0
+- **Elasticsearch**: 8.10
 
 ---
 
-## 🎉 Summary
+## ✅ Documentation Checklist
 
-This documentation set provides **complete, production-ready guidance** for the Flash Sale E-Commerce Platform:
-
-- ✅ **Comprehensive**: Everything you need to know (8 files, 7,000+ lines)
-- ✅ **Organized**: Easy to navigate and find info
-- ✅ **Practical**: Real commands, SQL, examples, JSON requests/responses
-- ✅ **Professional**: Production-grade quality
-- ✅ **Updated**: Current as of 2026-04-15
-- ✅ **Complete**: Business, technical, operational, API perspectives
-
-**Includes**:
-- Architecture & Setup (Project Overview, Backend/Frontend Guides)
-- Technical Details (Java Config, Axon Framework, Build & Docker)
-- Business Logic (Business Doc v5.3, System Policy v3.0)
-- Operations (Data Retention v4.0 with 22 cronjobs)
-- API Reference (Complete JSON with 60+ examples, Kafka payloads)
-
-**Start with PROJECT_OVERVIEW.md for the complete picture!**
-**Use API_DETAILED_JSON_v5_3_RTS.md for API integration!**
+| Item | Status | Details |
+|------|--------|---------|
+| **Architecture** | ✅ Complete | 11 services, 3 apps documented |
+| **API Endpoints** | ✅ Complete | 40+ endpoints with examples |
+| **Business Workflows** | ✅ Complete | 9 workflows, all detailed |
+| **System Policies** | ✅ Complete | Trust score, refund, loyalty |
+| **Cronjobs** | ✅ Complete | 23 jobs with SQL logic |
+| **Kafka Topics** | ✅ Complete | 35+ topics documented |
+| **Error Handling** | ✅ Complete | All error codes defined |
+| **Database Schema** | ✅ Complete | ERD provided |
+| **Setup Guide** | ✅ Complete | 3 options (Docker, Local, Prod) |
+| **Testing Guide** | ✅ Complete | Test scenarios defined |
 
 ---
 
-**Ready for production deployment! 🚀**
+## 🎓 Learning Path
+
+### Beginner (0-2 hours)
+1. Read [01_OVERVIEW.md](01_OVERVIEW.md) — Project overview
+2. Skim [CLAUDE.md](/CLAUDE.md) — Build commands
+3. Start local dev environment
+
+### Intermediate (2-8 hours)
+1. [02_API.md](02_API.md) — Learn endpoints
+2. [03_BUSINESS.md](03_BUSINESS.md) — Understand workflows
+3. [04_POLICIES.md](04_POLICIES.md) — Rules & constraints
+4. Try API in Postman/Insomnia
+
+### Advanced (8+ hours)
+1. [05_OPERATIONS.md](05_OPERATIONS.md) — Cronjobs & data flow
+2. [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) — Saga pattern
+3. [08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md) — Deep dive
+4. [07_TESTING_GUIDE.md](07_TESTING_GUIDE.md) — Testing strategies
+
+---
+
+## 📞 Updates & Maintenance
+
+### Last Updated
+- **2026-04-20** — Documentation reorganized & consolidated
+- **2026-04-15** — API v5.3 with tracking number for refunds
+- **2026-04-14** — Business docs & system policies
+
+### How to Update
+When making changes:
+1. Update relevant doc file
+2. Update this INDEX with new version
+3. Update version numbers in affected docs
+4. Commit with message: "docs: update [doc-name] for [feature]"
+
+---
+
+## 🚀 Summary
+
+This documentation provides **complete, production-ready guidance** for the Flash Sale E-Commerce Platform:
+
+- ✅ **Comprehensive**: 9,000+ lines covering all aspects
+- ✅ **Organized**: Clear navigation by role & task
+- ✅ **Practical**: Real commands, examples, SQL queries
+- ✅ **Current**: Latest versions (v5.3 API, v3 Policies, v4 Operations)
+- ✅ **Complete**: Business, technical, operational, testing
+
+**Start with 01_OVERVIEW.md for the full picture!**  
+**Use CLAUDE.md for quick setup!**  
+**Reference 02_API.md for endpoint details!**
+
+---
+
+**Ready for production! 🚀**
 

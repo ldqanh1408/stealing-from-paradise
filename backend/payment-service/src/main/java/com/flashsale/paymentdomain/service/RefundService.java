@@ -194,6 +194,7 @@ public class RefundService {
                 "refund_id",       refundId,
                 "order_id",        refund.getOrderId(),
                 "amount",          finalAmount,
+                "type",            refund.getType(),
                 "admin_id",        adminId,
                 "caused_by",       req.getCausedBy() != null ? req.getCausedBy() : "",
                 "tracking_number", req.getTrackingNumber() != null ? req.getTrackingNumber() : "",
@@ -325,12 +326,13 @@ public class RefundService {
                 }
             }
 
-            // Publish event cho notification-service
-            publish(KafkaTopics.REFUND_REQUESTED, String.valueOf(refund.getId()), Map.of(
+            // Notify notification-service rằng refund record đã được tạo
+            publish(KafkaTopics.REFUND_CREATED, String.valueOf(refund.getId()), Map.of(
                     "refund_id", refund.getId(),
                     "order_id",  orderId,
                     "user_id",   userId,
                     "amount",    amount,
+                    "type",      "PARTIAL",
                     "status",    "PENDING",
                     "timestamp", Instant.now().toString()
             ));
@@ -628,13 +630,14 @@ public class RefundService {
         }
 
         try {
-            long amountInCents = amount.multiply(BigDecimal.valueOf(100)).longValue();
+            // VND is a zero-decimal currency in Stripe — amount is already in the smallest unit (no ×100)
+            long stripeAmount = amount.setScale(0, java.math.RoundingMode.HALF_UP).longValue();
             RefundCreateParams params = RefundCreateParams.builder()
                     .setPaymentIntent(tx.getStripePiId())
-                    .setAmount(amountInCents)
+                    .setAmount(stripeAmount)
                     .build();
             com.stripe.model.Refund stripeRefund = com.stripe.model.Refund.create(params);
-            log.info("Stripe refund created: refundId={}, amount={}", stripeRefund.getId(), amountInCents);
+            log.info("Stripe refund created: refundId={}, amount={}", stripeRefund.getId(), stripeAmount);
             return stripeRefund.getId();
         } catch (StripeException e) {
             log.error("Stripe refund failed for transaction {}: {}", transactionId, e.getMessage());
