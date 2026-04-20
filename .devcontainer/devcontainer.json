@@ -1,17 +1,10 @@
 {
   "name": "Stealing From Paradise - Java 25 + React + Docker",
   "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": ".",
-    "args": {
-      "MAVEN_VERSION": "3.9.6"
-    }
-  },
 
   "containerEnv": {
-    "JAVA_HOME": "/opt/java/openjdk",
-    "MAVEN_HOME": "/usr/share/maven",
+    "JAVA_HOME": "/usr/local/sdkman/candidates/java/current",
+    "MAVEN_HOME": "/usr/local/sdkman/candidates/maven/current",
     "MAVEN_OPTS": "-Xmx2048m -XX:+UseG1GC",
     "POSTGRES_USER": "flashsale",
     "POSTGRES_PASSWORD": "devpassword123",
@@ -43,38 +36,14 @@
         "ms-azuretools.vscode-docker",
         "ms-kubernetes-tools.vscode-kubernetes-tools",
         "eamodio.gitlens",
-        "ms-vscode-remote.remote-containers",
         "mongodb.mongodb-vscode",
         "redhat.vscode-yaml",
         "postman.postman-for-vscode",
-        "humao.rest-client",
-        "ms-vscode.makefile-tools",
-        "ms-vscode.hexdump",
-        "ms-vscode.powershell"
+        "humao.rest-client"
       ],
       "settings": {
-        "java.home": "/opt/java/openjdk",
         "java.server.launchMode": "Standard",
         "java.configuration.updateBuildConfiguration": "automatic",
-        "java.configuration.runtimes": [
-          {
-            "name": "JavaSE-25",
-            "path": "/opt/java/openjdk",
-            "default": true
-          }
-        ],
-        "maven.executable.path": "/usr/share/maven/bin/mvn",
-        "maven.terminal.useJavaHome": true,
-        "maven.terminal.customEnv": [
-          {
-            "name": "JAVA_HOME",
-            "value": "/opt/java/openjdk"
-          },
-          {
-            "name": "MAVEN_HOME",
-            "value": "/usr/share/maven"
-          }
-        ],
         "[java]": {
           "editor.defaultFormatter": "redhat.java",
           "editor.formatOnSave": true,
@@ -141,19 +110,12 @@
   "mounts": [
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.m2,target=/home/vscode/.m2,type=bind",
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.npm,target=/home/vscode/.npm,type=bind",
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.gradle,target=/home/vscode/.gradle,type=bind",
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "bash .devcontainer/post-start.sh",
-  "onCreateCommand": "bash .devcontainer/on-create.sh",
 
   "remoteUser": "vscode",
-  "updateRemoteUserUID": false,
-
-  "runArgs": [
-    "--network", "host",
-    "-e", "DOCKER_HOST=unix:///var/run/docker.sock"
-  ]
+  "updateRemoteUserUID": false
 }
