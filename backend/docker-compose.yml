@@ -344,19 +344,6 @@ services:
       discovery-service: { condition: service_started }
     networks: [flashsale-net]
 
-  cart-service:
-    build:
-      context: ./backend/cart-service
-      dockerfile: Dockerfile
-    container_name: fs-cart
-    environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-    depends_on:
-      redis: { condition: service_started }
-      discovery-service: { condition: service_started }
-    networks: [flashsale-net]
 
   # =================================================================
   # 3. FRONTEND APPLICATIONS (React + Vite)

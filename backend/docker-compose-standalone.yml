@@ -345,30 +345,6 @@ services:
       JVM_OPTS: ${JVM_OPTS_COMMON}
     networks: [flashsale-backend]
 
-  cart-service:
-    build:
-      context: ../backend/cart-service
-      dockerfile: Dockerfile
-    container_name: backend-cart
-    restart: unless-stopped
-    depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports: ["8089:8089"]
-    environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      EUREKA_URI: ${EUREKA_URI}
-      MONGO_HOST: ${MONGO_HOST}
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      TZ: ${TZ}
-      JVM_OPTS: ${JVM_OPTS_COMMON}
-    networks: [flashsale-backend]
 
   search-service:
     build:
