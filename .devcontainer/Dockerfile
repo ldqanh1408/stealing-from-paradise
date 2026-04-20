@@ -1,36 +1,36 @@
-FROM mcr.microsoft.com/devcontainers/base:alpine
-
-# Install Java 25 JDK
-RUN apk add --no-cache \
-    openjdk25 \
-    openjdk25-jdk
-
-# Install Maven
-RUN apk add --no-cache maven
+# Start with Eclipse Temurin Java 25 (has Java 25 built-in)
+FROM eclipse-temurin:25-jdk-jammy
 
 # Install Node.js & npm
-RUN apk add --no-cache nodejs npm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Maven (latest)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    maven \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Docker CLI
-RUN apk add --no-cache docker docker-compose
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    docker.io \
+    docker-compose-v2 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install git, curl, wget, build tools
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     wget \
-    build-base \
-    bash
+    build-essential \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set Java environment
-ENV JAVA_HOME=/usr/lib/jvm/java-25-openjdk
+# Set Java environment (Eclipse Temurin uses /opt/java/openjdk)
+ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
-ENV MAVEN_HOME=/usr/share/java/maven-3
-ENV PATH=$MAVEN_HOME/bin:$PATH
 ENV MAVEN_OPTS="-Xmx2048m -XX:+UseG1GC"
-
-# Create non-root user
-RUN useradd -m -s /bin/bash -G docker vscode 2>/dev/null || true
 
 # Verify installations
 RUN java -version && \
@@ -49,5 +49,8 @@ RUN npm install -g \
     @types/react \
     @types/react-dom \
     pnpm
+
+# Create vscode user for Codespaces
+RUN useradd -m -s /bin/bash -G docker vscode || true
 
 USER vscode

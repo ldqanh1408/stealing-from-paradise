@@ -17,8 +17,9 @@ if command -v docker &> /dev/null; then
     if docker info >/dev/null 2>&1; then
         echo "✓ Docker is running"
 
-        # Start containers if not running
+        # Check if containers are running
         CONTAINERS=$(docker ps -q 2>/dev/null | wc -l)
+
         if [ "$CONTAINERS" -eq 0 ]; then
             echo "📦 Starting infrastructure (docker-compose up -d)..."
             docker-compose up -d 2>&1 | tail -n 3 || echo "✓ Docker containers starting..."
@@ -34,22 +35,25 @@ if command -v docker &> /dev/null; then
     fi
 fi
 
-# Warm up Maven cache
-if [ -f "backend/pom.xml" ]; then
-    echo "♻️  Preparing Maven cache..."
-    cd backend
-    mvn dependency:resolve -q -T 1C 2>/dev/null || true
-    cd ..
+# Ensure common-lib is installed first
+if [ -f "backend/common-lib/pom.xml" ]; then
+    echo "♻️  Ensuring common-lib is installed..."
+    cd backend/common-lib
+    mvn install -q -DskipTests 2>/dev/null || echo "✓ common-lib ready"
+    cd ../..
 fi
 
 # Check frontend modules
+echo "✓ Frontend modules status:"
 for app in customer seller admin; do
     if [ -d "frontend/apps/$app" ]; then
         if [ ! -d "frontend/apps/$app/node_modules" ]; then
-            echo "📦 Installing $app dependencies..."
+            echo "  📦 Installing $app dependencies..."
             cd frontend/apps/$app
             npm install --silent 2>&1 | tail -n 1 || true
             cd ../../..
+        else
+            echo "  ✓ $app ready"
         fi
     fi
 done

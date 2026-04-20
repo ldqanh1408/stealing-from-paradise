@@ -50,10 +50,20 @@ EOF
     echo "⚠️  Please update .env with your settings"
 fi
 
-# Build backend
-echo "📦 Building backend (this may take 2-3 minutes)..."
+# Build backend - MUST build common-lib FIRST
+echo "📦 Building backend (this may take 3-5 minutes)..."
 cd backend
-mvn clean install -DskipTests -q 2>&1 | tail -n 1 || echo "✓ Backend dependencies installed"
+
+# Step 1: Build common-lib FIRST (shared library)
+echo "  ▶ Building common-lib (shared library)..."
+cd common-lib
+mvn clean install -DskipTests -q 2>&1 | grep -E "BUILD|ERROR" || echo "  ✓ common-lib installed"
+cd ..
+
+# Step 2: Build all other services
+echo "  ▶ Building all services..."
+mvn clean install -DskipTests -q 2>&1 | tail -n 1 || echo "  ✓ Services built successfully"
+
 cd ..
 
 # Install frontend
@@ -78,5 +88,6 @@ echo ""
 echo "🚀 Next steps:"
 echo "   1. Update .env file if needed"
 echo "   2. Run: docker-compose up -d          (start infrastructure)"
-echo "   3. Run: cd backend/discovery-service && mvn spring-boot:run"
-echo "   4. Run: cd frontend/apps/customer && npm run dev"
+echo "   3. Run: cd backend/discovery-service && mvn spring-boot:run  # Terminal 1"
+echo "   4. Run: cd backend/api-gateway && mvn spring-boot:run        # Terminal 2"
+echo "   5. Run: cd frontend/apps/customer && npm run dev             # Terminal 3"
