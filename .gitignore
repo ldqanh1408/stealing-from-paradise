@@ -182,7 +182,6 @@ build/
 # Backup files
 *.bak
 *.backup
-*.sql
 *.dump
 
 # Temporary files
