@@ -238,18 +238,18 @@ jobs:
           # Step 10: Summary
           echo ''
           echo '╔══════════════════════════════════════════════════════════╗'
-          echo '║          ✓  DEPLOYMENT SUCCESSFUL                    ║'
+          echo '║          ✓  DEPLOYMENT SUCCESSFUL                        ║'
           echo '╠══════════════════════════════════════════════════════════╣'
-          echo '║  Server:       '"${SERVER_IP}"'
-          echo '║  Branch:       '"${REF_NAME}"'
-          echo '║  Commit:       '"${SHA}"'
+          echo "║  Server:       ${SERVER_IP}"
+          echo "║  Branch:       ${REF_NAME}"
+          echo "║  Commit:       ${SHA}"
           echo '╠══════════════════════════════════════════════════════════╣'
-          echo '║  API Gateway:  http://'"${SERVER_IP}"':8080'
-          echo '║  Customer:     http://'"${SERVER_IP}"':3000'
-          echo '║  Seller:       http://'"${SERVER_IP}"':3001'
-          echo '║  Admin:        http://'"${SERVER_IP}"':3002'
-          echo '║  Eureka:        http://'"${SERVER_IP}"':8761'
-          echo '║  Swagger:      http://'"${SERVER_IP}"':8080/swagger-ui.html'
+          echo "║  API Gateway:  http://${SERVER_IP}:8080"
+          echo "║  Customer:     http://${SERVER_IP}:3000"
+          echo "║  Seller:       http://${SERVER_IP}:3001"
+          echo "║  Admin:        http://${SERVER_IP}:3002"
+          echo "║  Eureka:       http://${SERVER_IP}:8761"
+          echo "║  Swagger:      http://${SERVER_IP}:8080/swagger-ui.html"
           echo '╚══════════════════════════════════════════════════════════╝'
           log_ok "Deployment complete!"
           
