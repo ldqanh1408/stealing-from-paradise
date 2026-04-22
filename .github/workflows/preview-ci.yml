@@ -5,6 +5,10 @@ on:
     branches:
       - preview
 
+permissions:
+  contents: read
+  packages: write
+
 concurrency:
   group: preview-ci-${{ github.ref }}
   cancel-in-progress: true
@@ -206,16 +210,16 @@ jobs:
 
           echo ""
           echo "=== Looking for jar for ${{ matrix.service }} ==="
-          FOUND_JAR="$(find "/tmp/backend-jars" -path "*/backend/${{ matrix.service }}/target/*.jar" -type f | head -n 1)"
+          FOUND_JAR="$(find /tmp/backend-jars -maxdepth 1 -type f -name "*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)"
 
           if [ -z "$FOUND_JAR" ]; then
             echo "ERROR: No JAR found for ${{ matrix.service }}."
-            echo "Expected pattern: */backend/${{ matrix.service }}/target/*.jar"
+            echo "Expected pattern: /tmp/backend-jars/*.jar"
             exit 1
           fi
 
           echo "Found: $FOUND_JAR"
-          # Docker context is ./backend/$service — JAR must end up at $service/target/
           mkdir -p "${{ matrix.service }}/target"
           cp "$FOUND_JAR" "${{ matrix.service }}/target/"
 
