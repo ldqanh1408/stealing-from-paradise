@@ -203,7 +203,7 @@ services:
   discovery-service:
     build:
       context: ./backend/discovery-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-discovery
     restart: unless-stopped
     ports: ["${PORT_DISCOVERY:-8761}:8761"]
@@ -219,7 +219,7 @@ services:
   api-gateway:
     build:
       context: ./backend/api-gateway
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-gateway
     restart: unless-stopped
     ports: ["${PORT_GATEWAY:-8080}:8080"]
@@ -244,7 +244,7 @@ services:
   identity-service:
     build:
       context: ./backend/identity-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-identity
     restart: unless-stopped
     ports: ["${PORT_IDENTITY:-8081}:8081"]
@@ -269,7 +269,7 @@ services:
   payment-service:
     build:
       context: ./backend/payment-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-payment
     restart: unless-stopped
     ports: ["${PORT_PAYMENT:-8082}:8082"]
@@ -297,7 +297,7 @@ services:
   order-service:
     build:
       context: ./backend/order-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-order
     restart: unless-stopped
     ports: ["${PORT_ORDER:-8083}:8083"]
@@ -322,7 +322,7 @@ services:
   flashsale-service:
     build:
       context: ./backend/flashsale-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-flashsale
     restart: unless-stopped
     ports: ["${PORT_FLASHSALE:-8085}:8085"]
@@ -350,7 +350,7 @@ services:
   product-service:
     build:
       context: ./backend/product-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-product
     restart: unless-stopped
     ports: ["${PORT_PRODUCT:-8090}:8090"]
@@ -381,7 +381,7 @@ services:
   search-service:
     build:
       context: ./backend/search-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-search
     restart: unless-stopped
     ports: ["${PORT_SEARCH:-8091}:8091"]
@@ -401,7 +401,7 @@ services:
   notification-service:
     build:
       context: ./backend/notification-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-notification
     restart: unless-stopped
     ports: ["${PORT_NOTIFICATION:-8092}:8092"]
@@ -427,7 +427,7 @@ services:
   worker-service:
     build:
       context: ./backend/worker-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: fs-worker
     restart: unless-stopped
     ports: ["${PORT_WORKER:-8086}:8086"]
@@ -456,68 +456,59 @@ services:
   customer-app:
     build:
       context: ./frontend
-      dockerfile: ./apps/customer/Dockerfile
+      dockerfile: ./apps/customer/Dockerfile.dev
     container_name: fs-customer-fe
     restart: unless-stopped
-    ports: ["${PORT_CUSTOMER:-3000}:80"]
+    ports: ["${PORT_CUSTOMER:-3000}:5173"]
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
-      - NODE_ENV=production
+      - NODE_ENV=development
     volumes:
-      - ./frontend/apps/customer:/usr/share/nginx/html:cached
-      - customer_nm:/usr/share/nginx/html/node_modules
+      - ./frontend/apps/customer:/app/apps/customer:cached
+      - ./frontend/shared:/app/shared:cached
+      - customer_nm:/app/apps/customer/node_modules
     networks: [*network]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      disable: true
 
   seller-app:
     build:
       context: ./frontend
-      dockerfile: ./apps/seller/Dockerfile
+      dockerfile: ./apps/seller/Dockerfile.dev
     container_name: fs-seller-fe
     restart: unless-stopped
-    ports: ["${PORT_SELLER:-3001}:80"]
+    ports: ["${PORT_SELLER:-3001}:5173"]
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
-      - NODE_ENV=production
+      - NODE_ENV=development
     volumes:
-      - ./frontend/apps/seller:/usr/share/nginx/html:cached
-      - seller_nm:/usr/share/nginx/html/node_modules
+      - ./frontend/apps/seller:/app/apps/seller:cached
+      - ./frontend/shared:/app/shared:cached
+      - seller_nm:/app/apps/seller/node_modules
     networks: [*network]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      disable: true
 
   admin-app:
     build:
       context: ./frontend
-      dockerfile: ./apps/admin/Dockerfile
+      dockerfile: ./apps/admin/Dockerfile.dev
     container_name: fs-admin-fe
     restart: unless-stopped
-    ports: ["${PORT_ADMIN:-3002}:80"]
+    ports: ["${PORT_ADMIN:-3002}:5173"]
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
-      - NODE_ENV=production
+      - NODE_ENV=development
     volumes:
-      - ./frontend/apps/admin:/usr/share/nginx/html:cached
-      - admin_nm:/usr/share/nginx/html/node_modules
+      - ./frontend/apps/admin:/app/apps/admin:cached
+      - ./frontend/shared:/app/shared:cached
+      - admin_nm:/app/apps/admin/node_modules
     networks: [*network]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      disable: true
 
 # ================================================================
 # VOLUMES & NETWORKS
