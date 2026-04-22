@@ -201,17 +201,21 @@ jobs:
       - name: Copy backend JARs into Docker context
         if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
         run: |
-          echo "Looking for jar for ${{ matrix.service }} in downloaded artifact..."
+          echo "=== Artifact contents ==="
+          find /tmp/backend-jars -type f | sed 's|^|  |'
+
+          echo ""
+          echo "=== Looking for jar for ${{ matrix.service }} ==="
           FOUND_JAR="$(find "/tmp/backend-jars" -path "*/backend/${{ matrix.service }}/target/*.jar" -type f | head -n 1)"
 
           if [ -z "$FOUND_JAR" ]; then
             echo "ERROR: No JAR found for ${{ matrix.service }}."
-            echo "Downloaded backend-jars content:"
-            find /tmp/backend-jars -maxdepth 6 -type f | sed 's|^|  |'
+            echo "Expected pattern: */backend/${{ matrix.service }}/target/*.jar"
             exit 1
           fi
 
-          echo "Using: $FOUND_JAR"W
+          echo "Found: $FOUND_JAR"
+          # Docker context is ./backend/$service — JAR must end up at $service/target/
           mkdir -p "${{ matrix.service }}/target"
           cp "$FOUND_JAR" "${{ matrix.service }}/target/"
 
