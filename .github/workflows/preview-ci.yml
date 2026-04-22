@@ -51,21 +51,21 @@ jobs:
         with:
           name: backend-jars
           path: |
-            backend/api-gateway/target/*.jar
-            backend/discovery-service/target/*.jar
-            backend/identity-service/target/*.jar
-            backend/product-service/target/*.jar
-            backend/order-service/target/*.jar
-            backend/payment-service/target/*.jar
-            backend/flashsale-service/target/*.jar
-            backend/search-service/target/*.jar
-            backend/notification-service/target/*.jar
-            backend/worker-service/target/*.jar
+            api-gateway/target/*.jar
+            discovery-service/target/*.jar
+            identity-service/target/*.jar
+            product-service/target/*.jar
+            order-service/target/*.jar
+            payment-service/target/*.jar
+            flashsale-service/target/*.jar
+            search-service/target/*.jar
+            notification-service/target/*.jar
+            worker-service/target/*.jar
           retention-days: 1
           if-no-files-found: error
 
   # ========================================
-  # PRE-BUILD: Frontend node_modules (needed by Dockerfile.dev frontend)
+  # PRE-BUILD: Frontend apps with dependencies (needed by Dockerfile.dev frontend)
   # ========================================
   build-frontend-artifacts:
     name: Build Frontend Artifacts
@@ -91,11 +91,11 @@ jobs:
         working-directory: ./frontend/apps/${{ matrix.app }}
         run: npm ci
 
-      - name: Upload node_modules
+      - name: Upload frontend app
         uses: actions/upload-artifact@v4
         with:
-          name: node-modules-${{ matrix.app }}
-          path: frontend/apps/${{ matrix.app }}/node_modules
+          name: frontend-app-${{ matrix.app }}
+          path: frontend/apps/${{ matrix.app }}
           retention-days: 1
 
   # ========================================
@@ -139,17 +139,17 @@ jobs:
       - name: Copy backend JARs into Docker context
         if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
         run: |
-          # Uploaded paths are from repo root: backend/$service/target/*.jar
-          # Downloaded to: /tmp/backend-jars/backend/$service/target/*.jar
+          # Artifact stores paths from Maven working-directory (./backend): api-gateway/target/*.jar
+          # Downloaded to: /tmp/backend-jars/api-gateway/target/*.jar
           # Dockerfile.dev context: ./backend/$service  →  expects target/*.jar
           mkdir -p backend/${{ matrix.service }}/target
-          cp /tmp/backend-jars/backend/${{ matrix.service }}/target/*.jar backend/${{ matrix.service }}/target/
+          cp /tmp/backend-jars/${{ matrix.service }}/target/*.jar backend/${{ matrix.service }}/target/
 
-      - name: Download frontend node_modules
+      - name: Download frontend app
         if: contains(matrix.service, '-app')
         uses: actions/download-artifact@v4
         with:
-          name: node-modules-${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
+          name: frontend-app-${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
           path: ./frontend/apps/${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
 
       - name: Set up Docker Buildx
