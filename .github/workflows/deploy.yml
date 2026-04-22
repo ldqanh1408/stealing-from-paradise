@@ -12,6 +12,14 @@ on:
         required: false
         default: 'main'
   workflow_call:
+    secrets:
+      DEPLOY_USER:
+        required: false
+      SERVER_IP:
+        required: false
+      SSH_PRIVATE_KEY:
+        required: false
+
 
 env:
   DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
