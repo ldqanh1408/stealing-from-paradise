@@ -12,6 +12,10 @@
 .DS_Store
 *.iml
 
+# Service source — only the service being built needs its src/ included
+# */target prevents all build output from entering the build context.
+*/target
+
 # Maven
 target
 *.jar

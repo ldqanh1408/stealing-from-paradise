@@ -139,10 +139,8 @@
    - Limited-time promotions
    - Event sourcing
 
-6. **worker-service** (No public port)
-   - Background job processing
-   - Scheduled tasks
-   - Event-driven background jobs
+6. **worker-service** *(Deprecated — v5.0)*
+   - Cronjobs moved to respective services (identity/flashsale/product/order/payment-service)
 
 #### **Traditional Database Services**
 
@@ -459,11 +457,9 @@ stealing-from-paradise/
 ├── docker-compose.yml             (Main - all services)
 ├── .env                           (Environment variables)
 ├── README.md
-├── BACKEND_GUIDE.md
-├── FRONTEND_GUIDE.md
-├── BUILD_AND_DOCKER_GUIDE.md
-├── JAVA_SPRING_BOOT_CONFIG.md
-└── AXON_EXPLANATION.md
+├── CLAUDE.md                      (Build & setup commands)
+├── RUNNING.md                    (Detailed running guide)
+└── docs/                        (Comprehensive documentation)
 ```
 
 ---
@@ -1038,37 +1034,37 @@ curl -X POST http://localhost:9200/products/_reindex
 | File | Purpose | Details |
 |------|---------|---------|
 | **README.md** | Quick start guide | Project overview, setup, quick links |
-| **PROJECT_OVERVIEW.md** | **START HERE** - Comprehensive guide | Architecture, tech stack, setup, deployment |
-| **DOCUMENTATION_INDEX.md** | Documentation navigation | Index of all docs, role-based guides |
+| **CLAUDE.md** | Build & setup commands | Maven, Docker, Spring Boot |
+| **docs/00_INDEX.md** | **START HERE** | Documentation navigation & index |
 
 ### Technical Documentation
 
 | File | Purpose | Details |
 |------|---------|---------|
-| **BACKEND_GUIDE.md** | Backend architecture & development | 11 services, Axon vs Traditional, setup |
-| **FRONTEND_GUIDE.md** | Frontend structure & development | 3 React apps, shared code, dev guide |
-| **JAVA_SPRING_BOOT_CONFIG.md** | Java 25 & Spring Boot 4.0.4 | Configuration, performance, deployment |
-| **AXON_EXPLANATION.md** | Axon Framework detailed guide | Event sourcing, CQRS, architecture |
+| **docs/01_OVERVIEW.md** | Backend architecture & development | 11 services, Axon vs Traditional, setup |
+| **02_API.md** | API specification | Endpoints, Kafka topics, request/response |
+| **06_PAYMENT_SAGA_FLOW.md** | Axon Saga implementation | Payment orchestration, events |
+| **CLAUDE.md** | Build & setup commands | Maven, Docker, Spring Boot config |
 
 ### Operations & Deployment
 
 | File | Purpose | Details |
 |------|---------|---------|
-| **BUILD_AND_DOCKER_GUIDE.md** | Build & deployment commands | Docker, health checks, scaling |
-| **DATA_RETENTION_POLICY_v4_rts.md** | Data retention & 22 cronjobs | Cleanup jobs, retention periods, SQL logic |
+| **05_OPERATIONS.md** | Data retention & 23 cronjobs | Cleanup jobs, retention periods, SQL logic |
+| **RUNNING.md** | Build & deployment commands | Docker, health checks, scaling |
 
 ### Business & Policies
 
 | File | Purpose | Details |
 |------|---------|---------|
-| **BUSINESS_DOC_v5_3_rts_unified.md** | Business logic & workflows (v5.3) | 9 workflows, 6 policies, trust score, refunds |
-| **SYSTEM_POLICY_v3_rts_unified.md** | System policies & configuration (v3.0) | Trust score, flash sale, seller, loyalty, refunds |
+| **03_BUSINESS.md** | Business logic & workflows (v5.3) | 9 workflows, policies, trust score, refunds |
+| **04_POLICIES.md** | System policies & configuration (v3) | Trust score, flash sale, seller, loyalty, refunds |
 
 ### API & Architecture
 
 | File | Purpose | Details |
 |------|---------|---------|
-| **API_SPEC_v5_3_RTS.md** | Complete API specification (v5.3) | All endpoints, request/response, Kafka topics |
+| **02_API.md** | Complete API specification (v5.3) | All endpoints, request/response, Kafka topics |
 | **erd.mermaid** | Entity-Relationship Diagram | Database schema visualization |
 
 ### Summary
@@ -1125,32 +1121,31 @@ git commit -m "docs(readme): update setup instructions"
 
 ### How to Find Documentation
 
-**For Quick Start**: Start with [README.md](../README.md)  
-**For Complete Overview**: Read [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)  
-**For Navigation Guide**: See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)
+**For Quick Start**: Start with [README.md](../README.md)
+**For Complete Overview**: Read [01_OVERVIEW.md](01_OVERVIEW.md)
+**For Navigation Guide**: See [00_INDEX.md](00_INDEX.md)
 
 ### Documentation by Role
 
-| Role | Recommended Reading Order |
-|------|---------------------------|
-| **New Developer** | README.md → PROJECT_OVERVIEW.md → BACKEND/FRONTEND_GUIDE.md |
-| **Backend Dev** | BACKEND_GUIDE.md → JAVA_SPRING_BOOT_CONFIG.md → AXON_EXPLANATION.md |
-| **Frontend Dev** | FRONTEND_GUIDE.md → BUILD_AND_DOCKER_GUIDE.md |
-| **DevOps/Ops** | BUILD_AND_DOCKER_GUIDE.md → DATA_RETENTION_POLICY_v4_rts.md |
-| **Product Manager** | PROJECT_OVERVIEW.md → BUSINESS_DOC_v5_3_rts_unified.md |
+**New Developer**: README.md → 01_OVERVIEW.md → CLAUDE.md
+**Backend Dev**: 01_OVERVIEW.md → 02_API.md → 03_BUSINESS.md → 04_POLICIES.md
+**Frontend Dev**: 01_OVERVIEW.md → 02_API.md → CLAUDE.md
+**DevOps/Ops**: CLAUDE.md → RUNNING.md → 05_OPERATIONS.md
+**Product Manager**: 01_OVERVIEW.md → 03_BUSINESS.md → 07_BUSINESS_FLOWS.md
 
 ### Key Business & Technical References
 
 **Business Logic** (v5.3 RTS):
-- [BUSINESS_DOC_v5_3_rts_unified.md](BUSINESS_DOC_v5_3_rts_unified.md) - 9 workflows, 6 policies, Trust Score, Refunds (with tracking number v5.3)
-- [SYSTEM_POLICY_v3_rts_unified.md](SYSTEM_POLICY_v3_rts_unified.md) - System rules, configuration
+- [03_BUSINESS.md](03_BUSINESS.md) - 9 workflows, policies, Trust Score, Refunds, RTS
+- [04_POLICIES.md](04_POLICIES.md) - System rules, configuration
 
 **Operations**:
-- [DATA_RETENTION_POLICY_v4_rts.md](DATA_RETENTION_POLICY_v4_rts.md) - 22 cronjobs, retention periods
-- [BUILD_AND_DOCKER_GUIDE.md](BUILD_AND_DOCKER_GUIDE.md) - Deployment procedures
+- [05_OPERATIONS.md](05_OPERATIONS.md) - 23 cronjobs, retention periods
+- [RUNNING.md](../RUNNING.md) - Deployment procedures
 
 **API & Architecture**:
-- [API_SPEC_v5_3_RTS.md](API_SPEC_v5_3_RTS.md) - Complete API specification (includes tracking number for refunds)
+- [02_API.md](02_API.md) - Complete API specification v5.3 RTS
+- [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) - Luồng nghiệp vụ tổng hợp (Mermaid)
 - [erd.mermaid](erd.mermaid) - Database schema diagram
 
 ### Latest Updates (v5.3)
@@ -1159,24 +1154,30 @@ git commit -m "docs(readme): update setup instructions"
 - Admin can now input tracking number when approving refunds
 - Tracked in REFUND_ITEMS for audit trail
 - Notification includes tracking info for Buyer
-- See: BUSINESS_DOC_v5_3_rts_unified.md (Admin Duyệt Hoàn Tiền section)
-- See: API_SPEC_v5_3_RTS.md (POST /admin/refunds/{refundId}/approve)
+- See: [03_BUSINESS.md](03_BUSINESS.md) (Admin Duyệt Hoàn Tiền section)
+- See: [02_API.md](02_API.md) (POST /admin/refunds/{refundId}/approve)
 
 ### Complete Documentation List
 
 **Documentation files in `/docs` directory:**
 
-1. [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - This file - Comprehensive overview
-2. [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) - Index & navigation guide
-3. [API_SPEC_v5_3_RTS.md](API_SPEC_v5_3_RTS.md) - Complete API specification (v5.3)
-4. [BUSINESS_DOC_v5_3_rts_unified.md](BUSINESS_DOC_v5_3_rts_unified.md) - Business logic & workflows (v5.3)
-5. [SYSTEM_POLICY_v3_rts_unified.md](SYSTEM_POLICY_v3_rts_unified.md) - System policies & configuration (v3.0)
-6. [DATA_RETENTION_POLICY_v4_rts.md](DATA_RETENTION_POLICY_v4_rts.md) - Data retention & 22 cronjobs (v4.0)
-7. [erd.mermaid](erd.mermaid) - Entity-Relationship Diagram
+| # | File | Purpose |
+|---|------|---------|
+| 1 | [00_INDEX.md](00_INDEX.md) | **START HERE** - Documentation index |
+| 2 | [01_OVERVIEW.md](01_OVERVIEW.md) | Project architecture & setup |
+| 3 | [02_API.md](02_API.md) | API specification v5.3 RTS |
+| 4 | [03_BUSINESS.md](03_BUSINESS.md) | Business logic & workflows v5.3 |
+| 5 | [04_POLICIES.md](04_POLICIES.md) | System policies v3 |
+| 6 | [05_OPERATIONS.md](05_OPERATIONS.md) | 23 cronjobs & data retention v5.0 (per service) |
+| 7 | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) | Payment flow & Saga |
+| 8 | [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) | Luồng nghiệp vụ tổng hợp (Mermaid) |
+| 9 | [08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration |
+| 10 | [erd.mermaid](erd.mermaid) | Database ERD |
 
 **Additional documentation in project root:**
-- README.md - Quick start guide
-- Other technical guides - See README.md for complete list
+- [README.md](../README.md) - Quick start guide
+- [CLAUDE.md](../CLAUDE.md) - Build & setup commands
+- [RUNNING.md](../RUNNING.md) - Detailed running guide
 
 ---
 

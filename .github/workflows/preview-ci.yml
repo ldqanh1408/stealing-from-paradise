@@ -1,0 +1,484 @@
+name: Preview CI - Docker Build & Auto PR
+
+on:
+  push:
+    branches:
+      - preview
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: preview-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/flashsale
+  JAVA_VERSION: '25'
+  NODE_VERSION: '22'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  # ========================================
+  # PRE-BUILD: Maven JARs (needed by Dockerfile.dev backend)
+  # ========================================
+  build-backend-artifacts:
+    name: Build Backend Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build all backend JARs
+        working-directory: ./backend
+        run: |
+          echo "Building all backend JARs with Maven..."
+          mvn clean package -DskipTests
+          echo "JARs built successfully"
+
+          # Verify JARs were produced
+          echo "--- JAR files produced ---"
+          find . -name "*.jar" -type f
+
+      - name: Upload backend JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-api-gateway
+          path: backend/api-gateway/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload discovery-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-discovery-service
+          path: backend/discovery-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload identity-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-identity-service
+          path: backend/identity-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload product-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-product-service
+          path: backend/product-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload order-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-order-service
+          path: backend/order-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload payment-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-payment-service
+          path: backend/payment-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload flashsale-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-flashsale-service
+          path: backend/flashsale-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload search-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-search-service
+          path: backend/search-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload notification-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-notification-service
+          path: backend/notification-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload worker-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-worker-service
+          path: backend/worker-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+  # ========================================
+  # PRE-BUILD: Frontend apps with dependencies (needed by Dockerfile.dev frontend)
+  # ========================================
+  build-frontend-artifacts:
+    name: Build Frontend Artifacts
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [customer, seller, admin]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend/apps/${{ matrix.app }}
+        run: npm ci
+
+      - name: Upload frontend app
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-app-${{ matrix.app }}
+          path: frontend/apps/${{ matrix.app }}
+          retention-days: 1
+
+  # ========================================
+  # BUILD ALL DOCKERFILES.DEV
+  # ========================================
+  build-dev:
+    name: Dev - Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [build-backend-artifacts, build-frontend-artifacts]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [
+          api-gateway,
+          discovery-service,
+          identity-service,
+          product-service,
+          order-service,
+          payment-service,
+          flashsale-service,
+          search-service,
+          notification-service,
+          worker-service,
+          customer-app,
+          seller-app,
+          admin-app,
+        ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download backend JAR
+        if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-${{ matrix.service }}
+          path: /tmp/backend-jars
+
+      - name: Copy backend JARs into Docker context
+        if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
+        run: |
+          echo "=== Artifact contents ==="
+          find /tmp/backend-jars -type f | sed 's|^|  |'
+
+          echo ""
+          echo "=== Looking for jar for ${{ matrix.service }} ==="
+          FOUND_JAR="$(find /tmp/backend-jars -maxdepth 1 -type f -name "*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)"
+
+          if [ -z "$FOUND_JAR" ]; then
+            echo "ERROR: No JAR found for ${{ matrix.service }}."
+            echo "Expected pattern: /tmp/backend-jars/*.jar"
+            exit 1
+          fi
+
+          DEST_DIR="backend/${{ matrix.service }}/target"
+          mkdir -p "$DEST_DIR"
+          cp "$FOUND_JAR" "$DEST_DIR/"
+
+          echo "Copied to $DEST_DIR:"
+          ls -la "$DEST_DIR"
+
+      - name: Download frontend app
+        if: contains(matrix.service, '-app')
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-app-${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
+          path: ./frontend/apps/${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine context and dockerfile
+        id: ctx
+        run: |
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
+              echo "file=./backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
+              ;;
+            customer-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
+              ;;
+            seller-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
+              ;;
+            admin-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Verify Dockerfile.dev exists
+        run: |
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              DOCKERFILE="backend/${{ matrix.service }}/Dockerfile.dev"
+              ;;
+            customer-app) DOCKERFILE="frontend/apps/customer/Dockerfile.dev" ;;
+            seller-app)   DOCKERFILE="frontend/apps/seller/Dockerfile.dev" ;;
+            admin-app)    DOCKERFILE="frontend/apps/admin/Dockerfile.dev" ;;
+          esac
+          if [ ! -f "$DOCKERFILE" ]; then
+            echo "ERROR: $DOCKERFILE not found"
+            exit 1
+          fi
+          echo "Found: $DOCKERFILE"
+
+      - name: Build and push Dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.ctx.outputs.context }}
+          file: ${{ steps.ctx.outputs.file }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:dev-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ========================================
+  # BUILD ALL DOCKERFILES.PROD
+  # ========================================
+  build-prod:
+    name: Prod - Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: build-dev
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [
+          api-gateway,
+          discovery-service,
+          identity-service,
+          product-service,
+          order-service,
+          payment-service,
+          flashsale-service,
+          search-service,
+          notification-service,
+          worker-service,
+          customer-app,
+          seller-app,
+          admin-app,
+        ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine context and dockerfile
+        id: ctx
+        run: |
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              echo "context=./backend" >> $GITHUB_OUTPUT
+              echo "file=./backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
+              ;;
+            customer-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
+              ;;
+            seller-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
+              ;;
+            admin-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Verify Dockerfile.prod exists
+        run: |
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              DOCKERFILE="backend/${{ matrix.service }}/Dockerfile.prod"
+              ;;
+            customer-app) DOCKERFILE="frontend/apps/customer/Dockerfile.prod" ;;
+            seller-app)   DOCKERFILE="frontend/apps/seller/Dockerfile.prod" ;;
+            admin-app)    DOCKERFILE="frontend/apps/admin/Dockerfile.prod" ;;
+          esac
+          if [ ! -f "$DOCKERFILE" ]; then
+            echo "ERROR: $DOCKERFILE not found"
+            exit 1
+          fi
+          echo "Found: $DOCKERFILE"
+
+      - name: Build and push Prod image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.ctx.outputs.context }}
+          file: ${{ steps.ctx.outputs.file }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:prod-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:prod-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ========================================
+  # ALL PROD BUILDS PASSED → AUTO PR TO MAIN
+  # ========================================
+  auto-pr-to-main:
+    name: Auto PR to Main
+    runs-on: ubuntu-latest
+    needs: build-prod
+    if: always()
+
+    steps:
+      - name: Check if all prod jobs succeeded
+        id: check
+        run: |
+          if echo "${{ needs.build-prod.result }}" | grep -q "failure"; then
+            echo "result=failure" >> $GITHUB_OUTPUT
+          elif echo "${{ needs.build-prod.result }}" | grep -q "cancelled"; then
+            echo "result=cancelled" >> $GITHUB_OUTPUT
+          else
+            echo "result=success" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout main branch
+        if: steps.check.outputs.result == 'success'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge preview into main
+        if: steps.check.outputs.result == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          git merge origin/preview --no-edit --quiet
+          git push origin main
+
+      - name: Create PR to main
+        if: steps.check.outputs.result == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_TITLE="chore: merge preview branch $(date '+%Y-%m-%d')"
+          PR_BODY=$(cat <<'EOF'
+          ## Preview CI - Auto Merge
+
+          All Docker images (dev + prod) built successfully on the `preview` branch.
+
+          ### What changed
+          - All `Dockerfile.dev` images built and pushed
+          - All `Dockerfile.prod` images built and pushed
+
+          ### Images pushed
+          ```
+          ghcr.io/${{ github.repository_owner }}/flashsale-<service>:prod-${{ github.sha }}
+          ghcr.io/${{ github.repository_owner }}/flashsale-<service>:prod-latest
+          ```
+
+          ### Commit
+          - Branch: `preview`
+          - SHA: `${{ github.sha }}`
+          - Author: ${{ github.actor }}
+
+          _Auto-generated by GitHub Actions_
+          EOF
+          )
+
+          gh pr create \
+            --base main \
+            --head preview \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            || echo "PR may already exist — skipping..."
+
+      - name: Summary
+        run: |
+          echo ""
+          if [ "${{ steps.check.outputs.result }}" == "success" ]; then
+            echo "All production Docker images built successfully."
+            echo "Auto-merge to main triggered."
+          else
+            echo "Some production builds failed or were cancelled."
+            echo "No auto-PR will be created."
+            exit 1
+          fi
+
+      - name: Failure summary
+        if: steps.check.outputs.result != 'success'
+        run: |
+          echo "Prod build results: ${{ needs.build-prod.result }}"

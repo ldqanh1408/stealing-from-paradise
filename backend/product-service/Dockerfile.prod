@@ -1,0 +1,30 @@
+# Production image — builds JAR inside the container (multi-stage)
+# Context: ./backend
+FROM maven:3.9-eclipse-temurin-25-alpine AS builder
+
+WORKDIR /app
+
+COPY pom.xml .
+COPY common-lib/ common-lib/
+COPY discovery-service/ discovery-service/
+COPY api-gateway/ api-gateway/
+COPY flashsale-service/ flashsale-service/
+COPY search-service/ search-service/
+COPY worker-service/ worker-service/
+COPY notification-service/ notification-service/
+COPY identity-service/ identity-service/
+COPY order-service/ order-service/
+COPY payment-service/ payment-service/
+COPY product-service/ product-service/
+RUN mvn dependency:go-offline -pl product-service -am -q
+
+RUN mvn install -pl product-service -am -DskipTests -q
+
+FROM eclipse-temurin:25-jre-alpine AS runtime
+
+WORKDIR /app
+
+COPY --from=builder /app/product-service/target/product-service-*.jar app.jar
+
+EXPOSE 8090
+ENTRYPOINT ["java", "-jar", "app.jar"]

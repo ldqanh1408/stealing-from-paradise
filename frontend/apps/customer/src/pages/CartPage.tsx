@@ -1,14 +1,71 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useCartStore } from '@shared/store/cartStore';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
-// Placeholder cart items — sẽ được thay bằng API sau
-const CART_ITEMS: { id: number; name: string; price: number; qty: number; category: string }[] = [];
-
 export default function CartPage() {
-  const total = CART_ITEMS.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const { cart, isLoading, fetchCart, updateQuantity, removeFromCart } = useCartStore();
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
-  if (CART_ITEMS.length === 0) {
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  const getTotal = () => {
+    if (!selectedItems.size || !cart?.sellers) return 0;
+    let total = 0;
+    cart.sellers.forEach(seller => {
+      seller.items.forEach(item => {
+        if (selectedItems.has(item.cart_item_id)) {
+          total += item.unit_price * item.quantity;
+        }
+      });
+    });
+    return total;
+  };
+
+  const getSelectedCount = () => selectedItems.size;
+
+  const toggleItemSelection = (itemId: number) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const selectAllItems = () => {
+    if (!cart?.sellers) return;
+    if (selectedItems.size === getItemCount()) {
+      setSelectedItems(new Set());
+    } else {
+      const all = new Set<number>();
+      cart.sellers.forEach(seller => {
+        seller.items.forEach(item => {
+          all.add(item.cart_item_id);
+        });
+      });
+      setSelectedItems(all);
+    }
+  };
+
+  const getItemCount = () => {
+    if (!cart?.sellers) return 0;
+    return cart.sellers.reduce((sum, seller) => sum + seller.items.length, 0);
+  };
+
+  if (isLoading && !cart) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+        <p className="text-gray-500">Đang tải giỏ hàng...</p>
+      </div>
+    );
+  }
+
+  if (!cart?.sellers || getItemCount() === 0) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <div className="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6 text-5xl">
@@ -31,28 +88,77 @@ export default function CartPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Giỏ hàng ({CART_ITEMS.length} sản phẩm)</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+        Giỏ hàng ({getItemCount()} sản phẩm)
+      </h1>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Items */}
-        <div className="lg:col-span-2 space-y-3">
-          {CART_ITEMS.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4">
-              <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0">🛍️</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-400">{item.category}</p>
-                <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
-                <p className="text-red-600 font-bold mt-1">{fmt(item.price)}</p>
+        <div className="lg:col-span-2 space-y-4">
+          {/* Select all header */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={selectedItems.size === getItemCount() && getItemCount() > 0}
+              onChange={selectAllItems}
+              className="w-5 h-5 accent-blue-600 cursor-pointer"
+            />
+            <span className="font-semibold text-gray-900">
+              Chọn tất cả ({getItemCount()})
+            </span>
+          </div>
+
+          {/* Sellers groups */}
+          {cart?.sellers.map((seller) => (
+            <div key={seller.seller_id} className="bg-white rounded-2xl border border-gray-100 p-4">
+              <p className="text-sm font-semibold text-gray-900 mb-4 pb-4 border-b">
+                {seller.seller_name}
+              </p>
+              <div className="space-y-3">
+                {seller.items.map((item) => (
+                  <div key={item.cart_item_id} className="flex items-center gap-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.has(item.cart_item_id)}
+                      onChange={() => toggleItemSelection(item.cart_item_id)}
+                      className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
+                    />
+                    <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0">
+                      🛍️
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-400">{item.variant_name}</p>
+                      <h3 className="font-medium text-gray-900 truncate">{item.product_name}</h3>
+                      <p className="text-red-600 font-bold mt-1">{fmt(item.unit_price)}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Kho: <span className="font-semibold text-green-600">{item.stock_available}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => updateQuantity(item.cart_item_id, Math.max(1, item.quantity - 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
+                      >
+                        −
+                      </button>
+                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.cart_item_id, Math.min(item.stock_available, item.quantity + 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => removeFromCart(item.cart_item_id)}
+                      className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold">−</button>
-                <span className="w-8 text-center text-sm font-medium">{item.qty}</span>
-                <button className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold">+</button>
-              </div>
-              <button className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
             </div>
           ))}
         </div>
@@ -62,18 +168,46 @@ export default function CartPage() {
           <h3 className="font-bold text-gray-900 mb-4">Tóm tắt đơn hàng</h3>
           <div className="space-y-3 text-sm mb-6">
             <div className="flex justify-between text-gray-600">
-              <span>Tạm tính</span><span>{fmt(total)}</span>
+              <span>Tạm tính</span>
+              <span className="font-semibold">{fmt(getTotal())}</span>
             </div>
             <div className="flex justify-between text-gray-600">
-              <span>Phí vận chuyển</span><span className="text-green-600 font-medium">Miễn phí</span>
+              <span>Phí vận chuyển</span>
+              <span className="text-green-600 font-medium">Miễn phí</span>
+            </div>
+            <div className="flex justify-between text-gray-600">
+              <span>Giảm giá</span>
+              <span>—</span>
             </div>
             <div className="h-px bg-gray-100" />
             <div className="flex justify-between font-bold text-gray-900 text-base">
-              <span>Tổng cộng</span><span className="text-red-600">{fmt(total)}</span>
+              <span>Tổng cộng</span>
+              <span className="text-red-600">{fmt(getTotal())}</span>
             </div>
           </div>
-          <Link to="/checkout" className="block w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-semibold text-center rounded-xl transition-all">
-            Thanh toán ngay
+
+          {selectedItems.size > 0 ? (
+            <Link
+              to="/checkout"
+              state={{ selectedItemIds: Array.from(selectedItems) }}
+              className="block w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white font-semibold text-center rounded-xl transition-all"
+            >
+              Thanh toán ({selectedItems.size} mục)
+            </Link>
+          ) : (
+            <button
+              disabled
+              className="w-full py-3 bg-gray-300 text-gray-500 font-semibold rounded-xl cursor-not-allowed"
+            >
+              Chọn sản phẩm để thanh toán
+            </button>
+          )}
+
+          <Link
+            to="/products"
+            className="block w-full mt-3 py-2 border border-gray-200 text-gray-700 font-semibold text-center rounded-xl hover:border-gray-300 transition-all"
+          >
+            Tiếp tục mua sắm
           </Link>
         </div>
       </div>

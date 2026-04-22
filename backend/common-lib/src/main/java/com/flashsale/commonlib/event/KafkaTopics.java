@@ -44,13 +44,18 @@ public final class KafkaTopics {
     public static final String PAYMENT_REQUESTED        = "payment.requested";
     public static final String PAYMENT_SUCCESS          = "payment.success";
     public static final String PAYMENT_FAILED           = "payment.failed";
-    public static final String STRIPE_ACCOUNT_SUSPENDED = "stripe.account_suspended";
+    public static final String STRIPE_ACCOUNT_SUSPENDED  = "stripe.account_suspended";
+    public static final String STRIPE_DISPUTE_CREATED    = "stripe.dispute.created";
+    public static final String STRIPE_DISPUTE_CLOSED     = "stripe.dispute.closed";
+    public static final String STRIPE_TRANSFER_REVERSED  = "stripe.transfer.reversed";
+    public static final String STRIPE_PAYOUT_FAILED      = "stripe.payout.failed";
 
     // ──────────────────────────────────────────────
     // Refund  (Producer: Payment Service)
     // ──────────────────────────────────────────────
     public static final String REFUND_REQUESTED         = "refund.requested";
     public static final String REFUND_FULL_REQUESTED    = "refund.full_requested";
+    public static final String REFUND_CREATED           = "refund.created";          // payment-service → notification-service (refund record created)
     public static final String REFUND_ADMIN_APPROVED    = "refund.admin_approved";
     public static final String REFUND_REJECTED          = "refund.rejected";
     public static final String REFUND_RTS_COMPLETED     = "refund.rts_completed";
