@@ -199,7 +199,7 @@ function Run-Dc {
     try {
         if ($Quiet) {
             $null = docker compose $fileArg $Args 2>&1
-        else
+        } else {
             docker compose $fileArg $Args
         }
         if (-not $IgnoreErrors -and $LASTEXITCODE -ne 0) {
