@@ -14,6 +14,7 @@ env:
   IMAGE_PREFIX: ${{ github.repository_owner }}/flashsale
   JAVA_VERSION: '25'
   NODE_VERSION: '22'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   # ========================================
@@ -124,8 +125,8 @@ jobs:
         if: contains(matrix.service, '-app')
         uses: actions/download-artifact@v4
         with:
-          name: node-modules-${{ fromJson('{"customer-app":"customer","seller-app":"seller","admin-app":"admin"}[matrix.service]') }}
-          path: frontend/apps/${{ fromJson('{"customer-app":"customer","seller-app":"seller","admin-app":"admin"}[matrix.service]') }}/node_modules
+          name: node-modules-${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
+          path: frontend/apps/${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}/node_modules
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -143,39 +144,39 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "dockerfile=./backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "dockerfile=./frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "dockerfile=./frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "dockerfile=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
 
       - name: Verify Dockerfile.dev exists
         run: |
-          if [ ! -f "${{ steps.ctx.outputs.dockerfile }}" ]; then
-            echo "ERROR: ${{ steps.ctx.outputs.dockerfile }} not found"
+          if [ ! -f "${{ steps.ctx.outputs.file }}" ]; then
+            echo "ERROR: ${{ steps.ctx.outputs.file }} not found"
             exit 1
           fi
-          echo "Found: ${{ steps.ctx.outputs.dockerfile }}"
+          echo "Found: ${{ steps.ctx.outputs.file }}"
 
       - name: Build and push Dev image
         uses: docker/build-push-action@v6
         with:
           context: ${{ steps.ctx.outputs.context }}
-          dockerfile: ${{ steps.ctx.outputs.dockerfile }}
+          file: ${{ steps.ctx.outputs.file }}
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:dev-${{ github.sha }}
@@ -230,39 +231,39 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "dockerfile=./backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "dockerfile=./frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "dockerfile=./frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "dockerfile=./frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
 
       - name: Verify Dockerfile.prod exists
         run: |
-          if [ ! -f "${{ steps.ctx.outputs.dockerfile }}" ]; then
-            echo "ERROR: ${{ steps.ctx.outputs.dockerfile }} not found"
+          if [ ! -f "${{ steps.ctx.outputs.file }}" ]; then
+            echo "ERROR: ${{ steps.ctx.outputs.file }} not found"
             exit 1
           fi
-          echo "Found: ${{ steps.ctx.outputs.dockerfile }}"
+          echo "Found: ${{ steps.ctx.outputs.file }}"
 
       - name: Build and push Prod image
         uses: docker/build-push-action@v6
         with:
           context: ${{ steps.ctx.outputs.context }}
-          dockerfile: ${{ steps.ctx.outputs.dockerfile }}
+          file: ${{ steps.ctx.outputs.file }}
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:prod-${{ github.sha }}
