@@ -219,9 +219,12 @@ jobs:
             exit 1
           fi
 
-          echo "Found: $FOUND_JAR"
-          mkdir -p "${{ matrix.service }}/target"
-          cp "$FOUND_JAR" "${{ matrix.service }}/target/"
+          DEST_DIR="backend/${{ matrix.service }}/target"
+          mkdir -p "$DEST_DIR"
+          cp "$FOUND_JAR" "$DEST_DIR/"
+
+          echo "Copied to $DEST_DIR:"
+          ls -la "$DEST_DIR"
 
       - name: Download frontend app
         if: contains(matrix.service, '-app')
