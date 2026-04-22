@@ -1,21 +1,22 @@
 # Production image — builds JAR inside the container (multi-stage)
-# Context: ./backend/notification-service
+# Context: ./backend
 FROM maven:3.9-eclipse-temurin-25-alpine AS builder
 
 WORKDIR /app
 
 COPY pom.xml .
-COPY common-lib/pom.xml common-lib/pom.xml
-RUN mvn dependency:go-offline -pl . -am -q
+COPY common-lib/pom.xml common-lib/
+COPY notification-service/pom.xml notification-service/
+RUN mvn dependency:go-offline -pl notification-service -am -q
 
-COPY src ./src
-RUN mvn package -DskipTests -q
+COPY notification-service/src notification-service/src
+RUN mvn package -pl notification-service -DskipTests -q
 
 FROM eclipse-temurin:25-jre-alpine AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /app/target/notification-service-*.jar app.jar
+COPY --from=builder /app/notification-service/target/notification-service-*.jar app.jar
 
 EXPOSE 8092
 ENTRYPOINT ["java", "-jar", "app.jar"]
