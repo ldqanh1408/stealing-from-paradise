@@ -486,9 +486,32 @@ jobs:
   # ========================================
   # DEPLOY TO SERVER (after successful push to main)
   # ========================================
+  pre-deploy-ssh-check:
+    name: Validate SSH Access
+    needs: auto-pr-to-main
+    if: needs.auto-pr-to-main.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH Key
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          sed -i 's/\r$//' ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.SERVER_IP }}" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_ed25519 \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=no \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.SERVER_IP }}" true \
+            && echo "SSH connection validated" \
+            || { echo "::error::SSH auth failed for ${{ secrets.DEPLOY_USER }}@${{ secrets.SERVER_IP }}"; exit 1; }
+
   deploy:
     name: Deploy to Server
-    needs: auto-pr-to-main
+    needs: [auto-pr-to-main, pre-deploy-ssh-check]
     if: needs.auto-pr-to-main.result == 'success'
     uses: ./.github/workflows/deploy.yml
     secrets:
