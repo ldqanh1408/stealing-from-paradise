@@ -1,9 +1,9 @@
-# Multi-stage build for Customer App (Vite)
+# Multi-stage build for Admin App (Vite) — built inside container for production
 # Stage 1: Build
 FROM node:20-alpine as builder
 
 # Set up working directory structure matching source tree:
-# /build/apps/customer (app work dir)
+# /build/apps/admin (app work dir)
 # /build/shared (shared lib)
 WORKDIR /build
 
@@ -11,22 +11,22 @@ WORKDIR /build
 COPY shared ./shared
 
 # Copy and install dependencies
-WORKDIR /build/apps/customer
-COPY apps/customer/package.json apps/customer/package-lock.json ./
+WORKDIR /build/apps/admin
+COPY apps/admin/package.json apps/admin/package-lock.json ./
 
 # Install dependencies
 RUN npm ci --prefer-offline --no-audit
 
 # Copy source code and config files
-COPY apps/customer/src ./src
-COPY apps/customer/vite.config.ts ./
-COPY apps/customer/tsconfig.json ./
-COPY apps/customer/tsconfig.app.json ./
-COPY apps/customer/tsconfig.node.json ./
-COPY apps/customer/eslint.config.js ./
-COPY apps/customer/tailwind.config.js ./
-COPY apps/customer/postcss.config.cjs ./
-COPY apps/customer/index.html ./
+COPY apps/admin/src ./src
+COPY apps/admin/vite.config.ts ./
+COPY apps/admin/tsconfig.json ./
+COPY apps/admin/tsconfig.app.json ./
+COPY apps/admin/tsconfig.node.json ./
+COPY apps/admin/eslint.config.js ./
+COPY apps/admin/tailwind.config.js ./
+COPY apps/admin/postcss.config.cjs ./
+COPY apps/admin/index.html ./
 
 # Build the app
 RUN npm run build
@@ -35,10 +35,10 @@ RUN npm run build
 FROM nginx:alpine
 
 # Copy custom nginx config
-COPY apps/customer/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/admin/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built files from builder
-COPY --from=builder /build/apps/customer/dist /usr/share/nginx/html
+COPY --from=builder /build/apps/admin/dist /usr/share/nginx/html
 
 # Expose port
 EXPOSE 80

@@ -1,8 +1,21 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { paymentApi } from '@shared/api/payment.api';
+
+const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 export default function CheckoutResultPage() {
   const [params] = useSearchParams();
+  const location = useLocation();
   const success = params.get('status') !== 'failed';
+  const parentOrderId = (location.state as any)?.parentOrderId as number | undefined;
+
+  const { data: paymentData } = useQuery({
+    queryKey: ['payment', parentOrderId],
+    queryFn: () => paymentApi.getPayment(parentOrderId!).then(r => r.data.data),
+    enabled: !!parentOrderId && success,
+    retry: 1,
+  });
 
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center">
@@ -15,14 +28,43 @@ export default function CheckoutResultPage() {
           <p className="text-gray-500 mb-2">
             Cảm ơn bạn đã mua hàng. Đơn hàng của bạn đang được xử lý.
           </p>
-          <p className="text-sm text-gray-400 mb-8">
-            Bạn sẽ nhận được email xác nhận trong vài phút tới.
-          </p>
+
+          {paymentData && (
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Mã giao dịch</p>
+                  <p className="font-medium text-gray-700 font-mono text-xs">{paymentData.trans_ref}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Số tiền</p>
+                  <p className="font-bold text-gray-900">{fmt(paymentData.amount)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Phương thức</p>
+                  <p className="font-medium text-gray-700">{paymentData.method}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Trạng thái</p>
+                  <p className="font-medium text-green-600">Thành công</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/orders" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors">
-              Xem đơn hàng
-            </Link>
-            <Link to="/products" className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors">
+            {parentOrderId && (
+              <Link
+                to={`/orders/${parentOrderId}`}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
+              >
+                Xem đơn hàng
+              </Link>
+            )}
+            <Link
+              to="/products"
+              className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors"
+            >
               Tiếp tục mua sắm
             </Link>
           </div>
@@ -37,10 +79,16 @@ export default function CheckoutResultPage() {
             Đã xảy ra lỗi trong quá trình thanh toán. Vui lòng thử lại hoặc chọn phương thức khác.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/checkout" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors">
+            <Link
+              to="/checkout"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
+            >
               Thử lại
             </Link>
-            <Link to="/cart" className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors">
+            <Link
+              to="/cart"
+              className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors"
+            >
               Quay lại giỏ hàng
             </Link>
           </div>

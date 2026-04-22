@@ -1,0 +1,49 @@
+# ============================================================
+# FLASH SALE BACKEND — PRODUCTION OVERRIDE
+# ============================================================
+# Builds JARs inside Docker containers (no host Maven needed).
+# USE: docker-compose -f docker-compose.yml -f backend/docker-compose.prod.yml up --build -d
+#
+# NOTE: Run from the project root (same dir as docker-compose.yml).
+# ============================================================
+
+services:
+  discovery-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  api-gateway:
+    build:
+      dockerfile: Dockerfile.prod
+
+  identity-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  payment-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  order-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  worker-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  flashsale-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  product-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  search-service:
+    build:
+      dockerfile: Dockerfile.prod
+
+  notification-service:
+    build:
+      dockerfile: Dockerfile.prod

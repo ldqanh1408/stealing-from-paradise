@@ -27,7 +27,7 @@ services:
       dockerfile: apps/customer/Dockerfile.dev
     container_name: fe-customer
     restart: unless-stopped
-    ports: ["${PORT_CUSTOMER:-3000}:5173"]
+    ports: ["${PORT_CUSTOMER:-3000}:3000"]
     env_file: .env
     environment:
       - NODE_ENV=development
@@ -47,7 +47,7 @@ services:
       dockerfile: apps/seller/Dockerfile.dev
     container_name: fe-seller
     restart: unless-stopped
-    ports: ["${PORT_SELLER:-3001}:5173"]
+    ports: ["${PORT_SELLER:-3001}:3001"]
     env_file: .env
     environment:
       - NODE_ENV=development
@@ -67,7 +67,7 @@ services:
       dockerfile: apps/admin/Dockerfile.dev
     container_name: fe-admin
     restart: unless-stopped
-    ports: ["${PORT_ADMIN:-3002}:5173"]
+    ports: ["${PORT_ADMIN:-3002}:3002"]
     env_file: .env
     environment:
       - NODE_ENV=development

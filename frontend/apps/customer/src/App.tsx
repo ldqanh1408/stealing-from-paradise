@@ -13,6 +13,7 @@ const CheckoutPage       = lazy(() => import('@/pages/CheckoutPage'));
 const CheckoutResultPage = lazy(() => import('@/pages/CheckoutResultPage'));
 const FlashSalePage      = lazy(() => import('@/pages/FlashSalePage'));
 const OrderHistoryPage   = lazy(() => import('@/pages/OrderHistoryPage'));
+const OrderDetailPage    = lazy(() => import('@/pages/OrderDetailPage'));
 
 const NAV_LINKS = [
   { label: 'Sản phẩm', to: '/products' },
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="/checkout" element={<PrivateRoute><OrderReviewPage /></PrivateRoute>} />
                 <Route path="/checkout/payment" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
                 <Route path="/orders"   element={<PrivateRoute><OrderHistoryPage /></PrivateRoute>} />
+                <Route path="/orders/:parentOrderId" element={<PrivateRoute><OrderDetailPage /></PrivateRoute>} />
 
                 <Route path="/"  element={<Navigate to="/products" replace />} />
                 <Route path="*"  element={<Navigate to="/" replace />} />

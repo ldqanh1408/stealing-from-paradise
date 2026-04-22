@@ -16,7 +16,7 @@ services:
   customer-app:
     build:
       context: .
-      dockerfile: apps/customer/Dockerfile
+      dockerfile: apps/customer/Dockerfile.prod
     container_name: fe-customer
     restart: unless-stopped
     ports: ["${PORT_CUSTOMER:-3000}:80"]
@@ -35,7 +35,7 @@ services:
   seller-app:
     build:
       context: .
-      dockerfile: apps/seller/Dockerfile
+      dockerfile: apps/seller/Dockerfile.prod
     container_name: fe-seller
     restart: unless-stopped
     ports: ["${PORT_SELLER:-3001}:80"]
@@ -54,7 +54,7 @@ services:
   admin-app:
     build:
       context: .
-      dockerfile: apps/admin/Dockerfile
+      dockerfile: apps/admin/Dockerfile.prod
     container_name: fe-admin
     restart: unless-stopped
     ports: ["${PORT_ADMIN:-3002}:80"]

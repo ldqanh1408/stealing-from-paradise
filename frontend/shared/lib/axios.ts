@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axios';
 import Cookies from 'js-cookie';
+import { installMockInterceptor, isMockMode, isNetworkError } from '../api/mock';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
 
@@ -11,9 +12,14 @@ export const apiClient: AxiosInstance = axios.create({
   withCredentials: true,          // gửi cookie (refresh token HttpOnly)
 });
 
-// ─── Request interceptor: gắn Access Token ────────────────────────
+// ─── Install mock interceptor ─────────────────────────────────────
+installMockInterceptor(apiClient);
+
+// ─── Request interceptor: gắn Access Token ───────────────────────
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Skip auth header in mock mode
+    if (isMockMode()) return config;
     const token = Cookies.get('accessToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -23,7 +29,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ─── Response interceptor: auto-refresh token khi 401 ────────────
+// ─── Response interceptor: auto-refresh token khi 401 ───────────
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v: unknown) => void; reject: (r: unknown) => void }> = [];
 
@@ -35,6 +41,11 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // Network error or mock response — pass through without token refresh
+    if (isNetworkError(error) || (error as any)?.isMockResponse) {
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -77,4 +88,3 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-
