@@ -211,9 +211,9 @@ jobs:
             exit 1
           fi
 
-          echo "Using: $FOUND_JAR"
-          mkdir -p "backend/${{ matrix.service }}/target"
-          cp "$FOUND_JAR" "backend/${{ matrix.service }}/target/"
+          echo "Using: $FOUND_JAR"W
+          mkdir -p "${{ matrix.service }}/target"
+          cp "$FOUND_JAR" "${{ matrix.service }}/target/"
 
       - name: Download frontend app
         if: contains(matrix.service, '-app')
@@ -243,17 +243,17 @@ jobs:
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
@@ -338,17 +338,17 @@ jobs:
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
