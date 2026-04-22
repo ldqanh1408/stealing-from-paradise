@@ -5,8 +5,17 @@ FROM maven:3.9-eclipse-temurin-25-alpine AS builder
 WORKDIR /app
 
 COPY pom.xml .
-COPY common-lib/pom.xml common-lib/
-COPY worker-service/pom.xml worker-service/
+COPY common-lib/ common-lib/
+COPY discovery-service/ discovery-service/
+COPY api-gateway/ api-gateway/
+COPY flashsale-service/ flashsale-service/
+COPY search-service/ search-service/
+COPY notification-service/ notification-service/
+COPY identity-service/ identity-service/
+COPY product-service/ product-service/
+COPY order-service/ order-service/
+COPY payment-service/ payment-service/
+COPY worker-service/ worker-service/
 RUN mvn dependency:go-offline -pl worker-service -am -q
 
 COPY worker-service/src worker-service/src
