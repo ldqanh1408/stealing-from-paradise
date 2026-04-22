@@ -58,29 +58,44 @@ jobs:
           fetch-depth: 0
 
       - name: Configure SSH
+        env:
+          _USER: ${{ secrets.DEPLOY_USER }}
+          _IP: ${{ secrets.SERVER_IP }}
+          _KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          if [ -z "${{ env.DEPLOY_USER }}" ] || \
-             [ -z "${{ env.SERVER_IP }}" ] || \
-             [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+          echo "DEBUG: DEPLOY_USER length = ${#_USER}"
+          echo "DEBUG: SERVER_IP length = ${#_IP}"
+          echo "DEBUG: SSH_KEY length = ${#_KEY}"
+          echo "DEBUG: github.event_name = ${{ github.event_name }}"
+          echo "DEBUG: github.ref = ${{ github.ref }}"
+
+          if [ -z "$_USER" ] || [ -z "$_IP" ] || [ -z "$_KEY" ]; then
+            MISSING=""
+            [ -z "$_USER" ]  && MISSING="${MISSING} DEPLOY_USER"
+            [ -z "$_IP" ]    && MISSING="${MISSING} SERVER_IP"
+            [ -z "$_KEY" ]   && MISSING="${MISSING} SSH_PRIVATE_KEY"
             echo "SKIP_DEPLOY=true" >> $GITHUB_ENV
-            echo "SKIP_REASON=Missing required secrets (DEPLOY_USER, SERVER_IP, or SSH_PRIVATE_KEY)"
-            echo "::notice::Deploy step skipped — required secrets are not configured."
+            echo "SKIP_REASON=Missing secrets:${MISSING}" >> $GITHUB_ENV
+            echo "::notice::Deploy skipped — missing:${MISSING}"
             exit 0
           fi
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "$_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH configured for ${{ env.DEPLOY_USER }}@${{ env.SERVER_IP }}"
+          ssh-keyscan -H "$_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH configured for ${_USER}@${_IP}"
 
       - name: Show deployment context
         if: env.SKIP_DEPLOY != 'true'
+        env:
+          _USER: ${{ secrets.DEPLOY_USER }}
+          _IP: ${{ secrets.SERVER_IP }}
         run: |
           echo "═══════════════════════════════════════════════════"
           echo "           DEPLOYMENT CONTEXT"
           echo "═══════════════════════════════════════════════════"
-          echo "Server:      ${{ env.SERVER_IP }}"
-          echo "SSH User:    ${{ env.DEPLOY_USER }}"
+          echo "Server:      ${_IP}"
+          echo "SSH User:    ${_USER}"
           echo "Branch:      ${{ github.ref_name }}"
           echo "Commit SHA:  ${{ github.sha }}"
           echo "Triggered:   ${{ github.event_name }}"
@@ -88,6 +103,9 @@ jobs:
 
       - name: Execute deployment on server
         if: env.SKIP_DEPLOY != 'true'
+        env:
+          _USER: ${{ secrets.DEPLOY_USER }}
+          _IP: ${{ secrets.SERVER_IP }}
         run: |
           cat > /tmp/deploy.sh << 'SCRIPT_EOF'
           #!/usr/bin/env bash
@@ -339,15 +357,18 @@ jobs:
 
       - name: Final health check from GitHub Actions
         if: env.SKIP_DEPLOY != 'true'
+        env:
+          _IP: ${{ secrets.SERVER_IP }}
+          _USER: ${{ secrets.DEPLOY_USER }}
         run: |
           echo ""
           echo "═══ Final health check ═══"
           sleep 10
-          if curl -sf --connect-timeout 10 http://${{ env.SERVER_IP }}:8080/actuator/health > /dev/null 2>&1; then
+          if curl -sf --connect-timeout 10 http://${_IP}:8080/actuator/health > /dev/null 2>&1; then
             echo "[OK]  API Gateway responding on port 8080"
           else
             echo "[!!] API Gateway not yet responding (may still be starting)"
-            echo "     Check server logs: ssh ${{ env.DEPLOY_USER }}@${{ env.SERVER_IP }}"
+            echo "     Check server logs: ssh ${_USER}@${_IP}"
             echo "     Logs: cd /opt/flashsale && docker compose logs --tail=50"
           fi
 
@@ -371,22 +392,24 @@ jobs:
 
       - name: Deployment summary
         if: env.SKIP_DEPLOY != 'true'
+        env:
+          _IP: ${{ secrets.SERVER_IP }}
         run: |
           echo ""
           echo "══════════════════════════════════════════════════════════"
           echo "             DEPLOYMENT SUMMARY"
           echo "══════════════════════════════════════════════════════════"
-          echo "  Server:    ${{ env.SERVER_IP }}"
+          echo "  Server:    ${_IP}"
           echo "  Branch:    ${{ github.ref_name }}"
           echo "  Commit:    ${{ github.sha }}"
           echo "  Event:     ${{ github.event_name }}"
           echo ""
           echo "  Services:"
-          echo "    API Gateway  http://${{ env.SERVER_IP }}:8080"
-          echo "    Customer     http://${{ env.SERVER_IP }}:3000"
-          echo "    Seller       http://${{ env.SERVER_IP }}:3001"
-          echo "    Admin        http://${{ env.SERVER_IP }}:3002"
-          echo "    Eureka       http://${{ env.SERVER_IP }}:8761"
-          echo "    Swagger      http://${{ env.SERVER_IP }}:8080/swagger-ui.html"
+          echo "    API Gateway  http://${_IP}:8080"
+          echo "    Customer     http://${_IP}:3000"
+          echo "    Seller       http://${_IP}:3001"
+          echo "    Admin        http://${_IP}:3002"
+          echo "    Eureka       http://${_IP}:8761"
+          echo "    Swagger      http://${_IP}:8080/swagger-ui.html"
           echo "══════════════════════════════════════════════════════════"
           echo ""
