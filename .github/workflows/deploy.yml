@@ -114,7 +114,11 @@ jobs:
         env:
           _USER: ${{ secrets.DEPLOY_USER }}
           _IP: ${{ secrets.SERVER_IP }}
+          _REF: ${{ github.ref_name }}
+          _SHA: ${{ github.sha }}
         run: |
+          SERVER="${_USER}@${_IP}"
+
           cat > /tmp/deploy.sh << 'SCRIPT_EOF'
           #!/usr/bin/env bash
           set -euo pipefail
@@ -361,7 +365,7 @@ jobs:
 
           scp -o ConnectTimeout=15 -o StrictHostKeyChecking=no /tmp/deploy.sh "${SERVER}:/tmp/deploy.sh"
           ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no "${SERVER}" \
-            "bash /tmp/deploy.sh '${DEPLOY_USER}' '${SERVER_IP}' '${REF_NAME}' '${SHA}'"
+            "bash /tmp/deploy.sh '${_USER}' '${_IP}' '${_REF}' '${_SHA}'"
 
       - name: Final health check from GitHub Actions
         if: env.SKIP_DEPLOY != 'true'
