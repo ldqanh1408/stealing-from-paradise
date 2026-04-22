@@ -5,8 +5,7 @@ FROM maven:3.9-eclipse-temurin-25-alpine AS builder
 WORKDIR /app
 
 COPY pom.xml .
-COPY ../pom.xml ../pom.xml
-COPY ../common-lib/pom.xml ../common-lib/pom.xml
+COPY common-lib/pom.xml common-lib/pom.xml
 RUN mvn dependency:go-offline -pl . -am -q
 
 COPY src ./src

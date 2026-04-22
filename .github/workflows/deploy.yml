@@ -239,7 +239,7 @@ jobs:
               
               log_info "Building $service Docker image..."
               # Build from service directory so Dockerfile can COPY target/
-              docker build -t flashsale_$service:latest "$SERVICE_DIR"
+              docker build -t flashsale_$service:latest -f "$SERVICE_DIR/Dockerfile.prod" "$PROJECT_DIR/backend"
               log_success "$service image built"
             fi
           done
