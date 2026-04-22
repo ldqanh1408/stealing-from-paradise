@@ -202,8 +202,8 @@ services:
 
   discovery-service:
     build:
-      context: ./backend/discovery-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/discovery-service/Dockerfile.dev
     container_name: fs-discovery
     restart: unless-stopped
     ports: ["${PORT_DISCOVERY:-8761}:8761"]
@@ -218,8 +218,8 @@ services:
 
   api-gateway:
     build:
-      context: ./backend/api-gateway
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/api-gateway/Dockerfile.dev
     container_name: fs-gateway
     restart: unless-stopped
     ports: ["${PORT_GATEWAY:-8080}:8080"]
@@ -243,8 +243,8 @@ services:
 
   identity-service:
     build:
-      context: ./backend/identity-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/identity-service/Dockerfile.dev
     container_name: fs-identity
     restart: unless-stopped
     ports: ["${PORT_IDENTITY:-8081}:8081"]
@@ -268,8 +268,8 @@ services:
 
   payment-service:
     build:
-      context: ./backend/payment-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/payment-service/Dockerfile.dev
     container_name: fs-payment
     restart: unless-stopped
     ports: ["${PORT_PAYMENT:-8082}:8082"]
@@ -296,8 +296,8 @@ services:
 
   order-service:
     build:
-      context: ./backend/order-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/order-service/Dockerfile.dev
     container_name: fs-order
     restart: unless-stopped
     ports: ["${PORT_ORDER:-8083}:8083"]
@@ -321,8 +321,8 @@ services:
 
   flashsale-service:
     build:
-      context: ./backend/flashsale-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/flashsale-service/Dockerfile.dev
     container_name: fs-flashsale
     restart: unless-stopped
     ports: ["${PORT_FLASHSALE:-8085}:8085"]
@@ -349,8 +349,8 @@ services:
 
   product-service:
     build:
-      context: ./backend/product-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/product-service/Dockerfile.dev
     container_name: fs-product
     restart: unless-stopped
     ports: ["${PORT_PRODUCT:-8090}:8090"]
@@ -380,8 +380,8 @@ services:
 
   search-service:
     build:
-      context: ./backend/search-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/search-service/Dockerfile.dev
     container_name: fs-search
     restart: unless-stopped
     ports: ["${PORT_SEARCH:-8091}:8091"]
@@ -400,8 +400,8 @@ services:
 
   notification-service:
     build:
-      context: ./backend/notification-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/notification-service/Dockerfile.dev
     container_name: fs-notification
     restart: unless-stopped
     ports: ["${PORT_NOTIFICATION:-8092}:8092"]
@@ -426,8 +426,8 @@ services:
 
   worker-service:
     build:
-      context: ./backend/worker-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/worker-service/Dockerfile.dev
     container_name: fs-worker
     restart: unless-stopped
     ports: ["${PORT_WORKER:-8086}:8086"]
@@ -455,8 +455,8 @@ services:
 
   customer-app:
     build:
-      context: ./frontend
-      dockerfile: ./apps/customer/Dockerfile.dev
+      context: .
+      dockerfile: frontend/apps/customer/Dockerfile.dev
     container_name: fs-customer-fe
     restart: unless-stopped
     ports: ["${PORT_CUSTOMER:-3000}:80"]
@@ -474,8 +474,8 @@ services:
 
   seller-app:
     build:
-      context: ./frontend
-      dockerfile: ./apps/seller/Dockerfile.dev
+      context: .
+      dockerfile: frontend/apps/seller/Dockerfile.dev
     container_name: fs-seller-fe
     restart: unless-stopped
     ports: ["${PORT_SELLER:-3001}:80"]
@@ -493,8 +493,8 @@ services:
 
   admin-app:
     build:
-      context: ./frontend
-      dockerfile: ./apps/admin/Dockerfile.dev
+      context: .
+      dockerfile: frontend/apps/admin/Dockerfile.dev
     container_name: fs-admin-fe
     restart: unless-stopped
     ports: ["${PORT_ADMIN:-3002}:80"]
