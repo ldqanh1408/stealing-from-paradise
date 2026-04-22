@@ -144,33 +144,41 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "file=./Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
 
       - name: Verify Dockerfile.dev exists
         run: |
-          if [ ! -f "backend/${{ matrix.service }}/Dockerfile.dev" ]; then
-            echo "ERROR: backend/${{ matrix.service }}/Dockerfile.dev not found"
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              DOCKERFILE="backend/${{ matrix.service }}/Dockerfile.dev"
+              ;;
+            customer-app) DOCKERFILE="frontend/apps/customer/Dockerfile.dev" ;;
+            seller-app)   DOCKERFILE="frontend/apps/seller/Dockerfile.dev" ;;
+            admin-app)    DOCKERFILE="frontend/apps/admin/Dockerfile.dev" ;;
+          esac
+          if [ ! -f "$DOCKERFILE" ]; then
+            echo "ERROR: $DOCKERFILE not found"
             exit 1
           fi
-          echo "Found: backend/${{ matrix.service }}/Dockerfile.dev"
+          echo "Found: $DOCKERFILE"
 
       - name: Build and push Dev image
         uses: docker/build-push-action@v6
@@ -231,33 +239,41 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "file=./Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=./frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
 
       - name: Verify Dockerfile.prod exists
         run: |
-          if [ ! -f "backend/${{ matrix.service }}/Dockerfile.prod" ]; then
-            echo "ERROR: backend/${{ matrix.service }}/Dockerfile.prod not found"
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              DOCKERFILE="backend/${{ matrix.service }}/Dockerfile.prod"
+              ;;
+            customer-app) DOCKERFILE="frontend/apps/customer/Dockerfile.prod" ;;
+            seller-app)   DOCKERFILE="frontend/apps/seller/Dockerfile.prod" ;;
+            admin-app)    DOCKERFILE="frontend/apps/admin/Dockerfile.prod" ;;
+          esac
+          if [ ! -f "$DOCKERFILE" ]; then
+            echo "ERROR: $DOCKERFILE not found"
             exit 1
           fi
-          echo "Found: backend/${{ matrix.service }}/Dockerfile.prod"
+          echo "Found: $DOCKERFILE"
 
       - name: Build and push Prod image
         uses: docker/build-push-action@v6
