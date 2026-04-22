@@ -511,6 +511,6 @@ mvn test -Dtest=PaymentDomainApplicationTests
 
 - **Axon Framework Saga**: https://docs.axoniq.io/reference-guide/axon-framework/advanced-concepts/saga
 - **Project Architecture**: `docs/01_OVERVIEW.md`
-- **API Contracts**: `docs/API_DETAILED_JSON_v5_3_RTS.md`
+- **API Contracts**: `docs/02_API.md`
 - **Business Logic**: `docs/03_BUSINESS.md`
 

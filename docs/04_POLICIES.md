@@ -4,7 +4,7 @@
 
 Tài liệu này định nghĩa các quy tắc nghiệp vụ và điều khiển hành vi tài khoản, điểm tin nhiệm, tham gia flash sale, seller, và data retention, đồng bộ với API Spec v5.3 RTS.
 
-**Tài liệu liên quan:** `DATA_RETENTION_POLICY.md` (v3.0)
+**Tài liệu liên quan:** [05_OPERATIONS.md](05_OPERATIONS.md) (v5.0 — Distributed per Service)
 
 **Thay đổi so với v1.0:** Tích hợp toàn bộ ở xuất từ Mục 7 vào chính sách chính thức. Bổ sung schema `TRUST_SCORE_EVENTS_CONFIG`, `USER_BAN_HISTORY`, cột mới trong `USERS` và `POINT_TRANSACTIONS`. Chuyển các JOB-17/18/19/20 từ trạng thái "ở xuất" sang chính thức.
 

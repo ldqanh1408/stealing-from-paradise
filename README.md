@@ -81,7 +81,7 @@ Complete documentation available in `/docs`:
 | [04_POLICIES.md](docs/04_POLICIES.md) | System policies & configuration (v3.0) |
 | [05_OPERATIONS.md](docs/05_OPERATIONS.md) | 23 Cronjobs & data retention (v4.0) |
 | [06_PAYMENT_SAGA_FLOW.md](docs/06_PAYMENT_SAGA_FLOW.md) | Payment flow & Saga pattern |
-| [07_TESTING_GUIDE.md](docs/07_TESTING_GUIDE.md) | Testing guide |
+| [07_BUSINESS_FLOWS.md](docs/07_BUSINESS_FLOWS.md) | Luồng nghiệp vụ tổng hợp (Mermaid) |
 | [08_PAYMENT_ORDER_INTEGRATION.md](docs/08_PAYMENT_ORDER_INTEGRATION.md) | Integration details |
 | [erd.mermaid](docs/erd.mermaid) | Database schema |
 

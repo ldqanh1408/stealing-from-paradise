@@ -550,10 +550,10 @@ public void on(PaymentFailedEvent event) {
 
 ## 📚 Related Documents
 
-- [PAYMENT_SERVICE_API_FLOW.md](PAYMENT_SERVICE_API_FLOW.md) - Payment service details
-- [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) - Saga implementation
-- [API_DETAILED_JSON_v5_3_RTS.md](API_DETAILED_JSON_v5_3_RTS.md) - API requests/responses
-- [BUSINESS_DOC_v5_3_rts_unified.md](BUSINESS_DOC_v5_3_rts_unified.md) - Business workflows
+- [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) - Saga implementation chi tiết
+- [03_BUSINESS.md](03_BUSINESS.md) - Business workflows chi tiết
+- [02_API.md](02_API.md) - API specification
+- [05_OPERATIONS.md](05_OPERATIONS.md) - Cronjobs chi tiết
 - [CLAUDE.md](../CLAUDE.md) - Project setup
 
 ---
