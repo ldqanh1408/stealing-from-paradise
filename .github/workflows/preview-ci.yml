@@ -124,8 +124,8 @@ jobs:
         if: contains(matrix.service, '-app')
         uses: actions/download-artifact@v4
         with:
-          name: node-modules-${{ replace(matrix.service, '-app', '') }}
-          path: frontend/apps/${{ replace(matrix.service, '-app', '') }}/node_modules
+          name: node-modules-${{ fromJson('{"customer-app":"customer","seller-app":"seller","admin-app":"admin"}[matrix.service]') }}
+          path: frontend/apps/${{ fromJson('{"customer-app":"customer","seller-app":"seller","admin-app":"admin"}[matrix.service]') }}/node_modules
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
