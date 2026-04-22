@@ -6,7 +6,7 @@ on:
       - preview
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 concurrency:
@@ -425,6 +425,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
           git merge origin/preview --no-edit --quiet
           git push origin main
 
