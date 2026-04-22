@@ -127,172 +127,143 @@ jobs:
           log_err()  { echo -e "${RED}[ERR]${NC}  $*" >&2; exit 1; }
           
           DEPLOY_USER="$1"; SERVER_IP="$2"; REF_NAME="$3"; SHA="$4"
-          SERVER="${DEPLOY_USER}@${SERVER_IP}"
           PROJECT_DIR="/opt/flashsale"
-
-          log_info "Connecting to ${SERVER}"
-
-          # Step 1: Locate project directory
-          LOCATE=$(ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no "${SERVER}" '
-            if [ -d "'"${PROJECT_DIR}"'/.git" ]; then
-              echo "'"${PROJECT_DIR}"'"
-            elif [ -d "'"${PROJECT_DIR}"'/stealing-from-paradise/.git" ]; then
-              echo "'"${PROJECT_DIR}"'/stealing-from-paradise"
-            else
-              echo "NOT_FOUND"
-            fi
-          ')
-          [ "$LOCATE" = "NOT_FOUND" ] && log_err "Git repo not found on server at ${PROJECT_DIR}"
+          
+          log_info "Starting deployment on local server"
+          
+          # Step 1: Locate project directory (local)
+          if [ -d "${PROJECT_DIR}/.git" ]; then
+            LOCATE="${PROJECT_DIR}"
+          elif [ -d "${PROJECT_DIR}/stealing-from-paradise/.git" ]; then
+            LOCATE="${PROJECT_DIR}/stealing-from-paradise"
+          else
+            log_err "Git repo not found on server at ${PROJECT_DIR}"
+          fi
           log_ok "Project directory: ${LOCATE}"
-
-          # Step 2: Git pull
+          
+          # Step 2: Git pull (local)
           log_info "Pulling latest code (${REF_NAME})..."
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            set -e
-            cd '${LOCATE}'
-            git fetch --all --tags --quiet
-            git checkout '${REF_NAME}' --quiet
-            git reset --hard '${SHA}'
-            git clean -fdx -e .env
-          "
+          cd "${LOCATE}"
+          git fetch --all --tags --quiet
+          git checkout "${REF_NAME}" --quiet
+          git reset --hard "${SHA}"
+          git clean -fdx -e .env
           log_ok "Code updated to ${SHA}"
-
-          # Step 3: Ensure .env exists
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            if [ ! -f '${LOCATE}/.env' ]; then
-              if [ -f '${LOCATE}/.env.example' ]; then
-                cp '${LOCATE}/.env.example' '${LOCATE}/.env'
-                log_warn 'Created .env from .env.example — update values before next deploy!'
-              fi
+          
+          # Step 3: Ensure .env exists (local)
+          if [ ! -f '.env' ]; then
+            if [ -f '.env.example' ]; then
+              cp .env.example .env
+              log_warn "Created .env from .env.example — update values before next deploy!"
             fi
-          "
+          fi
           log_ok ".env verified"
-
-          # Step 4: Stop old services
+          
+          # Step 4: Stop old services (local)
           log_info "Stopping current services..."
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            set -e
-            cd '${LOCATE}'
-            docker compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
-            for c in fs-postgres fs-mongo fs-redis fs-elasticsearch fs-minio \
-                      fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
-                      fs-discovery fs-gateway fs-identity fs-payment fs-order \
-                      fs-product fs-flashsale fs-search fs-notification fs-worker \
-                      fs-customer-fe fs-seller-fe fs-admin-fe; do
-              docker stop \"\$c\" 2>/dev/null && docker rm \"\$c\" 2>/dev/null || true
-            done
-            docker image prune -f >/dev/null 2>&1 || true
-          "
+          docker compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
+          for c in fs-postgres fs-mongo fs-redis fs-elasticsearch fs-minio \
+                    fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
+                    fs-discovery fs-gateway fs-identity fs-payment fs-order \
+                    fs-product fs-flashsale fs-search fs-notification fs-worker \
+                    fs-customer-fe fs-seller-fe fs-admin-fe; do
+            docker stop "$c" 2>/dev/null && docker rm "$c" 2>/dev/null || true
+          done
+          docker image prune -f >/dev/null 2>&1 || true
           log_ok "Old services stopped"
-
-          # Step 5: Build backend
+          
+          # Step 5: Build backend (local)
           log_info "Building backend with Maven..."
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            set -e
-            cd '${LOCATE}/backend'
-            mvn clean package -DskipTests -q
-          "
+          cd "${LOCATE}/backend"
+          mvn clean package -DskipTests -q
           log_ok "Backend JARs built"
-
-          # Step 6: Build backend Docker images
+          
+          # Step 6: Build backend Docker images (local)
           log_info "Building backend Docker images..."
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            set -e
-            cd '${LOCATE}'
-            for svc in discovery-service api-gateway identity-service product-service \
-                       order-service payment-service flashsale-service \
-                       search-service notification-service worker-service; do
-              svc_dir=\"backend/\${svc}\"
-              if [ ! -f \"\${svc_dir}/Dockerfile.prod\" ]; then
-                log_warn \"Skipping \${svc} — no Dockerfile.prod\"
-                continue
-              fi
-              if [ ! -d \"\${svc_dir}/target\" ]; then
-                log_err \"\${svc} target/ not found — Maven build failed\"
-              fi
-              echo \"Building flashsale-\${svc}:latest\"
-              docker build --platform linux/amd64 \
-                -t flashsale-\${svc}:latest \
-                -f \"\${svc_dir}/Dockerfile.prod\" \
-                \"backend\"
-              log_ok \"flashsale-\${svc}:latest built\"
-            done
-          "
+          cd "${LOCATE}"
+          for svc in discovery-service api-gateway identity-service product-service \
+                     order-service payment-service flashsale-service \
+                     search-service notification-service worker-service; do
+            svc_dir="backend/${svc}"
+            if [ ! -f "${svc_dir}/Dockerfile.prod" ]; then
+              log_warn "Skipping ${svc} — no Dockerfile.prod"
+              continue
+            fi
+            if [ ! -d "${svc_dir}/target" ]; then
+              log_err "${svc} target/ not found — Maven build failed"
+            fi
+            echo "Building flashsale-${svc}:latest"
+            docker build --platform linux/amd64 \
+              -t "flashsale-${svc}:latest" \
+              -f "${svc_dir}/Dockerfile.prod" \
+              "backend"
+            log_ok "flashsale-${svc}:latest built"
+          done
           log_ok "All backend images built"
-
-          # Step 7: Build frontend Docker images
+          
+          # Step 7: Build frontend Docker images (local)
           log_info "Building frontend Docker images..."
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            set -e
-            cd '${LOCATE}'
-            for app in customer seller admin; do
-              dockerfile=\"frontend/apps/\${app}/Dockerfile.prod\"
-              if [ ! -f \"\$dockerfile\" ]; then
-                log_warn \"Skipping \${app} — no Dockerfile.prod\"
-                continue
-              fi
-              echo \"Building flashsale-\${app}-app:latest\"
-              docker build --platform linux/amd64 \
-                -t flashsale-\${app}-app:latest \
-                -f \"\$dockerfile\" \
-                \"frontend\"
-              log_ok \"flashsale-\${app}-app:latest built\"
-            done
-          "
+          for app in customer seller admin; do
+            dockerfile="frontend/apps/${app}/Dockerfile.prod"
+            if [ ! -f "$dockerfile" ]; then
+              log_warn "Skipping ${app} — no Dockerfile.prod"
+              continue
+            fi
+            echo "Building flashsale-${app}-app:latest"
+            docker build --platform linux/amd64 \
+              -t "flashsale-${app}-app:latest" \
+              -f "$dockerfile" \
+              "frontend"
+            log_ok "flashsale-${app}-app:latest built"
+          done
           log_ok "All frontend images built"
-
-          # Step 8: Start services
+          
+          # Step 8: Start services (local)
           log_info "Starting services..."
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            set -e
-            cd '${LOCATE}'
-            docker compose -f docker-compose.yml -f docker-compose-backend.yml up -d
-          "
+          cd "${LOCATE}"
+          docker compose -f docker-compose.yml -f docker-compose-backend.yml up -d
           log_ok "Services started"
-
-          # Step 9: Health check
+          
+          # Step 9: Health check (local)
           log_info "Waiting for services to stabilize (60s)..."
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            set -e
-            sleep 60
-            echo 'Running containers:'
-            docker compose -f '${LOCATE}/docker-compose.yml' ps
-            echo ''
-            echo 'Health checks:'
-            curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
-            curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1 && echo '[OK] Eureka' || echo '[!!] Eureka not ready'
-          "
+          sleep 60
+          echo 'Running containers:'
+          docker compose -f docker-compose.yml ps
+          echo ''
+          echo 'Health checks:'
+          curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
+          curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1 && echo '[OK] Eureka' || echo '[!!] Eureka not ready'
           log_ok "Health check complete"
-
+          
           # Step 10: Summary
-          ssh -o StrictHostKeyChecking=no "${SERVER}" "
-            echo ''
-            echo '╔══════════════════════════════════════════════════════════╗'
-            echo '║          ✓  DEPLOYMENT SUCCESSFUL                    ║'
-            echo '╠══════════════════════════════════════════════════════════╣'
-            echo '║  Server:       '"${SERVER_IP}"'
-            echo '║  Branch:       '"${REF_NAME}"'
-            echo '║  Commit:       '"${SHA}"'
-            echo '╠══════════════════════════════════════════════════════════╣'
-            echo '║  API Gateway:  http://'"${SERVER_IP}"':8080'
-            echo '║  Customer:     http://'"${SERVER_IP}"':3000'
-            echo '║  Seller:       http://'"${SERVER_IP}"':3001'
-            echo '║  Admin:        http://'"${SERVER_IP}"':3002'
-            echo '║  Eureka:       http://'"${SERVER_IP}"':8761'
-            echo '║  Swagger:      http://'"${SERVER_IP}"':8080/swagger-ui.html'
-            echo '╚══════════════════════════════════════════════════════════╝'
-          "
+          echo ''
+          echo '╔══════════════════════════════════════════════════════════╗'
+          echo '║          ✓  DEPLOYMENT SUCCESSFUL                    ║'
+          echo '╠══════════════════════════════════════════════════════════╣'
+          echo '║  Server:       '"${SERVER_IP}"'
+          echo '║  Branch:       '"${REF_NAME}"'
+          echo '║  Commit:       '"${SHA}"'
+          echo '╠══════════════════════════════════════════════════════════╣'
+          echo '║  API Gateway:  http://'"${SERVER_IP}"':8080'
+          echo '║  Customer:     http://'"${SERVER_IP}"':3000'
+          echo '║  Seller:       http://'"${SERVER_IP}"':3001'
+          echo '║  Admin:        http://'"${SERVER_IP}"':3002'
+          echo '║  Eureka:        http://'"${SERVER_IP}"':8761'
+          echo '║  Swagger:      http://'"${SERVER_IP}"':8080/swagger-ui.html'
+          echo '╚══════════════════════════════════════════════════════════╝'
           log_ok "Deployment complete!"
-
+          
           DEPLOY_EOF
 
           chmod +x /tmp/deploy.sh
 
           scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -i ~/.ssh/id_rsa \
             -o ConnectTimeout=10 \
             /tmp/deploy.sh "${SERVER}:/tmp/deploy.sh"
 
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -i ~/.ssh/id_rsa \
             -o ConnectTimeout=10 \
             "${SERVER}" "bash /tmp/deploy.sh '${_USER}' '${_IP}' '${_REF}' '${_SHA}'"
 
