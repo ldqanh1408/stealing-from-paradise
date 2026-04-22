@@ -144,7 +144,7 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "file=./backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
@@ -166,11 +166,11 @@ jobs:
 
       - name: Verify Dockerfile.dev exists
         run: |
-          if [ ! -f "${{ steps.ctx.outputs.file }}" ]; then
-            echo "ERROR: ${{ steps.ctx.outputs.file }} not found"
+          if [ ! -f "backend/${{ matrix.service }}/Dockerfile.dev" ]; then
+            echo "ERROR: backend/${{ matrix.service }}/Dockerfile.dev not found"
             exit 1
           fi
-          echo "Found: ${{ steps.ctx.outputs.file }}"
+          echo "Found: backend/${{ matrix.service }}/Dockerfile.dev"
 
       - name: Build and push Dev image
         uses: docker/build-push-action@v6
@@ -231,7 +231,7 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "file=./backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
@@ -253,11 +253,11 @@ jobs:
 
       - name: Verify Dockerfile.prod exists
         run: |
-          if [ ! -f "${{ steps.ctx.outputs.file }}" ]; then
-            echo "ERROR: ${{ steps.ctx.outputs.file }} not found"
+          if [ ! -f "backend/${{ matrix.service }}/Dockerfile.prod" ]; then
+            echo "ERROR: backend/${{ matrix.service }}/Dockerfile.prod not found"
             exit 1
           fi
-          echo "Found: ${{ steps.ctx.outputs.file }}"
+          echo "Found: backend/${{ matrix.service }}/Dockerfile.prod"
 
       - name: Build and push Prod image
         uses: docker/build-push-action@v6
