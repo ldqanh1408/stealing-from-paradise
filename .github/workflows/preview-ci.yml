@@ -119,14 +119,34 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-jars
-          path: .
+          path: /tmp/backend-jars
+
+      - name: Copy backend JARs into Docker context
+        if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
+        run: |
+          # Artifact glob backend/**/target/*.jar preserves paths:
+          #   /tmp/backend-jars/backend/$service/backend/$service/target/*.jar
+          # Dockerfile.dev COPY target/*.jar expects:
+          #   ./backend/$service/target/*.jar  (relative to repo root)
+          mkdir -p backend/${{ matrix.service }}/target
+          cp /tmp/backend-jars/backend/${{ matrix.service }}/backend/${{ matrix.service }}/target/*.jar backend/${{ matrix.service }}/target/
 
       - name: Download frontend node_modules
         if: contains(matrix.service, '-app')
         uses: actions/download-artifact@v4
         with:
           name: node-modules-${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
-          path: .
+          path: /tmp/node-modules
+
+      - name: Copy frontend node_modules into Docker context
+        if: contains(matrix.service, '-app')
+        run: |
+          # Artifact preserves paths:
+          #   /tmp/node-modules/frontend/apps/$app/node_modules/...
+          # Dockerfile.dev COPY apps/$app/node_modules expects:
+          #   ./frontend/apps/$app/node_modules  (relative to repo root)
+          APP_NAME="${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}"
+          cp -r /tmp/node-modules/frontend/apps/$APP_NAME/node_modules frontend/apps/$APP_NAME/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -143,23 +163,23 @@ jobs:
         run: |
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
+              echo "file=Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
@@ -238,23 +258,23 @@ jobs:
         run: |
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
+              echo "file=Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
-              echo "context=." >> $GITHUB_OUTPUT
-              echo "file=frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
