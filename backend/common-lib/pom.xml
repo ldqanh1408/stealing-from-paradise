@@ -90,6 +90,13 @@
             <artifactId>spring-boot-starter-web</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Axon Framework token store uses JDBC-backed schema operations internally.
+             Required transitively by axon-spring-boot-starter, but declaring explicitly
+             ensures spring-jdbc is available even when other starters are absent. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

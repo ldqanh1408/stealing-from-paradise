@@ -20,7 +20,7 @@ CREATE TABLE token_entry (
     owner          VARCHAR(255),
     timestamp      VARCHAR(255) NOT NULL,
     token          BYTEA,
-    token_type     BYTEA,
+    token_type     VARCHAR(255),
     PRIMARY KEY (processor_name, segment)
 );
 
