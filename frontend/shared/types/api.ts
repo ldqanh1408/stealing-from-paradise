@@ -8,8 +8,10 @@ export interface ApiResponse<T> {
 
 export interface PageResponse<T> {
   content:       T[];
-  page:          number;
-  size:          number;
+  page_number?:  number;
+  page_size?:   number;
+  page?:         number;
+  size?:         number;
   totalElements: number;
   totalPages:    number;
   last:          boolean;
