@@ -489,5 +489,5 @@ jobs:
   deploy:
     name: Deploy to Server
     needs: auto-pr-to-main
-    uses: ./.github/workflows/deploy.yml@main
+    uses: ./.github/workflows/deploy.yml
     if: needs.auto-pr-to-main.result == 'success'
