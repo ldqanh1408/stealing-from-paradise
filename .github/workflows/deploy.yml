@@ -81,6 +81,24 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "$_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
 
+      - name: Debug SSH Connection
+        if: env.SKIP_DEPLOY != 'true'
+        env:
+          _USER: ${{ secrets.DEPLOY_USER }}
+          _IP: ${{ secrets.SERVER_IP }}
+        run: |
+          SERVER="${_USER}@${_IP}"
+          echo "═══════════════════════════════════════════════════"
+          echo "  Debug SSH to ${SERVER}"
+          echo "═══════════════════════════════════════════════════"
+          echo "Testing SSH connection..."
+          ssh -v -i ~/.ssh/id_rsa \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=15 \
+            -o LogLevel=DEBUG3 \
+            "${SERVER}" "echo 'SSH OK' && uname -a" 2>&1 | tail -50
+
       - name: Deploy to server
         if: env.SKIP_DEPLOY != 'true'
         env:
