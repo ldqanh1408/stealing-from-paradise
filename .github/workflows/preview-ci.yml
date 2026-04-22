@@ -49,18 +49,80 @@ jobs:
       - name: Upload backend JARs
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jars
-          path: |
-            backend/api-gateway/target/*.jar
-            backend/discovery-service/target/*.jar
-            backend/identity-service/target/*.jar
-            backend/product-service/target/*.jar
-            backend/order-service/target/*.jar
-            backend/payment-service/target/*.jar
-            backend/flashsale-service/target/*.jar
-            backend/search-service/target/*.jar
-            backend/notification-service/target/*.jar
-            backend/worker-service/target/*.jar
+          name: jar-api-gateway
+          path: backend/api-gateway/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload discovery-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-discovery-service
+          path: backend/discovery-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload identity-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-identity-service
+          path: backend/identity-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload product-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-product-service
+          path: backend/product-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload order-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-order-service
+          path: backend/order-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload payment-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-payment-service
+          path: backend/payment-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload flashsale-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-flashsale-service
+          path: backend/flashsale-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload search-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-search-service
+          path: backend/search-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload notification-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-notification-service
+          path: backend/notification-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload worker-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-worker-service
+          path: backend/worker-service/target/*.jar
           retention-days: 1
           if-no-files-found: error
 
@@ -129,21 +191,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download backend JARs
+      - name: Download backend JAR
         if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
         uses: actions/download-artifact@v4
         with:
-          name: backend-jars
+          name: jar-${{ matrix.service }}
           path: /tmp/backend-jars
 
       - name: Copy backend JARs into Docker context
         if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
         run: |
-          # Artifact stores repo-root paths: backend/api-gateway/target/*.jar
-          # Downloaded to: /tmp/backend-jars/backend/api-gateway/target/*.jar
-          # Dockerfile.dev context: ./backend/$service  →  expects target/*.jar
-          mkdir -p backend/${{ matrix.service }}/target
-          cp /tmp/backend-jars/backend/${{ matrix.service }}/target/*.jar backend/${{ matrix.service }}/target/
+          echo "Looking for jar for ${{ matrix.service }} in downloaded artifact..."
+          FOUND_JAR="$(find "/tmp/backend-jars" -path "*/backend/${{ matrix.service }}/target/*.jar" -type f | head -n 1)"
+
+          if [ -z "$FOUND_JAR" ]; then
+            echo "ERROR: No JAR found for ${{ matrix.service }}."
+            echo "Downloaded backend-jars content:"
+            find /tmp/backend-jars -maxdepth 6 -type f | sed 's|^|  |'
+            exit 1
+          fi
+
+          echo "Using: $FOUND_JAR"
+          mkdir -p "backend/${{ matrix.service }}/target"
+          cp "$FOUND_JAR" "backend/${{ matrix.service }}/target/"
 
       - name: Download frontend app
         if: contains(matrix.service, '-app')
@@ -173,17 +243,17 @@ jobs:
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
@@ -268,17 +338,17 @@ jobs:
               ;;
             customer-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
               echo "context=./frontend" >> $GITHUB_OUTPUT
-              echo "file=apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
           esac
