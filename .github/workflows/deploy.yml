@@ -16,7 +16,6 @@ on:
 env:
   DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
   SERVER_IP: ${{ secrets.SERVER_IP }}
-  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
 jobs:
   quick-validation:
@@ -60,13 +59,22 @@ jobs:
 
       - name: Configure SSH
         run: |
+          if [ -z "${{ env.DEPLOY_USER }}" ] || \
+             [ -z "${{ env.SERVER_IP }}" ] || \
+             [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "SKIP_DEPLOY=true" >> $GITHUB_ENV
+            echo "SKIP_REASON=Missing required secrets (DEPLOY_USER, SERVER_IP, or SSH_PRIVATE_KEY)"
+            echo "::notice::Deploy step skipped — required secrets are not configured."
+            exit 0
+          fi
           mkdir -p ~/.ssh
-          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH configured"
+          echo "SSH configured for ${{ env.DEPLOY_USER }}@${{ env.SERVER_IP }}"
 
       - name: Show deployment context
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           echo "═══════════════════════════════════════════════════"
           echo "           DEPLOYMENT CONTEXT"
@@ -79,6 +87,7 @@ jobs:
           echo "═══════════════════════════════════════════════════"
 
       - name: Execute deployment on server
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           cat > /tmp/deploy.sh << 'SCRIPT_EOF'
           #!/usr/bin/env bash
@@ -329,6 +338,7 @@ jobs:
             "bash /tmp/deploy.sh '${DEPLOY_USER}' '${SERVER_IP}' '${REF_NAME}' '${SHA}'"
 
       - name: Final health check from GitHub Actions
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           echo ""
           echo "═══ Final health check ═══"
@@ -341,7 +351,26 @@ jobs:
             echo "     Logs: cd /opt/flashsale && docker compose logs --tail=50"
           fi
 
+      - name: Deployment skipped
+        if: env.SKIP_DEPLOY == 'true'
+        run: |
+          echo "──────────────────────────────────────────────"
+          echo "  DEPLOY SKIPPED"
+          echo "  Reason: ${{ env.SKIP_REASON }}"
+          echo "────────────────────────────────────────────--"
+          echo ""
+          echo "To enable deployment, add these secrets in"
+          echo "GitHub → Settings → Secrets and variables → Actions:"
+          echo ""
+          echo "  DEPLOY_USER       (e.g. root, ubuntu)"
+          echo "  SERVER_IP         (e.g. 1.2.3.4)"
+          echo "  SSH_PRIVATE_KEY   (Paste your private key)"
+          echo ""
+          echo "Once configured, re-run this workflow."
+          echo ""
+
       - name: Deployment summary
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           echo ""
           echo "══════════════════════════════════════════════════════════"
