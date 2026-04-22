@@ -20,7 +20,6 @@ on:
       SSH_PRIVATE_KEY:
         required: false
 
-
 env:
   DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
   SERVER_IP: ${{ secrets.SERVER_IP }}
@@ -65,51 +64,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure SSH
+      - name: Install SSH key
         env:
           _USER: ${{ secrets.DEPLOY_USER }}
           _IP: ${{ secrets.SERVER_IP }}
           _KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          echo "DEBUG: DEPLOY_USER length = ${#_USER}"
-          echo "DEBUG: SERVER_IP length = ${#_IP}"
-          echo "DEBUG: SSH_KEY length = ${#_KEY}"
-          echo "DEBUG: github.event_name = ${{ github.event_name }}"
-          echo "DEBUG: github.ref = ${{ github.ref }}"
-
           if [ -z "$_USER" ] || [ -z "$_IP" ] || [ -z "$_KEY" ]; then
-            MISSING=""
-            [ -z "$_USER" ]  && MISSING="${MISSING} DEPLOY_USER"
-            [ -z "$_IP" ]    && MISSING="${MISSING} SERVER_IP"
-            [ -z "$_KEY" ]   && MISSING="${MISSING} SSH_PRIVATE_KEY"
             echo "SKIP_DEPLOY=true" >> $GITHUB_ENV
-            echo "SKIP_REASON=Missing secrets:${MISSING}" >> $GITHUB_ENV
-            echo "::notice::Deploy skipped — missing:${MISSING}"
+            echo "SKIP_REASON=Missing secrets (DEPLOY_USER, SERVER_IP, or SSH_PRIVATE_KEY)" >> $GITHUB_ENV
             exit 0
           fi
           mkdir -p ~/.ssh
           echo "$_KEY" > ~/.ssh/id_rsa
+          sed -i 's/\r$//' ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "$_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "SSH configured for ${_USER}@${_IP}"
 
-      - name: Show deployment context
-        if: env.SKIP_DEPLOY != 'true'
-        env:
-          _USER: ${{ secrets.DEPLOY_USER }}
-          _IP: ${{ secrets.SERVER_IP }}
-        run: |
-          echo "═══════════════════════════════════════════════════"
-          echo "           DEPLOYMENT CONTEXT"
-          echo "═══════════════════════════════════════════════════"
-          echo "Server:      ${_IP}"
-          echo "SSH User:    ${_USER}"
-          echo "Branch:      ${{ github.ref_name }}"
-          echo "Commit SHA:  ${{ github.sha }}"
-          echo "Triggered:   ${{ github.event_name }}"
-          echo "═══════════════════════════════════════════════════"
-
-      - name: Execute deployment on server
+      - name: Deploy to server
         if: env.SKIP_DEPLOY != 'true'
         env:
           _USER: ${{ secrets.DEPLOY_USER }}
@@ -118,28 +90,31 @@ jobs:
           _SHA: ${{ github.sha }}
         run: |
           SERVER="${_USER}@${_IP}"
+          echo "═══════════════════════════════════════════════════"
+          echo "  Deploying to ${SERVER}"
+          echo "  Branch: ${_REF}"
+          echo "  Commit: ${_SHA}"
+          echo "═══════════════════════════════════════════════════"
 
-          cat > /tmp/deploy.sh << 'SCRIPT_EOF'
+          cat > /tmp/deploy.sh << 'DEPLOY_EOF'
           #!/usr/bin/env bash
           set -euo pipefail
-
+          
           RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-          BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
-
-          log()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
-          ok()   { echo -e "${GREEN}[OK]${NC}   $*"; }
-          warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
-          die()  { echo -e "${RED}[ERR]${NC}  $*" >&2; exit 1; }
-
+          BLUE='\033[0;34m'; NC='\033[0m'
+          
+          log_info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
+          log_ok()   { echo -e "${GREEN}[OK]${NC}   $*"; }
+          log_warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+          log_err()  { echo -e "${RED}[ERR]${NC}  $*" >&2; exit 1; }
+          
           DEPLOY_USER="$1"; SERVER_IP="$2"; REF_NAME="$3"; SHA="$4"
           SERVER="${DEPLOY_USER}@${SERVER_IP}"
           PROJECT_DIR="/opt/flashsale"
-          BACKEND_DIR="${PROJECT_DIR}/backend"
-          FRONTEND_DIR="${PROJECT_DIR}/frontend"
 
-          log "Connecting to ${SERVER}"
+          log_info "Connecting to ${SERVER}"
 
-          # ── 1. Locate project directory ────────────────────────────────────
+          # Step 1: Locate project directory
           LOCATE=$(ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no "${SERVER}" '
             if [ -d "'"${PROJECT_DIR}"'/.git" ]; then
               echo "'"${PROJECT_DIR}"'"
@@ -149,11 +124,11 @@ jobs:
               echo "NOT_FOUND"
             fi
           ')
-          [ "$LOCATE" = "NOT_FOUND" ] && die "Git repo not found on server at ${PROJECT_DIR}"
-          ok "Project directory: ${LOCATE}"
+          [ "$LOCATE" = "NOT_FOUND" ] && log_err "Git repo not found on server at ${PROJECT_DIR}"
+          log_ok "Project directory: ${LOCATE}"
 
-          # ── 2. Fetch & hard-reset to target ref ───────────────────────────
-          log "Pulling latest code (${REF_NAME})..."
+          # Step 2: Git pull
+          log_info "Pulling latest code (${REF_NAME})..."
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             set -e
             cd '${LOCATE}'
@@ -161,185 +136,117 @@ jobs:
             git checkout '${REF_NAME}' --quiet
             git reset --hard '${SHA}'
             git clean -fdx -e .env
-            ok 'Code updated to ${SHA}'
           "
-          ok "Code synchronized to ${REF_NAME} / ${SHA}"
+          log_ok "Code updated to ${SHA}"
 
-          # ── 3. Ensure .env exists ─────────────────────────────────────────
+          # Step 3: Ensure .env exists
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             if [ ! -f '${LOCATE}/.env' ]; then
               if [ -f '${LOCATE}/.env.example' ]; then
                 cp '${LOCATE}/.env.example' '${LOCATE}/.env'
-                echo 'Created .env from .env.example — review and update values before next deploy!'
+                log_warn 'Created .env from .env.example — update values before next deploy!'
               fi
             fi
           "
-          log ".env verified"
+          log_ok ".env verified"
 
-          # ── 4. Stop & remove ALL existing containers ─────────────────────
-          log "Stopping and removing all existing containers..."
+          # Step 4: Stop old services
+          log_info "Stopping current services..."
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             set -e
             cd '${LOCATE}'
-
-            # Stop everything gracefully first
             docker compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
-
-            # Force-kill any stray containers (safety net)
-            for c in \
-              fs-postgres fs-mongo fs-redis fs-elasticsearch fs-minio \
-              fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
-              fs-discovery fs-gateway fs-identity fs-payment fs-order \
-              fs-product fs-flashsale fs-search fs-notification fs-worker \
-              fs-customer-fe fs-seller-fe fs-admin-fe; do
-              docker stop \"\$c\" 2>/dev/null && docker rm \"\$c\" 2>/dev/null && echo \"Removed \$c\" || true
+            for c in fs-postgres fs-mongo fs-redis fs-elasticsearch fs-minio \
+                      fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
+                      fs-discovery fs-gateway fs-identity fs-payment fs-order \
+                      fs-product fs-flashsale fs-search fs-notification fs-worker \
+                      fs-customer-fe fs-seller-fe fs-admin-fe; do
+              docker stop \"\$c\" 2>/dev/null && docker rm \"\$c\" 2>/dev/null || true
             done
-
-            # Prune dangling images/volumes to free space
             docker image prune -f >/dev/null 2>&1 || true
-            docker volume prune -f >/dev/null 2>&1 || true
           "
-          ok "All containers stopped and removed"
+          log_ok "Old services stopped"
 
-          # ── 5. Build backend JARs with Maven ───────────────────────────────
-          log "Building backend with Maven (mvn package -DskipTests)..."
+          # Step 5: Build backend
+          log_info "Building backend with Maven..."
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             set -e
-            cd '${BACKEND_DIR}'
+            cd '${LOCATE}/backend'
             mvn clean package -DskipTests -q
           "
-          ok "Backend JARs built"
+          log_ok "Backend JARs built"
 
-          # ── 6. Build Docker images (backend) ─────────────────────────────
-          log "Building backend Docker images..."
+          # Step 6: Build backend Docker images
+          log_info "Building backend Docker images..."
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             set -e
             cd '${LOCATE}'
-
-            BACKEND_SERVICES=(
-              discovery-service
-              api-gateway
-              identity-service
-              product-service
-              order-service
-              payment-service
-              flashsale-service
-              search-service
-              notification-service
-              worker-service
-            )
-
-            for svc in \"\${BACKEND_SERVICES[@]}\"; do
-              svc_dir=\"${BACKEND_DIR}/\${svc}\"
-              if [ ! -d \"\$svc_dir\" ]; then
-                warn \"Skipping \$svc — directory not found\"
-                continue
-              fi
+            for svc in discovery-service api-gateway identity-service product-service \
+                       order-service payment-service flashsale-service \
+                       search-service notification-service worker-service; do
+              svc_dir=\"backend/\${svc}\"
               if [ ! -f \"\${svc_dir}/Dockerfile.prod\" ]; then
-                warn \"Skipping \$svc — no Dockerfile.prod\"
+                log_warn \"Skipping \${svc} — no Dockerfile.prod\"
                 continue
               fi
               if [ ! -d \"\${svc_dir}/target\" ]; then
-                die \"\$svc target/ not found — Maven build may have failed\"
+                log_err \"\${svc} target/ not found — Maven build failed\"
               fi
               echo \"Building flashsale-\${svc}:latest\"
-              docker build \
-                --platform linux/amd64 \
+              docker build --platform linux/amd64 \
                 -t flashsale-\${svc}:latest \
                 -f \"\${svc_dir}/Dockerfile.prod\" \
-                \"${BACKEND_DIR}\"
-              ok \"flashsale-\${svc}:latest built\"
+                \"backend\"
+              log_ok \"flashsale-\${svc}:latest built\"
             done
           "
-          ok "All backend images built"
+          log_ok "All backend images built"
 
-          # ── 7. Build Docker images (frontend) ─────────────────────────────
-          log "Building frontend Docker images..."
+          # Step 7: Build frontend Docker images
+          log_info "Building frontend Docker images..."
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             set -e
             cd '${LOCATE}'
-
             for app in customer seller admin; do
-              dockerfile=\"${FRONTEND_DIR}/apps/\${app}/Dockerfile.prod\"
+              dockerfile=\"frontend/apps/\${app}/Dockerfile.prod\"
               if [ ! -f \"\$dockerfile\" ]; then
-                warn \"Skipping \${app} — no Dockerfile.prod\"
+                log_warn \"Skipping \${app} — no Dockerfile.prod\"
                 continue
               fi
               echo \"Building flashsale-\${app}-app:latest\"
-              docker build \
-                --platform linux/amd64 \
+              docker build --platform linux/amd64 \
                 -t flashsale-\${app}-app:latest \
                 -f \"\$dockerfile\" \
-                \"${FRONTEND_DIR}\"
-              ok \"flashsale-\${app}-app:latest built\"
+                \"frontend\"
+              log_ok \"flashsale-\${app}-app:latest built\"
             done
           "
-          ok "All frontend images built"
+          log_ok "All frontend images built"
 
-          # ── 8. Start all services ────────────────────────────────────────
-          log "Starting all services..."
+          # Step 8: Start services
+          log_info "Starting services..."
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             set -e
             cd '${LOCATE}'
-            # Use both compose files: base + backend override (no rebuild, use pre-built images)
-            docker compose \
-              -f docker-compose.yml \
-              -f docker-compose-backend.yml \
-              up -d
+            docker compose -f docker-compose.yml -f docker-compose-backend.yml up -d
           "
-          ok "All services started"
+          log_ok "Services started"
 
-          # ── 9. Health checks ─────────────────────────────────────────────
-          log "Waiting for services to be ready (60s)..."
+          # Step 9: Health check
+          log_info "Waiting for services to stabilize (60s)..."
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             set -e
             sleep 60
-
-            echo '── Running containers ──'
-            docker compose -f '${LOCATE}/docker-compose.yml' ps 2>/dev/null \
-              || docker compose -f '${LOCATE}/docker-compose.yml' ps
-
+            echo 'Running containers:'
+            docker compose -f '${LOCATE}/docker-compose.yml' ps
             echo ''
-            echo '── Health checks ──'
-
-            # API Gateway
-            if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
-              echo '[OK]  API Gateway  (8080)'
-            else
-              echo '[!!] API Gateway  (8080) — not ready'
-            fi
-
-            # Eureka
-            if curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1; then
-              echo '[OK]  Eureka       (8761)'
-            else
-              echo '[!!] Eureka       (8761) — not ready'
-            fi
-
-            # Postgres
-            if docker exec fs-postgres pg_isready -U \${POSTGRES_USER:-flashsale} > /dev/null 2>&1; then
-              echo '[OK]  Postgres     (5432)'
-            else
-              echo '[!!] Postgres     (5432) — not ready'
-            fi
-
-            # Redis
-            if docker exec fs-redis redis-cli -a \${REDIS_PASSWORD:-} ping 2>/dev/null | grep -q PONG; then
-              echo '[OK]  Redis       (6379)'
-            else
-              echo '[!!] Redis       (6379) — not ready'
-            fi
-
-            # Kafka
-            if docker exec fs-kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1; then
-              echo '[OK]  Kafka       (9092)'
-            else
-              echo '[!!] Kafka       (9092) — not ready'
-            fi
+            echo 'Health checks:'
+            curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
+            curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1 && echo '[OK] Eureka' || echo '[!!] Eureka not ready'
           "
-          ok "Health check complete"
+          log_ok "Health check complete"
 
-          # ── 10. Final summary ─────────────────────────────────────────────
+          # Step 10: Summary
           ssh -o StrictHostKeyChecking=no "${SERVER}" "
             echo ''
             echo '╔══════════════════════════════════════════════════════════╗'
@@ -357,17 +264,21 @@ jobs:
             echo '║  Swagger:      http://'"${SERVER_IP}"':8080/swagger-ui.html'
             echo '╚══════════════════════════════════════════════════════════╝'
           "
-          ok "Deployment complete!"
+          log_ok "Deployment complete!"
 
-          SCRIPT_EOF
+          DEPLOY_EOF
 
           chmod +x /tmp/deploy.sh
 
-          scp -o ConnectTimeout=15 -o StrictHostKeyChecking=no /tmp/deploy.sh "${SERVER}:/tmp/deploy.sh"
-          ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no "${SERVER}" \
-            "bash /tmp/deploy.sh '${_USER}' '${_IP}' '${_REF}' '${_SHA}'"
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=10 \
+            /tmp/deploy.sh "${SERVER}:/tmp/deploy.sh"
 
-      - name: Final health check from GitHub Actions
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=10 \
+            "${SERVER}" "bash /tmp/deploy.sh '${_USER}' '${_IP}' '${_REF}' '${_SHA}'"
+
+      - name: Final health check
         if: env.SKIP_DEPLOY != 'true'
         env:
           _IP: ${{ secrets.SERVER_IP }}
@@ -414,7 +325,6 @@ jobs:
           echo "  Server:    ${_IP}"
           echo "  Branch:    ${{ github.ref_name }}"
           echo "  Commit:    ${{ github.sha }}"
-          echo "  Event:     ${{ github.event_name }}"
           echo ""
           echo "  Services:"
           echo "    API Gateway  http://${_IP}:8080"
