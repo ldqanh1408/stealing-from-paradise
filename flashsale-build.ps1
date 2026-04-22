@@ -249,19 +249,18 @@ function Resolve-Targets {
 
     $targets = @()
 
-    if ($All -or (-not $Infra -and -not $Backend -and -not $Frontend)) {
-        # Everything
+    if ($All) {
         $targets += @{ Name='infra';    Files=$InfraComposeFiles;   Dir=$ProjectRoot;       Block='none' }
         $targets += @{ Name='backend';  Files=$BackendComposeFiles; Dir=$ProjectRoot;       Block='maven' }
         $targets += @{ Name='frontend'; Files=$FrontendComposeFiles; Dir=$FrontendComposeDir; Block='npm' }
     } else {
-        if ($All -or $Infra) {
+        if ($Infra) {
             $targets += @{ Name='infra';    Files=$InfraComposeFiles;   Dir=$ProjectRoot;       Block='none' }
         }
-        if ($All -or $Backend) {
+        if ($Backend) {
             $targets += @{ Name='backend';  Files=$BackendComposeFiles; Dir=$ProjectRoot;       Block='maven' }
         }
-        if ($All -or $Frontend) {
+        if ($Frontend) {
             $targets += @{ Name='frontend'; Files=$FrontendComposeFiles; Dir=$FrontendComposeDir; Block='npm' }
         }
     }
@@ -406,7 +405,9 @@ function Invoke-Down {
     $targets = Resolve-Targets
 
     # Stop in reverse order: frontend -> backend -> infra
-    [array]::Reverse($targets)
+    if ($targets.Count -gt 1) {
+        [array]::Reverse($targets)
+    }
 
     foreach ($t in $targets) {
         Stop-Target -Files $t.Files -WorkingDir $t.Dir -Name $t.Name
