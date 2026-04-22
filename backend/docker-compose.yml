@@ -198,8 +198,8 @@ services:
 
   discovery-service:
     build:
-      context: ./discovery-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/discovery-service/Dockerfile.dev
     container_name: fs-discovery
     restart: unless-stopped
     ports: ["${PORT_DISCOVERY:-8761}:8761"]
@@ -214,8 +214,8 @@ services:
 
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/api-gateway/Dockerfile.dev
     container_name: fs-gateway
     restart: unless-stopped
     ports: ["${PORT_GATEWAY:-8080}:8080"]
@@ -239,8 +239,8 @@ services:
 
   identity-service:
     build:
-      context: ./identity-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/identity-service/Dockerfile.dev
     container_name: fs-identity
     restart: unless-stopped
     ports: ["${PORT_IDENTITY:-8081}:8081"]
@@ -264,8 +264,8 @@ services:
 
   payment-service:
     build:
-      context: ./payment-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/payment-service/Dockerfile.dev
     container_name: fs-payment
     restart: unless-stopped
     ports: ["${PORT_PAYMENT:-8082}:8082"]
@@ -292,8 +292,8 @@ services:
 
   order-service:
     build:
-      context: ./order-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/order-service/Dockerfile.dev
     container_name: fs-order
     restart: unless-stopped
     ports: ["${PORT_ORDER:-8083}:8083"]
@@ -317,8 +317,8 @@ services:
 
   flashsale-service:
     build:
-      context: ./flashsale-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/flashsale-service/Dockerfile.dev
     container_name: fs-flashsale
     restart: unless-stopped
     ports: ["${PORT_FLASHSALE:-8085}:8085"]
@@ -345,8 +345,8 @@ services:
 
   product-service:
     build:
-      context: ./product-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/product-service/Dockerfile.dev
     container_name: fs-product
     restart: unless-stopped
     ports: ["${PORT_PRODUCT:-8090}:8090"]
@@ -376,8 +376,8 @@ services:
 
   search-service:
     build:
-      context: ./search-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/search-service/Dockerfile.dev
     container_name: fs-search
     restart: unless-stopped
     ports: ["${PORT_SEARCH:-8091}:8091"]
@@ -396,8 +396,8 @@ services:
 
   notification-service:
     build:
-      context: ./notification-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/notification-service/Dockerfile.dev
     container_name: fs-notification
     restart: unless-stopped
     ports: ["${PORT_NOTIFICATION:-8092}:8092"]
@@ -422,8 +422,8 @@ services:
 
   worker-service:
     build:
-      context: ./worker-service
-      dockerfile: Dockerfile.dev
+      context: ../.
+      dockerfile: backend/worker-service/Dockerfile.dev
     container_name: fs-worker
     restart: unless-stopped
     ports: ["${PORT_WORKER:-8086}:8086"]
