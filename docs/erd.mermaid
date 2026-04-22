@@ -1,451 +1,451 @@
----
-config:
-  layout: elk
----
-erDiagram
-	direction TB
+    ---
+    config:
+    layout: elk
+    ---
+    erDiagram
+        direction TB
 
-    USERS {
-        BIGSERIAL id "PK, ID định danh tự tăng"
-        VARCHAR username "Unique, tên đăng nhập"
-        VARCHAR email "Unique, email xác thực"
-        VARCHAR phone "Unique, số điện thoại"
-        VARCHAR password "Mật khẩu đã Bcrypt"
-        VARCHAR full_name "Tên hiển thị"
-        VARCHAR avatar_url "URL ảnh đại diện (MinIO)"
-        VARCHAR status "ACTIVE | LOCKED"
-        INT trust_score "Điểm tín nhiệm (0-100, mặc định 80)"
-        TIMESTAMP locked_until "NULL = khóa vĩnh viễn; có giá trị = tự mở sau thời điểm này [MỚI]"
-        VARCHAR lock_reason "Lý do khóa, hiển thị khi user cố đăng nhập [MỚI]"
-        INT appeal_count "Số lần appeal trust_score trong năm (max 3) [MỚI]"
-        BOOLEAN product_posting_suspended "TRUE = Seller bị tạm dừng đăng sản phẩm [MỚI]"
-        TIMESTAMP last_cancellation_penalty_at "Thời điểm trừ điểm hủy đơn gần nhất (tránh double-penalize) [MỚI]"
-        TIMESTAMP last_warning_at "Thời điểm gửi trust_score.warning gần nhất (debounce 24h) [GAP-PATCH]"
-        TIMESTAMP last_posting_suspension_at "Mốc thời gian bị cấm đăng bài gần nhất — chỉ đếm vi phạm SAU mốc này để tránh vòng lặp phạt vô tận [GAP-PATCH R2]"
-        INT reward_10_orders_accumulated "Tổng điểm đã cộng từ event EVERY_10_ORDERS — KHÔNG reset, dùng để kiểm tra cap +20 trọn đời thay vì SUM TRUST_SCORE_LOGS (tránh lỗi sau khi JOB-11 xóa log cũ) [GAP-PATCH R3]"
-        INT version "Optimistic Locking"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        USERS {
+            BIGSERIAL id "PK, ID định danh tự tăng"
+            VARCHAR username "Unique, tên đăng nhập"
+            VARCHAR email "Unique, email xác thực"
+            VARCHAR phone "Unique, số điện thoại"
+            VARCHAR password "Mật khẩu đã Bcrypt"
+            VARCHAR full_name "Tên hiển thị"
+            VARCHAR avatar_url "URL ảnh đại diện (MinIO)"
+            VARCHAR status "ACTIVE | LOCKED"
+            INT trust_score "Điểm tín nhiệm (0-100, mặc định 80)"
+            TIMESTAMP locked_until "NULL = khóa vĩnh viễn; có giá trị = tự mở sau thời điểm này [MỚI]"
+            VARCHAR lock_reason "Lý do khóa, hiển thị khi user cố đăng nhập [MỚI]"
+            INT appeal_count "Số lần appeal trust_score trong năm (max 3) [MỚI]"
+            BOOLEAN product_posting_suspended "TRUE = Seller bị tạm dừng đăng sản phẩm [MỚI]"
+            TIMESTAMP last_cancellation_penalty_at "Thời điểm trừ điểm hủy đơn gần nhất (tránh double-penalize) [MỚI]"
+            TIMESTAMP last_warning_at "Thời điểm gửi trust_score.warning gần nhất (debounce 24h) [GAP-PATCH]"
+            TIMESTAMP last_posting_suspension_at "Mốc thời gian bị cấm đăng bài gần nhất — chỉ đếm vi phạm SAU mốc này để tránh vòng lặp phạt vô tận [GAP-PATCH R2]"
+            INT reward_10_orders_accumulated "Tổng điểm đã cộng từ event EVERY_10_ORDERS — KHÔNG reset, dùng để kiểm tra cap +20 trọn đời thay vì SUM TRUST_SCORE_LOGS (tránh lỗi sau khi JOB-11 xóa log cũ) [GAP-PATCH R3]"
+            INT version "Optimistic Locking"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    ROLES {
-        BIGSERIAL id "PK, ID bản ghi"
-        BIGINT user_id "FK -> USERS.id, Người dùng"
-        VARCHAR role_name "BUYER | SELLER | ADMIN"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        ROLES {
+            BIGSERIAL id "PK, ID bản ghi"
+            BIGINT user_id "FK -> USERS.id, Người dùng"
+            VARCHAR role_name "BUYER | SELLER | ADMIN"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    ADDRESSES {
-        BIGSERIAL id "PK, ID địa chỉ"
-        BIGINT user_id "FK -> USERS.id, Chủ sở hữu"
-        INT province_id "Mã Tỉnh/Thành phố"
-        INT district_id "Mã Quận/Huyện"
-        TEXT full_address "Địa chỉ chi tiết"
-        BOOLEAN is_default "Cờ mặc định cho Fast Checkout"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        ADDRESSES {
+            BIGSERIAL id "PK, ID địa chỉ"
+            BIGINT user_id "FK -> USERS.id, Chủ sở hữu"
+            INT province_id "Mã Tỉnh/Thành phố"
+            INT district_id "Mã Quận/Huyện"
+            TEXT full_address "Địa chỉ chi tiết"
+            BOOLEAN is_default "Cờ mặc định cho Fast Checkout"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    TRUST_SCORE_LOGS {
-        BIGSERIAL id "PK, ID log"
-        BIGINT user_id "FK -> USERS.id, Người dùng liên quan"
-        INT delta "Mức thay đổi điểm (+/-)"
-        VARCHAR event_code "FK -> TRUST_SCORE_EVENTS_CONFIG.event_code [MỚI]"
-        VARCHAR reason "Lý do thay đổi (override hoặc Admin note)"
-        VARCHAR changed_by "ADMIN | SYSTEM"
-        TIMESTAMP created_at "Thời gian thay đổi"
-    }
+        TRUST_SCORE_LOGS {
+            BIGSERIAL id "PK, ID log"
+            BIGINT user_id "FK -> USERS.id, Người dùng liên quan"
+            INT delta "Mức thay đổi điểm (+/-)"
+            VARCHAR event_code "FK -> TRUST_SCORE_EVENTS_CONFIG.event_code [MỚI]"
+            VARCHAR reason "Lý do thay đổi (override hoặc Admin note)"
+            VARCHAR changed_by "ADMIN | SYSTEM"
+            TIMESTAMP created_at "Thời gian thay đổi"
+        }
 
-    TRUST_SCORE_EVENTS_CONFIG {
-        BIGSERIAL id "PK, ID cấu hình [MỚI]"
-        VARCHAR event_code "Unique, mã sự kiện (VD: PRODUCT_REJECTED_FIRST) [MỚI]"
-        INT delta "Dương = cộng, âm = trừ [MỚI]"
-        TEXT description "Mô tả sự kiện [MỚI]"
-        BOOLEAN is_active "Cờ bật/tắt sự kiện (default TRUE) [MỚI]"
-        TIMESTAMP updated_at "Cập nhật cuối [MỚI]"
-    }
+        TRUST_SCORE_EVENTS_CONFIG {
+            BIGSERIAL id "PK, ID cấu hình [MỚI]"
+            VARCHAR event_code "Unique, mã sự kiện (VD: PRODUCT_REJECTED_FIRST) [MỚI]"
+            INT delta "Dương = cộng, âm = trừ [MỚI]"
+            TEXT description "Mô tả sự kiện [MỚI]"
+            BOOLEAN is_active "Cờ bật/tắt sự kiện (default TRUE) [MỚI]"
+            TIMESTAMP updated_at "Cập nhật cuối [MỚI]"
+        }
 
-    USER_BAN_HISTORY {
-        BIGSERIAL id "PK, ID lịch sử khóa [MỚI]"
-        BIGINT user_id "FK -> USERS.id, Tài khoản bị tác động [MỚI]"
-        VARCHAR action "LOCKED | UNLOCKED [MỚI]"
-        TEXT reason "Lý do khóa/mở khóa [MỚI]"
-        VARCHAR performed_by "ADMIN | SYSTEM [MỚI]"
-        BIGINT admin_id "FK -> USERS.id, NULL nếu SYSTEM [MỚI]"
-        TIMESTAMP locked_until "NULL = vĩnh viễn; có giá trị = khóa tạm thời [MỚI]"
-        TIMESTAMP created_at "Thời điểm thực hiện [MỚI]"
-    }
+        USER_BAN_HISTORY {
+            BIGSERIAL id "PK, ID lịch sử khóa [MỚI]"
+            BIGINT user_id "FK -> USERS.id, Tài khoản bị tác động [MỚI]"
+            VARCHAR action "LOCKED | UNLOCKED [MỚI]"
+            TEXT reason "Lý do khóa/mở khóa [MỚI]"
+            VARCHAR performed_by "ADMIN | SYSTEM [MỚI]"
+            BIGINT admin_id "FK -> USERS.id, NULL nếu SYSTEM [MỚI]"
+            TIMESTAMP locked_until "NULL = vĩnh viễn; có giá trị = khóa tạm thời [MỚI]"
+            TIMESTAMP created_at "Thời điểm thực hiện [MỚI]"
+        }
 
-    LOYALTY_ACCOUNTS {
-        BIGSERIAL id "PK, ID tài khoản điểm"
-        BIGINT user_id "FK -> USERS.id, UNIQUE, Chủ tài khoản (1-1 với User)"
-        INT total_earned_points "Tổng điểm tích lũy"
-        INT available_points "Điểm còn có thể sử dụng"
-        INT used_points "Tổng điểm đã dùng"
-        INT expired_points "Tổng điểm đã hết hạn"
-        INT version "Optimistic Locking"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        LOYALTY_ACCOUNTS {
+            BIGSERIAL id "PK, ID tài khoản điểm"
+            BIGINT user_id "FK -> USERS.id, UNIQUE, Chủ tài khoản (1-1 với User)"
+            INT total_earned_points "Tổng điểm tích lũy"
+            INT available_points "Điểm còn có thể sử dụng"
+            INT used_points "Tổng điểm đã dùng"
+            INT expired_points "Tổng điểm đã hết hạn"
+            INT version "Optimistic Locking"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    POINT_TRANSACTIONS {
-        BIGSERIAL id "PK, ID giao dịch điểm"
-        BIGINT user_id "FK -> USERS.id, Người dùng"
-        BIGINT order_id "FK -> ORDERS.id, Đơn hàng liên quan"
-        VARCHAR order_code "Mã đơn hàng hiển thị"
-        INT delta "Số điểm thay đổi: dương/cộng, âm/trừ"
-        INT remaining_delta "Số điểm còn lại của transaction này (=delta ban đầu, giảm khi dùng) [MỚI]"
-        VARCHAR type "EARNED | USED | EXPIRED | REFUNDED"
-        VARCHAR status "PENDING | CONFIRMED"
-        INT balance_after "Số điểm available_points sau giao dịch"
-        VARCHAR note "Ghi chú"
-        TIMESTAMP expires_at "Thời điểm hết hạn"
-        TIMESTAMP created_at "Thời gian giao dịch"
-    }
-    %% UNIQUE CONSTRAINT: (order_id, type) WHERE type = 'EARNED' — Chống double-credit khi Kafka retry [GAP-PATCH]
+        POINT_TRANSACTIONS {
+            BIGSERIAL id "PK, ID giao dịch điểm"
+            BIGINT user_id "FK -> USERS.id, Người dùng"
+            BIGINT order_id "FK -> ORDERS.id, Đơn hàng liên quan"
+            VARCHAR order_code "Mã đơn hàng hiển thị"
+            INT delta "Số điểm thay đổi: dương/cộng, âm/trừ"
+            INT remaining_delta "Số điểm còn lại của transaction này (=delta ban đầu, giảm khi dùng) [MỚI]"
+            VARCHAR type "EARNED | USED | EXPIRED | REFUNDED"
+            VARCHAR status "PENDING | CONFIRMED"
+            INT balance_after "Số điểm available_points sau giao dịch"
+            VARCHAR note "Ghi chú"
+            TIMESTAMP expires_at "Thời điểm hết hạn"
+            TIMESTAMP created_at "Thời gian giao dịch"
+        }
+        %% UNIQUE CONSTRAINT: (order_id, type) WHERE type = 'EARNED' — Chống double-credit khi Kafka retry [GAP-PATCH]
 
-    APPEALS {
-        BIGSERIAL id "PK, ID khiếu nại [GAP-PATCH]"
-        BIGINT user_id "FK -> USERS.id, Người nộp khiếu nại [GAP-PATCH]"
-        BIGINT trust_score_log_id "FK -> TRUST_SCORE_LOGS.id, Log bị khiếu nại [GAP-PATCH]"
-        TEXT reason "Lý do khiếu nại của User [GAP-PATCH]"
-        JSONB evidence_urls "Mảng URL bằng chứng (MinIO) — upload qua GET /support/trust-score-appeal/presigned-url [GAP-PATCH R1]"
-        VARCHAR status "PENDING | APPROVED | REJECTED [GAP-PATCH]"
-        BIGINT reviewed_by "FK -> USERS.id, Admin xử lý, nullable [GAP-PATCH]"
-        TEXT admin_note "Ghi chú của Admin khi duyệt/từ chối [GAP-PATCH]"
-        TIMESTAMP reviewed_at "Thời điểm Admin xử lý [GAP-PATCH]"
-        TIMESTAMP created_at "Thời điểm nộp khiếu nại [GAP-PATCH]"
-        TIMESTAMP updated_at "Cập nhật cuối [GAP-PATCH]"
-    }
+        APPEALS {
+            BIGSERIAL id "PK, ID khiếu nại [GAP-PATCH]"
+            BIGINT user_id "FK -> USERS.id, Người nộp khiếu nại [GAP-PATCH]"
+            BIGINT trust_score_log_id "FK -> TRUST_SCORE_LOGS.id, Log bị khiếu nại [GAP-PATCH]"
+            TEXT reason "Lý do khiếu nại của User [GAP-PATCH]"
+            JSONB evidence_urls "Mảng URL bằng chứng (MinIO) — upload qua GET /support/trust-score-appeal/presigned-url [GAP-PATCH R1]"
+            VARCHAR status "PENDING | APPROVED | REJECTED [GAP-PATCH]"
+            BIGINT reviewed_by "FK -> USERS.id, Admin xử lý, nullable [GAP-PATCH]"
+            TEXT admin_note "Ghi chú của Admin khi duyệt/từ chối [GAP-PATCH]"
+            TIMESTAMP reviewed_at "Thời điểm Admin xử lý [GAP-PATCH]"
+            TIMESTAMP created_at "Thời điểm nộp khiếu nại [GAP-PATCH]"
+            TIMESTAMP updated_at "Cập nhật cuối [GAP-PATCH]"
+        }
 
-    PARENT_ORDERS {
-        BIGSERIAL id "PK, ID đơn tổng"
-        BIGINT user_id "FK -> USERS.id, Người đặt đơn"
-        DECIMAL total_amt "Tổng tiền trước khuyến mãi"
-        DECIMAL loyalty_discount "Số tiền giảm từ điểm"
-        DECIMAL final_amt "Số tiền thực thu"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        PARENT_ORDERS {
+            BIGSERIAL id "PK, ID đơn tổng"
+            BIGINT user_id "FK -> USERS.id, Người đặt đơn"
+            DECIMAL total_amt "Tổng tiền trước khuyến mãi"
+            DECIMAL loyalty_discount "Số tiền giảm từ điểm"
+            DECIMAL final_amt "Số tiền thực thu"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    ORDERS {
-        BIGSERIAL id "PK, ID nội bộ đơn hàng"
-        BIGINT parent_order_id "FK -> PARENT_ORDERS.id, Thuộc đơn tổng nào"
-        BIGINT seller_id "FK -> USERS.id, ID người bán"
-        VARCHAR order_code "Unique, mã hiển thị"
-        BIGINT user_id "FK -> USERS.id, Người mua"
-        DECIMAL total_amt "Tổng tiền trước khuyến mãi"
-        DECIMAL final_amt "Số tiền thanh toán cuối"
-        VARCHAR status "PENDING | PAID | SHIPPING | DELIVERED | RETURNED | REFUNDED | PARTIALLY_REFUNDED | CANCELLED"
-        VARCHAR cancelled_by "BUYER | SELLER | SYSTEM — Phân biệt ai hủy đơn (dùng bởi JOB-18) [GAP-PATCH]"
-        TEXT cancel_reason "Lý do hủy đơn — lưu từ POST /orders/{id}/cancel request body [UNIFIED]"
-        BOOLEAN is_flash_sale "Đơn có phát sinh từ Flash Sale hay không"
-        JSONB shipping_address "Snapshot địa chỉ giao hàng"
-        VARCHAR tracking_number "Mã vận đơn"
-        TIMESTAMP shipping_deadline "Hạn chót Seller phải cập nhật mã vận đơn (mặc định = created_at + 3 ngày). JOB-13b dùng để phát hiện giao hàng trễ và trừ điểm SELLER_LATE_DELIVERY [GAP-PATCH R1]"
-        INT version "Optimistic Locking"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        ORDERS {
+            BIGSERIAL id "PK, ID nội bộ đơn hàng"
+            BIGINT parent_order_id "FK -> PARENT_ORDERS.id, Thuộc đơn tổng nào"
+            BIGINT seller_id "FK -> USERS.id, ID người bán"
+            VARCHAR order_code "Unique, mã hiển thị"
+            BIGINT user_id "FK -> USERS.id, Người mua"
+            DECIMAL total_amt "Tổng tiền trước khuyến mãi"
+            DECIMAL final_amt "Số tiền thanh toán cuối"
+            VARCHAR status "PENDING | PAID | SHIPPING | DELIVERED | RETURNED | REFUNDED | PARTIALLY_REFUNDED | CANCELLED"
+            VARCHAR cancelled_by "BUYER | SELLER | SYSTEM — Phân biệt ai hủy đơn (dùng bởi JOB-18) [GAP-PATCH]"
+            TEXT cancel_reason "Lý do hủy đơn — lưu từ POST /orders/{id}/cancel request body [UNIFIED]"
+            BOOLEAN is_flash_sale "Đơn có phát sinh từ Flash Sale hay không"
+            JSONB shipping_address "Snapshot địa chỉ giao hàng"
+            VARCHAR tracking_number "Mã vận đơn"
+            TIMESTAMP shipping_deadline "Hạn chót Seller phải cập nhật mã vận đơn (mặc định = created_at + 3 ngày). JOB-13b dùng để phát hiện giao hàng trễ và trừ điểm SELLER_LATE_DELIVERY [GAP-PATCH R1]"
+            INT version "Optimistic Locking"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    ORDER_ITEMS {
-        BIGSERIAL id "PK, ID chi tiết đơn"
-        BIGINT order_id "FK -> ORDERS.id, Thuộc đơn hàng nào"
-        VARCHAR sku_code "Mã SKU tại thời điểm mua"
-        VARCHAR variant_id "Mongo ObjectId của variant"
-        VARCHAR name_snapshot "Tên sản phẩm snapshot"
-        VARCHAR image_snapshot "Ảnh snapshot"
-        DECIMAL price_snapshot "Đơn giá snapshot"
-        INT quantity "Số lượng mua"
-        INT refunded_quantity "Số lượng đã hoàn"
-        BIGINT fs_item_id "FK -> FS_ITEMS.id, nullable"
-        TIMESTAMP created_at "Thời điểm tạo"
-    }
+        ORDER_ITEMS {
+            BIGSERIAL id "PK, ID chi tiết đơn"
+            BIGINT order_id "FK -> ORDERS.id, Thuộc đơn hàng nào"
+            VARCHAR sku_code "Mã SKU tại thời điểm mua"
+            VARCHAR variant_id "Mongo ObjectId của variant"
+            VARCHAR name_snapshot "Tên sản phẩm snapshot"
+            VARCHAR image_snapshot "Ảnh snapshot"
+            DECIMAL price_snapshot "Đơn giá snapshot"
+            INT quantity "Số lượng mua"
+            INT refunded_quantity "Số lượng đã hoàn"
+            BIGINT fs_item_id "FK -> FS_ITEMS.id, nullable"
+            TIMESTAMP created_at "Thời điểm tạo"
+        }
 
-    SELLER_STRIPE_ACCOUNTS {
-        BIGSERIAL id "PK, ID bản ghi"
-        BIGINT seller_id "FK -> USERS.id, UNIQUE, ID người bán"
-        VARCHAR stripe_account_id "acct_xxx — Stripe Express Account ID"
-        VARCHAR account_status "PENDING | ACTIVE | RESTRICTED | SUSPENDED"
-        BOOLEAN charges_enabled "Stripe cho phép nhận thanh toán"
-        BOOLEAN payouts_enabled "Stripe cho phép rút tiền"
-        BOOLEAN details_submitted "KYC đã hoàn tất"
-        TEXT onboarding_url "Account Link URL (nullify sau 24h bởi JOB-15)"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        SELLER_STRIPE_ACCOUNTS {
+            BIGSERIAL id "PK, ID bản ghi"
+            BIGINT seller_id "FK -> USERS.id, UNIQUE, ID người bán"
+            VARCHAR stripe_account_id "acct_xxx — Stripe Express Account ID"
+            VARCHAR account_status "PENDING | ACTIVE | RESTRICTED | SUSPENDED"
+            BOOLEAN charges_enabled "Stripe cho phép nhận thanh toán"
+            BOOLEAN payouts_enabled "Stripe cho phép rút tiền"
+            BOOLEAN details_submitted "KYC đã hoàn tất"
+            TEXT onboarding_url "Account Link URL (nullify sau 24h bởi JOB-15)"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    TRANSACTIONS {
-        BIGSERIAL id "PK, ID giao dịch"
-        BIGINT parent_order_id "FK -> PARENT_ORDERS.id, Mã đơn tổng"
-        DECIMAL amount "Số tiền giao dịch"
-        VARCHAR method "STRIPE | VNPAY"
-        VARCHAR trans_ref "PaymentIntent ID (pi_xxx)"
-        VARCHAR stripe_transfer_id "Transfer ID tr_xxx — CHỈ lưu transfer đầu tiên; dùng SELLER_TRANSFERS cho multi-vendor [GAP-PATCH R3]"
-        DECIMAL application_fee_amount "Phí sàn"
-        VARCHAR stripe_connect_mode "DESTINATION | TRANSFER | NONE"
-        VARCHAR status "SUCCESS | FAILED | REFUNDED | PARTIALLY_REFUNDED"
-        JSONB raw_response "Nguyên bản payload từ cổng thanh toán"
-        TIMESTAMP pay_at "Thời gian tiền về"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        TRANSACTIONS {
+            BIGSERIAL id "PK, ID giao dịch"
+            BIGINT parent_order_id "FK -> PARENT_ORDERS.id, Mã đơn tổng"
+            DECIMAL amount "Số tiền giao dịch"
+            VARCHAR method "STRIPE | VNPAY"
+            VARCHAR trans_ref "PaymentIntent ID (pi_xxx)"
+            VARCHAR stripe_transfer_id "Transfer ID tr_xxx — CHỈ lưu transfer đầu tiên; dùng SELLER_TRANSFERS cho multi-vendor [GAP-PATCH R3]"
+            DECIMAL application_fee_amount "Phí sàn"
+            VARCHAR stripe_connect_mode "DESTINATION | TRANSFER | NONE"
+            VARCHAR status "SUCCESS | FAILED | REFUNDED | PARTIALLY_REFUNDED"
+            JSONB raw_response "Nguyên bản payload từ cổng thanh toán"
+            TIMESTAMP pay_at "Thời gian tiền về"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    SELLER_TRANSFERS {
-        BIGSERIAL id "PK, ID transfer [GAP-PATCH R3]"
-        BIGINT order_id "FK -> ORDERS.id, Sub-order tương ứng với Seller này [GAP-PATCH R3]"
-        BIGINT seller_id "FK -> USERS.id, Seller nhận tiền [GAP-PATCH R3]"
-        DECIMAL transfer_amount "Số tiền transfer sang Seller (sau khi trừ phí sàn) [GAP-PATCH R3]"
-        VARCHAR stripe_transfer_id "Stripe Transfer ID tr_xxx — dùng để Reversal khi Partial Refund [GAP-PATCH R3]"
-        VARCHAR status "PENDING | SUCCESS | FAILED | REVERSED [GAP-PATCH R3]"
-        TIMESTAMP created_at "Thời điểm tạo [GAP-PATCH R3]"
-        TIMESTAMP updated_at "Cập nhật cuối [GAP-PATCH R3]"
-    }
-    %% [GAP-PATCH R3] SELLER_TRANSFERS giải quyết lỗ hổng Multi-Vendor Stripe Payout:
-    %% 1 PARENT_ORDER có N Seller → N Transfer riêng biệt. TRANSACTIONS.stripe_transfer_id
-    %% chỉ chứa được 1 ID → không biết refund Transfer nào khi Partial Refund cho Seller cụ thể.
+        SELLER_TRANSFERS {
+            BIGSERIAL id "PK, ID transfer [GAP-PATCH R3]"
+            BIGINT order_id "FK -> ORDERS.id, Sub-order tương ứng với Seller này [GAP-PATCH R3]"
+            BIGINT seller_id "FK -> USERS.id, Seller nhận tiền [GAP-PATCH R3]"
+            DECIMAL transfer_amount "Số tiền transfer sang Seller (sau khi trừ phí sàn) [GAP-PATCH R3]"
+            VARCHAR stripe_transfer_id "Stripe Transfer ID tr_xxx — dùng để Reversal khi Partial Refund [GAP-PATCH R3]"
+            VARCHAR status "PENDING | SUCCESS | FAILED | REVERSED [GAP-PATCH R3]"
+            TIMESTAMP created_at "Thời điểm tạo [GAP-PATCH R3]"
+            TIMESTAMP updated_at "Cập nhật cuối [GAP-PATCH R3]"
+        }
+        %% [GAP-PATCH R3] SELLER_TRANSFERS giải quyết lỗ hổng Multi-Vendor Stripe Payout:
+        %% 1 PARENT_ORDER có N Seller → N Transfer riêng biệt. TRANSACTIONS.stripe_transfer_id
+        %% chỉ chứa được 1 ID → không biết refund Transfer nào khi Partial Refund cho Seller cụ thể.
 
-    REFUNDS {
-        BIGSERIAL id "PK, ID phiếu hoàn tiền"
-        BIGINT transaction_id "FK -> TRANSACTIONS.id, Giao dịch gốc"
-        BIGINT order_id "FK -> ORDERS.id, Đơn hàng bị hoàn"
-        UUID group_ref "Nhóm nhiều refund trong một request"
-        VARCHAR type "FULL | PARTIAL"
-        VARCHAR initiated_by "BUYER | SELLER | SYSTEM — Ai khởi tạo refund [RTS]"
-        VARCHAR refund_reason_type "BUYER_REQUEST | RETURN_TO_SENDER | ADMIN_OVERRIDE — Phân loại lý do [RTS]"
-        DECIMAL amount "Số tiền hoàn lại"
-        VARCHAR reason "Lý do hoàn"
-        VARCHAR status "PENDING | SUCCESS | FAILED | REJECTED"
-        JSONB evidence_images "Mảng ảnh bằng chứng từ MinIO"
-        VARCHAR reject_reason "Lý do từ chối"
-        TEXT admin_note "Ghi chú admin"
-        DECIMAL adjust_amount "Số tiền admin điều chỉnh"
-        BIGINT reviewed_by "FK -> USERS.id, Admin xử lý"
-        TIMESTAMP reviewed_at "Thời điểm admin duyệt/từ chối"
-        VARCHAR refund_ref "Stripe refund ID (re_xxx)"
-        JSONB raw_response "Payload từ Stripe"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        REFUNDS {
+            BIGSERIAL id "PK, ID phiếu hoàn tiền"
+            BIGINT transaction_id "FK -> TRANSACTIONS.id, Giao dịch gốc"
+            BIGINT order_id "FK -> ORDERS.id, Đơn hàng bị hoàn"
+            UUID group_ref "Nhóm nhiều refund trong một request"
+            VARCHAR type "FULL | PARTIAL"
+            VARCHAR initiated_by "BUYER | SELLER | SYSTEM — Ai khởi tạo refund [RTS]"
+            VARCHAR refund_reason_type "BUYER_REQUEST | RETURN_TO_SENDER | ADMIN_OVERRIDE — Phân loại lý do [RTS]"
+            DECIMAL amount "Số tiền hoàn lại"
+            VARCHAR reason "Lý do hoàn"
+            VARCHAR status "PENDING | SUCCESS | FAILED | REJECTED"
+            JSONB evidence_images "Mảng ảnh bằng chứng từ MinIO"
+            VARCHAR reject_reason "Lý do từ chối"
+            TEXT admin_note "Ghi chú admin"
+            DECIMAL adjust_amount "Số tiền admin điều chỉnh"
+            BIGINT reviewed_by "FK -> USERS.id, Admin xử lý"
+            TIMESTAMP reviewed_at "Thời điểm admin duyệt/từ chối"
+            VARCHAR refund_ref "Stripe refund ID (re_xxx)"
+            JSONB raw_response "Payload từ Stripe"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    REFUND_ITEMS {
-        BIGSERIAL id "PK, ID chi tiết hoàn"
-        BIGINT refund_id "FK -> REFUNDS.id"
-        BIGINT item_id "FK -> ORDER_ITEMS.id"
-        INT quantity "Số lượng hoàn của item này"
-        DECIMAL refund_amount "Số tiền hoàn cho item"
-        VARCHAR item_reason "Lý do hoàn riêng cho item"
-        VARCHAR status "PENDING | SUCCESS | FAILED"
-        VARCHAR return_tracking_number "Mã vận đơn hoàn hàng (nếu có, từ luồng RTS) [RTS]"
-        JSONB return_evidence_images "Mảng URL ảnh gói hàng hoàn do Seller upload (MinIO) [RTS]"
-        TIMESTAMP returned_at "Thời điểm Seller xác nhận đã nhận lại hàng [RTS]"
-    }
-    %% [RTS] REFUND_ITEMS được bổ sung tracking để ghi nhận bằng chứng hàng hoàn từ Seller.
+        REFUND_ITEMS {
+            BIGSERIAL id "PK, ID chi tiết hoàn"
+            BIGINT refund_id "FK -> REFUNDS.id"
+            BIGINT item_id "FK -> ORDER_ITEMS.id"
+            INT quantity "Số lượng hoàn của item này"
+            DECIMAL refund_amount "Số tiền hoàn cho item"
+            VARCHAR item_reason "Lý do hoàn riêng cho item"
+            VARCHAR status "PENDING | SUCCESS | FAILED"
+            VARCHAR return_tracking_number "Mã vận đơn hoàn hàng (nếu có, từ luồng RTS) [RTS]"
+            JSONB return_evidence_images "Mảng URL ảnh gói hàng hoàn do Seller upload (MinIO) [RTS]"
+            TIMESTAMP returned_at "Thời điểm Seller xác nhận đã nhận lại hàng [RTS]"
+        }
+        %% [RTS] REFUND_ITEMS được bổ sung tracking để ghi nhận bằng chứng hàng hoàn từ Seller.
 
-    FS_SESSIONS {
-        BIGSERIAL id "PK, ID session"
-        VARCHAR name "Tên flash sale session"
-        TIMESTAMP start_time "Thời điểm bắt đầu"
-        TIMESTAMP end_time "Thời điểm kết thúc"
-        VARCHAR status "UPCOMING | ACTIVE | ENDED"
-        TIMESTAMP deleted_at "Soft delete"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        FS_SESSIONS {
+            BIGSERIAL id "PK, ID session"
+            VARCHAR name "Tên flash sale session"
+            TIMESTAMP start_time "Thời điểm bắt đầu"
+            TIMESTAMP end_time "Thời điểm kết thúc"
+            VARCHAR status "UPCOMING | ACTIVE | ENDED"
+            TIMESTAMP deleted_at "Soft delete"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    FS_ITEMS {
-        BIGSERIAL id "PK, ID item"
-        BIGINT session_id "FK -> FS_SESSIONS.id, Session chứa item"
-        VARCHAR sku_code "Mã SKU được áp dụng"
-        DECIMAL flash_price "Giá flash sale"
-        INT flash_stock "Tồn kho flash sale"
-        INT limit_per_user "Giới hạn mỗi user"
-        INT sold_qty "Số lượng đã bán"
-        VARCHAR status "PENDING | APPROVED | REJECTED | CANCELLED"
-        INT version "Optimistic Locking"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        FS_ITEMS {
+            BIGSERIAL id "PK, ID item"
+            BIGINT session_id "FK -> FS_SESSIONS.id, Session chứa item"
+            VARCHAR sku_code "Mã SKU được áp dụng"
+            DECIMAL flash_price "Giá flash sale"
+            INT flash_stock "Tồn kho flash sale"
+            INT limit_per_user "Giới hạn mỗi user"
+            INT sold_qty "Số lượng đã bán"
+            VARCHAR status "PENDING | APPROVED | REJECTED | CANCELLED"
+            INT version "Optimistic Locking"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    FS_REMINDERS {
-        BIGSERIAL id "PK, ID nhắc"
-        BIGINT user_id "FK -> USERS.id, Người đăng ký nhắc"
-        BIGINT session_id "FK -> FS_SESSIONS.id"
-        TIMESTAMP created_at "Thời điểm tạo"
-    }
+        FS_REMINDERS {
+            BIGSERIAL id "PK, ID nhắc"
+            BIGINT user_id "FK -> USERS.id, Người đăng ký nhắc"
+            BIGINT session_id "FK -> FS_SESSIONS.id"
+            TIMESTAMP created_at "Thời điểm tạo"
+        }
 
-    OUTBOX_EVENTS {
-        BIGSERIAL id "PK, ID event"
-        VARCHAR topic "Tên topic/event"
-        JSONB payload "Nội dung event"
-        VARCHAR status "PENDING | PROCESSED | FAILED"
-        INT retry_count "Số lần retry"
-        TIMESTAMP processed_at "Thời điểm xử lý"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        OUTBOX_EVENTS {
+            BIGSERIAL id "PK, ID event"
+            VARCHAR topic "Tên topic/event"
+            JSONB payload "Nội dung event"
+            VARCHAR status "PENDING | PROCESSED | FAILED"
+            INT retry_count "Số lần retry"
+            TIMESTAMP processed_at "Thời điểm xử lý"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    FAILED_EVENTS {
-        BIGSERIAL id "PK, ID lỗi"
-        VARCHAR topic_or_task "Tên topic hoặc task lỗi"
-        JSONB payload "Payload bị lỗi"
-        TEXT error_reason "Lý do lỗi"
-        INT retry_count "Số lần retry"
-        VARCHAR status "PENDING | DEAD | RESOLVED | MANUAL_INTERVENTION"
-        TIMESTAMP created_at "Thời điểm tạo"
-        TIMESTAMP updated_at "Cập nhật cuối"
-    }
+        FAILED_EVENTS {
+            BIGSERIAL id "PK, ID lỗi"
+            VARCHAR topic_or_task "Tên topic hoặc task lỗi"
+            JSONB payload "Payload bị lỗi"
+            TEXT error_reason "Lý do lỗi"
+            INT retry_count "Số lần retry"
+            VARCHAR status "PENDING | DEAD | RESOLVED | MANUAL_INTERVENTION"
+            TIMESTAMP created_at "Thời điểm tạo"
+            TIMESTAMP updated_at "Cập nhật cuối"
+        }
 
-    SHEDLOCK {
-        VARCHAR name "PK, tên lock"
-        TIMESTAMP lock_until "Thời điểm hết lock"
-        TIMESTAMP locked_at "Thời điểm bắt đầu lock"
-        VARCHAR locked_by "Node/thread đang giữ lock"
-    }
+        SHEDLOCK {
+            VARCHAR name "PK, tên lock"
+            TIMESTAMP lock_until "Thời điểm hết lock"
+            TIMESTAMP locked_at "Thời điểm bắt đầu lock"
+            VARCHAR locked_by "Node/thread đang giữ lock"
+        }
 
-    MG_CATEGORIES {
-        ObjectId _id "PK, ID danh mục"
-        String name "Tên danh mục"
-        String slug "Unique, slug thân thiện"
-        ObjectId parent_id "Danh mục cha"
-        Integer level "Cấp danh mục"
-        Date created_at "Thời điểm tạo"
-        Date updated_at "Cập nhật cuối"
-    }
+        MG_CATEGORIES {
+            ObjectId _id "PK, ID danh mục"
+            String name "Tên danh mục"
+            String slug "Unique, slug thân thiện"
+            ObjectId parent_id "Danh mục cha"
+            Integer level "Cấp danh mục"
+            Date created_at "Thời điểm tạo"
+            Date updated_at "Cập nhật cuối"
+        }
 
-    MG_PRODUCTS {
-        ObjectId _id "PK, ID sản phẩm"
-        Long seller_id "FK -> USERS.id, ID người bán"
-        ObjectId category_id "FK -> MG_CATEGORIES._id, ID danh mục"
-        String name "Tên sản phẩm"
-        String description "Mô tả sản phẩm"
-        Object attributes "Thuộc tính động"
-        Array images "Danh sách ảnh"
-        Boolean is_flash "Cờ có tham gia Flash Sale"
-        String status "PENDING | APPROVED | REJECTED"
-        String reject_reason "Lý do từ chối"
-        Integer stock_available "Tổng kho khả dụng"
-        Date deleted_at "Soft delete"
-        Date created_at "Thời điểm tạo"
-        Date updated_at "Cập nhật cuối"
-    }
+        MG_PRODUCTS {
+            ObjectId _id "PK, ID sản phẩm"
+            Long seller_id "FK -> USERS.id, ID người bán"
+            ObjectId category_id "FK -> MG_CATEGORIES._id, ID danh mục"
+            String name "Tên sản phẩm"
+            String description "Mô tả sản phẩm"
+            Object attributes "Thuộc tính động"
+            Array images "Danh sách ảnh"
+            Boolean is_flash "Cờ có tham gia Flash Sale"
+            String status "PENDING | APPROVED | REJECTED"
+            String reject_reason "Lý do từ chối"
+            Integer stock_available "Tổng kho khả dụng"
+            Date deleted_at "Soft delete"
+            Date created_at "Thời điểm tạo"
+            Date updated_at "Cập nhật cuối"
+        }
 
-    MG_PRODUCT_VARIANTS {
-        ObjectId _id "PK, ID variant"
-        ObjectId product_id "FK -> MG_PRODUCTS._id, Sản phẩm cha"
-        String sku_code "Unique, mã SKU"
-        String tier_name "Tên phân loại"
-        Decimal128 price "Giá bán"
-        Date created_at "Thời điểm tạo"
-        Date updated_at "Cập nhật cuối"
-    }
+        MG_PRODUCT_VARIANTS {
+            ObjectId _id "PK, ID variant"
+            ObjectId product_id "FK -> MG_PRODUCTS._id, Sản phẩm cha"
+            String sku_code "Unique, mã SKU"
+            String tier_name "Tên phân loại"
+            Decimal128 price "Giá bán"
+            Date created_at "Thời điểm tạo"
+            Date updated_at "Cập nhật cuối"
+        }
 
-    MG_INVENTORIES {
-        ObjectId _id "PK, ID inventory"
-        String sku_code "Unique, mã SKU"
-        ObjectId product_id "FK -> MG_PRODUCTS._id"
-        Integer stock_total "Tổng tồn kho"
-        Integer stock_locked "Số lượng đang giữ chỗ (đơn PENDING/PAID)"
-        Integer stock_available "Số lượng còn có thể bán"
-        Integer stock_flash_reserved "Số lượng đã khóa cho Flash Sale đã duyệt — bị trừ khỏi stock_available ngay khi Admin APPROVE FS_ITEM, hoàn trả phần chưa bán sau khi session ENDED [GAP-PATCH R2]"
-        Date updated_at "Cập nhật cuối"
-    }
-    %% NOTE [GAP-PATCH R3]: MG_INVENTORIES không có trường version. Mọi thao tác tăng/giảm stock BẮT BUỘC dùng MongoDB $inc atomic thay vì fetch-then-update để tránh Lost Update khi nhiều thread cùng ghi.
+        MG_INVENTORIES {
+            ObjectId _id "PK, ID inventory"
+            String sku_code "Unique, mã SKU"
+            ObjectId product_id "FK -> MG_PRODUCTS._id"
+            Integer stock_total "Tổng tồn kho"
+            Integer stock_locked "Số lượng đang giữ chỗ (đơn PENDING/PAID)"
+            Integer stock_available "Số lượng còn có thể bán"
+            Integer stock_flash_reserved "Số lượng đã khóa cho Flash Sale đã duyệt — bị trừ khỏi stock_available ngay khi Admin APPROVE FS_ITEM, hoàn trả phần chưa bán sau khi session ENDED [GAP-PATCH R2]"
+            Date updated_at "Cập nhật cuối"
+        }
+        %% NOTE [GAP-PATCH R3]: MG_INVENTORIES không có trường version. Mọi thao tác tăng/giảm stock BẮT BUỘC dùng MongoDB $inc atomic thay vì fetch-then-update để tránh Lost Update khi nhiều thread cùng ghi.
 
-    MG_CARTS {
-        ObjectId _id "PK, ID giỏ hàng"
-        Long user_id "Unique, chủ sở hữu"
-        Integer total_items "Tổng số món hàng"
-        Date created_at "Thời điểm tạo"
-        Date updated_at "Thời điểm cập nhật"
-    }
+        MG_CARTS {
+            ObjectId _id "PK, ID giỏ hàng"
+            Long user_id "Unique, chủ sở hữu"
+            Integer total_items "Tổng số món hàng"
+            Date created_at "Thời điểm tạo"
+            Date updated_at "Thời điểm cập nhật"
+        }
 
-    MG_CART_ITEMS {
-        ObjectId _id "PK, ID chi tiết"
-        ObjectId cart_id "FK -> MG_CARTS._id, Thuộc giỏ hàng nào"
-        String variant_id "ID logic của variant"
-        String sku_code "Mã SKU"
-        Long fs_item_id "FK -> FS_ITEMS.id, nullable"
-        Decimal128 price_snapshot "Giá tại thời điểm thêm vào giỏ"
-        Integer quantity "Số lượng"
-        Date added_at "Thời điểm thêm"
-    }
+        MG_CART_ITEMS {
+            ObjectId _id "PK, ID chi tiết"
+            ObjectId cart_id "FK -> MG_CARTS._id, Thuộc giỏ hàng nào"
+            String variant_id "ID logic của variant"
+            String sku_code "Mã SKU"
+            Long fs_item_id "FK -> FS_ITEMS.id, nullable"
+            Decimal128 price_snapshot "Giá tại thời điểm thêm vào giỏ"
+            Integer quantity "Số lượng"
+            Date added_at "Thời điểm thêm"
+        }
 
-    MG_NOTIFICATIONS {
-        ObjectId _id "PK, ID thông báo"
-        Long user_id "FK -> USERS.id, Người nhận"
-        String title "Tiêu đề thông báo"
-        String body "Nội dung thông báo"
-        String type "Loại thông báo"
-        Object metadata "Dữ liệu bổ sung"
-        Boolean is_read "Đã đọc hay chưa"
-        Date created_at "Thời điểm tạo (TTL Index 90 ngày)"
-    }
+        MG_NOTIFICATIONS {
+            ObjectId _id "PK, ID thông báo"
+            Long user_id "FK -> USERS.id, Người nhận"
+            String title "Tiêu đề thông báo"
+            String body "Nội dung thông báo"
+            String type "Loại thông báo"
+            Object metadata "Dữ liệu bổ sung"
+            Boolean is_read "Đã đọc hay chưa"
+            Date created_at "Thời điểm tạo (TTL Index 90 ngày)"
+        }
 
-    ES_PRODUCTS_INDEX {
-        keyword id "Mongo ObjectId"
-        text name "Tên sản phẩm để search"
-        text description "Mô tả để search"
-        long seller_id "ID người bán"
-        text seller_name "Tên shop"
-        keyword category_id "ID danh mục"
-        keyword category_name "Tên danh mục"
-        double price_min "Giá nhỏ nhất"
-        double price_max "Giá lớn nhất"
-        integer stock_available "Tồn kho khả dụng"
-        boolean is_flash "Có đang Flash Sale"
-        keyword status "Trạng thái sản phẩm"
-        keyword images "Danh sách ảnh"
-        nested attributes "Thuộc tính động"
-        keyword tags "Tag tìm kiếm"
-        date created_at "Thời điểm tạo"
-        date updated_at "Cập nhật cuối"
-    }
+        ES_PRODUCTS_INDEX {
+            keyword id "Mongo ObjectId"
+            text name "Tên sản phẩm để search"
+            text description "Mô tả để search"
+            long seller_id "ID người bán"
+            text seller_name "Tên shop"
+            keyword category_id "ID danh mục"
+            keyword category_name "Tên danh mục"
+            double price_min "Giá nhỏ nhất"
+            double price_max "Giá lớn nhất"
+            integer stock_available "Tồn kho khả dụng"
+            boolean is_flash "Có đang Flash Sale"
+            keyword status "Trạng thái sản phẩm"
+            keyword images "Danh sách ảnh"
+            nested attributes "Thuộc tính động"
+            keyword tags "Tag tìm kiếm"
+            date created_at "Thời điểm tạo"
+            date updated_at "Cập nhật cuối"
+        }
 
-    USERS||--o{ROLES:"has (1:N)"
-    USERS||--o{ADDRESSES:"has (1:N)"
-    USERS||--o{TRUST_SCORE_LOGS:"logs (1:N)"
-    USERS||--||LOYALTY_ACCOUNTS:"owns (1:1)"
-    USERS||--o{POINT_TRANSACTIONS:"has (1:N)"
-    LOYALTY_ACCOUNTS||--o{POINT_TRANSACTIONS:"records (1:N)"
-    USERS||--o{USER_BAN_HISTORY:"ban history (1:N)"
-    USERS|o--o{USER_BAN_HISTORY:"admin_performed (0..1:N)"
-    TRUST_SCORE_LOGS}o--o|TRUST_SCORE_EVENTS_CONFIG:"references (N:0..1)"
+        USERS||--o{ROLES:"has (1:N)"
+        USERS||--o{ADDRESSES:"has (1:N)"
+        USERS||--o{TRUST_SCORE_LOGS:"logs (1:N)"
+        USERS||--||LOYALTY_ACCOUNTS:"owns (1:1)"
+        USERS||--o{POINT_TRANSACTIONS:"has (1:N)"
+        LOYALTY_ACCOUNTS||--o{POINT_TRANSACTIONS:"records (1:N)"
+        USERS||--o{USER_BAN_HISTORY:"ban history (1:N)"
+        USERS|o--o{USER_BAN_HISTORY:"admin_performed (0..1:N)"
+        TRUST_SCORE_LOGS}o--o|TRUST_SCORE_EVENTS_CONFIG:"references (N:0..1)"
 
-    USERS||--o{PARENT_ORDERS:"places (1:N)"
-    PARENT_ORDERS||--o{ORDERS:"splits into (1:N)"
-    USERS||--o{ORDERS:"buyer of (1:N)"
-    USERS||--o{ORDERS:"seller of (1:N)"
-    ORDERS||--o{ORDER_ITEMS:"contains (1:N)"
-    ORDERS|o--o{POINT_TRANSACTIONS:"triggers (0..N)"
-    USERS||--o|SELLER_STRIPE_ACCOUNTS:"onboards (1:0..1)"
-    PARENT_ORDERS||--o{TRANSACTIONS:"pays via (1:N)"
-    TRANSACTIONS||--o{REFUNDS:"refunded via (1:N)"
-    ORDERS||--o{REFUNDS:"triggers (1:N)"
-    REFUNDS||--o{REFUND_ITEMS:"consists of (1:N)"
-    ORDER_ITEMS||--o{REFUND_ITEMS:"is part of (1:N)"
-    USERS|o--o{REFUNDS:"reviewed_by (0..1:N)"
+        USERS||--o{PARENT_ORDERS:"places (1:N)"
+        PARENT_ORDERS||--o{ORDERS:"splits into (1:N)"
+        USERS||--o{ORDERS:"buyer of (1:N)"
+        USERS||--o{ORDERS:"seller of (1:N)"
+        ORDERS||--o{ORDER_ITEMS:"contains (1:N)"
+        ORDERS|o--o{POINT_TRANSACTIONS:"triggers (0..N)"
+        USERS||--o|SELLER_STRIPE_ACCOUNTS:"onboards (1:0..1)"
+        PARENT_ORDERS||--o{TRANSACTIONS:"pays via (1:N)"
+        TRANSACTIONS||--o{REFUNDS:"refunded via (1:N)"
+        ORDERS||--o{REFUNDS:"triggers (1:N)"
+        REFUNDS||--o{REFUND_ITEMS:"consists of (1:N)"
+        ORDER_ITEMS||--o{REFUND_ITEMS:"is part of (1:N)"
+        USERS|o--o{REFUNDS:"reviewed_by (0..1:N)"
 
-    USERS||--o{APPEALS:"submits (1:N) [GAP-PATCH]"
-    TRUST_SCORE_LOGS||--o{APPEALS:"contested by (1:N) [GAP-PATCH]"
-    USERS|o--o{APPEALS:"reviews (0..1:N) [GAP-PATCH]"
+        USERS||--o{APPEALS:"submits (1:N) [GAP-PATCH]"
+        TRUST_SCORE_LOGS||--o{APPEALS:"contested by (1:N) [GAP-PATCH]"
+        USERS|o--o{APPEALS:"reviews (0..1:N) [GAP-PATCH]"
 
-    ORDERS||--o{SELLER_TRANSFERS:"generates (1:N) [GAP-PATCH R3]"
-    USERS||--o{SELLER_TRANSFERS:"receives (1:N) [GAP-PATCH R3]"
+        ORDERS||--o{SELLER_TRANSFERS:"generates (1:N) [GAP-PATCH R3]"
+        USERS||--o{SELLER_TRANSFERS:"receives (1:N) [GAP-PATCH R3]"
 
-    FS_SESSIONS||--o{FS_ITEMS:"contains (1:N)"
-    FS_SESSIONS||--o{FS_REMINDERS:"reminded (1:N)"
-    USERS||--o{FS_REMINDERS:"registers (1:N)"
+        FS_SESSIONS||--o{FS_ITEMS:"contains (1:N)"
+        FS_SESSIONS||--o{FS_REMINDERS:"reminded (1:N)"
+        USERS||--o{FS_REMINDERS:"registers (1:N)"
 
-    USERS||--o{MG_PRODUCTS:"sells (1:N)"
-    MG_CATEGORIES|o--o{MG_CATEGORIES:"children (1:N)"
-    MG_CATEGORIES||--o{MG_PRODUCTS:"categorizes (1:N)"
-    MG_PRODUCTS||--o{MG_PRODUCT_VARIANTS:"has (1:N)"
-    MG_PRODUCTS||--o{MG_INVENTORIES:"tracked (1:N)"
-    MG_PRODUCT_VARIANTS||--||MG_INVENTORIES:"sku_link (1:1)"
-    MG_CARTS||--o{MG_CART_ITEMS:"holds (1:N)"
-    USERS||--o|MG_CARTS:"owns (1:0..1)"
-    USERS||--o{MG_NOTIFICATIONS:"receives (1:N)"
-    MG_PRODUCT_VARIANTS||--o{MG_CART_ITEMS:"added to (1:N)"
-    FS_ITEMS|o--o{MG_CART_ITEMS:"added to (0..1:N)"
+        USERS||--o{MG_PRODUCTS:"sells (1:N)"
+        MG_CATEGORIES|o--o{MG_CATEGORIES:"children (1:N)"
+        MG_CATEGORIES||--o{MG_PRODUCTS:"categorizes (1:N)"
+        MG_PRODUCTS||--o{MG_PRODUCT_VARIANTS:"has (1:N)"
+        MG_PRODUCTS||--o{MG_INVENTORIES:"tracked (1:N)"
+        MG_PRODUCT_VARIANTS||--||MG_INVENTORIES:"sku_link (1:1)"
+        MG_CARTS||--o{MG_CART_ITEMS:"holds (1:N)"
+        USERS||--o|MG_CARTS:"owns (1:0..1)"
+        USERS||--o{MG_NOTIFICATIONS:"receives (1:N)"
+        MG_PRODUCT_VARIANTS||--o{MG_CART_ITEMS:"added to (1:N)"
+        FS_ITEMS|o--o{MG_CART_ITEMS:"added to (0..1:N)"
