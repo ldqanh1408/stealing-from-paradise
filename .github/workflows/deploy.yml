@@ -161,7 +161,7 @@ jobs:
           
           # Step 4: Stop old services (local)
           log_info "Stopping current services..."
-          docker compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
+          docker-compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
           for c in fs-postgres fs-mongo fs-redis fs-elasticsearch fs-minio \
                     fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
                     fs-discovery fs-gateway fs-identity fs-payment fs-order \
@@ -221,14 +221,14 @@ jobs:
           # Step 8: Start services (local)
           log_info "Starting services..."
           cd "${LOCATE}"
-          docker compose -f docker-compose.yml -f docker-compose-backend.yml up -d
+          docker-compose -f docker-compose.yml -f docker-compose-backend.yml up -d
           log_ok "Services started"
           
           # Step 9: Health check (local)
           log_info "Waiting for services to stabilize (60s)..."
           sleep 60
           echo 'Running containers:'
-          docker compose -f docker-compose.yml ps
+          docker-compose -f docker-compose.yml ps
           echo ''
           echo 'Health checks:'
           curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
