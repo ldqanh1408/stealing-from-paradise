@@ -8,6 +8,7 @@ COPY pom.xml .
 COPY common-lib/ common-lib/
 COPY discovery-service/ discovery-service/
 COPY api-gateway/ api-gateway/
+COPY flashsale-service/ flashsale-service/
 COPY search-service/ search-service/
 COPY worker-service/ worker-service/
 COPY notification-service/ notification-service/
@@ -15,7 +16,6 @@ COPY identity-service/ identity-service/
 COPY product-service/ product-service/
 COPY order-service/ order-service/
 COPY payment-service/ payment-service/
-COPY flashsale-service/ flashsale-service/
 RUN mvn dependency:go-offline -pl flashsale-service -am -q
 
 RUN mvn install -pl flashsale-service -am -DskipTests -q
@@ -26,5 +26,5 @@ WORKDIR /app
 
 COPY --from=builder /app/flashsale-service/target/flashsale-service-*.jar app.jar
 
-EXPOSE 8085
+EXPOSE 8083
 ENTRYPOINT ["java", "-jar", "app.jar"]

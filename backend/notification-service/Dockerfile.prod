@@ -11,11 +11,11 @@ COPY api-gateway/ api-gateway/
 COPY flashsale-service/ flashsale-service/
 COPY search-service/ search-service/
 COPY worker-service/ worker-service/
+COPY notification-service/ notification-service/
 COPY identity-service/ identity-service/
 COPY product-service/ product-service/
 COPY order-service/ order-service/
 COPY payment-service/ payment-service/
-COPY notification-service/ notification-service/
 RUN mvn dependency:go-offline -pl notification-service -am -q
 
 RUN mvn install -pl notification-service -am -DskipTests -q
@@ -26,5 +26,5 @@ WORKDIR /app
 
 COPY --from=builder /app/notification-service/target/notification-service-*.jar app.jar
 
-EXPOSE 8092
+EXPOSE 8087
 ENTRYPOINT ["java", "-jar", "app.jar"]

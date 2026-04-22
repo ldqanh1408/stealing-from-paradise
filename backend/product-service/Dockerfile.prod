@@ -13,9 +13,9 @@ COPY search-service/ search-service/
 COPY worker-service/ worker-service/
 COPY notification-service/ notification-service/
 COPY identity-service/ identity-service/
+COPY product-service/ product-service/
 COPY order-service/ order-service/
 COPY payment-service/ payment-service/
-COPY product-service/ product-service/
 RUN mvn dependency:go-offline -pl product-service -am -q
 
 RUN mvn install -pl product-service -am -DskipTests -q
@@ -26,5 +26,5 @@ WORKDIR /app
 
 COPY --from=builder /app/product-service/target/product-service-*.jar app.jar
 
-EXPOSE 8090
+EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]
