@@ -246,7 +246,7 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "file=Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "file=./backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
@@ -341,7 +341,7 @@ jobs:
           case "${{ matrix.service }}" in
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
-              echo "file=Dockerfile.prod" >> $GITHUB_OUTPUT
+              echo "file=./backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
