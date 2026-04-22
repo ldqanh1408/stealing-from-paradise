@@ -1,19 +1,17 @@
 import { create } from 'zustand';
-import { cartApi, type Cart, type CartItem, type CartSeller } from '../api/cart.api';
+import { cartApi, type Cart, type CartItem } from '../api/cart.api';
 
 interface CartState {
   cart: Cart | null;
   isLoading: boolean;
   error: string | null;
 
-  // Actions
   fetchCart: () => Promise<void>;
   addToCart: (skuCode: string, quantity: number, fsItemId?: number) => Promise<void>;
   updateQuantity: (itemId: number, quantity: number) => Promise<void>;
   removeFromCart: (itemId: number) => Promise<void>;
   clearCart: () => Promise<void>;
 
-  // Local helpers
   getTotalItems: () => number;
   getTotalAmount: () => number;
   getItemCount: () => number;
@@ -32,7 +30,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Failed to fetch cart',
-        isLoading: false
+        isLoading: false,
       });
     }
   },
@@ -41,12 +39,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await cartApi.addItem(skuCode, quantity, fsItemId);
-      // Refetch cart after adding
       await get().fetchCart();
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Failed to add item to cart',
-        isLoading: false
+        isLoading: false,
       });
       throw err;
     }
@@ -60,7 +57,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Failed to update quantity',
-        isLoading: false
+        isLoading: false,
       });
       throw err;
     }
@@ -74,7 +71,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Failed to remove item',
-        isLoading: false
+        isLoading: false,
       });
       throw err;
     }
@@ -88,7 +85,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Failed to clear cart',
-        isLoading: false
+        isLoading: false,
       });
     }
   },
@@ -106,10 +103,6 @@ export const useCartStore = create<CartState>((set, get) => ({
   getItemCount: () => {
     const state = get();
     if (!state.cart?.sellers) return 0;
-    return state.cart.sellers.reduce(
-      (sum, seller) => sum + seller.items.length,
-      0
-    );
+    return state.cart.sellers.reduce((sum, seller) => sum + seller.items.length, 0);
   },
 }));
-

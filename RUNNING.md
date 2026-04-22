@@ -12,9 +12,10 @@
 8. [Docker Compose Files](#docker-compose-files)
 9. [Health Checks](#health-checks)
 10. [Service Ports](#service-ports)
-11. [Development Workflows](#development-workflows)
-12. [Troubleshooting](#troubleshooting)
-13. [File Structure](#file-structure)
+11. [CI/CD Pipelines](#cicd-pipelines)
+12. [Development Workflows](#development-workflows)
+13. [Troubleshooting](#troubleshooting)
+14. [File Structure](#file-structure)
 
 ---
 
@@ -464,6 +465,56 @@ curl http://localhost:9000/minio/health/live   # MinIO
 
 ---
 
+## CI/CD Pipelines
+
+The project uses GitHub Actions workflows defined in `.github/workflows/`.
+
+### ci.yml — PR & Develop Branch
+
+Runs on every push to `develop` and every pull request to `main`/`develop`.
+
+```
+Trigger: push to develop | pull_request to main/develop
+Jobs:
+  backend-lint-and-build  →  backend-tests
+  frontend-lint-and-build  →  docker-build-check + docker-build-frontend-check
+  security-checks
+  ci-summary (comment PR on success)
+```
+
+### preview-ci.yml — Preview Branch
+
+Runs on every push to the `preview` branch. Automatically builds all Docker images and merges to `main` on success.
+
+```
+Trigger: push to preview
+Jobs:
+  build-backend-artifacts     →  Maven package, upload JAR artifacts
+  build-frontend-artifacts    →  npm ci, upload node_modules (x3 apps)
+         ↓ both complete
+  build-dev (13 parallel)     →  Build all Dockerfile.dev, push :dev-sha + :dev-latest
+         ↓ all pass
+  build-prod (13 parallel)    →  Build all Dockerfile.prod, push :prod-sha + :prod-latest
+         ↓ all pass
+  auto-pr-to-main             →  git merge preview→main + create PR
+```
+
+> **Note:** Backend Dockerfile.dev copies pre-built JARs from `target/`, so `build-backend-artifacts` must run first. Frontend Dockerfile.dev installs deps inside the container, but `build-frontend-artifacts` speeds up the process. Dockerfile.prod uses multi-stage builds (Maven/npm run inside Docker), so no pre-built artifacts are needed.
+
+### deploy.yml — Deploy to Server
+
+Runs on push to `main` and `develop`. Builds everything on the target server via SSH.
+
+```
+Trigger: push to main/develop | workflow_dispatch
+Jobs:
+  quick-validation   →  Verify files exist
+  deploy-on-server   →  SSH → git pull → mvn → docker build → docker compose up
+  notify            →  Report success/failure
+```
+
+---
+
 ## Development Workflows
 
 ### Frontend Development (Hot Reload)
@@ -505,6 +556,22 @@ mvn spring-boot:run -pl identity-service -Dspring-boot.run.profiles=local
 ---
 
 ## Troubleshooting
+
+### Frontend "[FAIL] Failed to start frontend" — but containers are running
+
+This is a **false positive** in `flashsale-build.ps1`. When `docker compose up --build` runs in foreground mode, it exits after containers start (or when Ctrl+C is pressed), causing PowerShell to record a non-zero `LASTEXITCODE`.
+
+**Check if containers are actually running:**
+
+```powershell
+docker ps --filter "name=fe-"
+```
+
+If containers are `Up`, the startup succeeded. Use `-Detach` to avoid this:
+
+```powershell
+.\flashsale-build.ps1 -Frontend -Detach
+```
 
 ### Port Already in Use
 
@@ -564,19 +631,25 @@ project-root/
 ├── docker compose-backend.yml         # Backend services only
 ├── flashsale-build.ps1                # Unified build script
 │
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                    # PR & develop branch: build + test + security
+│       ├── preview-ci.yml            # Preview branch: docker build + auto-PR to main
+│       └── deploy.yml                # Deploy to server via SSH
+│
 ├── backend/
 │   ├── .env                          # Minimal — reads from ../.env
 │   ├── docker compose.yml             # Backend standalone (infra + services, uses Dockerfile.dev)
 │   ├── docker compose.infra-only.yml
 │   ├── docker-compose.prod.yml        # Production override (uses Dockerfile.prod — builds in container)
 │   └── <service>/
-│       ├── Dockerfile.dev             # Copies pre-built JAR from host's target/ (fast)
+│       ├── Dockerfile.dev            # Copies pre-built JAR from host's target/ (fast)
 │       └── Dockerfile.prod           # Multi-stage build: Maven runs inside container
 │
 └── frontend/
     ├── .env                          # Minimal — reads from ../.env
-    ├── docker compose.yml             # Frontend standalone (mock mode, uses Dockerfile)
-    ├── docker-compose.prod.yml        # Production override (nginx, built in container)
+    ├── docker compose.yml            # Frontend standalone (mock mode, uses Dockerfile.dev)
+    ├── docker-compose.prod.yml       # Production override (nginx, built in container)
     └── apps/
         ├── customer/
         ├── seller/
@@ -614,4 +687,9 @@ project-root/
 .\flashsale-build.ps1 -Ports                  # Show exposed ports
 .\flashsale-build.ps1 -Health                 # Check service health
 .\flashsale-build.ps1 -Help                   # Show all flags
+
+# CI/CD (GitHub Actions)
+# develop branch  →  ci.yml        (build + test + security)
+# preview branch  →  preview-ci.yml (docker build + auto-PR to main)
+# main/develop   →  deploy.yml    (deploy to server)
 ```

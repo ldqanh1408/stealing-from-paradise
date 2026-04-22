@@ -23,6 +23,6 @@ WORKDIR /app/apps/admin
 COPY apps/admin/package*.json ./
 RUN npm install
 
-EXPOSE 5173
+EXPOSE 3002
 
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "dev", "--", "--port", "3002"]

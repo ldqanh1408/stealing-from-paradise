@@ -20,10 +20,12 @@ export default function OrderReviewPage() {
 
   const selectedItemIds = (location.state?.selectedItemIds || []) as number[];
 
-  // Fetch addresses from API
+  // Fetch addresses from API — show mock addresses when backend unavailable
   const { data: addresses = [], isLoading: addrsLoading } = useQuery({
     queryKey: ['addresses'],
     queryFn: () => addressApi.list().then(r => r.data.data ?? []),
+    retry: 1,
+    initialData: [],
   });
 
   useEffect(() => {

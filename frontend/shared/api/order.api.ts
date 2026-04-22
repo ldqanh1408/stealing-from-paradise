@@ -45,6 +45,7 @@ export interface Order {
   total_amt: number;
   final_amt: number;
   is_flash_sale?: boolean;
+  item_count?: number;
   cancelled_by?: string | null;
   cancel_reason?: string | null;
   shipping_address?: ShippingAddress;

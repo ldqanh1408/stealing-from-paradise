@@ -256,6 +256,7 @@ export default function SellerOrdersPage() {
         page,
         size: 20,
       }).then(r => r.data.data),
+    retry: 1,
   });
 
   const orders: SellerOrderSummary[] = data?.content ?? [];

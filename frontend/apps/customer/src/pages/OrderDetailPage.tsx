@@ -392,12 +392,14 @@ export default function OrderDetailPage() {
     queryKey: ['parent-order', id],
     queryFn: () => orderApi.getParentOrder(id).then(r => r.data.data),
     enabled: !isNaN(id),
+    retry: 1,
   });
 
   const { data: paymentData } = useQuery({
     queryKey: ['payment', id],
     queryFn: () => paymentApi.getPayment(id).then(r => r.data.data),
     enabled: !isNaN(id),
+    retry: 1,
   });
 
   const [showCancel, setShowCancel] = useState<Order | null>(null);

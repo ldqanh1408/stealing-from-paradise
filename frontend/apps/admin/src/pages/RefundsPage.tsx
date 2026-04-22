@@ -323,11 +323,12 @@ export default function RefundsPage() {
         page,
         size: 20,
       }).then(r => r.data.data),
+    retry: 1,
   });
 
   const refunds: RefundResponse[] = data?.content ?? [];
-  const totalPages = data?.totalPages ?? 0;
-  const totalElements = data?.totalElements ?? 0;
+  const totalPages = data?.total_pages ?? 0;
+  const totalElements = data?.total_elements ?? 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -47,6 +47,8 @@ export default function OrderHistoryPage() {
         page,
         size: 10,
       }).then(r => r.data.data),
+    retry: 1,
+    initialData: undefined,
   });
 
   const orders: OrderSummary[] = data?.content ?? [];

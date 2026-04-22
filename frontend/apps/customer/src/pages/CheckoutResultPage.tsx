@@ -14,6 +14,7 @@ export default function CheckoutResultPage() {
     queryKey: ['payment', parentOrderId],
     queryFn: () => paymentApi.getPayment(parentOrderId!).then(r => r.data.data),
     enabled: !!parentOrderId && success,
+    retry: 1,
   });
 
   return (

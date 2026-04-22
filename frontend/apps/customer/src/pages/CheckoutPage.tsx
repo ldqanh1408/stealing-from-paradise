@@ -21,6 +21,7 @@ export default function CheckoutPage() {
     queryKey: ['client-secret', parentOrderId],
     queryFn: () => paymentApi.getClientSecret(parentOrderId!).then(r => r.data.data),
     enabled: !!parentOrderId && !!orderData,
+    retry: 1,
   });
 
   useEffect(() => {
