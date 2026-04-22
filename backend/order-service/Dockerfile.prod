@@ -18,8 +18,7 @@ COPY payment-service/ payment-service/
 COPY order-service/ order-service/
 RUN mvn dependency:go-offline -pl order-service -am -q
 
-COPY order-service/src order-service/src
-RUN mvn package -pl order-service -DskipTests -q
+RUN mvn install -pl order-service -am -DskipTests -q
 
 FROM eclipse-temurin:25-jre-alpine AS runtime
 

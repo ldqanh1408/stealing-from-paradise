@@ -18,8 +18,7 @@ COPY payment-service/ payment-service/
 COPY flashsale-service/ flashsale-service/
 RUN mvn dependency:go-offline -pl flashsale-service -am -q
 
-COPY flashsale-service/src flashsale-service/src
-RUN mvn package -pl flashsale-service -DskipTests -q
+RUN mvn install -pl flashsale-service -am -DskipTests -q
 
 FROM eclipse-temurin:25-jre-alpine AS runtime
 

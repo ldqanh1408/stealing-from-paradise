@@ -18,8 +18,7 @@ COPY payment-service/ payment-service/
 COPY search-service/ search-service/
 RUN mvn dependency:go-offline -pl search-service -am -q
 
-COPY search-service/src search-service/src
-RUN mvn package -pl search-service -DskipTests -q
+RUN mvn install -pl search-service -am -DskipTests -q
 
 FROM eclipse-temurin:25-jre-alpine AS runtime
 

@@ -18,8 +18,7 @@ COPY payment-service/ payment-service/
 COPY identity-service/ identity-service/
 RUN mvn dependency:go-offline -pl identity-service -am -q
 
-COPY identity-service/src identity-service/src
-RUN mvn package -pl identity-service -DskipTests -q
+RUN mvn install -pl identity-service -am -DskipTests -q
 
 FROM eclipse-temurin:25-jre-alpine AS runtime
 
