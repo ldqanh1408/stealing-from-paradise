@@ -1,4 +1,4 @@
-name: Build & Deploy (Build on Server)
+name: Build & Deploy
 
 on:
   push:
@@ -6,380 +6,358 @@ on:
       - main
       - develop
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: false
+        default: 'main'
+  workflow_call:
+
+env:
+  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+  SERVER_IP: ${{ secrets.SERVER_IP }}
+  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
 jobs:
-  # ========================================
-  # QUICK VALIDATION (GitHub Actions)
-  # ========================================
   quick-validation:
-    name: Quick Code Validation
+    name: Validate Structure
     runs-on: ubuntu-latest
-
+    if: github.event_name != 'workflow_call'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check files exist
+      - uses: actions/checkout@v4
+      - name: Validate backend structure
         run: |
-          echo "✓ Checking backend pom.xml..."
-          test -f backend/pom.xml && echo "✓ Found" || exit 1
-          
-          echo "✓ Checking frontend apps..."
-          test -d frontend/apps/customer && echo "✓ Found customer app"
-          test -d frontend/apps/seller && echo "✓ Found seller app"
-          test -d frontend/apps/admin && echo "✓ Found admin app"
-          
-          echo "✓ Checking docker-compose.yml..."
-          test -f docker-compose.yml && echo "✓ Found"
+          test -f backend/pom.xml || { echo "Missing backend/pom.xml"; exit 1; }
+          for svc in discovery-service api-gateway identity-service product-service \
+                     order-service payment-service flashsale-service \
+                     search-service notification-service worker-service; do
+            test -f "backend/$svc/pom.xml" || { echo "Missing backend/$svc/pom.xml"; exit 1; }
+          done
+          echo "All backend POMs found"
+      - name: Validate frontend structure
+        run: |
+          for app in customer seller admin; do
+            test -d "frontend/apps/$app/src" || { echo "Missing frontend/apps/$app/src"; exit 1; }
+          done
+          echo "All frontend apps found"
+      - name: Validate docker-compose
+        run: |
+          test -f docker-compose.yml || { echo "Missing docker-compose.yml"; exit 1; }
+          test -f docker-compose-backend.yml || { echo "Missing docker-compose-backend.yml"; exit 1; }
+          echo "Docker compose files found"
 
-  # ========================================
-  # BUILD & DEPLOY ON SERVER
-  # ========================================
-  deploy-on-server:
-    name: Build & Deploy on Server
+  deploy:
+    name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: quick-validation
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    concurrency:
+      group: deploy-server
+      cancel-in-progress: true
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install SSH key
+      - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH configured"
 
-      - name: Deploy to server (Build on Host)
+      - name: Show deployment context
         run: |
-          # Create comprehensive deployment script
-          cat > deploy.sh << 'DEPLOY_EOF'
-          #!/bin/bash
-          set -e
-          
-          echo "╔══════════════════════════════════════════════════════════════╗"
-          echo "║           FLASHSALE DEPLOYMENT - BUILD ON SERVER             ║"
-          echo "╚══════════════════════════════════════════════════════════════╝"
-          
-          # Colors
-          RED='\033[0;31m'
-          GREEN='\033[0;32m'
-          YELLOW='\033[1;33m'
-          BLUE='\033[0;34m'
-          NC='\033[0m'
-          
-          log_info() {
-              echo -e "${BLUE}[INFO]${NC} $1"
-          }
-          
-          log_success() {
-              echo -e "${GREEN}[SUCCESS]${NC} $1"
-          }
-          
-          log_warning() {
-              echo -e "${YELLOW}[WARNING]${NC} $1"
-          }
-          
-          log_error() {
-              echo -e "${RED}[ERROR]${NC} $1"
-          }
-          
+          echo "═══════════════════════════════════════════════════"
+          echo "           DEPLOYMENT CONTEXT"
+          echo "═══════════════════════════════════════════════════"
+          echo "Server:      ${{ env.SERVER_IP }}"
+          echo "SSH User:    ${{ env.DEPLOY_USER }}"
+          echo "Branch:      ${{ github.ref_name }}"
+          echo "Commit SHA:  ${{ github.sha }}"
+          echo "Triggered:   ${{ github.event_name }}"
+          echo "═══════════════════════════════════════════════════"
+
+      - name: Execute deployment on server
+        run: |
+          cat > /tmp/deploy.sh << 'SCRIPT_EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+          BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+
+          log()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
+          ok()   { echo -e "${GREEN}[OK]${NC}   $*"; }
+          warn() { echo -e "${YELLOW}[WARN]${NC} $*" >&2; }
+          die()  { echo -e "${RED}[ERR]${NC}  $*" >&2; exit 1; }
+
+          DEPLOY_USER="$1"; SERVER_IP="$2"; REF_NAME="$3"; SHA="$4"
+          SERVER="${DEPLOY_USER}@${SERVER_IP}"
           PROJECT_DIR="/opt/flashsale"
-          
-          # ====== STEP 1: INITIALIZE ======
-          log_info "Step 1: Initializing deployment..."
-          
-          # Check if repo is directly in /opt/flashsale or in subfolder
-          if [ -d "$PROJECT_DIR/.git" ]; then
-            # Repo cloned correctly to /opt/flashsale
-            cd "$PROJECT_DIR"
-            log_success "Found repo at $PROJECT_DIR"
-          elif [ -d "$PROJECT_DIR/stealing-from-paradise/.git" ]; then
-            # Repo cloned into subfolder (stealing-from-paradise/)
-            PROJECT_DIR="$PROJECT_DIR/stealing-from-paradise"
-            cd "$PROJECT_DIR"
-            log_warning "Found repo in subfolder, using: $PROJECT_DIR"
-          else
-            log_error "Git repository not found at $PROJECT_DIR"
-            exit 1
-          fi
-          
-          log_success "Project directory ready: $PROJECT_DIR"
-          
-          # ====== STEP 2: GIT PULL ======
-          log_info "Step 2: Pulling latest code from repository..."
-          
-          if [ ! -d .git ]; then
-            log_error "Not a git repository!"
-            exit 1
-          fi
-          
-          git fetch origin
-          git reset --hard origin/main
-          git clean -fd
-          log_success "Code updated"
-          
-          # ====== STEP 3: SETUP ENVIRONMENT ======
-          log_info "Step 3: Setting up environment variables..."
-          
-          if [ ! -f .env ]; then
-            if [ -f .env.example ]; then
-              cp .env.example .env
-              log_warning "Created .env from .env.example - PLEASE UPDATE WITH YOUR ACTUAL VALUES!"
+          BACKEND_DIR="${PROJECT_DIR}/backend"
+          FRONTEND_DIR="${PROJECT_DIR}/frontend"
+
+          log "Connecting to ${SERVER}"
+
+          # ── 1. Locate project directory ────────────────────────────────────
+          LOCATE=$(ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no "${SERVER}" '
+            if [ -d "'"${PROJECT_DIR}"'/.git" ]; then
+              echo "'"${PROJECT_DIR}"'"
+            elif [ -d "'"${PROJECT_DIR}"'/stealing-from-paradise/.git" ]; then
+              echo "'"${PROJECT_DIR}"'/stealing-from-paradise"
             else
-              log_error ".env.example not found"
-              exit 1
+              echo "NOT_FOUND"
             fi
-          fi
-          
-          log_success "Environment ready"
-          
-          # ====== STEP 4: CHECK PREREQUISITES ======
-          log_info "Step 4: Checking prerequisites..."
-          
-          if ! command -v java &> /dev/null; then
-            log_error "Java not found. Install Java 25+"
-            exit 1
-          fi
-          JAVA_VERSION=$(java -version 2>&1 | head -n 1)
-          log_success "Java found: $JAVA_VERSION"
-          
-          if ! command -v mvn &> /dev/null; then
-            log_error "Maven not found. Install Maven"
-            exit 1
-          fi
-          log_success "Maven found"
-          
-          if ! command -v node &> /dev/null; then
-            log_error "Node.js not found. Install Node.js 18+"
-            exit 1
-          fi
-          NODE_VERSION=$(node --version)
-          log_success "Node.js found: $NODE_VERSION"
-          
-          if ! command -v npm &> /dev/null; then
-            log_error "npm not found"
-            exit 1
-          fi
-          log_success "npm found"
-          
-          if ! command -v docker &> /dev/null; then
-            log_error "Docker not found. Install Docker"
-            exit 1
-          fi
-          log_success "Docker found"
-          
-          # ====== STEP 5: BUILD BACKEND ======
-          log_info "Step 5: Building backend with Maven..."
-          
-          cd "$PROJECT_DIR/backend"
-          log_info "Running: mvn clean package -DskipTests -q"
-          mvn clean package -DskipTests -q
-          
-          log_success "Backend JAR files created in target/ folders"
-          cd "$PROJECT_DIR"
-          
-          # ====== STEP 6: BUILD FRONTEND (optional - for verification) ======
-          log_info "Step 6: Building frontend locally for testing (optional)..."
-          
-          # Frontend will be built inside Docker multi-stage build
-          # But we can verify builds locally first
-          for app in customer seller admin; do
-            log_info "Verifying $app app source files..."
-            if [ ! -d "frontend/apps/$app" ]; then
-              log_error "$app app directory not found"
-              exit 1
-            fi
-          done
-          
-          log_success "Frontend apps verified"
-          
-          # ====== STEP 7: STOP OLD SERVICES ======
-          log_info "Step 7: Stopping current services..."
-          
-          if [ -f docker-compose.yml ]; then
-            if command -v docker-compose &> /dev/null; then
-              docker-compose down -v --remove-orphans || true
-            else
-              docker-compose down -v --remove-orphans || true
-            fi
-            log_success "Old services stopped"
-          fi
-          
-          # ====== STEP 8: BUILD DOCKER IMAGES ======
-          log_info "Step 8: Building Docker images from compiled artifacts..."
-          
-          log_info "Building backend service Docker images..."
-          log_info "(Docker will COPY pre-built JAR files from target/ folders)"
-          
-          SERVICES=(
-            "discovery-service"
-            "api-gateway"
-            "identity-service"
-            "product-service"
-            "order-service"
-            "payment-service"
-            "cart-service"
-            "flashsale-service"
-            "search-service"
-            "notification-service"
-            "worker-service"
-          )
-          
-          for service in "${SERVICES[@]}"; do
-            SERVICE_DIR="backend/$service"
-            if [ -d "$SERVICE_DIR" ]; then
-              # Check if target/ exists (from Maven build)
-              if [ ! -d "$SERVICE_DIR/target" ]; then
-                log_error "$service target/ not found. Maven build may have failed."
-                exit 1
+          ')
+          [ "$LOCATE" = "NOT_FOUND" ] && die "Git repo not found on server at ${PROJECT_DIR}"
+          ok "Project directory: ${LOCATE}"
+
+          # ── 2. Fetch & hard-reset to target ref ───────────────────────────
+          log "Pulling latest code (${REF_NAME})..."
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            set -e
+            cd '${LOCATE}'
+            git fetch --all --tags --quiet
+            git checkout '${REF_NAME}' --quiet
+            git reset --hard '${SHA}'
+            git clean -fdx -e .env
+            ok 'Code updated to ${SHA}'
+          "
+          ok "Code synchronized to ${REF_NAME} / ${SHA}"
+
+          # ── 3. Ensure .env exists ─────────────────────────────────────────
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            if [ ! -f '${LOCATE}/.env' ]; then
+              if [ -f '${LOCATE}/.env.example' ]; then
+                cp '${LOCATE}/.env.example' '${LOCATE}/.env'
+                echo 'Created .env from .env.example — review and update values before next deploy!'
               fi
-              
-              log_info "Building $service Docker image..."
-              # Build from service directory so Dockerfile can COPY target/
-              docker build -t flashsale_$service:latest -f "$SERVICE_DIR/Dockerfile.prod" "$PROJECT_DIR/backend"
-              log_success "$service image built"
             fi
-          done
-          
-          log_info "Building frontend application Docker images..."
-          log_info "(Frontend Docker images use multi-stage build - npm build happens inside Docker)"
-          
-          for app in customer seller admin; do
-            if [ -d "frontend/apps/$app" ]; then
-              log_info "Building $app-app Docker image..."
-              # Build from frontend root so Dockerfile can COPY apps/$app/**
-              docker build -t flashsale_${app}_app:latest \
-                -f ./frontend/apps/$app/Dockerfile \
-                --build-arg APP_PATH=apps/$app \
-                ./frontend
-              log_success "$app-app image built"
+          "
+          log ".env verified"
+
+          # ── 4. Stop & remove ALL existing containers ─────────────────────
+          log "Stopping and removing all existing containers..."
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            set -e
+            cd '${LOCATE}'
+
+            # Stop everything gracefully first
+            docker compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
+
+            # Force-kill any stray containers (safety net)
+            for c in \
+              fs-postgres fs-mongo fs-redis fs-elasticsearch fs-minio \
+              fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
+              fs-discovery fs-gateway fs-identity fs-payment fs-order \
+              fs-product fs-flashsale fs-search fs-notification fs-worker \
+              fs-customer-fe fs-seller-fe fs-admin-fe; do
+              docker stop \"\$c\" 2>/dev/null && docker rm \"\$c\" 2>/dev/null && echo \"Removed \$c\" || true
+            done
+
+            # Prune dangling images/volumes to free space
+            docker image prune -f >/dev/null 2>&1 || true
+            docker volume prune -f >/dev/null 2>&1 || true
+          "
+          ok "All containers stopped and removed"
+
+          # ── 5. Build backend JARs with Maven ───────────────────────────────
+          log "Building backend with Maven (mvn package -DskipTests)..."
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            set -e
+            cd '${BACKEND_DIR}'
+            mvn clean package -DskipTests -q
+          "
+          ok "Backend JARs built"
+
+          # ── 6. Build Docker images (backend) ─────────────────────────────
+          log "Building backend Docker images..."
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            set -e
+            cd '${LOCATE}'
+
+            BACKEND_SERVICES=(
+              discovery-service
+              api-gateway
+              identity-service
+              product-service
+              order-service
+              payment-service
+              flashsale-service
+              search-service
+              notification-service
+              worker-service
+            )
+
+            for svc in \"\${BACKEND_SERVICES[@]}\"; do
+              svc_dir=\"${BACKEND_DIR}/\${svc}\"
+              if [ ! -d \"\$svc_dir\" ]; then
+                warn \"Skipping \$svc — directory not found\"
+                continue
+              fi
+              if [ ! -f \"\${svc_dir}/Dockerfile.prod\" ]; then
+                warn \"Skipping \$svc — no Dockerfile.prod\"
+                continue
+              fi
+              if [ ! -d \"\${svc_dir}/target\" ]; then
+                die \"\$svc target/ not found — Maven build may have failed\"
+              fi
+              echo \"Building flashsale-\${svc}:latest\"
+              docker build \
+                --platform linux/amd64 \
+                -t flashsale-\${svc}:latest \
+                -f \"\${svc_dir}/Dockerfile.prod\" \
+                \"${BACKEND_DIR}\"
+              ok \"flashsale-\${svc}:latest built\"
+            done
+          "
+          ok "All backend images built"
+
+          # ── 7. Build Docker images (frontend) ─────────────────────────────
+          log "Building frontend Docker images..."
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            set -e
+            cd '${LOCATE}'
+
+            for app in customer seller admin; do
+              dockerfile=\"${FRONTEND_DIR}/apps/\${app}/Dockerfile.prod\"
+              if [ ! -f \"\$dockerfile\" ]; then
+                warn \"Skipping \${app} — no Dockerfile.prod\"
+                continue
+              fi
+              echo \"Building flashsale-\${app}-app:latest\"
+              docker build \
+                --platform linux/amd64 \
+                -t flashsale-\${app}-app:latest \
+                -f \"\$dockerfile\" \
+                \"${FRONTEND_DIR}\"
+              ok \"flashsale-\${app}-app:latest built\"
+            done
+          "
+          ok "All frontend images built"
+
+          # ── 8. Start all services ────────────────────────────────────────
+          log "Starting all services..."
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            set -e
+            cd '${LOCATE}'
+            # Use both compose files: base + backend override (no rebuild, use pre-built images)
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose-backend.yml \
+              up -d
+          "
+          ok "All services started"
+
+          # ── 9. Health checks ─────────────────────────────────────────────
+          log "Waiting for services to be ready (60s)..."
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            set -e
+            sleep 60
+
+            echo '── Running containers ──'
+            docker compose -f '${LOCATE}/docker-compose.yml' ps 2>/dev/null \
+              || docker compose -f '${LOCATE}/docker-compose.yml' ps
+
+            echo ''
+            echo '── Health checks ──'
+
+            # API Gateway
+            if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo '[OK]  API Gateway  (8080)'
+            else
+              echo '[!!] API Gateway  (8080) — not ready'
             fi
-          done
-          
-          log_success "All Docker images built successfully"
-          
-          # ====== STEP 9: START SERVICES ======
-          log_info "Step 9: Starting services..."
-          
-          # Start services with docker-compose (compatible with both old and new)
-          if command -v docker-compose &> /dev/null; then
-            docker-compose up -d
-          else
-            # Fallback for newer docker compose
-            nohup docker compose up > /dev/null 2>&1 &
-          fi
-          
-          log_success "Services started"
-          
-          # ====== STEP 10: WAIT FOR HEALTH CHECKS ======
-          log_info "Step 10: Waiting for services to stabilize (30 seconds)..."
-          sleep 30
-          
-          # ====== STEP 11: VERIFY DEPLOYMENT ======
-          log_info "Step 11: Verifying deployment..."
-          
-          if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
-            log_success "✓ API Gateway is healthy"
-          else
-            log_warning "⚠ API Gateway is still starting..."
-          fi
-          
-          log_info "Running containers:"
-          if command -v docker-compose &> /dev/null; then
-            docker-compose ps
-          elif docker compose ps > /dev/null 2>&1; then
-            docker compose ps
-          else
-            log_warning "docker-compose not available, skipping ps command"
-          fi
-          
-          echo ""
-          echo "╔══════════════════════════════════════════════════════════════╗"
-          echo "║                   ✓ DEPLOYMENT COMPLETE                      ║"
-          echo "╠══════════════════════════════════════════════════════════════╣"
-          echo "║  API Gateway:  http://localhost:8080                         ║"
-          echo "║  Customer App: http://localhost:3000                         ║"
-          echo "║  Seller App:   http://localhost:3001                         ║"
-          echo "║  Admin App:    http://localhost:3002                         ║"
-          echo "║  Eureka:       http://localhost:8761                         ║"
-          echo "║  Swagger:      http://localhost:8080/swagger-ui.html         ║"
-          echo "╚══════════════════════════════════════════════════════════════╝"
-          
-          log_success "All services deployed successfully!"
-          
-          DEPLOY_EOF
-          
-          chmod +x deploy.sh
-          
-          # Copy and execute on server
-          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts \
-            -o ConnectTimeout=10 \
-            deploy.sh ${{ secrets.DEPLOY_USER }}@${{ secrets.SERVER_IP }}:/tmp/deploy.sh
-          
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts \
-            -o ConnectTimeout=10 \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.SERVER_IP }} 'bash /tmp/deploy.sh'
 
-      - name: Verify deployment
-        run: |
-          sleep 5
-          echo "🔍 Verifying deployment..."
-          if curl -sf http://${{ secrets.SERVER_IP }}:8080/actuator/health > /dev/null 2>&1; then
-            echo "✓ API Gateway is responding"
-          else
-            echo "⚠ API Gateway may still be starting, check server logs"
-          fi
+            # Eureka
+            if curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1; then
+              echo '[OK]  Eureka       (8761)'
+            else
+              echo '[!!] Eureka       (8761) — not ready'
+            fi
 
-      - name: Show deployment info
+            # Postgres
+            if docker exec fs-postgres pg_isready -U \${POSTGRES_USER:-flashsale} > /dev/null 2>&1; then
+              echo '[OK]  Postgres     (5432)'
+            else
+              echo '[!!] Postgres     (5432) — not ready'
+            fi
+
+            # Redis
+            if docker exec fs-redis redis-cli -a \${REDIS_PASSWORD:-} ping 2>/dev/null | grep -q PONG; then
+              echo '[OK]  Redis       (6379)'
+            else
+              echo '[!!] Redis       (6379) — not ready'
+            fi
+
+            # Kafka
+            if docker exec fs-kafka kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1; then
+              echo '[OK]  Kafka       (9092)'
+            else
+              echo '[!!] Kafka       (9092) — not ready'
+            fi
+          "
+          ok "Health check complete"
+
+          # ── 10. Final summary ─────────────────────────────────────────────
+          ssh -o StrictHostKeyChecking=no "${SERVER}" "
+            echo ''
+            echo '╔══════════════════════════════════════════════════════════╗'
+            echo '║          ✓  DEPLOYMENT SUCCESSFUL                    ║'
+            echo '╠══════════════════════════════════════════════════════════╣'
+            echo '║  Server:       '"${SERVER_IP}"'
+            echo '║  Branch:       '"${REF_NAME}"'
+            echo '║  Commit:       '"${SHA}"'
+            echo '╠══════════════════════════════════════════════════════════╣'
+            echo '║  API Gateway:  http://'"${SERVER_IP}"':8080'
+            echo '║  Customer:     http://'"${SERVER_IP}"':3000'
+            echo '║  Seller:       http://'"${SERVER_IP}"':3001'
+            echo '║  Admin:        http://'"${SERVER_IP}"':3002'
+            echo '║  Eureka:       http://'"${SERVER_IP}"':8761'
+            echo '║  Swagger:      http://'"${SERVER_IP}"':8080/swagger-ui.html'
+            echo '╚══════════════════════════════════════════════════════════╝'
+          "
+          ok "Deployment complete!"
+
+          SCRIPT_EOF
+
+          chmod +x /tmp/deploy.sh
+
+          scp -o ConnectTimeout=15 -o StrictHostKeyChecking=no /tmp/deploy.sh "${SERVER}:/tmp/deploy.sh"
+          ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no "${SERVER}" \
+            "bash /tmp/deploy.sh '${DEPLOY_USER}' '${SERVER_IP}' '${REF_NAME}' '${SHA}'"
+
+      - name: Final health check from GitHub Actions
         run: |
           echo ""
-          echo "═══════════════════════════════════════════════════════════════"
-          echo "                    📋 DEPLOYMENT INFORMATION"
-          echo "═══════════════════════════════════════════════════════════════"
-          echo "Server:    ${{ secrets.SERVER_IP }}"
-          echo "Branch:    ${{ github.ref_name }}"
-          echo "Commit:    ${{ github.sha }}"
-          echo ""
-          echo "🌐 Access Applications:"
-          echo "   • API Gateway: http://${{ secrets.SERVER_IP }}:8080"
-          echo "   • Customer:    http://${{ secrets.SERVER_IP }}:3000"
-          echo "   • Seller:      http://${{ secrets.SERVER_IP }}:3001"
-          echo "   • Admin:       http://${{ secrets.SERVER_IP }}:3002"
-          echo "   • Eureka:      http://${{ secrets.SERVER_IP }}:8761"
-          echo "═══════════════════════════════════════════════════════════════"
-          echo ""
+          echo "═══ Final health check ═══"
+          sleep 10
+          if curl -sf --connect-timeout 10 http://${{ env.SERVER_IP }}:8080/actuator/health > /dev/null 2>&1; then
+            echo "[OK]  API Gateway responding on port 8080"
+          else
+            echo "[!!] API Gateway not yet responding (may still be starting)"
+            echo "     Check server logs: ssh ${{ env.DEPLOY_USER }}@${{ env.SERVER_IP }}"
+            echo "     Logs: cd /opt/flashsale && docker compose logs --tail=50"
+          fi
 
-  # ========================================
-  # NOTIFICATION
-  # ========================================
-  notify:
-    name: Notify Status
-    runs-on: ubuntu-latest
-    needs: deploy-on-server
-    if: always()
-
-    steps:
-      - name: Deployment Result
+      - name: Deployment summary
         run: |
           echo ""
-          if [ "${{ needs.deploy-on-server.result }}" == "success" ]; then
-            echo "✅ ✅ ✅ DEPLOYMENT SUCCESSFUL ✅ ✅ ✅"
-            echo ""
-            echo "Server: ${{ secrets.SERVER_IP }}"
-            echo "Branch: ${{ github.ref_name }}"
-            echo "Commit: ${{ github.sha }}"
-            echo ""
-            echo "🚀 All services are now running on the server!"
-          else
-            echo "❌ ❌ ❌ DEPLOYMENT FAILED ❌ ❌ ❌"
-            echo ""
-            echo "Check logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            echo ""
-            echo "SSH to server and check logs:"
-            echo "  ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.SERVER_IP }}"
-            echo "  cd /opt/flashsale && docker-compose logs"
-          fi
+          echo "══════════════════════════════════════════════════════════"
+          echo "             DEPLOYMENT SUMMARY"
+          echo "══════════════════════════════════════════════════════════"
+          echo "  Server:    ${{ env.SERVER_IP }}"
+          echo "  Branch:    ${{ github.ref_name }}"
+          echo "  Commit:    ${{ github.sha }}"
+          echo "  Event:     ${{ github.event_name }}"
+          echo ""
+          echo "  Services:"
+          echo "    API Gateway  http://${{ env.SERVER_IP }}:8080"
+          echo "    Customer     http://${{ env.SERVER_IP }}:3000"
+          echo "    Seller       http://${{ env.SERVER_IP }}:3001"
+          echo "    Admin        http://${{ env.SERVER_IP }}:3002"
+          echo "    Eureka       http://${{ env.SERVER_IP }}:8761"
+          echo "    Swagger      http://${{ env.SERVER_IP }}:8080/swagger-ui.html"
+          echo "══════════════════════════════════════════════════════════"
           echo ""

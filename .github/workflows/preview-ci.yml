@@ -482,3 +482,12 @@ jobs:
         if: steps.check.outputs.result != 'success'
         run: |
           echo "Prod build results: ${{ needs.build-prod.result }}"
+
+  # ========================================
+  # DEPLOY TO SERVER (after successful push to main)
+  # ========================================
+  deploy:
+    name: Deploy to Server
+    needs: auto-pr-to-main
+    uses: ./.github/workflows/deploy.yml
+    if: needs.auto-pr-to-main.result == 'success'
