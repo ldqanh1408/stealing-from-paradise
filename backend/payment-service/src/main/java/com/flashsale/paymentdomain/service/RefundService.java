@@ -9,9 +9,11 @@ import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.paymentdomain.domain.model.Refund;
 import com.flashsale.paymentdomain.domain.model.RefundItem;
+import com.flashsale.paymentdomain.domain.model.SellerTransfer;
 import com.flashsale.paymentdomain.domain.model.Transaction;
 import com.flashsale.paymentdomain.domain.repository.RefundItemRepository;
 import com.flashsale.paymentdomain.domain.repository.RefundRepository;
+import com.flashsale.paymentdomain.domain.repository.SellerTransferRepository;
 import com.flashsale.paymentdomain.domain.repository.TransactionRepository;
 import com.flashsale.paymentdomain.dto.request.AdminRefundApproveRequest;
 import com.flashsale.paymentdomain.dto.request.AdminRefundRejectRequest;
@@ -19,6 +21,8 @@ import com.flashsale.paymentdomain.dto.response.AdminRefundApproveResponse;
 import com.flashsale.paymentdomain.dto.response.RefundDetailResponse;
 import com.flashsale.paymentdomain.dto.response.RefundListResponse;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Transfer;
+import com.stripe.model.TransferReversal;
 import com.stripe.param.RefundCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +50,7 @@ public class RefundService {
     private final RefundRepository refundRepository;
     private final RefundItemRepository refundItemRepository;
     private final TransactionRepository transactionRepository;
+    private final SellerTransferRepository sellerTransferRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
@@ -165,6 +170,9 @@ public class RefundService {
 
         BigDecimal finalAmount = req.getAdjustAmount() != null ? req.getAdjustAmount() : refund.getAmount();
         String stripeRefundId = executeStripeRefund(refund.getTransactionId(), finalAmount);
+
+        // Reverse phần transfer tới Seller tương ứng với khoản hoàn tiền
+        reverseSellerTransfer(refund.getOrderId(), finalAmount, refundId);
 
         List<AdminRefundApproveResponse.ReturnEvidence> returnEvidence = new ArrayList<>();
         if (req.getTrackingNumber() != null) {
@@ -479,6 +487,9 @@ public class RefundService {
                 refund.setStatus("SUCCESS");
                 refund.setRefundRef(stripeRefundId);
                 refund.setReviewedAt(LocalDateTime.now());
+
+                // Reverse toàn bộ transfer đã gửi cho Seller (RTS = full refund)
+                reverseSellerTransfer(orderId, amount, refund.getId());
             } catch (AppException e) {
                 log.error("Stripe refund failed for RTS orderId={}: {}", orderId, e.getMessage());
                 refund.setStatus("FAILED");
@@ -619,6 +630,87 @@ public class RefundService {
     }
 
     // ─── Internal helpers ────────────────────────────────────────────────────
+
+    /**
+     * Reverse phần transfer đã gửi cho Seller tương ứng với khoản hoàn tiền.
+     *
+     * Stripe Connect: khi refund Buyer qua PaymentIntent, platform balance bị trừ,
+     * nhưng transfer đến Seller không tự động bị reverse — phải gọi API riêng.
+     *
+     * Công thức:
+     *   reversal_amount = refundAmount / transferAmount * netAmount  (proportional)
+     *   Nếu refundAmount >= transferAmount → reverse toàn bộ netAmount.
+     *
+     * @return Stripe TransferReversal ID hoặc null nếu không thể reverse
+     */
+    private String reverseSellerTransfer(Long orderId, BigDecimal refundAmount, Long refundId) {
+        SellerTransfer st = sellerTransferRepository.findByOrderId(orderId).orElse(null);
+
+        if (st == null) {
+            log.warn("reverseSellerTransfer: no SellerTransfer for orderId={}", orderId);
+            return null;
+        }
+        if (st.getStripeTransferId() == null) {
+            // Seller chưa có Stripe account khi thanh toán → transfer bị SKIPPED → không cần reverse
+            log.info("reverseSellerTransfer: no stripeTransferId for orderId={} (status={}), skipping", orderId, st.getStatus());
+            return null;
+        }
+        if ("REVERSED".equals(st.getStatus())) {
+            log.info("reverseSellerTransfer: transfer already REVERSED for orderId={}", orderId);
+            return null;
+        }
+
+        BigDecimal transferAmount = st.getTransferAmount() != null ? st.getTransferAmount() : BigDecimal.ZERO;
+        BigDecimal netAmount      = st.getNetAmount()      != null ? st.getNetAmount()      : BigDecimal.ZERO;
+
+        if (netAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            log.warn("reverseSellerTransfer: netAmount is zero for orderId={}, skipping", orderId);
+            return null;
+        }
+
+        // Tính reversal amount theo tỷ lệ
+        boolean fullReversal = transferAmount.compareTo(BigDecimal.ZERO) <= 0
+                || refundAmount.compareTo(transferAmount) >= 0;
+
+        long reversalAmount;
+        if (fullReversal) {
+            reversalAmount = netAmount.setScale(0, java.math.RoundingMode.HALF_UP).longValue();
+        } else {
+            reversalAmount = refundAmount
+                    .multiply(netAmount)
+                    .divide(transferAmount, 0, java.math.RoundingMode.HALF_UP)
+                    .min(netAmount)   // cap tại netAmount
+                    .longValue();
+        }
+
+        if (reversalAmount <= 0) return null;
+
+        try {
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("refund_id", String.valueOf(refundId));
+            metadata.put("order_id",  String.valueOf(orderId));
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("amount",   reversalAmount);
+            params.put("metadata", metadata);
+
+            Transfer transfer = Transfer.retrieve(st.getStripeTransferId());
+            TransferReversal reversal = transfer.getReversals().create(params);
+
+            st.setStatus(fullReversal ? "REVERSED" : "PARTIALLY_REVERSED");
+            sellerTransferRepository.save(st);
+
+            log.info("Seller transfer reversed: orderId={}, transferId={}, reversalId={}, amount={}, full={}",
+                    orderId, st.getStripeTransferId(), reversal.getId(), reversalAmount, fullReversal);
+            return reversal.getId();
+
+        } catch (StripeException e) {
+            // Non-fatal: buyer đã được refund; cần manual reconcile phía seller
+            log.error("Failed to reverse seller transfer for orderId={}, transferId={}: {}",
+                    orderId, st.getStripeTransferId(), e.getMessage());
+            return null;
+        }
+    }
 
     private String executeStripeRefund(Long transactionId, BigDecimal amount) {
         Transaction tx = transactionRepository.findById(transactionId)

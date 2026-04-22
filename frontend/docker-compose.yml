@@ -1,65 +1,92 @@
-networks:
-  flashsale-net:
-    driver: bridge
+# ============================================================
+# FLASH SALE FRONTEND — STANDALONE DOCKER COMPOSE
+# ============================================================
+# Runs the 3 frontend apps independently, without requiring the
+# backend to be running. Useful for UI development and testing.
+#
+# HOW IT WORKS:
+#   VITE_BACKEND_MODE=real    → connects to a real backend
+#                                  set VITE_API_URL to your backend URL
+#   VITE_BACKEND_MODE=mock    → apps use mock data (no backend needed)
+#
+# DEVELOPMENT (hot-reload):
+#   docker-compose -f docker-compose.yml up --build       # dev with Vite HMR
+#   docker-compose -f docker-compose.yml up --build -d   # dev in background
+#
+# PRODUCTION (nginx):
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+#
+# NOTE: Run from the frontend/ directory.
+# ============================================================
 
 services:
-  # =================================================================
-  # FRONTEND APPLICATIONS (3 Independent Vite Apps)
-  # =================================================================
 
   customer-app:
     build:
-      context: ./
-      dockerfile: apps/customer/Dockerfile
-    container_name: fs-customer-fe
-    ports: ["3000:80"]
-    environment:
-      - VITE_API_URL=http://api-gateway:8080/api/v1
-      - NODE_ENV=production
-    networks: [flashsale-net]
+      context: .
+      dockerfile: apps/customer/Dockerfile.dev
+    container_name: fe-customer
     restart: unless-stopped
+    ports: ["${PORT_CUSTOMER:-3000}:5173"]
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_BACKEND_MODE=${VITE_BACKEND_MODE:-mock}
+    volumes:
+      - ./apps/customer:/app/apps/customer:cached
+      - ./shared:/app/shared:cached
+      - customer_nm:/app/apps/customer/node_modules
+    networks: [flashsale-frontend]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      disable: true
 
   seller-app:
     build:
-      context: ./
-      dockerfile: apps/seller/Dockerfile
-    container_name: fs-seller-fe
-    ports: ["3001:80"]
-    environment:
-      - VITE_API_URL=http://api-gateway:8080/api/v1
-      - NODE_ENV=production
-    networks: [flashsale-net]
+      context: .
+      dockerfile: apps/seller/Dockerfile.dev
+    container_name: fe-seller
     restart: unless-stopped
+    ports: ["${PORT_SELLER:-3001}:5173"]
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_BACKEND_MODE=${VITE_BACKEND_MODE:-mock}
+    volumes:
+      - ./apps/seller:/app/apps/seller:cached
+      - ./shared:/app/shared:cached
+      - seller_nm:/app/apps/seller/node_modules
+    networks: [flashsale-frontend]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      disable: true
 
   admin-app:
     build:
-      context: ./
-      dockerfile: apps/admin/Dockerfile
-    container_name: fs-admin-fe
-    ports: ["3002:80"]
-    environment:
-      - VITE_API_URL=http://api-gateway:8080/api/v1
-      - NODE_ENV=production
-    networks: [flashsale-net]
+      context: .
+      dockerfile: apps/admin/Dockerfile.dev
+    container_name: fe-admin
     restart: unless-stopped
+    ports: ["${PORT_ADMIN:-3002}:5173"]
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_BACKEND_MODE=${VITE_BACKEND_MODE:-mock}
+    volumes:
+      - ./apps/admin:/app/apps/admin:cached
+      - ./shared:/app/shared:cached
+      - admin_nm:/app/apps/admin/node_modules
+    networks: [flashsale-frontend]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      disable: true
 
+volumes:
+  customer_nm:
+  seller_nm:
+  admin_nm:
 
-
+networks:
+  flashsale-frontend:
+    name: flashsale-frontend
+    driver: bridge
