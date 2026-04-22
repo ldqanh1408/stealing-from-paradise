@@ -1,12 +1,16 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useCartStore } from '@shared/store/cartStore';
+
 const PLACEHOLDER_PRODUCTS = [
-  { id: 1, name: 'Tai nghe Sony WH-1000XM5', price: 6_490_000, original: 8_990_000, category: 'Điện tử', badge: 'HOT' },
-  { id: 2, name: 'Bàn phím cơ Keychron K2', price: 2_190_000, original: 2_790_000, category: 'Phụ kiện', badge: null },
-  { id: 3, name: 'Áo thun Uniqlo DRY-EX', price: 299_000, original: 499_000, category: 'Thời trang', badge: 'MỚI' },
-  { id: 4, name: 'Sách Clean Code', price: 189_000, original: 250_000, category: 'Sách', badge: null },
-  { id: 5, name: 'Giày Nike Air Max', price: 2_890_000, original: 3_500_000, category: 'Giày dép', badge: 'SALE' },
-  { id: 6, name: 'Máy pha cà phê Delonghi', price: 4_200_000, original: 5_600_000, category: 'Gia dụng', badge: null },
-  { id: 7, name: 'Đồng hồ Casio G-Shock', price: 3_100_000, original: 3_900_000, category: 'Phụ kiện', badge: 'HOT' },
-  { id: 8, name: 'Túi xách da thật', price: 1_490_000, original: 2_200_000, category: 'Túi xách', badge: null },
+  { id: '1', name: 'Tai nghe Sony WH-1000XM5', price: 6_490_000, original: 8_990_000, category: 'Điện tử', badge: 'HOT', skuCode: 'SONY-WH-1000XM5-BK' },
+  { id: '2', name: 'Bàn phím cơ Keychron K2', price: 2_190_000, original: 2_790_000, category: 'Phụ kiện', badge: null, skuCode: 'KEY-K2-WHITE' },
+  { id: '3', name: 'Áo thun Uniqlo DRY-EX', price: 299_000, original: 499_000, category: 'Thời trang', badge: 'MỚI', skuCode: 'UQ-TSHIRT-M' },
+  { id: '4', name: 'Sách Clean Code', price: 189_000, original: 250_000, category: 'Sách', badge: null, skuCode: 'BOOK-CLEAN-CODE' },
+  { id: '5', name: 'Giày Nike Air Max', price: 2_890_000, original: 3_500_000, category: 'Giày dép', badge: 'SALE', skuCode: 'NIKE-AIRMAX-10' },
+  { id: '6', name: 'Máy pha cà phê Delonghi', price: 4_200_000, original: 5_600_000, category: 'Gia dụng', badge: null, skuCode: 'DELONGHI-COFFEE' },
+  { id: '7', name: 'Đồng hồ Casio G-Shock', price: 3_100_000, original: 3_900_000, category: 'Phụ kiện', badge: 'HOT', skuCode: 'CASIO-GSHOCK' },
+  { id: '8', name: 'Túi xách da thật', price: 1_490_000, original: 2_200_000, category: 'Túi xách', badge: null, skuCode: 'BAG-LEATHER-BK' },
 ];
 
 const CATEGORIES = ['Tất cả', 'Điện tử', 'Thời trang', 'Gia dụng', 'Phụ kiện', 'Sách', 'Giày dép', 'Túi xách'];
@@ -15,8 +19,32 @@ const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 const discount = (orig: number, price: number) => Math.round((1 - price / orig) * 100);
 
 export default function ProductListPage() {
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const { addToCart } = useCartStore();
+
+  const handleAddToCart = async (product: any) => {
+    setAddingToCart(product.id);
+    try {
+      await addToCart(product.skuCode, 1);
+      setSuccessMessage(`${product.name} đã được thêm vào giỏ hàng`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to add to cart:', err);
+    } finally {
+      setAddingToCart(null);
+    }
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
+      {/* Success notification */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 animate-in fade-in">
+          ✓ {successMessage}
+        </div>
+      )}
+
       {/* Hero banner */}
       <div className="bg-gradient-to-r from-blue-600 to-violet-700 text-white py-12 px-4">
         <div className="max-w-7xl mx-auto text-center">
@@ -37,6 +65,13 @@ export default function ProductListPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success notification placed before category filter */}
+        {successMessage && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
+            <p className="text-green-700 font-semibold">✓ {successMessage}</p>
+          </div>
+        )}
+
         {/* Category filter */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none">
           {CATEGORIES.map((cat, i) => (
@@ -56,7 +91,7 @@ export default function ProductListPage() {
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {PLACEHOLDER_PRODUCTS.map((p) => (
-            <div key={p.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+            <div key={p.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group">
               {/* Image placeholder */}
               <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 aspect-square flex items-center justify-center">
                 <span className="text-4xl">🛍️</span>
@@ -75,13 +110,25 @@ export default function ProductListPage() {
                 <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">
                   {p.name}
                 </h3>
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2 mb-1">
                   <span className="text-base font-bold text-red-600">{fmt(p.price)}</span>
                 </div>
-                <p className="text-xs text-gray-400 line-through">{fmt(p.original)}</p>
-                <button className="mt-3 w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors">
-                  Thêm vào giỏ
-                </button>
+                <p className="text-xs text-gray-400 line-through mb-3">{fmt(p.original)}</p>
+                <div className="flex gap-2">
+                  <Link
+                    to={`/products/${p.id}`}
+                    className="flex-1 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 text-xs font-semibold rounded-xl transition-colors text-center"
+                  >
+                    Xem chi tiết
+                  </Link>
+                  <button
+                    onClick={() => handleAddToCart(p)}
+                    disabled={addingToCart === p.id}
+                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-semibold rounded-xl transition-colors"
+                  >
+                    {addingToCart === p.id ? '⏳' : '➕'}
+                  </button>
+                </div>
               </div>
             </div>
           ))}

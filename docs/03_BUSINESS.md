@@ -1,6 +1,8 @@
 # 📱 Marketplace Platform
 
-**Tài liệu Nghiệp Vụ thuần túy • Phiên bản v5.3 • Cập nhật: Return To Sender (RTS) • Thanh toán: Stripe • Loyalty gộp vào Identity • 23 Cronjobs**
+**Tài liệu Nghiệp Vụ thuần túy • Phiên bản v5.3 • Cập nhật: Return To Sender (RTS) • Thanh toán: Stripe • Loyalty gộp vào Identity • 23 Cronjobs (v5.0 — Distributed per Service)**
+
+> **v5.0:** Cronjobs được chạy trong service tương ứng (identity-service, flashsale-service, product-service, order-service, payment-service, notification-service). Không có worker-service trung tâm. Xem chi tiết tại [05_OPERATIONS.md](05_OPERATIONS.md).
 
 ## Thống Kê Tổng Quan
 
@@ -608,109 +610,50 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 
 ---
 
-## 🤖 Cronjobs — 23 Jobs Tự động
+## 🤖 Cronjobs — 23 Jobs Tự động (v5.0 — Distributed per Service)
 
-Tất cả cronjobs đều có cơ chế distributed lock: đảm bảo dù hệ thống có nhiều máy chạy, mỗi job chỉ chạy trên 1 máy tại 1 thời điểm. Mỗi job xử lý theo lô nhỏ (tối đa 500 bản ghi/lần) để trình nh hưởng đến hiệu năng hệ thống.
+> **Mỗi job chạy trong service sở hữu primary data.** Không có worker-service trung tâm. Xem chi tiết tại [05_OPERATIONS.md](05_OPERATIONS.md).
 
 ### ⚡ Thời gian thực (1-5 phút)
 
-#### JOB-01
-- **Chạy:** Mỗi 1 phút
-- **Mô tả:** Vòng đời Flash Sale: Phiên UPCOMING → ACTIVE (nạp kho lên bộ nhớ đầm) và ACTIVE → ENDED (dọn bộ nhớ đầm + hoàn kho chưa bán về Seller)
-
-#### JOB-02
-- **Chạy:** Mỗi 1 phút
-- **Mô tả:** Nhắc nhở Flash Sale: Quét danh sách đơng ký nhắc nhở → gửi thông báo cho Buyer ở đăng ký, 15 phút trước khi Flash Sale bắt đầu
-
-#### JOB-04
-- **Chạy:** Mỗi 10 giây
-- **Mô tả:** Phát sinh sự kiện bất đơng bộ: có các sự kiện đang chờ ở gửi đi → Retry tối đa 5 lần nếu thất bại → Chuyển sang DLQ nếu vẫn lỗi
-
-#### JOB-13
-- **Chạy:** Mỗi 5 phút
-- **Mô tả:** Tự động hủy đơn quá hạn: đơn thường PENDING > 30 phút hoặc đơn Flash Sale > 10 phút → CANCELLED + hủy điểm Loyalty PENDING + thông báo Buyer (timeout)
-
-#### JOB-17
-- **Chạy:** Mỗi 15 phút
-- **Mô tả:** Khóa / Mở khóa tự động: Trust Score < 10 → Khóa tài khoản + Thu hồi tất cả phiên đăng nhập + Ghi lịch sử. Tài khoản hết thời hạn khóa → Tự động mở khóa
-
-#### JOB-21
-- **Chạy:** Mỗi 5 phút
-- **Mô tả:** Đối sánh kho Flash Sale: So sánh bộ nhớ đầm với CSDL, phát hiện và sửa bất đơng bộ, trình tình trạng bán quá số lượng
+| Job | Service | Mô Tả |
+|-----|---------|--------|
+| JOB-01 | flashsale-service | Vòng đời Flash Sale: UPCOMING→ACTIVE→ENDED |
+| JOB-02 | flashsale-service | Nhắc nhở Buyer 15 phút trước khi bắt đầu |
+| JOB-04 | payment-service | Outbox event publisher (mỗi 10 giây) |
+| JOB-13 | order-service | Auto-cancel đơn quá hạn (30p thường, 10p FS) |
+| JOB-17 | identity-service | Auto-lock/unlock accounts (trust_score <10) |
+| JOB-21 | flashsale-service | Reconciliation tồn kho Redis vs DB |
 
 ### 🌅 Hàng ngày
 
-#### JOB-03
-- **Chạy:** 02:00 hàng ngày
-- **Mô tả:** Hết hạn điểm Loyalty: Quét điểm tích quá 365 ngày → trừ khỏi tài khoản + cộng vào điểm hết hạn + ghi lịch sử. Xử lý lô nhỏ, trình over-expire
-
-#### JOB-07
-- **Chạy:** 04:00 hàng ngày
-- **Mô tả:** Dọn giỏ hàng cũ: Xóa giỏ hàng không hoạt động 90 ngày + Xóa item Flash Sale của phiên ở kết thúc
-
-#### JOB-08
-- **Chạy:** 02:00 hàng ngày
-- **Mô tả:** Dọn dữ liệu Flash Sale: Phiên > 365 ngày, item APPROVED > 180 ngày, item REJECTED/CANCELLED > 30 ngày, nhắc nhở (xóa ngay sau khi phiên kết thúc)
-
-#### JOB-13b
-- **Chạy:** Hàng ngày
-- **Mô tả:** Phát hiện Seller giao hàng chậm: Đối chiếu với nhà vận chuyển, giao chậm 3 lần/tháng → trừ Trust Score. Ghi nhớ lần phát gần nhất để trình phát trùng
-
-#### JOB-14
-- **Chạy:** 03:00 hàng ngày
-- **Mô tả:** Dọn điểm Loyalty mở cũ: Điểm PENDING của đơn ở CANCELLED/REFUNDED nhưng chưa bị hủy → hủy điểm + ghi lịch sử
-
-#### JOB-15
-- **Chạy:** 02:00 hàng ngày
-- **Mô tả:** Vô hiệu hóa link Stripe onboarding: Link xác minh Seller hơn 24 giờ → xóa link (link cũ không thể dùng ở xác minh)
-
-#### JOB-16
-- **Chạy:** 03:00 hàng ngày
-- **Mô tả:** Xóa mềm sản phẩm bị từ chối: Sản phẩm bị từ chối và không sửa trong 90 ngày → đánh dấu xóa mềm (trình xóa nhầm sản phẩm vẫn được sửa)
-
-#### JOB-18
-- **Chạy:** 03:00 hàng ngày
-- **Mô tả:** Phát hiện Buyer hủy đơn quá mức: Hủy > 5 đơn trong 30 ngày (rolling window từ lần phát gần nhất) → trừ Trust Score
-
-#### JOB-22
-- **Chạy:** 02:00 hàng ngày
-- **Mô tả:** Tự động xác nhận nhận hàng: Đơn SHIPPING > 7 ngày chưa có phản hồi → DELIVERED tự động. **⚠️ Không áp dụng** cho đơn ở có hàng hoàn (RTS)
-
-#### JOB-12
-- **Chạy:** 05:00 hàng ngày
-- **Mô tả:** Dọn lock hệ thống bị kẹt: Lock bị treo do máy chạy crash/hết bộ nhớ quá 1 giờ → xóa để các job tiếp theo có thể chạy bình thường
+| Job | Service | Mô Tả |
+|-----|---------|--------|
+| JOB-03 | identity-service | Hết hạn điểm Loyalty (365 ngày) |
+| JOB-07 | product-service | Dọn cart không hoạt động (90 ngày) |
+| JOB-08 | flashsale-service | Dọn dữ liệu Flash Sale theo retention |
+| JOB-12 | payment-service | Dọn ShedLock stale entries |
+| JOB-14 | identity-service | Dọn điểm Loyalty PENDING mồ côi |
+| JOB-15 | payment-service | Nullify Stripe onboarding URL (>24h) |
+| JOB-16 | product-service | Soft-delete sản phẩm REJECTED không sửa (90 ngày) |
+| JOB-18 | identity-service | Buyer hủy đơn quá nhiều (>5/30 ngày) |
+| JOB-22 | order-service | Auto-delivered SHIPPING >7 ngày |
 
 ### 📆 Định kỳ (tuần / tháng / năm)
 
-#### JOB-05
-- **Chạy:** Định kỳ
-- **Mô tả:** Dọn sự kiện Outbox: Sự kiện ở xử lý > 7 ngày và sự kiện thất bại > 3 ngày → xóa. Lô 500 bản ghi/lần
-
-#### JOB-06
-- **Chạy:** Định kỳ
-- **Mô tả:** Dọn sự kiện thất bại (DLQ): ở giải quyết > 30 ngày hoặc chết hạn > 90 ngày → xóa. Lô 500 bản ghi/lần
-
-#### JOB-09
-- **Chạy:** Định kỳ
-- **Mô tả:** Giám sát TTL thông báo: Kiểm tra cơ chế tự xóa thông báo (90 ngày) còn hoạt động đơng → chỉ giám sát, không tự xóa
-
-#### JOB-10
-- **Chạy:** Chủ nhật 03:00
-- **Mô tả:** Xóa vĩnh viễn sản phẩm: Sản phẩm ở soft-deleted + không còn đơn hàng liên quan → Xóa khỏi CSDL sản phẩm, tìm kiếm, và kho lưu trữ nh
-
-#### JOB-11
-- **Chạy:** Ngày 1 hàng tháng
-- **Mô tả:** Dọn lịch sử Trust Score: Lịch sử thay đổi điểm có hơn 2 năm → xóa vĩnh viễn. Lô 500 bản ghi/lần
-
-#### JOB-19
-- **Chạy:** Ngày 1 hàng tháng
-- **Mô tả:** Thưởng Seller hành vi tốt: Seller có đơn DELIVERED trong 30 ngày và không có yêu cầu hoàn tiền nào → Cộng điểm Trust Score
-
-#### JOB-20
-- **Chạy:** 00:00 ngày 1/1
-- **Mô tả:** Reset lần khiếu nại hàng năm: Reset số lần khiếu nại Trust Score của tất cả user về 0 → Mỗi năm mỗi user được khiếu nại 3 lần. **⚠️ Job quan trọng nhất — không được chạy trùng lặp**
+| Job | Service | Mô Tả |
+|-----|---------|--------|
+| JOB-05 | payment-service | Dọn Outbox (PROCESSED >7d, FAILED >3d) |
+| JOB-06 | payment-service | Dọn DLQ (RESOLVED >30d, DEAD >90d) |
+| JOB-09 | notification-service | Notification TTL (MongoDB TTL Index) |
+| JOB-10 | product-service | Hard delete sản phẩm đã soft-delete (CN) |
+| JOB-11 | identity-service | Dọn trust score log (>2 năm, ngày 1) |
+| JOB-19 | identity-service | Thưởng Seller không refund 30 ngày (ngày 1) |
+| JOB-20 | identity-service | Reset appeal count (00:00 ngày 1/1) |
 
 ---
+
+**Tài liệu cập nhật: 2026-04-22**
 
 **Tài liệu cập nhật: 2026-04-14**
 

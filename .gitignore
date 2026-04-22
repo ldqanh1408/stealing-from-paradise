@@ -40,11 +40,27 @@ frontend/.env.production
 frontend/.env.test
 frontend/.env.staging
 
+# Backend AI configs
+backend/.claude/
+backend/.cursor/
+
+# Frontend AI configs
+frontend/.claude/
+frontend/.cursor/
+
 # Individual service .env files (if any)
 backend/**/.env
 backend/**/.env.local
 frontend/**/.env
 frontend/**/.env.local
+
+# Service-specific AI configs
+backend/*-service/.claude/
+backend/*-service/.cursor/
+backend/*-service/.github/
+frontend/apps/*/.claude/
+frontend/apps/*/.cursor/
+frontend/apps/*/.github/
 
 # Private keys and secrets (just in case)
 *.key
@@ -128,6 +144,39 @@ build/
 .output/
 .data/
 .vuepress/dist/
+
+# ========================================
+# AI AGENT SKILLS, RULES & CONFIGURATIONS
+# ========================================
+# Cursor AI
+.cursor/
+.cursor/settings.json
+.cursor/settings.local.json
+.cursor/skills/
+.cursor/rules/
+
+# Claude AI
+.claude/
+.claude/settings.local.json
+.claude/rules/
+.claude/sessions/
+
+# GitHub Copilot
+.github/copilot-instructions.md
+
+# Root-level AI instruction files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+RULES.md
+
+# Agent transcripts (Cursor projects folder)
+# Note: These live in C:\Users\CYBORG\.cursor\projects\
+# Uncomment if agent-transcripts is ever moved into repo
+# agent-transcripts/
+
+# MCP Server configs (if moved into repo)
+# mcps/
 
 # ========================================
 # DOCKER DATA VOLUMES & DATABASE FILES

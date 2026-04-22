@@ -114,8 +114,7 @@
 
   "mounts": [
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.m2,target=/home/vscode/.m2,type=bind",
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.npm,target=/home/vscode/.npm,type=bind",
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.npm,target=/home/vscode/.npm,type=bind"
   ],
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",

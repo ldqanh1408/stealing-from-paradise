@@ -34,7 +34,7 @@ spring:
       properties:
         spring.json.trusted.packages: com.flashsale.*
   mongodb:
-    uri: mongodb://${MONGO_INITDB_ROOT_USERNAME:root}:${MONGO_INITDB_ROOT_PASSWORD_ENCODED:root}@${MONGO_HOST:localhost}:27017/${DB_NAME_NOTIFICATION:fs_noti_prod}?authSource=admin
+    uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@${MONGO_HOST:localhost}:27017/${DB_NAME_NOTIFICATION:fs_noti_prod}?authSource=admin
 eureka:
   instance:
     prefer-ip-address: true

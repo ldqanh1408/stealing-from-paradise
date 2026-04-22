@@ -40,6 +40,17 @@ public class ParentOrderPaymentSaga {
     @StartSaga
     @SagaEventHandler(associationProperty = "parentOrderId")
     public void on(ParentOrderCheckoutCreatedEvent event) {
+        // Include sub-order breakdown so payment-service can create SellerTransfer records
+        List<Order> subOrders = orderRepository.findAllByParentOrderIdAndStatus(event.getParentOrderId(), "PENDING");
+        List<Map<String, Object>> orders = subOrders.stream().map(o -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("order_id",    o.getId());
+            m.put("seller_id",   o.getSellerId());
+            m.put("seller_name", o.getSellerName() != null ? o.getSellerName() : "");
+            m.put("amount",      o.getFinalAmt());
+            return m;
+        }).toList();
+
         Map<String, Object> payload = new HashMap<>();
         payload.put("parent_order_id", event.getParentOrderId());
         payload.put("user_id", event.getUserId());
@@ -47,9 +58,10 @@ public class ParentOrderPaymentSaga {
         payload.put("currency", "VND");
         payload.put("timeout_at", event.getTimeoutAt() != null ? event.getTimeoutAt().toString() : null);
         payload.put("timestamp", Instant.now().toString());
+        payload.put("orders", orders);
 
         send(KafkaTopics.PAYMENT_REQUESTED, String.valueOf(event.getParentOrderId()), payload);
-        log.info("[ParentPaymentSaga][{}] Payment requested", event.getParentOrderId());
+        log.info("[ParentPaymentSaga][{}] Payment requested with {} sub-orders", event.getParentOrderId(), orders.size());
     }
 
     @EndSaga

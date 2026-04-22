@@ -74,18 +74,18 @@ Complete documentation available in `/docs`:
 
 | Document | Purpose |
 |----------|---------|
-| [PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | **START HERE** - Complete guide |
-| [BUSINESS_DOC_v5_3_rts_unified.md](docs/BUSINESS_DOC_v5_3_rts_unified.md) | Business logic & workflows (v5.3) |
-| [SYSTEM_POLICY_v3_rts_unified.md](docs/SYSTEM_POLICY_v3_rts_unified.md) | System policies & configuration (v3.0) |
-| [DATA_RETENTION_POLICY_v4_rts.md](docs/DATA_RETENTION_POLICY_v4_rts.md) | 22 Cronjobs & retention (v4.0) |
-| [BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md) | Backend architecture |
-| [FRONTEND_GUIDE.md](docs/FRONTEND_GUIDE.md) | Frontend development |
-| [BUILD_AND_DOCKER_GUIDE.md](docs/BUILD_AND_DOCKER_GUIDE.md) | Build & deployment |
-| [JAVA_SPRING_BOOT_CONFIG.md](docs/JAVA_SPRING_BOOT_CONFIG.md) | Java 25 configuration |
-| [AXON_EXPLANATION.md](docs/AXON_EXPLANATION.md) | Axon Framework guide |
-| [DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) | Documentation index |
+| [00_INDEX.md](docs/00_INDEX.md) | **START HERE** - Documentation index |
+| [01_OVERVIEW.md](docs/01_OVERVIEW.md) | Project architecture & setup |
+| [02_API.md](docs/02_API.md) | Complete API specification (v5.3 RTS) |
+| [03_BUSINESS.md](docs/03_BUSINESS.md) | Business logic & workflows (v5.3) |
+| [04_POLICIES.md](docs/04_POLICIES.md) | System policies & configuration (v3.0) |
+| [05_OPERATIONS.md](docs/05_OPERATIONS.md) | 23 Cronjobs & data retention (v4.0) |
+| [06_PAYMENT_SAGA_FLOW.md](docs/06_PAYMENT_SAGA_FLOW.md) | Payment flow & Saga pattern |
+| [07_BUSINESS_FLOWS.md](docs/07_BUSINESS_FLOWS.md) | Luồng nghiệp vụ tổng hợp (Mermaid) |
+| [08_PAYMENT_ORDER_INTEGRATION.md](docs/08_PAYMENT_ORDER_INTEGRATION.md) | Integration details |
+| [erd.mermaid](docs/erd.mermaid) | Database schema |
 
-**[See complete documentation index →](docs/DOCUMENTATION_INDEX.md)**
+**[See complete documentation index →](docs/00_INDEX.md)**
 
 ## 🛠️ Tech Stack
 
@@ -160,26 +160,26 @@ cp .env.example .env
 ### By Role:
 
 **New Developer:**
-1. Read [PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md)
-2. Read [BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md) or [FRONTEND_GUIDE.md](docs/FRONTEND_GUIDE.md)
+1. Read [01_OVERVIEW.md](docs/01_OVERVIEW.md)
+2. Read [CLAUDE.md](CLAUDE.md) for setup
 3. Setup & run locally
-4. Reference [DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)
+4. Reference [02_API.md](docs/02_API.md)
 
 **Backend Developer:**
-1. [PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) - Backend Architecture
-2. [BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md)
-3. [AXON_EXPLANATION.md](docs/AXON_EXPLANATION.md)
-4. [JAVA_SPRING_BOOT_CONFIG.md](docs/JAVA_SPRING_BOOT_CONFIG.md)
+1. [01_OVERVIEW.md](docs/01_OVERVIEW.md) - Backend Architecture
+2. [02_API.md](docs/02_API.md) - API endpoints
+3. [03_BUSINESS.md](docs/03_BUSINESS.md) - Business logic
+4. [04_POLICIES.md](docs/04_POLICIES.md) - System rules
 
 **Frontend Developer:**
-1. [PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) - Frontend Architecture
-2. [FRONTEND_GUIDE.md](docs/FRONTEND_GUIDE.md)
-3. [BUILD_AND_DOCKER_GUIDE.md](docs/BUILD_AND_DOCKER_GUIDE.md)
+1. [01_OVERVIEW.md](docs/01_OVERVIEW.md) - Frontend Architecture
+2. [02_API.md](docs/02_API.md) - API examples
+3. [CLAUDE.md](CLAUDE.md) - Build commands
 
 **DevOps Engineer:**
-1. [BUILD_AND_DOCKER_GUIDE.md](docs/BUILD_AND_DOCKER_GUIDE.md)
-2. [DATA_RETENTION_POLICY_v4_rts.md](docs/DATA_RETENTION_POLICY_v4_rts.md)
-3. [JAVA_SPRING_BOOT_CONFIG.md](docs/JAVA_SPRING_BOOT_CONFIG.md)
+1. [CLAUDE.md](CLAUDE.md) - Deployment commands
+2. [05_OPERATIONS.md](docs/05_OPERATIONS.md) - Cronjobs
+3. [01_OVERVIEW.md](docs/01_OVERVIEW.md) - Tech stack
 
 ## 🔗 Important Links
 
@@ -267,20 +267,20 @@ cd backend
 mvn clean install -DskipTests -X  # Verbose mode
 ```
 
-See [BUILD_AND_DOCKER_GUIDE.md](docs/BUILD_AND_DOCKER_GUIDE.md) for more troubleshooting.
+See [05_OPERATIONS.md](docs/05_OPERATIONS.md) and [01_OVERVIEW.md](docs/01_OVERVIEW.md) for more troubleshooting.
 
 ## 📖 Documentation
 
 **Comprehensive documentation is available in the [/docs](docs/) folder:**
 
-- ✅ Architecture & Setup
-- ✅ Backend & Frontend Development
-- ✅ Business Logic (v5.3)
-- ✅ System Policies (v3.0)
-- ✅ Data Retention & Cronjobs (v4.0)
-- ✅ Deployment & Operations
+- ✅ Architecture & Setup ([01_OVERVIEW.md](docs/01_OVERVIEW.md))
+- ✅ API Specification ([02_API.md](docs/02_API.md))
+- ✅ Business Logic ([03_BUSINESS.md](docs/03_BUSINESS.md))
+- ✅ System Policies ([04_POLICIES.md](docs/04_POLICIES.md))
+- ✅ Data Retention & Cronjobs ([05_OPERATIONS.md](docs/05_OPERATIONS.md))
+- ✅ Deployment & Operations ([CLAUDE.md](CLAUDE.md))
 
-[👉 See DOCUMENTATION_INDEX.md for complete guide](docs/DOCUMENTATION_INDEX.md)
+[👉 See documentation index for complete guide](docs/00_INDEX.md)
 
 ## 🤝 Contributing
 
@@ -300,16 +300,16 @@ This is a **production-ready, fully-documented e-commerce platform** with:
 
 - ✅ Event-driven microservices architecture
 - ✅ 11 backend services + 3 frontend apps
-- ✅ Advanced features (Flash Sales, Stripe, Search)
-- ✅ Comprehensive documentation (13 files, 6,000+ lines)
-- ✅ 22 automated cronjobs for operations
+- ✅ Advanced features (Flash Sales, Stripe, Search, RTS)
+- ✅ Comprehensive documentation (10 files, 9,000+ lines)
+- ✅ 23 automated cronjobs for operations
 - ✅ Docker containerization & deployment ready
 
 **Ready for production deployment! 🚀**
 
 ---
 
-**Last Updated**: 2026-04-14  
+**Last Updated**: 2026-04-20  
 **Status**: ✅ Production-Ready  
 **Documentation Version**: Complete v5.3 RTS Unified
 

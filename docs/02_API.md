@@ -24,9 +24,9 @@ Tài liệu đặc tả API **đầy đủ** cho hệ thống **Multi-Vendor Mar
 ### 📚 Related Documentation
 
 For complete understanding, also read:
-- **[BUSINESS_DOC_v5_3_rts_unified.md](BUSINESS_DOC_v5_3_rts_unified.md)** - Business logic, workflows, policies
-- **[SYSTEM_POLICY_v3_rts_unified.md](SYSTEM_POLICY_v3_rts_unified.md)** - System rules, configuration, schema
-- **[DATA_RETENTION_POLICY_v4_rts.md](DATA_RETENTION_POLICY_v4_rts.md)** - Data retention, 22 cronjobs, cleanup
+- **[03_BUSINESS.md](03_BUSINESS.md)** - Business logic, workflows, policies
+- **[04_POLICIES.md](04_POLICIES.md)** - System rules, configuration, schema
+- **[05_OPERATIONS.md](05_OPERATIONS.md)** - Data retention, 23 cronjobs, cleanup
 
 ---
 
@@ -2660,45 +2660,35 @@ Tổng hợp toàn bộ Kafka topics:
 ## 📚 Complete Documentation Reference
 
 ### Supplementary API Documentation
-- **[API_UPDATES_v5_3.md](API_UPDATES_v5_3.md)** - NEW v5.3
-  - Comprehensive request/response examples
-  - Parameter specifications with ranges
-  - Error response formats
-  - Multi-vendor payment split details
-  - Tracking number implementation
-  - Return To Sender (RTS) workflow
-  - Loyalty points detailed breakdown
-  - Admin audit responses
+All API details are in this document. For business context see related docs below.
 
 ### Business Logic & Requirements
-- **[BUSINESS_DOC_v5_3_rts_unified.md](BUSINESS_DOC_v5_3_rts_unified.md)**
+- **[03_BUSINESS.md](03_BUSINESS.md)**
   - 9 workflows (authentication, products, orders, payments, refunds, flash sales, loyalty, trust score)
-  - 6 policies (trust score, refund, flash sale, loyalty, data retention, security)
+  - Policies: trust score, refund, flash sale, loyalty, data retention, security
   - Complete user journeys for Buyer, Seller, Admin
   - NEW v5.3: Tracking number for refunds, Return To Sender (RTS) workflow
 
 ### System Configuration & Rules
-- **[SYSTEM_POLICY_v3_rts_unified.md](SYSTEM_POLICY_v3_rts_unified.md)**
-  - 7 core principles (soft delete, distributed lock, audit trail, idempotent, etc.)
-  - 22 cronjobs detailed (lifecycle, cleanup, auto-lock, detection)
-  - Policy tables (PostgreSQL, MongoDB, Elasticsearch)
+- **[04_POLICIES.md](04_POLICIES.md)**
   - Trust Score tier configuration (BRONZE to ELITE)
   - Account lifecycle management
-  - NEW v3.0: JWT revocation, User ban history
+  - Flash sale participation rules
+  - JWT revocation, User ban history
 
 ### Operations & Data Retention
-- **[DATA_RETENTION_POLICY_v4_rts.md](DATA_RETENTION_POLICY_v4_rts.md)**
-  - 22 cronjobs with SQL logic (JOB-01 to JOB-22)
+- **[05_OPERATIONS.md](05_OPERATIONS.md)**
+  - 23 cronjobs with SQL logic (JOB-01 to JOB-22)
   - Retention periods for each table
-  - Flash sale reconciliation (JOB-21 GAP-PATCH)
-  - Auto-delivered stale orders (JOB-22 GAP-PATCH R1)
+  - Flash sale reconciliation (JOB-21)
+  - Auto-delivered stale orders (JOB-22)
   - External storage policy (Redis, MinIO)
-  - Deployment checklist
 
 ### Architecture & Diagrams
+- **[01_OVERVIEW.md](01_OVERVIEW.md)** - Architecture & tech stack
+- **[07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md)** - Luồng nghiệp vụ tổng hợp (Mermaid)
 - **[erd.mermaid](erd.mermaid)** - Complete Entity-Relationship Diagram
-- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Architecture & tech stack
-- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Navigation & quick links
+- **[00_INDEX.md](00_INDEX.md)** - Navigation & quick links
 
 ---
 
