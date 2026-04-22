@@ -51,16 +51,16 @@ jobs:
         with:
           name: backend-jars
           path: |
-            api-gateway/target/*.jar
-            discovery-service/target/*.jar
-            identity-service/target/*.jar
-            product-service/target/*.jar
-            order-service/target/*.jar
-            payment-service/target/*.jar
-            flashsale-service/target/*.jar
-            search-service/target/*.jar
-            notification-service/target/*.jar
-            worker-service/target/*.jar
+            backend/api-gateway/target/*.jar
+            backend/discovery-service/target/*.jar
+            backend/identity-service/target/*.jar
+            backend/product-service/target/*.jar
+            backend/order-service/target/*.jar
+            backend/payment-service/target/*.jar
+            backend/flashsale-service/target/*.jar
+            backend/search-service/target/*.jar
+            backend/notification-service/target/*.jar
+            backend/worker-service/target/*.jar
           retention-days: 1
           if-no-files-found: error
 
@@ -139,11 +139,11 @@ jobs:
       - name: Copy backend JARs into Docker context
         if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
         run: |
-          # Artifact stores paths from Maven working-directory (./backend): api-gateway/target/*.jar
-          # Downloaded to: /tmp/backend-jars/api-gateway/target/*.jar
+          # Artifact stores repo-root paths: backend/api-gateway/target/*.jar
+          # Downloaded to: /tmp/backend-jars/backend/api-gateway/target/*.jar
           # Dockerfile.dev context: ./backend/$service  →  expects target/*.jar
           mkdir -p backend/${{ matrix.service }}/target
-          cp /tmp/backend-jars/${{ matrix.service }}/target/*.jar backend/${{ matrix.service }}/target/
+          cp /tmp/backend-jars/backend/${{ matrix.service }}/target/*.jar backend/${{ matrix.service }}/target/
 
       - name: Download frontend app
         if: contains(matrix.service, '-app')
