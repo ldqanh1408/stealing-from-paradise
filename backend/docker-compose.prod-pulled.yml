@@ -1,0 +1,51 @@
+# ============================================================
+# FLASH SALE BACKEND — PRODUCTION OVERRIDE (CD Server Deploy)
+# ============================================================
+# Pulls pre-built images from GHCR instead of building on the server.
+#
+# `image:` in this override takes precedence over `build:` in
+# docker-compose.yml / docker-compose-backend.yml, so Docker
+# Compose will pull :prod-latest instead of rebuilding.
+#
+# Images are tagged as :prod-latest (pushed by deploy.yml on main merge).
+#
+# USE: IMAGE_PREFIX=owner/flashsale docker-compose \
+#          -f docker-compose.yml \
+#          -f docker-compose-backend.yml \
+#          -f backend/docker-compose.prod-pulled.yml \
+#          up -d
+#
+# NOTE: Run from the project root.
+#       IMAGE_PREFIX = GHCR namespace (owner/repo), e.g. "myusername/flashsale".
+# ============================================================
+
+services:
+  discovery-service:
+    image: ghcr.io/${IMAGE_PREFIX}/discovery-service:prod-latest
+
+  api-gateway:
+    image: ghcr.io/${IMAGE_PREFIX}/api-gateway:prod-latest
+
+  identity-service:
+    image: ghcr.io/${IMAGE_PREFIX}/identity-service:prod-latest
+
+  payment-service:
+    image: ghcr.io/${IMAGE_PREFIX}/payment-service:prod-latest
+
+  order-service:
+    image: ghcr.io/${IMAGE_PREFIX}/order-service:prod-latest
+
+  worker-service:
+    image: ghcr.io/${IMAGE_PREFIX}/worker-service:prod-latest
+
+  flashsale-service:
+    image: ghcr.io/${IMAGE_PREFIX}/flashsale-service:prod-latest
+
+  product-service:
+    image: ghcr.io/${IMAGE_PREFIX}/product-service:prod-latest
+
+  search-service:
+    image: ghcr.io/${IMAGE_PREFIX}/search-service:prod-latest
+
+  notification-service:
+    image: ghcr.io/${IMAGE_PREFIX}/notification-service:prod-latest
