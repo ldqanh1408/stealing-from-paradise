@@ -2,8 +2,9 @@
 export default {
   content: [
     './index.html',
-    './src/**/*.{js,ts,jsx,tsx}',
-    '../../shared/**/*.{js,ts,jsx,tsx}',
+    './src/**/*.{ts,tsx}',
+    '../../shared/**/*.{ts,tsx}',
+    '!../../shared/node_modules/**',
   ],
   theme: {
     extend: {},
