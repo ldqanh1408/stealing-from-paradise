@@ -327,7 +327,8 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:dev-${{ github.sha }}
             ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:dev-latest
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Disable cache export to avoid failing the job on 502s from the cache service
+          # cache-to: type=gha,mode=max
 
   # ─────────────────────────────────────────────
   # 5. Backend Unit Tests
