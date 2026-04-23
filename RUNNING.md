@@ -2,21 +2,18 @@
 
 > **Full documentation: [docs/09_RUNNING.md](docs/09_RUNNING.md)**
 > This file is a quick reference. See the full guide for detailed instructions.
-> **Note**: `stripe-webhook.ps1` (separate terminal) is required for local Stripe webhook.
 
 ---
 
 ## Quick Start
 
 ```powershell
-# Terminal 1: Start Stripe webhook listener (run FIRST, keep this terminal open)
-.\stripe-webhook.ps1 -Mode Start
-
-# Terminal 0: Build backend JARs (one-time or after code changes)
+# stripe-listener (fs-stripe-listener) starts AUTOMATICALLY with the backend.
 .\flashsale-build.ps1 -Build
-
-# Terminal 0: Start everything
 .\flashsale-build.ps1 -Up -All -D
+
+# To skip Stripe CLI listener (for staging/prod):
+.\flashsale-build.ps1 -Up -All -D -NoStripeWebhook
 ```
 
 ---

@@ -1,0 +1,60 @@
+# ============================================================
+# FLASH SALE — DEV OVERRIDE
+# ============================================================
+# Contains dev-only services that should NOT run in production:
+#   - stripe-listener: Stripe CLI forwarding events to payment-service
+#
+# HOW IT WORKS:
+#   docker compose reads docker-compose.yml automatically.
+#   When you add -f docker-compose.dev.yml, it MERGES the dev services on top.
+#   So stripe-listener only starts when you explicitly include this file.
+#
+# USE:
+#   Dev (with stripe webhook):  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   Dev (no stripe webhook):   docker compose -f docker-compose.yml up -d
+#   Prod:                       docker compose -f docker-compose.yml up -d  (no dev.yml)
+#
+#   Via script:
+#   -Up -All -D                 → includes dev.yml (stripe webhook ON by default)
+#   -Up -All -D -NoStripeWebhook → excludes stripe-listener
+#
+# NOTE: This file is intentionally NOT referenced by any prod override.
+#       Prod deploy uses: docker-compose.yml + docker-compose-backend.yml + backend/docker-compose.prod-pulled.yml
+#       → stripe-listener is never started in production.
+#
+# ============================================================
+
+services:
+  # ================================================================
+  # STRIPE WEBHOOK LISTENER (dev only — NOT for production)
+  # ================================================================
+  # Forwards Stripe events to payment-service webhook endpoint.
+  # Uses Stripe CLI inside Docker — no host installation needed.
+  #
+  # HOW IT WORKS:
+  #   Stripe CLI listens for events from Stripe's servers and forwards
+  #   them to the payment-service /api/v1/stripe/webhooks endpoint.
+  #   It signs every forwarded request so payment-service can verify
+  #   the signature using STRIPE_WEBHOOK_SECRET.
+  #
+  #   DEV:  Stripe CLI → forwards events → fs-payment:8082
+  #   PROD: Stripe Dashboard → sends directly → your-server/api/v1/stripe/webhooks
+  #
+  # REQUIREMENTS:
+  #   - STRIPE_SECRET_KEY must be set in .env (Stripe test/live secret key)
+  #   - STRIPE_WEBHOOK_SECRET must be set in .env (from: stripe listen output)
+  #   - payment-service must be healthy before Stripe CLI starts
+  # ================================================================
+  stripe-listener:
+    image: stripe/stripe-cli:latest
+    container_name: fs-stripe-listener
+    restart: unless-stopped
+    command: >
+      listen
+      --api-key ${STRIPE_SECRET_KEY}
+      --forward-to fs-payment:8082/api/v1/stripe/webhooks
+      --log-level debug
+    depends_on:
+      payment-service:
+        condition: service_healthy
+    networks: [flashsale-net]

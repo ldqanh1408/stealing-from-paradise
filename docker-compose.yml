@@ -456,25 +456,6 @@ services:
     networks: [*network]
 
   # ================================================================
-  # STRIPE WEBHOOK LISTENER (development only)
-  # Forwards Stripe events to payment-service webhook endpoint.
-  # Running inside Docker means no host installation required.
-  # ================================================================
-  stripe-listener:
-    image: stripe/stripe-cli:latest
-    container_name: fs-stripe-listener
-    restart: unless-stopped
-    command: >
-      listen
-      --api-key ${STRIPE_SECRET_KEY}
-      --forward-to fs-payment:8082/api/v1/stripe/webhooks
-      --log-level debug
-    depends_on:
-      payment-service:
-        condition: service_healthy
-    networks: [*network]
-
-  # ================================================================
   # 3. FRONTEND APPLICATIONS
   # ================================================================
 

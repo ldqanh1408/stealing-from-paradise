@@ -16,9 +16,11 @@
 #   .\flashsale-build.ps1 -Menu
 #
 # EXAMPLES:
-#   .\flashsale-build.ps1 -Up -All -D                # Start everything, detached
+#   .\flashsale-build.ps1 -Up -All -D                # Start everything + stripe-listener (dev)
+#   .\flashsale-build.ps1 -Up -All -D -NoStripeWebhook  # Start without Stripe CLI (staging/prod)
 #   .\flashsale-build.ps1 -Up -Infra                 # Start infrastructure only
-#   .\flashsale-build.ps1 -Up -Backend -D           # Start backend only
+#   .\flashsale-build.ps1 -Up -Backend -D           # Start backend + stripe-listener (dev)
+#   .\flashsale-build.ps1 -Up -Backend -D -NoStripeWebhook  # Backend only, no stripe-listener
 #   .\flashsale-build.ps1 -Up -Frontend              # Start frontend only
 #   .\flashsale-build.ps1 -Up -Infra -Backend        # Start infra + backend
 #   .\flashsale-build.ps1 -Up -Backend -Frontend     # Start backend + frontend
@@ -82,6 +84,9 @@ param(
     [switch]$RemoveImages,
     [switch]$RemoveOrphans,
     [switch]$Remove,
+
+    # --- UP OPTIONS ---
+    [switch]$NoStripeWebhook,
 
     # --- RESTART / TAIL / EXEC ---
     [string]$Service,
@@ -166,9 +171,16 @@ ACTIONS  (choose one):
   -Exec         Run command in container
   -Menu         Interactive menu
 
-  IMPORTANT: Open a SEPARATE terminal and run:
-    .\stripe-webhook.ps1 -Mode Start
-    (required for Stripe webhook in dev mode — runs alongside this script)
+  IMPORTANT: stripe-listener (fs-stripe-listener) starts AUTOMATICALLY with -Up -Backend/-All.
+    Use -NoStripeWebhook to skip it (staging/prod).
+    .\stripe-webhook.ps1 -Mode Status  # Check listener status
+
+UP OPTIONS:
+  -Detach (-D)    Background mode (docker compose -d)
+  -SkipBuild      Skip Maven/NPM build step
+  -MavenParallel  Maven -T 2C (parallel threads)
+  -FrontendProd   Use nginx production containers
+  -NoStripeWebhook Skip Stripe CLI listener (useful for staging/prod)
 
 TARGETS  (composable, default = all):
   -All           Everything             -Infra        Infrastructure
@@ -251,6 +263,9 @@ EXAMPLES:
 #   frontend/docker-compose.prod-pulled.yml ← prod override (pulls from GHCR)
 
 $RootComposeFiles = @('docker-compose.yml')
+
+# Dev-only compose file (contains stripe-listener — NOT used in production)
+$DevComposeFiles = @('docker-compose.dev.yml')
 
 # Root-level partial compose files
 $InfraComposeFiles   = @('docker-compose-infrastructure.yml')
@@ -528,6 +543,21 @@ function Invoke-Up {
         Start-Target -Files $t.Files -WorkingDir $t.Dir -Block $t.Block -Name $t.Name -Desc $t.Desc -Detach:$runDetach
     }
 
+    # --- Start stripe-listener (dev only) ---
+    $wantsBackend = $targets | Where-Object { $_.Name -eq 'backend' }
+    if ($wantsBackend -and -not $NoStripeWebhook) {
+        Write-Step "Starting stripe-listener (dev only)..."
+        $code = Run-Dc -Files $DevComposeFiles -Args 'up -d' -WorkingDir $ProjectRoot -Quiet
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "stripe-listener may have failed. Check: docker ps fs-stripe-listener"
+        } else {
+            Write-Success "stripe-listener started (fs-stripe-listener)"
+        }
+    } elseif ($wantsBackend -and $NoStripeWebhook) {
+        Write-Host '[SKIP] Stripe CLI listener disabled (-NoStripeWebhook)' -ForegroundColor DarkGray
+        Write-Host '  Prod: Stripe Dashboard sends webhooks directly to your server.' -ForegroundColor DarkGray
+    }
+
     Write-Host ''
     Write-Host 'View logs:    docker compose logs -f' -ForegroundColor Yellow
     Write-Host 'Check status: .\flashsale-build.ps1 -Status' -ForegroundColor Yellow
@@ -544,8 +574,10 @@ function Invoke-Up {
     Write-Host '  http://localhost:9001  MinIO Console'
     Write-Host '  http://localhost:8024  Axon Server GUI'
     Write-Host ''
-    Write-Host '  NOTE: For Stripe webhook (dev only):' -ForegroundColor Yellow
-    Write-Host '        Open a new terminal and run: .\stripe-webhook.ps1 -Mode Start' -ForegroundColor Yellow
+    if ($wantsBackend -and -not $NoStripeWebhook) {
+        Write-Host '  Stripe CLI: fs-stripe-listener is running automatically (dev mode).' -ForegroundColor Yellow
+        Write-Host '  Check secret: docker logs fs-stripe-listener | Select-String whsec_' -ForegroundColor DarkGray
+    }
 
 function Invoke-Down {
     $targets = Resolve-Targets
@@ -780,8 +812,8 @@ function Show-Menu {
 ============================================================
   FLASH SALE PLATFORM  —  Interactive Menu
 ============================================================
-  NOTE: Run .\stripe-webhook.ps1 -Mode Start in a
-        SEPARATE terminal for Stripe webhook (dev only).
+  NOTE: fs-stripe-listener starts automatically when backend starts.
+        Use -NoStripeWebhook to disable it.
 
   [1] Start All Services (docker compose up -d)
   [2] Start Infrastructure Only
