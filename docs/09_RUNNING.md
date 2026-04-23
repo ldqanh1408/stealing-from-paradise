@@ -140,39 +140,46 @@ $env:VITE_BACKEND_MODE = "real"
 project-root/
 │
 ├── docker-compose.yml                   # Full stack (all services, reads ../.env)
-├── docker-compose-infrastructure.yml    # Infrastructure only (root level)
-├── docker-compose-backend.yml           # Backend services only (root level)
+├── docker-compose.dev.yml              # Dev only: stripe-listener (Stripe CLI webhook forwarder)
+├── docker-compose-infrastructure.yml   # Infrastructure only (root level)
+├── docker-compose-backend.yml          # Backend services only (root level)
 │
 ├── backend/
-│   ├── docker-compose.yml               # Standalone: infra + backend (dev mode)
-│   ├── docker-compose.infra-only.yml    # Standalone: infra only
-│   ├── docker-compose.prod.yml          # Prod override: builds JARs inside Docker
-│   └── docker-compose.prod-pulled.yml   # Prod override: pulls from GHCR
+│   ├── docker-compose.yml             # Standalone: infra + backend (dev mode)
+│   ├── docker-compose.infra-only.yml # Standalone: infra only
+│   ├── docker-compose.prod.yml       # Prod override: builds JARs inside Docker
+│   └── docker-compose.prod-pulled.yml# Prod override: pulls from GHCR
 │
 └── frontend/
-    ├── docker compose.yml               # Standalone: 3 apps (DEV, space in filename!)
-    ├── docker-compose.prod.yml         # Prod override: nginx containers
-    └── docker-compose.prod-pulled.yml  # Prod override: pulls from GHCR
+    ├── docker compose.yml             # Standalone: 3 apps (DEV, space in filename!)
+    ├── docker-compose.prod.yml        # Prod override: nginx containers
+    └── docker-compose.prod-pulled.yml # Prod override: pulls from GHCR
 ```
 
 ### How Compose Files Work Together
 
 | Command | Compose Files | Result |
 |---------|-------------|--------|
-| `.\flashsale-build.ps1 -Up -All` | `docker-compose.yml` + `docker-compose-infrastructure.yml` + `docker-compose-backend.yml` + `docker compose.yml` | Full stack, detached |
-| `.\flashsale-build.ps1 -Up -Infra` | `docker-compose-infrastructure.yml` | Only databases/queues |
-| `.\flashsale-build.ps1 -Up -Backend` | `docker-compose-backend.yml` | Only backend services |
-| `.\flashsale-build.ps1 -Up -Frontend` | `docker compose.yml` (in `frontend/`) | Only frontend apps |
+| `.\flashsale-build.ps1 -Up -All -D` | `docker-compose.yml` + dev.yml + infra + backend + frontend | Full stack + **stripe-listener** |
+| `.\flashsale-build.ps1 -Up -All -D -NoStripeWebhook` | Same as above, minus dev.yml | Full stack, **no** stripe-listener |
+| `.\flashsale-build.ps1 -Up -Backend -D` | `docker-compose.yml` + dev.yml + backend | Backend + **stripe-listener** |
+| `.\flashsale-build.ps1 -Up -Backend -D -NoStripeWebhook` | `docker-compose.yml` + backend | Backend only, **no** stripe-listener |
+| `.\flashsale-build.ps1 -Up -Infra -D` | `docker-compose.yml` + infra | Infrastructure only |
+| `.\flashsale-build.ps1 -Up -Frontend -D` | `docker compose.yml` (in `frontend/`) | Frontend apps only |
+
+> **Dev vs Prod**: Production deploy never includes `docker-compose.dev.yml`. Stripe webhook in production comes directly from Stripe Dashboard.
 
 ### Direct Docker Commands (without the script)
 
 ```powershell
-# Full stack — run from project root
+# Full stack WITH stripe-listener (dev)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+# Full stack WITHOUT stripe-listener (dev alternative)
 docker compose -f docker-compose.yml up --build -d
 
-# Frontend standalone — run from frontend/ directory
-cd frontend
-docker compose -f "docker compose.yml" up --build -d
+# Production (stripe-listener is NOT included — Stripe Dashboard sends webhooks directly)
+docker compose -f docker-compose.yml up --build -d
 ```
 
 > **Important**: Frontend compose file has a **space** in its name: `docker compose.yml` (not `docker-compose.yml`).
@@ -412,55 +419,47 @@ Connect from your host machine (outside Docker):
 
 ## Stripe Webhook Setup
 
-> **Important**: `flashsale-build.ps1` only starts the stack. Stripe webhook requires a **separate terminal** running `stripe-webhook.ps1`.
+### How It Works
 
-### Step 0 — Open a New Terminal FIRST
+| Environment | Mechanism | How to Configure |
+|-------------|-----------|----------------|
+| **Local Dev** | Stripe CLI (`fs-stripe-listener`) inside Docker | Started automatically by `flashsale-build.ps1` |
+| **Production** | Stripe Dashboard sends events directly to your server | Set `STRIPE_WEBHOOK_SECRET_PROD` in production `.env` |
 
-Before running the stack, open a **new terminal** to run the Stripe webhook listener. This runs alongside the stack.
+> **No separate terminal needed anymore.** `flashsale-build.ps1` automatically starts `fs-stripe-listener` when you run `-Up -Backend` or `-Up -All`. Use `stripe-webhook.ps1` only for status checks and prod guide.
 
-```powershell
-# Terminal 1: Run this BEFORE starting the stack, or in a separate terminal
-.\stripe-webhook.ps1 -Mode Start
-```
-
-### Step 1 — Start the Stack
+### Local Development (Automatic)
 
 ```powershell
-# Terminal 0 (or after starting stripe-webhook): Start the platform
+# stripe-listener (fs-stripe-listener) starts AUTOMATICALLY with the backend.
+# No need to run stripe-webhook.ps1 manually anymore.
 .\flashsale-build.ps1 -Up -All -D
 ```
 
-### Step 2 — Configure Webhook Secret
-
-After Stripe CLI starts, it prints the signing secret:
-
-```
-Ready! Your webhook signing secret is whsec_xxx
-```
-
-Copy it to `.env`:
-
-```
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-```
-
-Then restart payment-service:
+After startup, copy the webhook secret from Docker logs:
 
 ```powershell
+# Check the webhook signing secret
+docker logs fs-stripe-listener | Select-String whsec_
+```
+
+Copy the secret to `.env` and restart payment-service:
+
+```powershell
+# Edit .env: STRIPE_WEBHOOK_SECRET=whsec_xxx
 docker restart fs-payment
 ```
 
-### Step 3 — Trigger Test Events
+Use `stripe-webhook.ps1` for status/logs:
 
 ```powershell
-# From a new terminal, trigger Stripe test events:
-stripe trigger payment_intent.succeeded
-stripe trigger charge.refunded
+.\stripe-webhook.ps1 -Mode Status   # Check if running
+.\stripe-webhook.ps1 -Mode Logs     # View logs
+.\stripe-webhook.ps1 -Mode Stop     # Stop listener
+.\stripe-webhook.ps1 -Mode Start    # Start again
 ```
 
-### Production (Real Server)
-
-> No Stripe CLI needed on production. Stripe Dashboard sends events directly to your server.
+### Production (No Stripe CLI)
 
 ```powershell
 # 1. Go to Stripe Dashboard > Developers > Webhooks
@@ -594,20 +593,26 @@ Jobs:
 
 ```powershell
 # ============================================================
-# STRIPE WEBHOOK — RUN FIRST (dev only, separate terminal)
+# START — Stripe CLI starts automatically (dev mode)
 # ============================================================
-.\stripe-webhook.ps1 -Mode Start              # Start Stripe CLI listener
-.\stripe-webhook.ps1 -Mode ProdGuide         # Show prod webhook setup
-
-# ============================================================
-# START
-# ============================================================
-.\flashsale-build.ps1 -Up -All -D              # Full stack, detached
+.\flashsale-build.ps1 -Up -All -D              # Full stack + stripe-listener
+.\flashsale-build.ps1 -Up -All -D -NoStripeWebhook  # Full stack, no stripe-listener
 .\flashsale-build.ps1 -Up -Infra -D            # Infrastructure only
-.\flashsale-build.ps1 -Up -Backend -D          # Backend only
+.\flashsale-build.ps1 -Up -Backend -D          # Backend + stripe-listener
+.\flashsale-build.ps1 -Up -Backend -D -NoStripeWebhook  # Backend only
 .\flashsale-build.ps1 -Up -Frontend -D        # Frontend only (mock)
 
+# ============================================================
+# STRIPE WEBHOOK
+# ============================================================
+docker logs fs-stripe-listener | Select-String whsec_  # Get signing secret
+.\stripe-webhook.ps1 -Mode Status             # Check if listener is running
+.\stripe-webhook.ps1 -Mode Logs               # View Stripe CLI logs
+.\stripe-webhook.ps1 -Mode ProdGuide          # Production webhook setup
+
+# ============================================================
 # REBUILD
+# ============================================================
 .\flashsale-build.ps1 -Build                    # Maven build
 .\flashsale-build.ps1 -Build -MavenParallel    # Parallel Maven build
 .\flashsale-build.ps1 -Up -All -SkipBuild -D  # Restart without rebuilding

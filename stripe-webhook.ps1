@@ -4,43 +4,21 @@
 # Runs Stripe CLI inside a Docker container for local development.
 # No local installation needed.
 #
-# Prereq: payment-service must be running (via docker compose)
+# NOTE: stripe-listener is automatically started by flashsale-build.ps1
+# when running `-Up -Backend` or `-Up -All`. This script is for:
+#   - Checking status: .\stripe-webhook.ps1 -Mode Status
+#   - Viewing logs:   .\stripe-webhook.ps1 -Mode Logs
+#   - Starting again: .\stripe-webhook.ps1 -Mode Start  (after -Mode Stop)
+#   - Prod guide:    .\stripe-webhook.ps1 -Mode ProdGuide
 #
-# Usage:
-#   .\stripe-webhook.ps1 -Mode Start      Start the listener
-#   .\stripe-webhook.ps1 -Mode Stop       Stop the listener
-#   .\stripe-webhook.ps1 -Mode Status     Check status
-#   .\stripe-webhook.ps1 -Mode Logs       View logs
-#   .\stripe-webhook.ps1 -Mode Help       Show usage guide
-#   .\stripe-webhook.ps1 -Mode ProdGuide  Show production webhook setup
+# HOW IT WORKS (dev):
+#   Stripe CLI (fs-stripe-listener) listens for events from Stripe's servers
+#   and forwards them to payment-service at fs-payment:8082.
+#   It signs every forwarded request using STRIPE_WEBHOOK_SECRET.
 #
-# After starting, Stripe CLI prints the webhook signing secret:
-#   Ready! Your webhook signing secret is whsec_xxx
-# Copy this to .env: STRIPE_WEBHOOK_SECRET=whsec_xxx
-# Then restart payment-service: docker restart fs-payment
+#   DEV:  Stripe CLI → forwards events → fs-payment:8082
+#   PROD: Stripe Dashboard → sends directly → your-server/api/v1/stripe/webhooks
 #
-# To trigger test events from the host:
-#   stripe trigger payment_intent.succeeded
-#
-# ============================================================
-#
-# PRODUCTION WEBHOOK (for server deployment):
-# ============================================================
-# Stripe CLI is ONLY for local dev. For production:
-#
-#   1. Go to Stripe Dashboard > Developers > Webhooks
-#   2. Click "Add endpoint"
-#   3. Endpoint URL: https://your-domain.com/api/v1/stripe/webhooks
-#   4. Select events:
-#        - payment_intent.succeeded
-#        - payment_intent.payment_failed
-#        - charge.refunded
-#        - account.updated
-#   5. Copy the "Signing secret" (whsec_xxx)
-#   6. Set it in your production .env:
-#        STRIPE_WEBHOOK_SECRET_PROD=whsec_xxx
-#   7. In docker-compose.prod, pass it as:
-#        STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET_PROD}
 # ============================================================
 
 param(
@@ -55,7 +33,7 @@ function Show-Help {
 
 USAGE: .\stripe-webhook.ps1 -Mode <Start|Stop|Status|Logs|Help|ProdGuide>
 
-  Start     Start the Stripe CLI listener container (dev only)
+  Start     Start stripe-listener (auto-started by flashsale-build.ps1)
   Stop      Stop the listener
   Status    Check if the listener is running
   Logs      View recent container logs
@@ -63,15 +41,9 @@ USAGE: .\stripe-webhook.ps1 -Mode <Start|Stop|Status|Logs|Help|ProdGuide>
   ProdGuide Show production webhook setup instructions
 
 NOTES:
-  - This script uses Docker to run Stripe CLI — no local install needed.
-  - This is for LOCAL DEVELOPMENT only.
-  - For production, use Stripe Dashboard to create a real webhook endpoint.
-
-STRIPE CLI TEST EVENTS (run in a separate terminal):
-  stripe trigger payment_intent.succeeded
-  stripe trigger payment_intent.payment_failed
-  stripe trigger charge.refunded
-  stripe trigger account.updated
+  - stripe-listener (fs-stripe-listener) is auto-started by flashsale-build.ps1.
+  - This script is for status checks, logs, and manual start/stop.
+  - Production does NOT use Stripe CLI — see ProdGuide.
 
 "@ -ForegroundColor Cyan
 }
@@ -143,7 +115,8 @@ switch ($Mode) {
             docker start $containerName
         } else {
             Write-Host "Creating and starting Stripe CLI container..." -ForegroundColor Cyan
-            docker compose up -d stripe-listener
+            # Use docker-compose.dev.yml which contains the stripe-listener definition
+            docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d stripe-listener
         }
 
         Start-Sleep -Seconds 5
@@ -174,8 +147,9 @@ switch ($Mode) {
             Write-Host ""
         }
 
-        Write-Host "To trigger test events (from a new terminal):" -ForegroundColor Cyan
+        Write-Host "To trigger test events (from the host machine):" -ForegroundColor Cyan
         Write-Host "  stripe trigger payment_intent.succeeded" -ForegroundColor White
+        Write-Host "  (Requires Stripe CLI installed on your host machine)" -ForegroundColor DarkGray
         Write-Host ""
         Write-Host "For production webhook setup, run:" -ForegroundColor Cyan
         Write-Host "  .\stripe-webhook.ps1 -Mode ProdGuide" -ForegroundColor White
