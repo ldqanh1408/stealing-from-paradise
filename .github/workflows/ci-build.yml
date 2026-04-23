@@ -10,8 +10,9 @@ on:
       - develop
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: write
 
 concurrency:
   group: ci-build-${{ github.ref }}
@@ -358,6 +359,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: write
 
     outputs:
       pr_url: ${{ steps.create-pr.outputs.pr_url }}
