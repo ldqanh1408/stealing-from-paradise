@@ -459,7 +459,7 @@ services:
       dockerfile: ./apps/customer/Dockerfile.dev
     container_name: fs-customer-fe
     restart: unless-stopped
-    ports: ["${PORT_CUSTOMER:-3000}:80"]
+    ports: ["${PORT_CUSTOMER:-3000}:3000"]
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
@@ -478,7 +478,7 @@ services:
       dockerfile: ./apps/seller/Dockerfile.dev
     container_name: fs-seller-fe
     restart: unless-stopped
-    ports: ["${PORT_SELLER:-3001}:80"]
+    ports: ["${PORT_SELLER:-3001}:3001"]
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
@@ -497,7 +497,7 @@ services:
       dockerfile: ./apps/admin/Dockerfile.dev
     container_name: fs-admin-fe
     restart: unless-stopped
-    ports: ["${PORT_ADMIN:-3002}:80"]
+    ports: ["${PORT_ADMIN:-3002}:3002"]
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}

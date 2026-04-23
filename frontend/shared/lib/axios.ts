@@ -2,11 +2,11 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'ax
 import Cookies from 'js-cookie';
 import { installMockInterceptor, isMockMode, isNetworkError } from '../api/mock';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
 
 // ─── Singleton Axios instance ─────────────────────────────────────
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: `${BASE_URL}/api/v1`,
+  baseURL: `${BASE_URL}`,
   timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,          // gửi cookie (refresh token HttpOnly)
