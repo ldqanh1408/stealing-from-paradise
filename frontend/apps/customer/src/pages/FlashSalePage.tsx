@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useCartStore } from '@shared/store/cartStore';
 
-const FLASH_PRODUCTS = [
-  { id: 1, name: 'AirPods Pro 2nd Gen', price: 4_290_000, original: 6_990_000, sold: 87, total: 100 },
-  { id: 2, name: 'iPhone 15 Case MagSafe', price: 349_000, original: 890_000, sold: 45, total: 50 },
-  { id: 3, name: 'Samsung Galaxy Watch 6', price: 5_490_000, original: 7_290_000, sold: 23, total: 30 },
-  { id: 4, name: 'Balo laptop Samsonite', price: 1_290_000, original: 2_500_000, sold: 12, total: 20 },
+interface FlashProduct {
+  id: number;
+  name: string;
+  price: number;
+  original: number;
+  sold: number;
+  total: number;
+  skuCode: string;
+  fsItemId?: number;
+}
+
+const FLASH_PRODUCTS: FlashProduct[] = [
+  { id: 1, name: 'AirPods Pro 2nd Gen', price: 4_290_000, original: 6_990_000, sold: 87, total: 100, skuCode: 'AIRPODS-PRO2-WH', fsItemId: 1 },
+  { id: 2, name: 'iPhone 15 Case MagSafe', price: 349_000, original: 890_000, sold: 45, total: 50, skuCode: 'IPHONE15-CASE-MAG', fsItemId: 2 },
+  { id: 3, name: 'Samsung Galaxy Watch 6', price: 5_490_000, original: 7_290_000, sold: 23, total: 30, skuCode: 'GALAXY-WATCH6', fsItemId: 3 },
+  { id: 4, name: 'Balo laptop Samsonite', price: 1_290_000, original: 2_500_000, sold: 12, total: 20, skuCode: 'SAMSONITE-BALO', fsItemId: 4 },
 ];
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -28,15 +41,40 @@ function Countdown({ seconds }: { seconds: number }) {
 }
 
 export default function FlashSalePage() {
+  const navigate = useNavigate();
+  const { addToCart } = useCartStore();
   const [timeLeft, setTimeLeft] = useState(3600 * 2 + 47 * 60 + 13);
+  const [addingId, setAddingId] = useState<number | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setTimeLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, []);
 
+  const handleBuyNow = async (product: FlashProduct) => {
+    setAddingId(product.id);
+    try {
+      await addToCart(product.skuCode, 1, product.fsItemId);
+      setSuccessMsg(`${product.name} đã được thêm vào giỏ hàng`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+      navigate('/cart');
+    } catch {
+      setSuccessMsg(null);
+    } finally {
+      setAddingId(null);
+    }
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
+      {/* Success notification */}
+      {successMsg && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 animate-in fade-in flex items-center gap-2">
+          <span>✓</span> {successMsg}
+        </div>
+      )}
+
       {/* Hero */}
       <div className="bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 text-white py-10 px-4">
         <div className="max-w-7xl mx-auto text-center">
@@ -79,13 +117,26 @@ export default function FlashSalePage() {
           {FLASH_PRODUCTS.map((p) => {
             const pct = Math.round((p.sold / p.total) * 100);
             const disc = Math.round((1 - p.price / p.original) * 100);
+            const isSoldOut = p.sold >= p.total;
+            const isAdding = addingId === p.id;
+
             return (
-              <div key={p.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
+              <div
+                key={p.id}
+                className={`bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group ${
+                  isSoldOut ? 'opacity-70' : ''
+                }`}
+              >
                 <div className="relative bg-gradient-to-br from-orange-50 to-red-50 aspect-square flex items-center justify-center">
                   <span className="text-5xl">🔥</span>
                   <span className="absolute top-2 left-2 bg-red-500 text-white font-black text-sm px-2 py-1 rounded-lg">
                     -{disc}%
                   </span>
+                  {isSoldOut && (
+                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                      <span className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg">HẾT HÀNG</span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-3">
                   <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 group-hover:text-red-600 transition-colors">
@@ -108,8 +159,30 @@ export default function FlashSalePage() {
                       />
                     </div>
                   </div>
-                  <button className="w-full py-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white text-xs font-semibold rounded-xl transition-all">
-                    Mua ngay
+                  <button
+                    onClick={() => handleBuyNow(p)}
+                    disabled={isSoldOut || isAdding}
+                    className={`w-full py-2 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1 ${
+                      isSoldOut
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
+                    }`}
+                  >
+                    {isAdding ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Đang thêm...
+                      </>
+                    ) : isSoldOut ? (
+                      'Hết hàng'
+                    ) : (
+                      <>
+                        <span>⚡</span> Mua ngay
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

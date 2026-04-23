@@ -1,7 +1,7 @@
 # 📚 Documentation Index - stealing-from-paradise
 
 **Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)
-**Last Updated**: 2026-04-22
+**Last Updated**: 2026-04-23
 **Status**: Complete & Production-Ready
 
 ---
@@ -11,6 +11,7 @@
 ### For Getting Started
 1. **[01_OVERVIEW.md](01_OVERVIEW.md)** - Project overview, tech stack, architecture, setup & running services
 2. **[CLAUDE.md](/CLAUDE.md)** - Quick setup & build commands
+3. **[09_RUNNING.md](09_RUNNING.md)** - Complete running guide, scripts, troubleshooting
 
 ### For Development
 3. **[02_API.md](02_API.md)** - Complete API specification (v5.3 RTS) with all endpoints & Kafka topics
@@ -22,6 +23,7 @@
 7. **[06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md)** - Stripe multi-vendor payment & Saga pattern
 8. **[07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md)** - Tổng hợp luồng nghiệp vụ tổng quan
 9. **[08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md)** - Integration details
+10. **[09_RUNNING.md](09_RUNNING.md)** - Complete running guide, scripts, troubleshooting
 
 ### Architecture
 10. **[erd.mermaid](erd.mermaid)** - Database entity-relationship diagram
@@ -144,6 +146,7 @@
 | Understand order workflow | 03_BUSINESS.md | Luồng: Vòng Đời Đơn Hàng |
 | Configure cronjob | 05_OPERATIONS.md | DANH SÁCH CRONJOB |
 | Debug payment issue | 06_PAYMENT_SAGA_FLOW.md | Full document |
+| How to run / start? | 09_RUNNING.md | Scripts, troubleshooting |
 | Xem luồng nghiệp vụ | 07_BUSINESS_FLOWS.md | Mermaid diagrams |
 | Order ↔ Payment integration | 08_PAYMENT_ORDER_INTEGRATION.md | Full document |
 
@@ -198,6 +201,7 @@ erd.mermaid (database schema)
 | Item | Status | Details |
 |------|--------|---------|
 | **Architecture** | ✅ Complete | 11 services, 3 apps documented |
+| **Running Guide** | ✅ NEW | Complete setup, compose file map, troubleshooting |
 | **API Endpoints** | ✅ Complete | 40+ endpoints with examples |
 | **Business Workflows** | ✅ Complete | 9 workflows, all detailed |
 | **System Policies** | ✅ Complete | Trust score, refund, loyalty |
@@ -208,6 +212,7 @@ erd.mermaid (database schema)
 | **Setup Guide** | ✅ Complete | Docker, Local, Prod options |
 | **Business Flow Diagrams** | ✅ Complete | Mermaid diagrams in 07_BUSINESS_FLOWS.md |
 | **Payment Integration** | ✅ Complete | Saga pattern, Stripe, RTS |
+| **Running Guide** | ✅ NEW v1 | Setup, compose map, scripts, troubleshooting |
 
 ---
 
@@ -235,7 +240,7 @@ erd.mermaid (database schema)
 ## 📞 Updates & Maintenance
 
 ### Last Updated
-- **2026-04-22** — Tạo 07_BUSINESS_FLOWS.md, dọn docs thừa, cập nhật INDEX
+- **2026-04-23** — Tạo docs/09_RUNNING.md, hoàn thiện flashsale-build.ps1, cập nhật INDEX
 - **2026-04-20** — Documentation reorganized & consolidated
 - **2026-04-18** — Payment Saga Flow v2
 - **2026-04-15** — API v5.3 with tracking number for refunds

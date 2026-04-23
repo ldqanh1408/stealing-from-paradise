@@ -43,7 +43,7 @@ function canRequestPartialRefund(order: Order) {
 }
 
 // ─── Cancel Modal ─────────────────────────────────────────────────────────────
-function CancelModal({ order, onClose, onSuccess }: { order: Order; onClose: () => void; onSuccess: () => void }) {
+function CancelModal({ order, queryClient, parentOrderId, onClose, onSuccess }: { order: Order; queryClient: ReturnType<typeof useQueryClient>; parentOrderId: number; onClose: () => void; onSuccess: () => void }) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
@@ -51,6 +51,7 @@ function CancelModal({ order, onClose, onSuccess }: { order: Order; onClose: () 
   const mut = useMutation({
     mutationFn: () => orderApi.cancelOrder(order.order_id, { reason, note }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['parent-order', parentOrderId] });
       onSuccess();
       onClose();
     },
@@ -625,6 +626,8 @@ export default function OrderDetailPage() {
       {showCancel && (
         <CancelModal
           order={showCancel}
+          queryClient={queryClient}
+          parentOrderId={id}
           onClose={() => setShowCancel(null)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['parent-order', id] })}
         />
