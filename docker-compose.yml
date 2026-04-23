@@ -293,6 +293,12 @@ services:
       kafka: { condition: service_started }
       axonserver: { condition: service_started }
     networks: [*network]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -s http://localhost:8082/actuator/health > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   order-service:
     build:
@@ -447,6 +453,25 @@ services:
       postgres: { condition: service_started }
       kafka: { condition: service_started }
       axonserver: { condition: service_started }
+    networks: [*network]
+
+  # ================================================================
+  # STRIPE WEBHOOK LISTENER (development only)
+  # Forwards Stripe events to payment-service webhook endpoint.
+  # Running inside Docker means no host installation required.
+  # ================================================================
+  stripe-listener:
+    image: stripe/stripe-cli:latest
+    container_name: fs-stripe-listener
+    restart: unless-stopped
+    command: >
+      listen
+      --api-key ${STRIPE_SECRET_KEY}
+      --forward-to fs-payment:8082/api/v1/stripe/webhooks
+      --log-level debug
+    depends_on:
+      payment-service:
+        condition: service_healthy
     networks: [*network]
 
   # ================================================================

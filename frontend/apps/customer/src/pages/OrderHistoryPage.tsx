@@ -34,12 +34,22 @@ function formatDate(iso: string) {
   });
 }
 
+function getActionLabel(status: string): string {
+  switch (status) {
+    case 'PENDING': return 'Chờ xác nhận';
+    case 'PAID': return 'Chờ giao hàng';
+    case 'SHIPPING': return 'Đang giao';
+    case 'DELIVERED': return 'Đã giao';
+    default: return status;
+  }
+}
+
 export default function OrderHistoryPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['buyer-orders', filter, page],
     queryFn: () =>
       orderApi.getOrders({
@@ -49,22 +59,46 @@ export default function OrderHistoryPage() {
       }).then(r => r.data.data),
     retry: 1,
     initialData: undefined,
+    refetchInterval: (query) => {
+      const pageData = query.state.data;
+      if (!pageData) return false;
+      const hasActiveOrders = pageData.content?.some(o =>
+        ['PENDING', 'PAID', 'SHIPPING'].includes(o.status)
+      );
+      return hasActiveOrders ? 10000 : false;
+    },
   });
 
   const orders: OrderSummary[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements ?? 0;
 
+  const handleFilterChange = (newFilter: OrderStatus | 'ALL') => {
+    setFilter(newFilter);
+    setPage(0);
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Đơn hàng của tôi</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Đơn hàng của tôi</h1>
+        <button
+          onClick={() => refetch()}
+          className="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Làm mới
+        </button>
+      </div>
 
       {/* Filters */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {STATUS_FILTERS.map(f => (
           <button
             key={f.value}
-            onClick={() => { setFilter(f.value); setPage(0); }}
+            onClick={() => handleFilterChange(f.value)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
               filter === f.value
                 ? 'bg-blue-600 text-white border-blue-600'
@@ -86,7 +120,7 @@ export default function OrderHistoryPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm mb-4">
           Không thể tải đơn hàng. Vui lòng thử lại.
         </div>
       )}
@@ -115,11 +149,12 @@ export default function OrderHistoryPage() {
           <div className="space-y-3">
             {orders.map(order => {
               const st = STATUS_STYLE[order.status] ?? { bg: 'bg-gray-100', color: 'text-gray-700' };
+              const actionLabel = getActionLabel(order.status);
               return (
                 <div
                   key={order.order_id}
-                  onClick={() => navigate(`/orders/${order.parent_order_id}`)}
                   className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-all cursor-pointer"
+                  onClick={() => navigate(`/orders/${order.parent_order_id}`)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -138,14 +173,20 @@ export default function OrderHistoryPage() {
                         {order.seller_name} · {order.item_count} sản phẩm
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">{formatDate(order.created_at)}</p>
+                      {actionLabel && (
+                        <p className="text-xs text-blue-600 mt-1 font-medium">{actionLabel}</p>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-gray-900">{fmt(order.final_amt)}</p>
                       <button
                         onClick={e => { e.stopPropagation(); navigate(`/orders/${order.parent_order_id}`); }}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-1"
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-1 flex items-center gap-1"
                       >
-                        Xem chi tiết
+                        Chi tiết
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </button>
                     </div>
                   </div>
@@ -160,9 +201,12 @@ export default function OrderHistoryPage() {
               <button
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="px-4 py-2 rounded-xl border text-sm font-medium disabled:opacity-40 hover:bg-gray-50"
+                className="px-4 py-2 rounded-xl border text-sm font-medium disabled:opacity-40 hover:bg-gray-50 flex items-center gap-1"
               >
-                ← Trước
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Trước
               </button>
               <span className="px-4 py-2 text-sm text-gray-600">
                 Trang {page + 1} / {totalPages}
@@ -170,9 +214,12 @@ export default function OrderHistoryPage() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="px-4 py-2 rounded-xl border text-sm font-medium disabled:opacity-40 hover:bg-gray-50"
+                className="px-4 py-2 rounded-xl border text-sm font-medium disabled:opacity-40 hover:bg-gray-50 flex items-center gap-1"
               >
-                Sau →
+                Sau
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </button>
             </div>
           )}

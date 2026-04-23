@@ -31,6 +31,8 @@ services:
 
   payment-service:
     image: ghcr.io/${IMAGE_PREFIX}/payment-service:prod-latest
+    environment:
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET_PROD}
 
   order-service:
     image: ghcr.io/${IMAGE_PREFIX}/order-service:prod-latest
