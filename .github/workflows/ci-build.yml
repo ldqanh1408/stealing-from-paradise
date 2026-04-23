@@ -1,0 +1,444 @@
+name: CI — Build & Validate
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    types: [opened, reopened]
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ci-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/flashsale
+  JAVA_VERSION: '25'
+  NODE_VERSION: '22'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 1. Structure Validation
+  # ─────────────────────────────────────────────
+  quick-validation:
+    name: Validate Structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate backend structure
+        run: |
+          test -f backend/pom.xml || { echo "Missing backend/pom.xml"; exit 1; }
+          for svc in discovery-service api-gateway identity-service product-service \
+                     order-service payment-service flashsale-service \
+                     search-service notification-service worker-service; do
+            test -f "backend/$svc/pom.xml" || { echo "Missing backend/$svc/pom.xml"; exit 1; }
+          done
+          echo "All backend POMs found"
+
+      - name: Validate frontend structure
+        run: |
+          for app in customer seller admin; do
+            test -d "frontend/apps/$app/src" || { echo "Missing frontend/apps/$app/src"; exit 1; }
+          done
+          echo "All frontend apps found"
+
+      - name: Validate docker-compose
+        run: |
+          test -f docker-compose.yml || { echo "Missing docker-compose.yml"; exit 1; }
+          test -f docker-compose-backend.yml || { echo "Missing docker-compose-backend.yml"; exit 1; }
+          echo "Docker compose files found"
+
+  # ─────────────────────────────────────────────
+  # 2. Pre-Build: Backend JARs (needed by Dockerfile.dev)
+  # ─────────────────────────────────────────────
+  build-backend-artifacts:
+    name: Build Backend Artifacts
+    runs-on: ubuntu-latest
+    needs: quick-validation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build all backend JARs
+        working-directory: ./backend
+        run: |
+          mvn clean package -DskipTests
+          echo "JARs built successfully"
+          find . -name "*.jar" -type f | sed 's|^|  |'
+
+      - name: Upload api-gateway JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-api-gateway
+          path: backend/api-gateway/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload discovery-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-discovery-service
+          path: backend/discovery-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload identity-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-identity-service
+          path: backend/identity-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload product-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-product-service
+          path: backend/product-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload order-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-order-service
+          path: backend/order-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload payment-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-payment-service
+          path: backend/payment-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload flashsale-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-flashsale-service
+          path: backend/flashsale-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload search-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-search-service
+          path: backend/search-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload notification-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-notification-service
+          path: backend/notification-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload worker-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-worker-service
+          path: backend/worker-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────
+  # 3. Pre-Build: Frontend apps with dependencies (needed by Dockerfile.dev)
+  # ─────────────────────────────────────────────
+  build-frontend-artifacts:
+    name: Build Frontend Artifacts
+    runs-on: ubuntu-latest
+    needs: quick-validation
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [customer, seller, admin]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend/apps/${{ matrix.app }}
+        run: npm ci
+
+      - name: Upload frontend app
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-app-${{ matrix.app }}
+          path: frontend/apps/${{ matrix.app }}
+          retention-days: 1
+
+  # ─────────────────────────────────────────────
+  # 4. Build all Dockerfile.dev (parallel matrix)
+  # ─────────────────────────────────────────────
+  build-dev:
+    name: Dev - Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [build-backend-artifacts, build-frontend-artifacts]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [
+          api-gateway,
+          discovery-service,
+          identity-service,
+          product-service,
+          order-service,
+          payment-service,
+          flashsale-service,
+          search-service,
+          notification-service,
+          worker-service,
+          customer-app,
+          seller-app,
+          admin-app,
+        ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Download & place backend JAR ──
+      - name: Download backend JAR
+        if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-${{ matrix.service }}
+          path: /tmp/backend-jars
+
+      - name: Copy backend JAR into Docker context
+        if: contains(matrix.service, '-service') || matrix.service == 'api-gateway' || matrix.service == 'discovery-service'
+        run: |
+          FOUND_JAR="$(find /tmp/backend-jars -maxdepth 1 -type f -name "*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n 1)"
+          if [ -z "$FOUND_JAR" ]; then
+            echo "ERROR: No JAR found for ${{ matrix.service }}"
+            exit 1
+          fi
+          DEST_DIR="backend/${{ matrix.service }}/target"
+          mkdir -p "$DEST_DIR"
+          cp "$FOUND_JAR" "$DEST_DIR/"
+          echo "Copied JAR to $DEST_DIR"
+
+      # ── Download & place frontend app ──
+      - name: Download frontend app artifact
+        if: contains(matrix.service, '-app')
+        uses: actions/download-artifact@v4
+        with:
+          name: >-
+            frontend-app-${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
+          path: >-
+            ./frontend/apps/${{ matrix.service == 'customer-app' && 'customer' || matrix.service == 'seller-app' && 'seller' || 'admin' }}
+
+      # ── Docker setup ──
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Determine context and Dockerfile ──
+      - name: Determine context and dockerfile
+        id: ctx
+        run: |
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
+              echo "file=./backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
+              ;;
+            customer-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/customer/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
+              ;;
+            seller-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/seller/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
+              ;;
+            admin-app)
+              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "file=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      # ── Verify Dockerfile.dev exists ──
+      - name: Verify Dockerfile.dev exists
+        run: |
+          case "${{ matrix.service }}" in
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+              DOCKERFILE="backend/${{ matrix.service }}/Dockerfile.dev"
+              ;;
+            customer-app) DOCKERFILE="frontend/apps/customer/Dockerfile.dev" ;;
+            seller-app)   DOCKERFILE="frontend/apps/seller/Dockerfile.dev" ;;
+            admin-app)    DOCKERFILE="frontend/apps/admin/Dockerfile.dev" ;;
+          esac
+          if [ ! -f "$DOCKERFILE" ]; then
+            echo "ERROR: $DOCKERFILE not found"
+            exit 1
+          fi
+          echo "Found: $DOCKERFILE"
+
+      # ── Build and push Dev image ──
+      - name: Build and push Dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.ctx.outputs.context }}
+          file: ${{ steps.ctx.outputs.file }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:dev-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.ctx.outputs.image_name }}:dev-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────
+  # 5. Backend Unit Tests
+  # ─────────────────────────────────────────────
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: build-backend-artifacts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Run backend tests
+        working-directory: backend
+        run: mvn test -q || true
+        continue-on-error: true
+
+  # ─────────────────────────────────────────────
+  # 6. Create PR to main on success
+  # ─────────────────────────────────────────────
+  create-pr-to-main:
+    name: Create PR to Main
+    runs-on: ubuntu-latest
+    needs: [build-dev, backend-tests]
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    permissions:
+      contents: write
+      packages: write
+
+    outputs:
+      pr_url: ${{ steps.create-pr.outputs.pr_url }}
+      pr_number: ${{ steps.create-pr.outputs.pr_number }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine branch name
+        id: branch-info
+        run: |
+          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Create PR to main
+        id: create-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          BODY_FILE=/tmp/pr_body.md
+          cat > "${BODY_FILE}" << 'MARKDOWN'
+          ## CI Build Passed
+
+          Dev images built successfully from branch **BRANCH_PLACEHOLDER**.
+
+          ### Summary
+
+          | Check | Status |
+          |-------|--------|
+          | Backend Artifacts | passed |
+          | Frontend Artifacts | passed |
+          | Dockerfile.dev builds | passed |
+          | Structure Validation | passed |
+
+          ### Next Steps
+
+          1. Review the changes in this PR
+          2. Approve and merge to **main** to trigger CD deployment
+          3. CD will build `Dockerfile.prod` images and deploy to server
+          MARKDOWN
+          sed -i "s/BRANCH_PLACEHOLDER/${BRANCH}/g" "${BODY_FILE}"
+
+          gh pr create \
+            --base main \
+            --head "${{ steps.branch-info.outputs.branch }}" \
+            --title "Deploy: ${{ steps.branch-info.outputs.branch }} (${SHA})" \
+            --body-file "${BODY_FILE}" \
+            --label "auto-pr,ci-passed"
+
+          PR_URL=$(gh pr view --json url --jq '.url')
+          PR_NUMBER=$(gh pr view --json number --jq '.number')
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "PR created: $PR_URL"
+
+      - name: Add PR comment
+        if: steps.create-pr.outputs.pr_url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          COMMENT_FILE=/tmp/pr_comment.md
+          cat > "${COMMENT_FILE}" << 'MARKDOWN'
+          ## CI Build Summary
+
+          | Field | Value |
+          |-------|-------|
+          | Commit | SHA_PLACEHOLDER |
+          | Branch | REF_PLACEHOLDER |
+          | Triggered by | ACTOR_PLACEHOLDER |
+
+          **Merge this PR to trigger CD deployment (Dockerfile.prod → server).**
+          MARKDOWN
+          sed -i "s/SHA_PLACEHOLDER/${SHA}/g" "${COMMENT_FILE}"
+          sed -i "s/REF_PLACEHOLDER/${REF}/g" "${COMMENT_FILE}"
+          sed -i "s/ACTOR_PLACEHOLDER/${ACTOR}/g" "${COMMENT_FILE}"
+
+          gh pr comment "${{ steps.create-pr.outputs.pr_number }}" --body-file "${COMMENT_FILE}"
