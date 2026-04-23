@@ -344,6 +344,27 @@ jobs:
           DEPLOY_EOF
 
           chmod +x /tmp/deploy.sh
+
+          # Upload compose files to the server
+          scp -o StrictHostKeyChecking=no \
+             -o UserKnownHostsFile=~/.ssh/known_hosts \
+             -i ~/.ssh/id_rsa \
+             docker-compose.yml \
+             docker-compose-backend.yml \
+             "${SERVER}:/opt/flashsale/"
+
+          scp -o StrictHostKeyChecking=no \
+             -o UserKnownHostsFile=~/.ssh/known_hosts \
+             -i ~/.ssh/id_rsa \
+             backend/docker-compose.prod-pulled.yml \
+             "${SERVER}:/opt/flashsale/backend/"
+
+          scp -o StrictHostKeyChecking=no \
+             -o UserKnownHostsFile=~/.ssh/known_hosts \
+             -i ~/.ssh/id_rsa \
+             frontend/docker-compose.prod-pulled.yml \
+             "${SERVER}:/opt/flashsale/frontend/"
+
           scp -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=~/.ssh/known_hosts \
              -i ~/.ssh/id_rsa \
