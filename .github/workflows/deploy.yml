@@ -166,6 +166,8 @@ jobs:
             docker-compose-backend.yml
             docker-compose-infrastructure.yml
             backend/docker-compose.prod.yml
+            backend/docker-compose.prod-pulled.yml
+            frontend/docker-compose.prod-pulled.yml
             .env.example
           sparse-checkout-cone-mode: false
           fetch-depth: 1
