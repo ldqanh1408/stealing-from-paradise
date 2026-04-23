@@ -134,7 +134,7 @@ jobs:
           log_err()  { echo -e "${RED}[ERR]${NC}  $*" >&2; exit 1; }
           
           DEPLOY_USER="$1"; SERVER_IP="$2"; REF_NAME="$3"; SHA="$4"; OWNER="$5"; GHCR_USER="$6"
-          GHCR_TOKEN="$(cat /dev/stdin || true)"
+          GHCR_TOKEN="$(cat /dev/stdin)"
           PROJECT_DIR="/opt/flashsale"
           IMAGE_PREFIX="ghcr.io/${OWNER}/flashsale"
           
@@ -194,10 +194,12 @@ jobs:
           fi
 
           OVERRIDE_FILE="${LOCATE}/docker-compose.ci-images.yml"
+          # Write static YAML header; service entries are appended dynamically below.
           cat > "${OVERRIDE_FILE}" <<'EOF'
           services:
           EOF
 
+          rendered_services=0
           for svc in discovery-service api-gateway identity-service product-service \
                      order-service payment-service flashsale-service search-service \
                      notification-service worker-service customer-app seller-app admin-app; do
@@ -220,7 +222,10 @@ jobs:
               echo "    image: ${selected_image}"
               echo "    pull_policy: if_not_present"
             } >> "${OVERRIDE_FILE}"
+            rendered_services=$((rendered_services + 1))
           done
+          [ "${rendered_services}" -gt 0 ] \
+            || log_err "No services were successfully pulled and added to the compose override file"
           log_ok "Pulled all required images"
 
           # Step 6: Start services (local)
