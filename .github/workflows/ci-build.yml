@@ -414,8 +414,7 @@ jobs:
             --base main \
             --head "${{ steps.branch-info.outputs.branch }}" \
             --title "Deploy: ${{ steps.branch-info.outputs.branch }} (${SHA})" \
-            --body-file "${BODY_FILE}" \
-            --label "auto-pr,ci-passed"
+            --body-file "${BODY_FILE}"
 
           PR_URL=$(gh pr view --json url --jq '.url')
           PR_NUMBER=$(gh pr view --json number --jq '.number')
