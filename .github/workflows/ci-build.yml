@@ -380,7 +380,6 @@ jobs:
         run: |
           gh label create "auto-pr" --color "1E90FF" --description "Auto-created PR from CI" || echo "Warning: Couldn't create the 'auto-pr' label"
           gh label create "ci-passed" --color "22C55E" --description "CI build passed" || echo "Warning: Couldn't create the 'ci-passed' label"
-
       - name: Create PR to main
         id: create-pr
         env:
