@@ -21,12 +21,9 @@
 services:
   customer-app:
     image: ghcr.io/${IMAGE_PREFIX}/customer-app:prod-latest
-    build: {}
 
   seller-app:
     image: ghcr.io/${IMAGE_PREFIX}/seller-app:prod-latest
-    build: {}
 
   admin-app:
     image: ghcr.io/${IMAGE_PREFIX}/admin-app:prod-latest
-    build: {}

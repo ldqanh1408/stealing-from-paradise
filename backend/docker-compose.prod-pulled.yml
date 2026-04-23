@@ -22,40 +22,30 @@
 services:
   discovery-service:
     image: ghcr.io/${IMAGE_PREFIX}/discovery-service:prod-latest
-    build: {}
 
   api-gateway:
     image: ghcr.io/${IMAGE_PREFIX}/api-gateway:prod-latest
-    build: {}
 
   identity-service:
     image: ghcr.io/${IMAGE_PREFIX}/identity-service:prod-latest
-    build: {}
 
   payment-service:
     image: ghcr.io/${IMAGE_PREFIX}/payment-service:prod-latest
-    build: {}
 
   order-service:
     image: ghcr.io/${IMAGE_PREFIX}/order-service:prod-latest
-    build: {}
 
   worker-service:
     image: ghcr.io/${IMAGE_PREFIX}/worker-service:prod-latest
-    build: {}
 
   flashsale-service:
     image: ghcr.io/${IMAGE_PREFIX}/flashsale-service:prod-latest
-    build: {}
 
   product-service:
     image: ghcr.io/${IMAGE_PREFIX}/product-service:prod-latest
-    build: {}
 
   search-service:
     image: ghcr.io/${IMAGE_PREFIX}/search-service:prod-latest
-    build: {}
 
   notification-service:
     image: ghcr.io/${IMAGE_PREFIX}/notification-service:prod-latest
-    build: {}

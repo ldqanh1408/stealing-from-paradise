@@ -213,7 +213,7 @@ jobs:
           IMAGE_TAG: prod-latest
           IMAGE_PREFIX: ${{ github.repository_owner }}/flashsale
           REGISTRY: ${{ env.REGISTRY }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SERVER="${_USER}@${_IP}"
           echo "═══════════════════════════════════════════════════"
@@ -241,9 +241,9 @@ jobs:
           log_info "Image tag: ${IMAGE_TAG}"
 
           # Step 1: Login to GHCR
-          if [ -n "${GHCR_TOKEN:-}" ]; then
+          if [ -n "${GITHUB_TOKEN:-}" ]; then
             log_info "Logging into ${REGISTRY}..."
-            echo "${GHCR_TOKEN}" | docker login "${REGISTRY}" -u USERNAME --password-stdin
+            echo "${GITHUB_TOKEN}" | docker login "${REGISTRY}" -u USERNAME --password-stdin
             log_ok "Registry login OK"
           fi
 
@@ -351,7 +351,7 @@ jobs:
              -o UserKnownHostsFile=~/.ssh/known_hosts \
              -i ~/.ssh/id_rsa \
              "${SERVER}" \
-             "IMAGE_PREFIX='${IMAGE_PREFIX}' GHCR_TOKEN='${GHCR_TOKEN}' bash /tmp/deploy.sh '${IMAGE_TAG}' '${IMAGE_PREFIX}' '${REGISTRY}' '${_IP}'"
+             "IMAGE_PREFIX='${IMAGE_PREFIX}' GITHUB_TOKEN='${GITHUB_TOKEN}' bash /tmp/deploy.sh '${IMAGE_TAG}' '${IMAGE_PREFIX}' '${REGISTRY}' '${_IP}'"
 
       - name: Final health check
         if: env.SKIP_DEPLOY != 'true'
