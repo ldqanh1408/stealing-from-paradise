@@ -188,6 +188,10 @@ jobs:
         working-directory: ./frontend/apps/${{ matrix.app }}
         run: npm ci
 
+      - name: Build frontend app
+        working-directory: ./frontend/apps/${{ matrix.app }}
+        run: npm run build
+
       - name: Upload frontend app
         uses: actions/upload-artifact@v4
         with:
