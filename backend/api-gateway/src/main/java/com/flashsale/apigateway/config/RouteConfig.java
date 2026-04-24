@@ -56,7 +56,7 @@ public class RouteConfig {
 
             // ===== Payment Service =====
             .route("stripe-webhook", r -> r
-                .path("/api/v1/stripe/webhook")
+                .path("/api/v1/stripe/webhooks")
                 .uri("lb://payment-service"))
 
             .route("stripe-onboarding", r -> r

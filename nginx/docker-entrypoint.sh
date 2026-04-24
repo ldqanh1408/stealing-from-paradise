@@ -7,6 +7,10 @@ set -e
 : ${GATEWAY_PORT:=8080}
 : ${CUSTOMER_HOST:=fs-customer-fe}
 : ${CUSTOMER_PORT:=3000}
+: ${SELLER_HOST:=fs-seller-fe}
+: ${SELLER_PORT:=3001}
+: ${ADMIN_HOST:=fs-admin-fe}
+: ${ADMIN_PORT:=3002}
 
 cat > /etc/nginx/conf.d/default.conf <<EOF
 upstream gateway {
@@ -15,6 +19,14 @@ upstream gateway {
 
 upstream customer-app {
     server ${CUSTOMER_HOST}:${CUSTOMER_PORT};
+}
+
+upstream seller-app {
+    server ${SELLER_HOST}:${SELLER_PORT};
+}
+
+upstream admin-app {
+    server ${ADMIN_HOST}:${ADMIN_PORT};
 }
 
 server {
@@ -39,6 +51,26 @@ server {
         proxy_connect_timeout 10s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
+    }
+
+    location /seller/ {
+        proxy_pass http://seller-app/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_redirect off;
+    }
+
+    location /admin/ {
+        proxy_pass http://admin-app/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_redirect off;
     }
 
     location / {

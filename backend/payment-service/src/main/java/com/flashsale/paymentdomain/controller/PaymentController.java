@@ -25,7 +25,7 @@ public class PaymentController {
      * - Trả về transaction + danh sách transfers theo từng seller
      * - remaining_seconds chỉ có khi status = PENDING
      */
-    @GetMapping("/api/v1/payments/parent-order/{parentOrderId}")
+    @GetMapping("/payments/parent-order/{parentOrderId}")
     @PreAuthorize("hasRole('BUYER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<TransactionDetailResponse>> getTransactionByParentOrder(
             @PathVariable Long parentOrderId,
@@ -42,7 +42,7 @@ public class PaymentController {
      * - Gọi sau khi checkout thành công để khởi tạo Stripe Elements / Payment Sheet.
      * - client_secret chỉ hợp lệ khi transaction status = PENDING.
      */
-    @GetMapping("/api/v1/payments/parent-order/{parentOrderId}/client-secret")
+    @GetMapping("/payments/parent-order/{parentOrderId}/client-secret")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<ClientSecretResponse>> getClientSecret(
             @PathVariable Long parentOrderId,
@@ -65,7 +65,7 @@ public class PaymentController {
      * - account.updated → Sync SELLER_STRIPE_ACCOUNTS
      * - transfer.created → Ghi stripe_transfer_id
      */
-    @PostMapping("/api/v1/stripe/webhooks")
+    @PostMapping("/stripe/webhooks")
     public ResponseEntity<String> handleStripeWebhook(
             @RequestBody String payload,
             @RequestHeader("Stripe-Signature") String stripeSignature) {
