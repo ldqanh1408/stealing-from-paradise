@@ -3,6 +3,8 @@ server:
 spring:
   application:
     name: flashsale-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   r2dbc:
     url: r2dbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?options=--search_path%3Dflashsale
     username: ${POSTGRES_USER:postgres}

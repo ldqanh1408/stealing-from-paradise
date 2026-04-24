@@ -4,9 +4,9 @@
 # ============================================================
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/flashsale_platform?currentSchema=orders
-    username: postgres
-    password: postgres123!
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?currentSchema=orders
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres123!}
   jpa:
     hibernate:
       ddl-auto: none

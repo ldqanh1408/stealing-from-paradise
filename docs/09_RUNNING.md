@@ -1,505 +1,541 @@
 # Flash Sale Platform — Running Guide
 
-**Project**: stealing-from-paradise  
-**Date**: 2026-04-23  
-**Version**: v1  
-**Language**: English
+**Project**: stealing-from-paradise
+**Entry Script**: `flashsale-build.ps1`
+**Last Updated**: 2026-04-24
 
 ---
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Environment Setup](#environment-setup)
-3. [Quick Start](#quick-start)
-4. [Docker Compose File Architecture](#docker-compose-file-architecture)
-5. [Build Strategy (Dev vs Prod)](#build-strategy-dev-vs-prod)
-6. [Script Reference](#script-reference)
-7. [Running Modes](#running-modes)
-8. [Container Names](#container-names)
-9. [Service Ports](#service-ports)
-10. [Database Connections](#database-connections)
-11. [Stripe Webhook Setup](#stripe-webhook-setup)
-12. [Troubleshooting](#troubleshooting)
-13. [CI/CD Pipelines](#cicd-pipelines)
-14. [Quick Reference Cheatsheet](#quick-reference-cheatsheet)
+1. [Prerequisites](#1-prerequisites)
+2. [First-Time Setup](#2-first-time-setup)
+3. [Quick Start](#3-quick-start)
+4. [Script Command Reference](#4-script-command-reference)
+5. [Running Modes](#5-running-modes)
+6. [Development Workflows](#6-development-workflows)
+7. [Docker Compose File Architecture](#7-docker-compose-file-architecture)
+8. [Service Ports & URLs](#8-service-ports--urls)
+9. [Container Names](#9-container-names)
+10. [Database Connections](#10-database-connections)
+11. [Stripe Webhook Setup](#11-stripe-webhook-setup)
+12. [Troubleshooting](#12-troubleshooting)
 
 ---
 
-## Prerequisites
+## 1. Prerequisites
 
-| Tool | Version | Required For | Notes |
-|------|---------|-------------|-------|
-| **Docker** | Latest | All | Docker Desktop on Windows. Must be running. |
-| **Maven** | 3.8+ | Backend build | For `Dockerfile.dev` (JARs pre-built on host) |
-| **Java** | 25 | Local backend dev | Optional — can run all services in Docker |
-| **Node.js** | 18+ | Local frontend dev | Optional — frontend builds inside Docker |
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Docker Desktop | Latest | Run all services in containers |
+| Maven | 3.8+ | Build backend JARs (optional — can build in Docker) |
+| Java | 25 | Run backend locally (optional) |
+| Node.js | 22+ | Run frontend locally (optional) |
 
-> **Note**: This project uses `docker compose` (v2, space-separated). Not `docker-compose` (v1, hyphen).
+> All services can run fully inside Docker. Local Maven/Node.js are only needed if you want to build on the host.
 
 ---
 
-## Environment Setup
+## 2. First-Time Setup
 
-### 1. Verify `.env` exists
-
-```powershell
-# From the project root:
-ls .env
-```
-
-If missing, copy from the example:
+### 2.1 Copy environment file
 
 ```powershell
 cp .env.example .env
 ```
 
-### 2. Fill in secrets
-
-Open `.env` and fill in:
+### 2.2 Fill in secrets in `.env`
 
 ```
-STRIPE_SECRET_KEY=sk_test_...        # Stripe dashboard > Developers > API keys
-STRIPE_PUBLISHABLE_KEY=pk_test_...  # Stripe dashboard > Developers > API keys
-STRIPE_WEBHOOK_SECRET=whsec_...     # From: stripe listen (local dev)
-STRIPE_WEBHOOK_SECRET_PROD=whsec_... # From: Stripe Dashboard > Webhooks (production)
+JWT_SECRET=<generate-a-256bit-base64-string>
+POSTGRES_PASSWORD=<strong-password>
+REDIS_PASSWORD=<strong-password>
+MONGO_INITDB_ROOT_PASSWORD=<strong-password>
+MINIO_ACCESS_KEY=<your-access-key>
+MINIO_SECRET_KEY=<your-secret-key>
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...  # From: stripe listen --print-secret
 ```
 
-### 3. Start Docker Desktop
+### 2.3 Start Docker Desktop
 
-Make sure Docker Desktop is running before using the script.
+Make sure Docker Desktop is running before using any commands.
 
 ---
 
-## Quick Start
+## 3. Quick Start
 
-### Full Stack (Dev Mode — Recommended)
-
-> **Important**: Open a **new terminal** first to run the Stripe webhook listener (see [Stripe Webhook Setup](#stripe-webhook-setup)).
+### Full Stack — DEV mode (recommended for daily dev)
 
 ```powershell
-# Terminal 1: Start Stripe webhook listener BEFORE starting the stack
-.\stripe-webhook.ps1 -Mode Start
+# Build backend JARs (one-time or after backend code changes)
+.\flashsale-build.ps1 mvn-all
 
-# Terminal 0: Build backend JARs on your machine (one-time or after code changes)
-.\flashsale-build.ps1 -Build
-
-# Terminal 0: Start everything (infrastructure + backend + frontend)
-.\flashsale-build.ps1 -Up -All -D
+# Start everything: infra + backend + frontend + stripe-listener
+.\flashsale-build.ps1 dev
 ```
 
-This starts:
-- Infrastructure: Postgres, MongoDB, Redis, Elasticsearch, MinIO, Kafka, Zookeeper, AxonServer
-- Backend: 10 microservices (pre-built JARs from host)
-- Frontend: 3 apps in dev mode (Vite hot-reload via volume mounts)
-
-Wait ~60 seconds, then access:
-- Customer App: http://localhost:3000
-- Seller App: http://localhost:3001
-- Admin App: http://localhost:3002
-- API Gateway: http://localhost:8080
-- Eureka: http://localhost:8761
-
-### Infrastructure Only (Run Backend Locally)
+### Backend Only (no frontend)
 
 ```powershell
-# Start only databases and queues
-.\flashsale-build.ps1 -Up -Infra -D
-
-# Then run backend locally in your IDE:
-cd backend
-mvn spring-boot:run -pl identity-service
+.\flashsale-build.ps1 be-dev
 ```
 
-### Frontend Only (Mock Data)
+### Frontend Only — Mock Data (no backend)
 
 ```powershell
-# Frontend runs with mock data — no backend needed
-.\flashsale-build.ps1 -Up -Frontend -D
-```
+# All 3 apps via npm on host (hot-reload, opens 3 terminal windows)
+.\flashsale-build.ps1 fe-dev-all
 
-To connect frontend to a real backend:
-
-```powershell
-$env:VITE_API_URL = "http://localhost:8080/api/v1"
-$env:VITE_BACKEND_MODE = "real"
-.\flashsale-build.ps1 -Up -Frontend -D
+# Or all 3 apps via Docker (mock data)
+.\flashsale-build.ps1 fe-docker-all
 ```
 
 ### Stop Everything
 
 ```powershell
-.\flashsale-build.ps1 -Down -All
+.\flashsale-build.ps1 stop all
 ```
 
 ---
 
-## Docker Compose File Architecture
+## 4. Script Command Reference
+
+Run from the **project root**: `.\flashsale-build.ps1 <action> [target]`
+
+### 4.1 Maven — Backend Build
+
+| Action | Description |
+|--------|-------------|
+| `mvn-all` | Build ALL 12 Maven modules (clean install, skip tests) |
+| `mvn <service>` | Build single Maven module |
+| `mvn-clean <service>` | Clean + build single Maven module |
+
+Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `product`, `search`, `notification`, `worker`, `common-lib`, `dev-data-runner`
+
+```powershell
+# Examples
+.\flashsale-build.ps1 mvn gateway
+.\flashsale-build.ps1 mvn order
+.\flashsale-build.ps1 mvn-clean discovery
+```
+
+### 4.2 npm — Frontend Build
+
+| Action | Description |
+|--------|-------------|
+| `npm-install-all` | Run `npm install` for all frontend apps + shared |
+| `npm-install <app>` | Run `npm install` for specific app |
+| `npm-all` | Build ALL 3 frontend apps (npm install + build) |
+| `npm <app>` | Build single frontend app |
+
+Apps: `customer`, `seller`, `admin`, `shared`
+
+```powershell
+# Examples
+.\flashsale-build.ps1 npm customer
+.\flashsale-build.ps1 npm-all
+.\flashsale-build.ps1 npm-install-all
+```
+
+### 4.3 Frontend Dev Modes
+
+| Action | Description |
+|--------|-------------|
+| `fe-dev <app>` | ONE frontend app via npm on host (hot-reload, mock data, opens new terminal) |
+| `fe-dev-all` | ALL 3 frontend apps via npm on host (3 terminal windows, hot-reload, mock data) |
+| `fe-docker <app>` | ONE frontend app via Docker (mock data) |
+| `fe-docker-all` | ALL 3 frontend apps via Docker (mock data) |
+
+Apps: `customer` (port 3000), `seller` (port 3001), `admin` (port 3002)
+
+> `fe-dev` writes `.env.local` with `VITE_BACKEND_MODE=mock` and starts the Vite dev server directly on the host.
+
+### 4.4 Backend & Fullstack Modes
+
+| Action | Description |
+|--------|-------------|
+| `infra-up` | Start ONLY infrastructure (postgres, mongo, redis, kafka, elasticsearch, minio, axonserver) |
+| `infra-down` | Stop infrastructure |
+| `be-dev` | Start infra + backend (all backend containers, no frontend) |
+| `be-down` | Stop backend |
+| `dev` | Start full stack in DEV mode (infra + backend + frontend + stripe-listener) |
+| `dev-down` | Stop dev stack |
+| `prod` | Start full stack in PROD mode (infra + backend + frontend, no stripe-listener) |
+| `prod-down` | Stop prod stack |
+
+### 4.5 Single-Service Container Commands
+
+| Action | Description |
+|--------|-------------|
+| `svc-build <service>` | Build ONE backend service Docker image |
+| `svc-run <service>` | Start infra + build + run ONE service container |
+| `svc-up <service>` | Start ONE service container (already built, no rebuild) |
+| `svc-rm <service>` | Remove ONE service container |
+
+Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `product`, `search`, `notification`, `worker`
+
+```powershell
+# Examples
+.\flashsale-build.ps1 svc-build payment   # Build image
+.\flashsale-build.ps1 svc-run order    # Build + run order service (auto-starts infra)
+.\flashsale-build.ps1 svc-up gateway    # Start existing gateway container
+.\flashsale-build.ps1 svc-rm payment    # Remove payment container
+```
+
+### 4.6 Stop Commands
+
+| Action | Description |
+|--------|-------------|
+| `stop infra` | Stop infrastructure |
+| `stop be` | Stop backend |
+| `stop fe` | Stop frontend |
+| `stop dev` | Stop dev stack |
+| `stop prod` | Stop prod stack |
+| `stop all` | Stop ALL containers (keeps volumes) |
+
+### 4.7 Utility Commands
+
+| Action | Description |
+|--------|-------------|
+| `logs all` | Stream logs from ALL containers |
+| `logs be` | Stream logs from backend containers |
+| `logs fe` | Stream logs from frontend containers |
+| `logs infra` | Stream logs from infrastructure |
+| `logs <service>` | Stream logs from a specific container |
+| `ps` / `status` | List all running containers |
+| `clean` | Stop all + remove volumes (DESTRUCTIVE — asks confirmation) |
+| `help` | Show help message |
+
+---
+
+## 5. Running Modes
+
+### Mode Comparison
+
+| Mode | Command | Infra | Backend | Frontend | Stripe CLI |
+|------|---------|-------|---------|----------|------------|
+| **dev** | `dev` | Yes | Yes | Yes | Yes |
+| **prod** | `prod` | Yes | Yes | Yes | No |
+| **be-dev** | `be-dev` | Yes | Yes | No | No |
+| **fe-dev** | `fe-dev <app>` | No | No | Yes | No |
+| **infra** | `infra-up` | Yes | No | No | No |
+
+### What Each Mode Includes
+
+**`dev`**: Infrastructure + Backend + Frontend + Stripe CLI
+- All backend microservices
+- All frontend apps
+- `fs-stripe-listener` (forwards Stripe webhooks to payment-service)
+- Best for: full-stack development with payment testing
+
+**`prod`**: Infrastructure + Backend + Frontend (no Stripe CLI)
+- Same as dev but without `fs-stripe-listener`
+- Stripe webhooks come directly from Stripe Dashboard to your server
+- Best for: staging environment
+
+**`be-dev`**: Infrastructure + Backend
+- All backend microservices
+- No frontend, no Stripe CLI
+- Best for: backend-only development, API testing with Postman
+
+**`fe-dev`**: Frontend only on host machine
+- Runs via npm on the host (not in Docker)
+- Mock data mode (no real backend needed)
+- Hot-reload enabled
+- Best for: frontend-only UI development
+
+**`infra-up`**: Infrastructure only
+- Databases, caches, queues, search engine
+- Best for: running backend in IDE while using Docker infra
+
+---
+
+## 6. Development Workflows
+
+### 6.1 Full-Stack Development (daily dev)
+
+```powershell
+# Start everything
+.\flashsale-build.ps1 dev
+
+# After code changes:
+# Backend code changed:
+.\flashsale-build.ps1 mvn-all          # Rebuild JARs
+.\flashsale-build.ps1 stop be          # Stop backend
+.\flashsale-build.ps1 be-dev           # Restart backend
+
+# Frontend code changed:
+# No rebuild needed — hot-reload via volumes
+# Just refresh the browser
+
+# Full reset:
+.\flashsale-build.ps1 stop all
+.\flashsale-build.ps1 mvn-all
+.\flashsale-build.ps1 dev
+```
+
+### 6.2 Backend-Only Development
+
+```powershell
+# Option A: Backend in Docker, infra in Docker
+.\flashsale-build.ps1 be-dev
+
+# Option B: Backend in IDE, infra in Docker
+.\flashsale-build.ps1 infra-up
+# Then run services in IDE:
+cd backend
+mvn spring-boot:run -pl identity-service
+```
+
+### 6.3 Frontend-Only Development
+
+```powershell
+# Option A: npm on host (recommended for UI work)
+.\flashsale-build.ps1 fe-dev-all
+# Opens 3 terminal windows with hot-reload
+
+# Option B: Docker (sandboxed)
+.\flashsale-build.ps1 fe-docker-all
+```
+
+### 6.4 Single Service Development
+
+```powershell
+# Build and run only one backend service (e.g., order-service)
+# Useful when you only need to test one service
+.\flashsale-build.ps1 svc-run order
+
+# Then test via gateway:
+curl http://localhost:8080/api/v1/orders/...
+```
+
+---
+
+## 7. Docker Compose File Architecture
 
 ```
 project-root/
-│
-├── docker-compose.yml                   # Full stack (all services, reads ../.env)
-├── docker-compose.dev.yml              # Dev only: stripe-listener (Stripe CLI webhook forwarder)
-├── docker-compose-infrastructure.yml   # Infrastructure only (root level)
-├── docker-compose-backend.yml          # Backend services only (root level)
-│
-├── backend/
-│   ├── docker-compose.yml             # Standalone: infra + backend (dev mode)
-│   ├── docker-compose.infra-only.yml # Standalone: infra only
-│   ├── docker-compose.prod.yml       # Prod override: builds JARs inside Docker
-│   └── docker-compose.prod-pulled.yml# Prod override: pulls from GHCR
-│
-└── frontend/
-    ├── docker compose.yml             # Standalone: 3 apps (DEV, space in filename!)
-    ├── docker-compose.prod.yml        # Prod override: nginx containers
-    └── docker-compose.prod-pulled.yml # Prod override: pulls from GHCR
+|
+|-- docker-compose.yml                    # Base: infra + backend + frontend + nginx
+|-- docker-compose.dev.yml               # DEV override: adds fs-stripe-listener
+|-- docker-compose-infrastructure.yml    # Infrastructure only
+|-- docker-compose-backend.yml            # Backend services only
+|-- docker-compose.prod-pulled.yml      # PROD: pulls images from GHCR (CD deploy)
+|-- flashsale-build.ps1                # Unified build & run script
+|
+|-- backend/
+|   |-- discovery-service/
+|   |-- api-gateway/
+|   |-- identity-service/
+|   |-- product-service/
+|   |-- order-service/
+|   |-- payment-service/
+|   |-- flashsale-service/
+|   |-- search-service/
+|   |-- notification-service/
+|   |-- worker-service/
+|   |-- common-lib/
+|   |-- dev-data-runner/
+|   |-- docker/
+|   |   |-- postgres/init/        # SQL init scripts
+|   |   |-- mongo/init/          # MongoDB init scripts
+|   |   |-- kafka/create-topics.sh
+|   |   |-- axon-init/
+|   |   |-- Dockerfile.dev         # Dev: copies pre-built JARs
+|   |   |-- Dockerfile.prod        # Prod: builds JARs inside Docker
+|   |-- docker-compose.yml        # Standalone backend (dev)
+|   |-- docker-compose.infra-only.yml
+|   |-- docker-compose.prod.yml   # Prod: builds JARs inside Docker
+|   |-- docker-compose.prod-pulled.yml
+|
+|-- frontend/
+|   |-- apps/
+|   |   |-- customer/           # Customer app (port 3000)
+|   |   |-- seller/             # Seller app (port 3001)
+|   |   |-- admin/             # Admin app (port 3002)
+|   |   |-- Dockerfile.dev      # Dev: Vite HMR via volume mounts
+|   |   |-- Dockerfile.prod     # Prod: nginx static
+|   |-- shared/                # Shared components (components, api/, lib/)
+|   |-- docker compose.yml     # Standalone frontend (DEV, space in name!)
+|   |-- docker-compose.prod.yml
+|   |-- docker-compose.prod-pulled.yml
+|
+|-- nginx/                        # Reverse proxy configs
+|-- .env                          # Environment variables
+|-- .env.example                  # Template
+|-- .github/workflows/            # CI/CD pipelines
 ```
 
-### How Compose Files Work Together
+### Compose File Combinations
 
 | Command | Compose Files | Result |
-|---------|-------------|--------|
-| `.\flashsale-build.ps1 -Up -All -D` | `docker-compose.yml` + dev.yml + infra + backend + frontend | Full stack + **stripe-listener** |
-| `.\flashsale-build.ps1 -Up -All -D -NoStripeWebhook` | Same as above, minus dev.yml | Full stack, **no** stripe-listener |
-| `.\flashsale-build.ps1 -Up -Backend -D` | `docker-compose.yml` + dev.yml + backend | Backend + **stripe-listener** |
-| `.\flashsale-build.ps1 -Up -Backend -D -NoStripeWebhook` | `docker-compose.yml` + backend | Backend only, **no** stripe-listener |
-| `.\flashsale-build.ps1 -Up -Infra -D` | `docker-compose.yml` + infra | Infrastructure only |
-| `.\flashsale-build.ps1 -Up -Frontend -D` | `docker compose.yml` (in `frontend/`) | Frontend apps only |
+|---------|--------------|--------|
+| `dev` | `docker-compose.yml` + `docker-compose.dev.yml` | Full stack + `fs-stripe-listener` |
+| `prod` | `docker-compose.yml` | Full stack (no `fs-stripe-listener`) |
+| `be-dev` | `docker-compose.yml` + `docker-compose-backend.yml` | Backend + `fs-stripe-listener` |
+| `infra-up` | `docker-compose.yml` + `docker-compose-infrastructure.yml` | Infrastructure only |
 
-> **Dev vs Prod**: Production deploy never includes `docker-compose.dev.yml`. Stripe webhook in production comes directly from Stripe Dashboard.
+> **Important**: Frontend standalone compose file is `docker compose.yml` (with a **space**), located in `frontend/` directory.
 
-### Direct Docker Commands (without the script)
+### Backend Dev vs Prod Build Strategy
 
-```powershell
-# Full stack WITH stripe-listener (dev)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+| Mode | Dockerfile | Build Location | Host Maven Needed |
+|------|-----------|---------------|-------------------|
+| **Dev** | `Dockerfile.dev` | Host machine (`mvn package`) | Yes |
+| **Prod** | `Dockerfile.prod` | Inside Docker | No |
 
-# Full stack WITHOUT stripe-listener (dev alternative)
-docker compose -f docker-compose.yml up --build -d
-
-# Production (stripe-listener is NOT included — Stripe Dashboard sends webhooks directly)
-docker compose -f docker-compose.yml up --build -d
-```
-
-> **Important**: Frontend compose file has a **space** in its name: `docker compose.yml` (not `docker-compose.yml`).
+- **Dev workflow**: Run `.\flashsale-build.ps1 mvn-all` to build JARs on host -> `Dockerfile.dev` copies JARs into slim JRE image -> fast container starts
+- **Prod workflow**: `docker-compose.prod.yml` triggers `Dockerfile.prod` -> Maven runs inside Docker -> final image is slim
 
 ---
 
-## Build Strategy (Dev vs Prod)
-
-### Backend
-
-| Mode | Dockerfile | Build Location | Needs Host Maven? | Speed |
-|------|-----------|---------------|-------------------|-------|
-| **Dev** | `Dockerfile.dev` | Host machine (`mvn package`) | Yes | Fast container starts |
-| **Prod** | `Dockerfile.prod` | Inside Docker container | No | Slow first build |
-
-**Dev workflow** (default):
-1. You run `mvn package` on your host → JARs in `backend/<service>/target/`
-2. `Dockerfile.dev` copies those JARs into a slim JRE container
-3. Container start is fast (no Maven inside Docker)
-
-**Prod workflow** (when using `docker-compose.prod.yml`):
-1. `docker compose up --build` triggers `Dockerfile.prod`
-2. Maven runs inside Docker
-3. Final image is slim (JRE + JAR only)
-
-### Frontend
-
-| Mode | Dockerfile | Hot Reload? | Build Location |
-|------|-----------|-------------|---------------|
-| **Dev** | `Dockerfile.dev` | Yes (via volume mounts) | Inside Docker |
-| **Prod** | `Dockerfile.prod` | No (nginx static) | Inside Docker |
-
-**Dev workflow**: Source code is mounted from host into container via volumes. Vite HMR runs inside Docker.
-
----
-
-## Script Reference
-
-Run from the **project root**: `.\flashsale-build.ps1 [options]`
-
-### Actions (pick one)
-
-| Flag | Description |
-|------|-------------|
-| `-Up` | Start services (combine with targets below) |
-| `-Down` | Stop and remove containers |
-| `-Build` | Maven build backend JARs (no Docker) |
-| `-BuildFrontend` | Build frontend apps |
-| `-Stop` | Stop containers (no removal, keeps data) |
-| `-Clean` | Nuclear clean: containers + volumes + images |
-| `-Status` | Show container status |
-| `-Logs` | Tail all logs (Ctrl+C to stop) |
-| `-Ports` | Show exposed ports |
-| `-Health` | Check service health |
-| `-Help` | Show full help message |
-| `-Menu` | Interactive menu |
-| `-Restart <svc>` | Restart a specific container |
-| `-Tail <svc>` | Tail logs from a specific container |
-| `-Exec <svc> <cmd>` | Run command inside a container |
-
-### Targets (composable, default = all)
-
-| Flag | Description |
-|------|-------------|
-| `-All` | Everything (infra + backend + frontend) |
-| `-Infra` | Infrastructure only (databases, queues) |
-| `-Backend` | Backend microservices only |
-| `-Frontend` | Frontend apps only |
-
-Combine targets: `-Up -Infra -Backend` starts infra + backend.
-
-### Up Options
-
-| Flag | Description |
-|------|-------------|
-| `-D` or `-Detach` | Background mode (docker compose `-d`) |
-| `-SkipBuild` | Skip Maven/NPM build step |
-| `-MavenParallel` | Maven `-T 2C` (parallel threads) |
-| `-FrontendProd` | Frontend as nginx production containers |
-
-### Down / Clean Options
-
-| Flag | Description |
-|------|-------------|
-| `-V` or `-RemoveVolumes` | Remove named volumes (**DATA LOSS**) |
-| `-Rmi` or `-RemoveImages` | Remove service images |
-| `-RemoveOrphans` | Remove orphaned containers |
-
-### Restart / Tail / Exec
-
-```powershell
-# Restart a container
-.\flashsale-build.ps1 -Restart payment        # auto-prefixes fs- → fs-payment
-
-# Tail logs from a container (last 50 lines)
-.\flashsale-build.ps1 -Tail gateway -Lines 50
-
-# Run command inside container
-.\flashsale-build.ps1 -Exec postgres psql -U postgres -d flashsale_platform
-.\flashsale-build.ps1 -Exec redis redis-cli -a redis123
-.\flashsale-build.ps1 -Exec gateway sh
-```
-
----
-
-## Running Modes
-
-### Dev Mode (Default)
-
-```powershell
-# Full stack, dev mode
-.\flashsale-build.ps1 -Up -All -D
-
-# Backend in Docker, frontend in Docker with HMR
-```
-
-### Production Mode (Nginx)
-
-```powershell
-# Frontend as nginx containers (no HMR)
-.\flashsale-build.ps1 -Up -All -D -FrontendProd
-```
-
-### Backend Standalone (from `backend/` directory)
-
-```powershell
-cd backend
-
-# Dev mode (needs JARs built on host first)
-docker compose -f docker-compose.yml up --build -d
-
-# Prod mode (builds inside Docker, no host Maven needed)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
-
-# Infra only (databases + queues)
-docker compose -f docker-compose.yml -f docker-compose.infra-only.yml up --build -d
-```
-
-### Frontend Standalone (from `frontend/` directory)
-
-```powershell
-cd frontend
-
-# Dev mode (HMR, mock data by default)
-docker compose -f "docker compose.yml" up --build -d
-
-# Prod mode (nginx)
-docker compose -f "docker compose.yml" -f docker-compose.prod.yml up --build -d
-```
-
----
-
-## Container Names
-
-### Infrastructure
-
-| Container | Service | Ports |
-|-----------|---------|-------|
-| `fs-postgres` | PostgreSQL | 5432 |
-| `fs-mongo` | MongoDB | 27017 |
-| `fs-redis` | Redis | 6379 |
-| `fs-elasticsearch` | Elasticsearch | 9200 |
-| `fs-minio` | MinIO (S3) | 9000, 9001 |
-| `fs-kafka` | Kafka | 9092, 29092 |
-| `fs-zookeeper` | Zookeeper | 2181 |
-| `fs-axonserver` | AxonServer | 8024, 8124 |
+## 8. Service Ports & URLs
 
 ### Backend Services
 
-| Container | Service | Port |
-|-----------|---------|------|
-| `fs-discovery` | Eureka Discovery | 8761 |
-| `fs-gateway` | API Gateway | 8080 |
-| `fs-identity` | Identity Service | 8081 |
-| `fs-payment` | Payment Service | 8082 |
-| `fs-order` | Order Service | 8083 |
-| `fs-flashsale` | Flash Sale Service | 8085 |
-| `fs-product` | Product Service | 8090 |
-| `fs-search` | Search Service | 8091 |
-| `fs-notification` | Notification Service | 8092 |
-| `fs-worker` | Worker Service | 8086 |
+| Service | Container | Port | URL |
+|---------|-----------|------|-----|
+| API Gateway | `fs-gateway` | 8080 | http://localhost:8080 |
+| Discovery (Eureka) | `fs-discovery` | 8761 | http://localhost:8761 |
+| Identity | `fs-identity` | 8081 | http://localhost:8081 |
+| Payment | `fs-payment` | 8082 | http://localhost:8082 |
+| Order | `fs-order` | 8083 | http://localhost:8083 |
+| Flash Sale | `fs-flashsale` | 8085 | http://localhost:8085 |
+| Worker | `fs-worker` | 8086 | http://localhost:8086 |
+| Product | `fs-product` | 8090 | http://localhost:8090 |
+| Search | `fs-search` | 8091 | http://localhost:8091 |
+| Notification | `fs-notification` | 8092 | http://localhost:8092 |
+
+### Infrastructure
+
+| Service | Container | Port |
+|---------|-----------|------|
+| PostgreSQL | `fs-postgres` | 5432 |
+| MongoDB | `fs-mongo` | 27017 |
+| Redis | `fs-redis` | 6379 |
+| Kafka | `fs-kafka` | 9092 / 29092 |
+| Zookeeper | `fs-zookeeper` | 2181 |
+| Elasticsearch | `fs-elasticsearch` | 9200 |
+| MinIO | `fs-minio` | 9000 / 9001 |
+| Axon Server | `fs-axonserver` | 8024 (GUI) / 8124 (gRPC) |
 
 ### Frontend Apps
 
-| Container | App | Port |
-|-----------|-----|------|
-| `fs-customer-fe` | Customer App | 3000 |
-| `fs-seller-fe` | Seller App | 3001 |
-| `fs-admin-fe` | Admin App | 3002 |
+| App | Container | Port |
+|-----|-----------|------|
+| Customer | `fs-customer-fe` | 3000 |
+| Seller | `fs-seller-fe` | 3001 |
+| Admin | `fs-admin-fe` | 3002 |
+
+### Quick Access Links
+
+```
+http://localhost:3000    Customer App
+http://localhost:3001    Seller App
+http://localhost:3002    Admin App
+http://localhost:8080    API Gateway
+http://localhost:8080/swagger-ui.html  Swagger UI
+http://localhost:8761    Eureka Discovery
+http://localhost:9001    MinIO Console
+http://localhost:8024    Axon Server GUI
+```
 
 ---
 
-## Service Ports
+## 9. Container Names
 
-| Port | Service | Notes |
-|------|---------|-------|
-| 3000 | Customer App | React app |
-| 3001 | Seller App | React app |
-| 3002 | Admin App | React app |
-| 8080 | API Gateway | Swagger UI at `/swagger-ui.html` |
-| 8081 | Identity Service | User auth, JWT |
-| 8082 | Payment Service | Stripe integration |
-| 8083 | Order Service | Order management |
-| 8085 | Flash Sale Service | Promotions |
-| 8086 | Worker Service | Scheduled jobs |
-| 8090 | Product Service | Product catalog |
-| 8091 | Search Service | Elasticsearch |
-| 8092 | Notification Service | Email/SMS |
-| 8761 | Eureka Discovery | Service registry |
-| 5432 | PostgreSQL | Main SQL database |
-| 27017 | MongoDB | NoSQL database |
-| 6379 | Redis | Cache |
-| 9092 | Kafka | Message queue (external) |
-| 29092 | Kafka | Message queue (internal) |
-| 2181 | Zookeeper | Kafka coordination |
-| 9200 | Elasticsearch | Search engine |
-| 9000 | MinIO | Object storage (S3-compatible) |
-| 9001 | MinIO Console | MinIO admin UI |
-| 8024 | Axon Server | GUI |
-| 8124 | Axon Server | gRPC |
+| Category | Containers |
+|----------|------------|
+| **Infrastructure** | `fs-postgres`, `fs-mongo`, `fs-redis`, `fs-elasticsearch`, `fs-minio`, `fs-kafka`, `fs-zookeeper`, `fs-axonserver` |
+| **Backend** | `fs-discovery`, `fs-gateway`, `fs-identity`, `fs-payment`, `fs-order`, `fs-flashsale`, `fs-product`, `fs-search`, `fs-notification`, `fs-worker` |
+| **Frontend** | `fs-customer-fe`, `fs-seller-fe`, `fs-admin-fe` |
+| **Special** | `fs-reverse-proxy` (nginx), `fs-stripe-listener` (dev only) |
 
 ---
 
-## Database Connections
+## 10. Database Connections
 
 Connect from your host machine (outside Docker):
 
 | Database | Host | Port | User | Password |
 |----------|------|------|------|----------|
-| PostgreSQL | localhost | 5432 | postgres | (from `.env` POSTGRES_PASSWORD) |
-| MongoDB | localhost | 27017 | fs_mongo_admin | (from `.env` MONGO_INITDB_ROOT_PASSWORD) |
-| Redis | localhost | 6379 | — | (from `.env` REDIS_PASSWORD) |
-| Elasticsearch | localhost | 9200 | — | No auth |
-| MinIO | localhost | 9000 | fs_storage_admin | (from `.env` MINIO_ACCESS/SECRET_KEY) |
+| PostgreSQL | localhost | 5432 | postgres | `POSTGRES_PASSWORD` from `.env` |
+| MongoDB | localhost | 27017 | fs_mongo_admin | `MONGO_INITDB_ROOT_PASSWORD` from `.env` |
+| Redis | localhost | 6379 | (none) | `REDIS_PASSWORD` from `.env` |
+| Elasticsearch | localhost | 9200 | (none) | No authentication |
+| MinIO | localhost | 9000 | `MINIO_ACCESS_KEY` from `.env` | `MINIO_SECRET_KEY` from `.env` |
 
 ---
 
-## Stripe Webhook Setup
+## 11. Stripe Webhook Setup
 
 ### How It Works
 
 | Environment | Mechanism | How to Configure |
-|-------------|-----------|----------------|
-| **Local Dev** | Stripe CLI (`fs-stripe-listener`) inside Docker | Started automatically by `flashsale-build.ps1` |
-| **Production** | Stripe Dashboard sends events directly to your server | Set `STRIPE_WEBHOOK_SECRET_PROD` in production `.env` |
+|-------------|-----------|-------------------|
+| **Local Dev** | Stripe CLI (`fs-stripe-listener`) inside Docker | Started automatically with `dev` command |
+| **Production** | Stripe Dashboard sends events directly | Set `STRIPE_WEBHOOK_SECRET_PROD` in production `.env` |
 
-> **No separate terminal needed anymore.** `flashsale-build.ps1` automatically starts `fs-stripe-listener` when you run `-Up -Backend` or `-Up -All`. Use `stripe-webhook.ps1` only for status checks and prod guide.
+### Local Development
 
-### Local Development (Automatic)
+`dev` command automatically starts `fs-stripe-listener` which forwards Stripe webhook events to `payment-service`.
 
-```powershell
-# stripe-listener (fs-stripe-listener) starts AUTOMATICALLY with the backend.
-# No need to run stripe-webhook.ps1 manually anymore.
-.\flashsale-build.ps1 -Up -All -D
-```
-
-After startup, copy the webhook secret from Docker logs:
+Get the webhook signing secret:
 
 ```powershell
-# Check the webhook signing secret
 docker logs fs-stripe-listener | Select-String whsec_
 ```
 
-Copy the secret to `.env` and restart payment-service:
+Update `.env` and restart payment-service:
 
 ```powershell
 # Edit .env: STRIPE_WEBHOOK_SECRET=whsec_xxx
-docker restart fs-payment
+.\flashsale-build.ps1 svc-rm payment
+.\flashsale-build.ps1 svc-up payment
 ```
 
-Use `stripe-webhook.ps1` for status/logs:
-
-```powershell
-.\stripe-webhook.ps1 -Mode Status   # Check if running
-.\stripe-webhook.ps1 -Mode Logs     # View logs
-.\stripe-webhook.ps1 -Mode Stop     # Stop listener
-.\stripe-webhook.ps1 -Mode Start    # Start again
-```
-
-### Production (No Stripe CLI)
+### Production
 
 ```powershell
 # 1. Go to Stripe Dashboard > Developers > Webhooks
 # 2. Click "Add endpoint"
 # 3. Endpoint URL: https://your-domain.com/api/v1/stripe/webhooks
-# 4. Select events:
-#      - payment_intent.succeeded
-#      - payment_intent.payment_failed
-#      - charge.refunded
-#      - account.updated
-# 5. Copy the "Signing secret" (whsec_xxx)
-# 6. Set in production .env:
-#      STRIPE_WEBHOOK_SECRET_PROD=whsec_xxx
+# 4. Select events: payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, account.updated
+# 5. Copy "Signing secret" (whsec_xxx)
+# 6. Set in production .env: STRIPE_WEBHOOK_SECRET_PROD=whsec_xxx
+```
 
-# Or show the full guide:
-.\stripe-webhook.ps1 -Mode ProdGuide
+Deploy:
+
+```bash
+IMAGE_PREFIX=your-username/flashsale \
+docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml up -d
 ```
 
 ---
 
-## Troubleshooting
+## 12. Troubleshooting
 
-### Frontend "[FAIL]" — but containers are running
-
-This is a false positive. When `docker compose up --build` runs in foreground mode, it exits after containers start (or on Ctrl+C), causing PowerShell to record a non-zero exit code.
-
-**Check if containers are actually running:**
+### Containers Not Starting
 
 ```powershell
-docker ps --filter "name=fs-"
-```
+# Check status
+.\flashsale-build.ps1 ps
 
-If containers are `Up`, the startup succeeded. Use `-D` (detach) to avoid this.
+# View logs
+.\flashsale-build.ps1 logs gateway
+.\flashsale-build.ps1 logs be
+
+# Check specific container
+docker logs fs-payment
+```
 
 ### Port Already in Use
 
 ```powershell
-# Find what's using a port
 netstat -ano | Select-String ":8080"
-# Kill by PID:
 taskkill /PID <PID> /F
 ```
 
@@ -512,152 +548,40 @@ docker volume prune
 
 ### Kafka Not Starting
 
-Kafka needs ~30 seconds to initialize. Check logs:
+Kafka needs ~30 seconds to initialize:
 
 ```powershell
-docker compose -f docker-compose.yml logs kafka
+docker logs fs-kafka
 ```
 
 ### Backend Won't Connect to Database
 
-Ensure infrastructure is healthy first:
+Check infrastructure health:
 
 ```powershell
-.\flashsale-build.ps1 -Health
+docker ps --filter "name=fs-" --format "table {{.Names}}\t{{.Status}}"
 ```
 
 ### Maven Build Fails
 
 ```powershell
 cd backend
-mvn clean install -DskipTests -X   # verbose output
+mvn clean install -DskipTests
 ```
 
-### Reset Everything
+### Full Reset
 
 ```powershell
-.\flashsale-build.ps1 -Clean -V -Rmi
-.\flashsale-build.ps1 -Build
-.\flashsale-build.ps1 -Up -All -D
-```
-
----
-
-## CI/CD Pipelines
-
-### ci.yml — PR & Develop Branch
-
-Runs on every push to `develop` and every pull request.
-
-```
-Trigger: push to develop | pull_request to main/develop
-Jobs:
-  backend-lint-and-build  →  backend-tests
-  frontend-lint-and-build  →  docker-build-check + docker-build-frontend-check
-  security-checks
-  ci-summary (comment PR on success)
-```
-
-### preview-ci.yml — Preview Branch
-
-Builds all Docker images and auto-merges to `main` on success.
-
-```
-Trigger: push to preview
-Jobs:
-  build-backend-artifacts     →  Maven package, upload JAR artifacts
-  build-frontend-artifacts    →  npm ci, upload node_modules (x3 apps)
-         ↓ both complete
-  build-dev (13 parallel)     →  Build all Dockerfile.dev, push :dev-sha + :dev-latest
-         ↓ all pass
-  build-prod (13 parallel)   →  Build all Dockerfile.prod, push :prod-sha + :prod-latest
-         ↓ all pass
-  auto-pr-to-main            →  git merge preview→main + create PR
-```
-
-### deploy.yml — Deploy to Server
-
-Runs on push to `main` and `develop`. Builds on the target server via SSH.
-
-```
-Trigger: push to main/develop | workflow_dispatch
-Jobs:
-  quick-validation   →  Verify files exist
-  deploy-on-server  →  SSH → git pull → mvn → docker build → docker compose up
-  notify           →  Report success/failure
-```
-
----
-
-## Quick Reference Cheatsheet
-
-```powershell
-# ============================================================
-# START — Stripe CLI starts automatically (dev mode)
-# ============================================================
-.\flashsale-build.ps1 -Up -All -D              # Full stack + stripe-listener
-.\flashsale-build.ps1 -Up -All -D -NoStripeWebhook  # Full stack, no stripe-listener
-.\flashsale-build.ps1 -Up -Infra -D            # Infrastructure only
-.\flashsale-build.ps1 -Up -Backend -D          # Backend + stripe-listener
-.\flashsale-build.ps1 -Up -Backend -D -NoStripeWebhook  # Backend only
-.\flashsale-build.ps1 -Up -Frontend -D        # Frontend only (mock)
-
-# ============================================================
-# STRIPE WEBHOOK
-# ============================================================
-docker logs fs-stripe-listener | Select-String whsec_  # Get signing secret
-.\stripe-webhook.ps1 -Mode Status             # Check if listener is running
-.\stripe-webhook.ps1 -Mode Logs               # View Stripe CLI logs
-.\stripe-webhook.ps1 -Mode ProdGuide          # Production webhook setup
-
-# ============================================================
-# REBUILD
-# ============================================================
-.\flashsale-build.ps1 -Build                    # Maven build
-.\flashsale-build.ps1 -Build -MavenParallel    # Parallel Maven build
-.\flashsale-build.ps1 -Up -All -SkipBuild -D  # Restart without rebuilding
-
-# STOP
-.\flashsale-build.ps1 -Stop                    # Stop (keep data)
-.\flashsale-build.ps1 -Down                    # Remove containers
-.\flashsale-build.ps1 -Down -V               # Remove containers + volumes
-
-# CLEAN
-.\flashsale-build.ps1 -Clean -V -Rmi          # Nuclear: containers + volumes + images
-
-# INFO
-.\flashsale-build.ps1 -Status                  # Container status
-.\flashsale-build.ps1 -Logs                   # Tail all logs
-.\flashsale-build.ps1 -Ports                   # Exposed ports
-.\flashsale-build.ps1 -Health                  # Service health
-.\flashsale-build.ps1 -Help                   # Full help
-
-# CONTAINER OPS
-.\flashsale-build.ps1 -Restart payment         # Restart fs-payment
-.\flashsale-build.ps1 -Tail gateway -Lines 50 # Tail fs-gateway logs
-.\flashsale-build.ps1 -Exec postgres psql -U postgres -d flashsale_platform
-
-# INTERACTIVE
-.\flashsale-build.ps1 -Menu                   # Interactive menu
-
-# STANDALONE (from subdirectory)
-cd backend
-docker compose -f docker-compose.yml up --build -d
-docker compose -f docker-compose.yml -f docker-compose.infra-only.yml up --build -d
-cd ../frontend
-docker compose -f "docker compose.yml" up --build -d
+.\flashsale-build.ps1 clean
+.\flashsale-build.ps1 mvn-all
+.\flashsale-build.ps1 dev
 ```
 
 ---
 
 ## Related Documents
 
-- [00_INDEX.md](00_INDEX.md) — Documentation index
-- [01_OVERVIEW.md](01_OVERVIEW.md) — Project architecture & setup
-- [02_API.md](02_API.md) — API specification
-- [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) — Payment flow & Stripe integration
-
----
-
-**Last Updated**: 2026-04-23
-**Status**: Production-Ready
+- [DEPLOY.md](../DEPLOY.md) — Deployment guide (CD, server setup, GitHub Actions)
+- [docs/00_INDEX.md](../00_INDEX.md) — Documentation index
+- [docs/01_OVERVIEW.md](../01_OVERVIEW.md) — Project architecture
+- [docs/02_API.md](../02_API.md) — API specification

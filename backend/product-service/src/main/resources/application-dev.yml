@@ -4,12 +4,12 @@
 # ============================================================
 spring:
   mongodb:
-    host: localhost
+    host: ${MONGO_HOST:localhost}
     port: 27017
-    database: fs_product
+    database: ${DB_NAME_PRODUCT:fs_product}
   data:
     redis:
-      host: localhost
+      host: ${REDIS_HOST:localhost}
       port: 6379
 
 logging:
