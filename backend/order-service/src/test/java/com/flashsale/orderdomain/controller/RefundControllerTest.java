@@ -2,6 +2,7 @@ package com.flashsale.orderdomain.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.orderdomain.domain.model.Order;
 import com.flashsale.orderdomain.domain.model.OrderItem;
@@ -32,7 +33,9 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @org.junit.jupiter.api.extension.ExtendWith(MockitoExtension.class)
@@ -188,6 +191,52 @@ class RefundControllerTest {
     }
 
     @Test
+    void createPartialRefund_throwsWhenRequestedQuantityExceedsAvailable() {
+        Long orderId = 70L;
+        UserDetailsImpl user = user(7L, "BUYER");
+        BuyerPartialRefundRequest req = new BuyerPartialRefundRequest();
+        req.setReason("Too many");
+        BuyerPartialRefundItem item = new BuyerPartialRefundItem();
+        item.setOrderItemId(700L);
+        item.setQuantity(3);
+        req.setItems(List.of(item));
+
+        when(orderRepository.findByIdAndUserId(orderId, 7L)).thenReturn(Optional.of(deliveredOrder(orderId, 7L)));
+        when(orderItemRepository.findAllByOrderId(orderId)).thenReturn(List.of(orderItem(700L, 2, 0, 10000)));
+
+        AppException ex = assertThrows(AppException.class, () -> controller.createPartialRefund(orderId, req, user));
+        assertTrue(ex.getMessage().contains("vượt quá"));
+        verify(kafkaTemplate, never()).send(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void getOrderRefunds_throwsForbiddenForNonOwnerBuyer() {
+        Long orderId = 80L;
+        UserDetailsImpl user = user(8L, "BUYER");
+        Order order = deliveredOrder(orderId, 99L);
+        order.setSellerId(199L);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        AppException ex = assertThrows(AppException.class, () -> controller.getOrderRefunds(orderId, user));
+
+        assertTrue(ex.getMessage().contains("không có quyền"));
+        verifyNoInteractions(kafkaReplyService);
+    }
+
+    @Test
+    void getBuyerRefunds_returnsEmptyListWhenKafkaReturnsError() {
+        UserDetailsImpl user = user(9L, "BUYER");
+        when(kafkaReplyService.sendAndReceive(eq(KafkaTopics.ORDER_REFUNDS_REQUEST), anyMap()))
+                .thenReturn(Map.of("error", true));
+
+        ResponseEntity<com.flashsale.commonlib.dto.ApiResponse<List<OrderRefundInfo>>> result =
+                controller.getBuyerRefunds(null, null, null, null, 0, 20, user);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertTrue(result.getBody().getData().isEmpty());
+    }
+
+    @Test
     void getFullRefundStatus_returnsAggregatedResponse() {
         Long parentOrderId = 60L;
         UserDetailsImpl user = user(6L, "BUYER");
@@ -213,6 +262,44 @@ class RefundControllerTest {
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertEquals(parentOrderId, result.getBody().getData().getParentOrderId());
         assertEquals("SUCCESS", result.getBody().getData().getStatus());
+    }
+
+    @Test
+    void getFullRefundStatus_returnsFailedWhenAnySubRefundFails() {
+        Long parentOrderId = 61L;
+        UserDetailsImpl user = user(61L, "BUYER");
+        Order first = deliveredOrder(611L, 61L);
+        first.setParentOrderId(parentOrderId);
+        first.setSellerId(11L);
+        Order second = deliveredOrder(612L, 61L);
+        second.setParentOrderId(parentOrderId);
+        second.setSellerId(12L);
+
+        when(parentOrderRepository.findByIdAndUserId(parentOrderId, 61L))
+                .thenReturn(Optional.of(ParentOrder.builder().id(parentOrderId).userId(61L).build()));
+        when(orderRepository.findAllByParentOrderId(parentOrderId)).thenReturn(List.of(first, second));
+        when(kafkaReplyService.sendAndReceive(eq(KafkaTopics.ORDER_REFUNDS_REQUEST), anyMap()))
+                .thenReturn(Map.of(
+                        "refunds", List.of(Map.of(
+                                "group_ref", "grp-2",
+                                "status", "SUCCESS",
+                                "amount", 10000
+                        ))
+                ))
+                .thenReturn(Map.of(
+                        "refunds", List.of(Map.of(
+                                "group_ref", "grp-2",
+                                "status", "FAILED",
+                                "amount", 5000
+                        ))
+                ));
+
+        ResponseEntity<com.flashsale.commonlib.dto.ApiResponse<FullRefundCreatedResponse>> result =
+                controller.getFullRefundStatus(parentOrderId, user);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals("FAILED", result.getBody().getData().getStatus());
+        assertEquals(2, result.getBody().getData().getRefunds().size());
     }
 
     private Order deliveredOrder(Long orderId, Long userId) {
