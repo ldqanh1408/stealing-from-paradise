@@ -1,17 +1,32 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+  address: ${SERVER_BIND:0.0.0.0}
 spring:
   main:
-    allow-bean-definition-overriding: true  # Cho phép override bean definition (fix WebFlux + Security conflict)
+    allow-bean-definition-overriding: true
   application:
     name: api-gateway
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
-      routes: []  # defined in RouteConfig.java
+      routes: []
+      httpclient:
+        pool:
+          type: elastic
+          maxConnections: 500
+        connect-timeout: 10000
+        response-timeout: 30s
   data:
     redis:
       host: ${REDIS_HOST:localhost}

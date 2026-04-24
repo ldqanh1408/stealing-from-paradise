@@ -331,11 +331,7 @@ jobs:
         with:
           sparse-checkout: |
             docker-compose.yml
-            docker-compose-backend.yml
-            docker-compose-infrastructure.yml
-            backend/docker-compose.prod.yml
-            backend/docker-compose.prod-pulled.yml
-            frontend/docker-compose.prod-pulled.yml
+            docker-compose.prod-pulled.yml
             nginx/
             .env.example
           sparse-checkout-cone-mode: false
@@ -421,88 +417,33 @@ jobs:
           # Step 2: Stop old services
           log_info "Stopping current services..."
           cd "${PROJECT_DIR}"
-          docker-compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
-          for c in fs-postgres fs-mongo fs-redis fs-elasticsearch fs-minio \
-                    fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
-                    fs-discovery fs-gateway fs-identity fs-payment fs-order \
-                    fs-product fs-flashsale fs-search fs-notification fs-worker \
-                    fs-customer-fe fs-seller-fe fs-admin-fe fs-reverse-proxy; do
-            docker stop "$c" 2>/dev/null && docker rm "$c" 2>/dev/null || true
-          done
-          docker image prune -f >/dev/null 2>&1 || true
+          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans 2>/dev/null || true
           log_ok "Old services stopped"
 
-          # Step 3: Pull backend images
-          log_info "Pulling backend images..."
-          BACKEND_SVCS=(
-            "discovery-service" "api-gateway" "identity-service" "product-service"
-            "order-service" "payment-service" "flashsale-service"
-            "search-service" "notification-service" "worker-service"
-          )
-          for svc in "${BACKEND_SVCS[@]}"; do
-            IMG="${REGISTRY}/${IMAGE_PREFIX}-${svc}:${IMAGE_TAG}"
-            echo "  Pulling ${IMG}"
-            docker pull "${IMG}" || log_warn "Failed to pull ${IMG}"
-          done
+          # Step 3: Pull all images
+          log_info "Pulling all images..."
+          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml pull
+          log_ok "Images pulled"
 
-          # Step 4: Pull frontend + reverse-proxy images
-          log_info "Pulling frontend images..."
-          for app in customer seller admin; do
-            IMG="${REGISTRY}/${IMAGE_PREFIX}-${app}-app:${IMAGE_TAG}"
-            echo "  Pulling ${IMG}"
-            docker pull "${IMG}" || log_warn "Failed to pull ${IMG}"
-          done
-
-          log_info "Pulling reverse-proxy image..."
-          RP_IMG="${REGISTRY}/${IMAGE_PREFIX}-reverse-proxy:${IMAGE_TAG}"
-          echo "  Pulling ${RP_IMG}"
-          docker pull "${RP_IMG}" || log_warn "Failed to pull ${RP_IMG}"
-
-          # Step 5: Tag images as prod-latest for docker-compose (local alias)
-          log_info "Tagging images..."
-          for svc in "${BACKEND_SVCS[@]}"; do
-            docker tag "${REGISTRY}/${IMAGE_PREFIX}-${svc}:${IMAGE_TAG}" \
-                       "flashsale-${svc}:prod-latest" 2>/dev/null || true
-          done
-          for app in customer seller admin; do
-            docker tag "${REGISTRY}/${IMAGE_PREFIX}-${app}-app:${IMAGE_TAG}" \
-                       "flashsale-${app}-app:prod-latest" 2>/dev/null || true
-          done
-          docker tag "${REGISTRY}/${IMAGE_PREFIX}-reverse-proxy:${IMAGE_TAG}" \
-                     "flashsale-reverse-proxy:prod-latest" 2>/dev/null || true
-          log_ok "Images tagged"
-
-          # Step 6: Start services using prod-pulled compose files
+          # Step 4: Start services
           log_info "Starting services..."
           cd "${PROJECT_DIR}"
           export IMAGE_PREFIX
-          docker-compose \
-            -f docker-compose.yml \
-            -f docker-compose-backend.yml \
-            -f backend/docker-compose.prod-pulled.yml \
-            -f frontend/docker-compose.prod-pulled.yml \
-            -f nginx/docker-compose.prod-pulled.yml \
-            up -d
+          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml up -d
           log_ok "Services started"
 
-          # Step 7: Health check
+          # Step 5: Health check
           log_info "Waiting for services to stabilize (60s)..."
           sleep 60
           echo 'Running containers:'
-          docker-compose \
-            -f docker-compose.yml \
-            -f docker-compose-backend.yml \
-            -f backend/docker-compose.prod-pulled.yml \
-            -f frontend/docker-compose.prod-pulled.yml \
-            -f nginx/docker-compose.prod-pulled.yml \
-            ps
+          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml ps
           echo ''
           echo 'Health checks:'
           curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
           curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1 && echo '[OK] Eureka' || echo '[!!] Eureka not ready'
           log_ok "Health check complete"
 
-          # Step 8: Summary
+          # Step 6: Summary
           echo ''
           echo '╔══════════════════════════════════════════════════════════╗'
           echo '║          ✓  DEPLOYMENT SUCCESSFUL                    ║'
@@ -524,34 +465,14 @@ jobs:
 
           chmod +x /tmp/deploy.sh
 
-          # Upload compose files to the server
+          # Upload compose files and nginx config to the server
           scp -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=~/.ssh/known_hosts \
              -i ~/.ssh/id_rsa \
              docker-compose.yml \
-             docker-compose-backend.yml \
-             docker-compose-infrastructure.yml \
-             "${SERVER}:/opt/flashsale/"
-
-          scp -o StrictHostKeyChecking=no \
-             -o UserKnownHostsFile=~/.ssh/known_hosts \
-             -i ~/.ssh/id_rsa \
+             docker-compose.prod-pulled.yml \
              -r nginx/ \
              "${SERVER}:/opt/flashsale/"
-
-          # Upload per-service prod-pulled overrides
-          scp -o StrictHostKeyChecking=no \
-             -o UserKnownHostsFile=~/.ssh/known_hosts \
-             -i ~/.ssh/id_rsa \
-             backend/docker-compose.prod-pulled.yml \
-             nginx/docker-compose.prod-pulled.yml \
-             "${SERVER}:/opt/flashsale/"
-
-          scp -o StrictHostKeyChecking=no \
-             -o UserKnownHostsFile=~/.ssh/known_hosts \
-             -i ~/.ssh/id_rsa \
-             frontend/docker-compose.prod-pulled.yml \
-             "${SERVER}:/opt/flashsale/frontend/"
 
           scp -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=~/.ssh/known_hosts \

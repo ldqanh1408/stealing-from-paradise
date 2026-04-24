@@ -5,16 +5,40 @@
 
 ---
 
-## Quick Start
+## Deployment Modes
+
+| Mode | Command | What's Running |
+|---|---|---|
+| **`.dev`** | `.\flashsale-build.ps1 -Up -All -D` | Stripe CLI + Backend + Frontend |
+| **`.prod`** | `.\flashsale-build.ps1 -Up -All -D -NoStripeWebhook` | Backend + Frontend (no Stripe CLI) |
+| **mock** | `.\flashsale-build.ps1 -Up -Frontend -D` | Frontend only (mock data, no backend) |
+
+### `.dev` — Stripe CLI + Backend + Frontend (local dev)
 
 ```powershell
-# stripe-listener (fs-stripe-listener) starts AUTOMATICALLY with the backend.
 .\flashsale-build.ps1 -Build
 .\flashsale-build.ps1 -Up -All -D
+```
+Runs `stripe-listener` (fs-stripe-listener) which forwards Stripe webhook events to `payment-service`.
+Use this when you need to test payment flows locally.
 
-# To skip Stripe CLI listener (for staging/prod):
+### `.prod` — Backend + Frontend (no Stripe CLI)
+
+```powershell
 .\flashsale-build.ps1 -Up -All -D -NoStripeWebhook
 ```
+No Stripe CLI. Stripe Dashboard sends webhooks directly to your server.
+Use this for staging/production environments.
+
+### Mock — Frontend only, no backend
+
+```powershell
+.\flashsale-build.ps1 -Up -Frontend -D
+```
+Only the 3 frontend apps run (customer/seller/admin). Uses `VITE_BACKEND_MODE=mock`.
+No backend, infrastructure, or Stripe CLI needed.
+
+---
 
 ---
 
@@ -96,9 +120,13 @@ frontend/
 ## Common Tasks
 
 ```powershell
-# Restart after code change
+# .dev mode — restart after code change
 .\flashsale-build.ps1 -Build
-.\flashsale-build.ps1 -Up -All -SkipBuild -D
+.\flashsale-build.ps1 -Up -All -D -SkipBuild
+
+# .prod mode — restart (no Stripe CLI)
+.\flashsale-build.ps1 -Build
+.\flashsale-build.ps1 -Up -All -D -SkipBuild -NoStripeWebhook
 
 # Reset everything
 .\flashsale-build.ps1 -Clean -V -Rmi

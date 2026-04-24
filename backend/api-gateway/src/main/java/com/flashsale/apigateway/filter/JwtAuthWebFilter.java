@@ -68,6 +68,9 @@ public class JwtAuthWebFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String requestPath = exchange.getRequest().getPath().value();
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        String method = exchange.getRequest().getMethod().name();
+
+        log.info("[JwtAuth] {} {} | public={} | hasAuth={}", method, requestPath, isPublicPath(requestPath), authHeader != null);
 
         // Skip JWT validation for public endpoints entirely
         if (isPublicPath(requestPath)) {
@@ -116,7 +119,7 @@ public class JwtAuthWebFilter implements WebFilter {
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String code, String message, HttpStatus status) {
-        log.warn("[JwtAuthFilter] {} — {}", code, message);
+        log.warn("[JwtAuthFilter] {} {} — {} | status={}", exchange.getRequest().getMethod(), exchange.getRequest().getPath().value(), message, status);
         exchange.getResponse().setStatusCode(status);
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
         String body = String.format(

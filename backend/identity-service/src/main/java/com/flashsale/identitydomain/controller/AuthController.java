@@ -24,7 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
  * Handles login, logout, registration, and token refresh
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/v1/auth")
 @RequiredArgsConstructor
 @Slf4j
 public class AuthController {
@@ -94,8 +94,14 @@ public class AuthController {
                     .map(role -> role.getRoleName())
                     .orElse("BUYER"); // Default to BUYER if no role found
 
-            // Generate tokens
+            // Generate tokens for the newly registered user
+            String accessToken = jwtUtils.generateAccessToken(newUser.getId().toString(), newUser.getEmail(), roleName);
+            String refreshToken = jwtUtils.generateRefreshToken(newUser.getId().toString());
+
+            // Build auth response with tokens
             AuthResponse authResponse = AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
                     .userId(newUser.getId())
                     .username(newUser.getUsername())
                     .email(newUser.getEmail())

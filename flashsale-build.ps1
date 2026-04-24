@@ -161,6 +161,20 @@ if ($Help) {
 FLASH SALE BUILD SCRIPT
 ============================================================
 
+DEPLOYMENT MODES (run from project root):
+
+  .dev   → Stripe CLI + Backend + Frontend (local dev)
+           .\flashsale-build.ps1 -Up -All -D
+           docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+  .prod  → Backend + Frontend (no Stripe CLI — Stripe Dashboard sends webhooks)
+           .\flashsale-build.ps1 -Up -All -D -NoStripeWebhook
+           docker compose -f docker-compose.yml up --build -d
+
+  mock  → Frontend only, no backend (uses mock data)
+           .\flashsale-build.ps1 -Up -Frontend -D
+           cd frontend && docker compose -f docker-compose.yml up --build -d
+
 ACTIONS  (choose one):
   -Up           Start services          -Down         Stop services
   -Build        Maven build only       -BuildFrontend NPM build only
@@ -171,16 +185,12 @@ ACTIONS  (choose one):
   -Exec         Run command in container
   -Menu         Interactive menu
 
-  IMPORTANT: stripe-listener (fs-stripe-listener) starts AUTOMATICALLY with -Up -Backend/-All.
-    Use -NoStripeWebhook to skip it (staging/prod).
-    .\stripe-webhook.ps1 -Mode Status  # Check listener status
-
 UP OPTIONS:
   -Detach (-D)    Background mode (docker compose -d)
   -SkipBuild      Skip Maven/NPM build step
   -MavenParallel  Maven -T 2C (parallel threads)
   -FrontendProd   Use nginx production containers
-  -NoStripeWebhook Skip Stripe CLI listener (useful for staging/prod)
+  -NoStripeWebhook Skip Stripe CLI listener (.prod / staging mode)
 
 TARGETS  (composable, default = all):
   -All           Everything             -Infra        Infrastructure
@@ -190,12 +200,6 @@ TARGETS  (composable, default = all):
     -Up -Infra -Backend          Start infra + backend
     -Up -Backend -Frontend       Start backend + frontend
     -Down -Frontend             Stop frontend only
-
-UP OPTIONS:
-  -Detach (-D)    Background mode (docker compose -d)
-  -SkipBuild      Skip Maven/NPM build step
-  -MavenParallel  Maven -T 2C (parallel threads)
-  -FrontendProd   Use nginx production containers
 
 DOWN / CLEAN OPTIONS:
   -V (-RemoveVolumes)      Remove named volumes  [DATA LOSS]
@@ -220,22 +224,18 @@ SERVICE NAMES:
           fs-minio  fs-kafka  fs-zookeeper  fs-axonserver
   BACKEND: fs-discovery  fs-gateway  fs-identity  fs-payment  fs-order
            fs-flashsale  fs-product  fs-search  fs-notification  fs-worker
+           fs-stripe-listener (only in .dev mode)
   FRONTEND: fs-customer-fe  fs-seller-fe  fs-admin-fe
 
 EXAMPLES:
-  .\flashsale-build.ps1 -Up -All -D
-  .\flashsale-build.ps1 -Up -Infra -D
-  .\flashsale-build.ps1 -Up -Backend -D
-  .\flashsale-build.ps1 -Up -Frontend -D
-  .\flashsale-build.ps1 -Up -Infra -Backend -D
-  .\flashsale-build.ps1 -Up -All -D -RemoveOrphans
+  .\flashsale-build.ps1 -Up -All -D             # .dev mode (Stripe CLI on)
+  .\flashsale-build.ps1 -Up -All -D -NoStripeWebhook  # .prod mode (Stripe CLI off)
+  .\flashsale-build.ps1 -Up -Frontend -D         # frontend mock only
+  .\flashsale-build.ps1 -Up -Infra -Backend -D  # infra + backend
   .\flashsale-build.ps1 -Down -All -V -Rmi
-  .\flashsale-build.ps1 -Down -Backend
   .\flashsale-build.ps1 -Build -MavenParallel
-  .\flashsale-build.ps1 -Clean -V -Rmi
   .\flashsale-build.ps1 -Restart fs-payment
   .\flashsale-build.ps1 -Tail fs-gateway -Lines 50
-  .\flashsale-build.ps1 -Exec fs-postgres psql -U postgres -d flashsale_platform
   .\flashsale-build.ps1 -Menu
 
 "@ -ForegroundColor $fg
@@ -247,9 +247,10 @@ EXAMPLES:
 # ==============================================================================
 #
 # Compose file layout (project root):
-#   docker-compose.yml                  ← full stack (root)
+#   docker-compose.yml                  ← full stack (root, .prod mode)
+#   docker-compose.dev.yml            ← .dev mode override (adds stripe-listener)
 #   docker-compose-infrastructure.yml   ← infra only (root)
-#   docker-compose-backend.yml          ← backend services only (root)
+#   docker-compose-backend.yml           ← backend services only (root)
 #
 # Compose file layout (backend/):
 #   backend/docker-compose.yml           ← standalone backend (infra + services)
@@ -261,6 +262,23 @@ EXAMPLES:
 #   frontend/docker compose.yml          ← standalone frontend (space in name)
 #   frontend/docker-compose.prod.yml    ← prod override (nginx)
 #   frontend/docker-compose.prod-pulled.yml ← prod override (pulls from GHCR)
+#
+# THREE DEPLOYMENT MODES:
+#
+#   .dev  (local dev with Stripe CLI):
+#     docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+#     Script: .\flashsale-build.ps1 -Up -All -D
+#     → infra + backend + frontend + stripe-listener
+#
+#   .prod (staging/prod, no Stripe CLI):
+#     docker compose -f docker-compose.yml up --build -d
+#     Script: .\flashsale-build.ps1 -Up -All -D -NoStripeWebhook
+#     → infra + backend + frontend (Stripe events from Dashboard/Servers)
+#
+#   Frontend mock (no backend):
+#     cd frontend && docker compose -f docker-compose.yml up --build -d
+#     Script: .\flashsale-build.ps1 -Up -Frontend -D
+#     → 3 frontend apps with mock data (VITE_BACKEND_MODE=mock)
 
 $RootComposeFiles = @('docker-compose.yml')
 
@@ -299,19 +317,19 @@ function Test-File {
 function Run-Dc {
     param(
         [string[]] $Files,
-        [string]   $Args,
+        [string]   $DcArgs,
         [string]   $WorkingDir = (Get-ScriptDir),
         [switch]   $Quiet,
         [switch]   $IgnoreErrors
     )
     $fileArg = ($Files | ForEach-Object { "-f", $_ }) -join ' '
-    Write-Host "  > docker compose $fileArg $Args" -ForegroundColor DarkGray
+    Write-Host "  > docker compose $fileArg $DcArgs" -ForegroundColor DarkGray
     Push-Location $WorkingDir -PassThru | Out-Null
     try {
         if ($Quiet) {
-            $null = docker compose $fileArg $Args 2>&1
+            $null = docker compose $fileArg $DcArgs 2>&1
         } else {
-            docker compose $fileArg $Args
+            docker compose $fileArg $DcArgs
         }
         if (-not $IgnoreErrors -and $LASTEXITCODE -ne 0) {
             Write-Host "[FAIL] docker compose exited with code $LASTEXITCODE" -ForegroundColor Red
@@ -495,7 +513,7 @@ function Start-Target {
     $flags = Get-UpFlags
     $fileStr = ($Files -join ' + ')
     Write-Step "Starting $Name ($fileStr) - $Desc..."
-    $code = Run-Dc -Files $Files -Args ($flags -join ' ') -WorkingDir $WorkingDir
+    $code = Run-Dc -Files $Files -DcArgs ($flags -join ' ') -WorkingDir $WorkingDir
     if ($code -ne 0) {
         Write-Fail "Failed to start $Name (docker compose exit code: $code)"
         exit 1
@@ -511,7 +529,7 @@ function Stop-Target {
     $flags = Get-DownFlags
     $fileStr = ($Files -join ' + ')
     Write-Step "Stopping $Name ($fileStr)..."
-    $code = Run-Dc -Files $Files -Args ($flags -join ' ') -WorkingDir $WorkingDir -Quiet -IgnoreErrors
+    $code = Run-Dc -Files $Files -DcArgs ($flags -join ' ') -WorkingDir $WorkingDir -Quiet -IgnoreErrors
     if ($code -ne 0) {
         Write-Warn "docker compose down for $Name returned exit code $code (may be OK if not running)"
     }
@@ -547,7 +565,7 @@ function Invoke-Up {
     $wantsBackend = $targets | Where-Object { $_.Name -eq 'backend' }
     if ($wantsBackend -and -not $NoStripeWebhook) {
         Write-Step "Starting stripe-listener (dev only)..."
-        $code = Run-Dc -Files $DevComposeFiles -Args 'up -d' -WorkingDir $ProjectRoot -Quiet
+        $code = Run-Dc -Files $DevComposeFiles -DcArgs 'up -d' -WorkingDir $ProjectRoot -Quiet
         if ($LASTEXITCODE -ne 0) {
             Write-Warn "stripe-listener may have failed. Check: docker ps fs-stripe-listener"
         } else {
@@ -578,6 +596,7 @@ function Invoke-Up {
         Write-Host '  Stripe CLI: fs-stripe-listener is running automatically (dev mode).' -ForegroundColor Yellow
         Write-Host '  Check secret: docker logs fs-stripe-listener | Select-String whsec_' -ForegroundColor DarkGray
     }
+}
 
 function Invoke-Down {
     $targets = Resolve-Targets
@@ -599,7 +618,7 @@ function Invoke-Down {
 
 function Show-Status {
     Write-Host "`n=== CONTAINER STATUS ===" -ForegroundColor Cyan
-    $code = Run-Dc -Files $RootComposeFiles -Args 'ps' -WorkingDir $ProjectRoot -Quiet
+    $code = Run-Dc -Files $RootComposeFiles -DcArgs 'ps' -WorkingDir $ProjectRoot -Quiet
     if ($LASTEXITCODE -ne 0) {
         docker ps --format 'table {{.Names}}	{{.Status}}	{{.Ports}}' 2>$null
     }
@@ -686,7 +705,7 @@ function Show-Health {
 
 function Show-Logs {
     Write-Host "`n=== TAILING LOGS (Ctrl+C to stop) ===" -ForegroundColor Cyan
-    Run-Dc -Files $RootComposeFiles -Args 'logs -f' -WorkingDir $ProjectRoot
+    Run-Dc -Files $RootComposeFiles -DcArgs 'logs -f' -WorkingDir $ProjectRoot
 }
 
 function Invoke-Stop {
@@ -697,7 +716,7 @@ function Invoke-Stop {
         @{Files=$FrontendComposeFiles; Dir=$FrontendComposeDir}
     )
     foreach ($entry in $allComposeFiles) {
-        Run-Dc -Files $entry.Files -Args 'stop' -WorkingDir $entry.Dir -Quiet -IgnoreErrors
+        Run-Dc -Files $entry.Files -DcArgs 'stop' -WorkingDir $entry.Dir -Quiet -IgnoreErrors
     }
     Write-Success 'All containers stopped.'
 }
@@ -709,11 +728,11 @@ function Invoke-Clean {
     $rmiFlag = if ($RemoveImages)  { '--rmi local' } else { '' }
 
     # Root compose (full stack)
-    Run-Dc -Files $RootComposeFiles -Args "down $volFlag $rmiFlag" -WorkingDir $ProjectRoot -Quiet -IgnoreErrors
+    Run-Dc -Files $RootComposeFiles -DcArgs "down $volFlag $rmiFlag" -WorkingDir $ProjectRoot -Quiet -IgnoreErrors
     # Backend standalone compose
-    Run-Dc -Files $BackendDirComposeFiles -Args "down $volFlag $rmiFlag" -WorkingDir $BackendDir -Quiet -IgnoreErrors
+    Run-Dc -Files $BackendDirComposeFiles -DcArgs "down $volFlag $rmiFlag" -WorkingDir $BackendDir -Quiet -IgnoreErrors
     # Frontend compose
-    Run-Dc -Files $FrontendComposeFiles -Args "down $volFlag $rmiFlag" -WorkingDir $FrontendComposeDir -Quiet -IgnoreErrors
+    Run-Dc -Files $FrontendComposeFiles -DcArgs "down $volFlag $rmiFlag" -WorkingDir $FrontendComposeDir -Quiet -IgnoreErrors
 
     if ($RemoveVolumes) {
         docker volume prune -f 2>$null

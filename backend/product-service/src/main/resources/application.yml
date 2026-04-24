@@ -28,7 +28,12 @@ spring:
       properties:
         spring.json.trusted.packages: com.flashsale.*
   mongodb:
-    uri: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@${MONGO_HOST:localhost}:27017/${DB_NAME_PRODUCT:fs_product}?authSource=admin
+    host: ${MONGO_HOST:localhost}
+    port: 27017
+    database: ${DB_NAME_PRODUCT:fs_product}
+    username: ${MONGO_INITDB_ROOT_USERNAME}
+    password: ${MONGO_INITDB_ROOT_PASSWORD}
+    authentication-database: admin
   data:
     redis:
       host: ${REDIS_HOST:localhost}
