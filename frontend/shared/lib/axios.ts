@@ -64,7 +64,7 @@ apiClient.interceptors.response.use(
       try {
         // Gọi refresh-token — Gateway route /auth/refresh, gửi refreshToken qua HttpOnly cookie
         const { data } = await axios.post<{ data: { accessToken: string } }>(
-          `${BASE_URL}/api/v1/auth/refresh`,
+          `${BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
