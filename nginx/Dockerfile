@@ -1,11 +1,11 @@
 FROM nginx:alpine
 
-RUN apk add --no-cache bash
+RUN apk add --no-cache bash \
+ && echo 'Service unavailable' > /usr/share/nginx/html/50x.html \
+ && chmod +x /docker-entrypoint.sh
 
-RUN echo 'Service unavailable' > /usr/share/nginx/html/50x.html
-
-COPY reverse-proxy.conf /etc/nginx/templates/default.conf.template
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 
 EXPOSE 80
 
-CMD ["sh", "-c", "envsubst < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
