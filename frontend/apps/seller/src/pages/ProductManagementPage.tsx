@@ -122,10 +122,10 @@ function ImageUploader({ productId, images, onChange }: { productId: string; ima
       const newImages: string[] = [];
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
-        const ext = file.name.split('.').pop() ?? 'jpg';
-        const { data } = await sellerApi.getPresignedUrl(productId, file.name, file.type);
-        await fetch(data.url, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-        newImages.push(data.url.split('?')[0]);
+        const { data: resp } = await sellerApi.getPresignedUrl(productId, file.name, file.type);
+        const presignedUrl = (resp as { data: { url: string } }).data.url;
+        await fetch(presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+        newImages.push(presignedUrl.split('?')[0]);
       }
       onChange([...images, ...newImages]);
     } catch (e: any) {
@@ -459,10 +459,10 @@ export default function ProductManagementPage() {
             </button>
           ))}
         </div>
-        <input type="text" value={searchQuery} onChange={e => handleSearch(e.target.value)}
+        <input type="text" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(0); }}
           placeholder="Tìm sản phẩm..."
-          onChange={e => { setSearchQuery(e.target.value); setPage(0); }}
           className="px-4 py-1.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
 
       {/* Loading */}
       {isLoading && (
