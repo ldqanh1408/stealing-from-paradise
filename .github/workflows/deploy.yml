@@ -513,19 +513,25 @@ jobs:
           docker ps -aq --filter "name=fs-" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
           log_ok "Old containers removed"
 
-          # Step 4: Pull all images
+          # Step 4: Kill any process occupying gateway port
+          log_info "Freeing port 8080..."
+          sudo apt-get install -y psmisc 2>/dev/null || true
+          sudo fuser -k 8080/tcp 2>/dev/null || true
+          log_ok "Port 8080 freed"
+
+          # Step 5: Pull all images
           log_info "Pulling all images..."
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml pull
           log_ok "Images pulled"
 
-          # Step 5: Start services
+          # Step 6: Start services
           log_info "Starting services..."
           cd "${PROJECT_DIR}"
           export IMAGE_PREFIX
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml --env-file "${PROJECT_DIR}/.env.production" up -d
           log_ok "Services started"
 
-          # Step 6: Health check
+          # Step 7: Health check
           log_info "Waiting for services to stabilize (60s)..."
           sleep 60
           echo 'Running containers:'
