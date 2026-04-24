@@ -417,26 +417,26 @@ jobs:
           # Step 2: Stop old services
           log_info "Stopping current services..."
           cd "${PROJECT_DIR}"
-          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans 2>/dev/null || true
+          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans 2>/dev/null || true
           log_ok "Old services stopped"
 
           # Step 3: Pull all images
           log_info "Pulling all images..."
-          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml pull
+          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml pull
           log_ok "Images pulled"
 
           # Step 4: Start services
           log_info "Starting services..."
           cd "${PROJECT_DIR}"
           export IMAGE_PREFIX
-          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml up -d
+          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml up -d
           log_ok "Services started"
 
           # Step 5: Health check
           log_info "Waiting for services to stabilize (60s)..."
           sleep 60
           echo 'Running containers:'
-          docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml ps
+          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml ps
           echo ''
           echo 'Health checks:'
           curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
@@ -500,7 +500,7 @@ jobs:
           else
             echo "[!!] API Gateway not yet responding (may still be starting)"
             echo "     Check server logs: ssh ${_USER}@${_IP}"
-            echo "     Logs: cd /opt/flashsale && docker compose logs --tail=50"
+            echo "     Logs: cd /opt/flashsale && docker-compose logs --tail=50"
           fi
 
       - name: Deployment skipped
