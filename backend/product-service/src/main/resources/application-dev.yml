@@ -1,0 +1,22 @@
+# ============================================================
+# DEV Profile — product-service
+# Chỉ active khi SPRING_PROFILES_ACTIVE=dev
+# ============================================================
+spring:
+  mongodb:
+    host: localhost
+    port: 27017
+    database: fs_product
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    com.flashsale: DEBUG
+    org.springframework.data.mongodb: DEBUG
+
+dev-data:
+  enabled: true
+  reset: false

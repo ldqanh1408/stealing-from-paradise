@@ -31,4 +31,8 @@ export const paymentApi = {
   /** Get Stripe PaymentIntent client secret for frontend Stripe.js */
   getClientSecret: (parentOrderId: number) =>
     apiClient.get<ApiResponse<ClientSecretResponse>>(`/payments/parent-order/${parentOrderId}/client-secret`),
+
+  /** Look up a payment by Stripe PaymentIntent ID (for direct URL access after Stripe redirect) */
+  getByPaymentIntent: (paymentIntentId: string) =>
+    apiClient.get<ApiResponse<PaymentDetail>>(`/payments/by-intent/${paymentIntentId}`),
 };

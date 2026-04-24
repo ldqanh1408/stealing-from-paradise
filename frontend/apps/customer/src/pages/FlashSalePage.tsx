@@ -1,41 +1,142 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
-
-interface FlashProduct {
-  id: number;
-  name: string;
-  price: number;
-  original: number;
-  sold: number;
-  total: number;
-  skuCode: string;
-  fsItemId?: number;
-}
-
-const FLASH_PRODUCTS: FlashProduct[] = [
-  { id: 1, name: 'AirPods Pro 2nd Gen', price: 4_290_000, original: 6_990_000, sold: 87, total: 100, skuCode: 'AIRPODS-PRO2-WH', fsItemId: 1 },
-  { id: 2, name: 'iPhone 15 Case MagSafe', price: 349_000, original: 890_000, sold: 45, total: 50, skuCode: 'IPHONE15-CASE-MAG', fsItemId: 2 },
-  { id: 3, name: 'Samsung Galaxy Watch 6', price: 5_490_000, original: 7_290_000, sold: 23, total: 30, skuCode: 'GALAXY-WATCH6', fsItemId: 3 },
-  { id: 4, name: 'Balo laptop Samsonite', price: 1_290_000, original: 2_500_000, sold: 12, total: 20, skuCode: 'SAMSONITE-BALO', fsItemId: 4 },
-];
+import { flashSaleApi, type FlashSaleSession } from '@shared/api/flashSale.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
-function Countdown({ seconds }: { seconds: number }) {
+function Countdown({ targetTime }: { targetTime: Date }) {
+  const [seconds, setSeconds] = useState(() => Math.max(0, Math.floor((targetTime.getTime() - Date.now()) / 1000)));
+
+  useEffect(() => {
+    const tick = () => setSeconds(s => Math.max(0, s - 1));
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
   const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
   const s = String(seconds % 60).padStart(2, '0');
+
   return (
     <div className="flex items-center gap-1">
-      {[h, m, s].map((unit, i) => (
-        <span key={i} className="flex items-center gap-1">
-          <span className="bg-white text-gray-900 font-bold text-xl w-10 h-10 flex items-center justify-center rounded-lg shadow-sm tabular-nums">
-            {unit}
-          </span>
-          {i < 2 && <span className="text-white font-bold text-lg">:</span>}
+      <span className="bg-white text-gray-900 font-bold text-xl w-10 h-10 flex items-center justify-center rounded-lg shadow-sm tabular-nums">
+        {h}
+      </span>
+      <span className="text-white font-bold text-lg">:</span>
+      <span className="bg-white text-gray-900 font-bold text-xl w-10 h-10 flex items-center justify-center rounded-lg shadow-sm tabular-nums">
+        {m}
+      </span>
+      <span className="text-white font-bold text-lg">:</span>
+      <span className="bg-white text-gray-900 font-bold text-xl w-10 h-10 flex items-center justify-center rounded-lg shadow-sm tabular-nums">
+        {s}
+      </span>
+    </div>
+  );
+}
+
+function FlashItemCard({
+  item,
+  sessionActive,
+  onBuy,
+  isBuying,
+}: {
+  item: {
+    sku_code: string;
+    product_name: string;
+    image_url?: string;
+    flash_price: number;
+    original_price: number;
+    flash_stock: number;
+    sold_qty: number;
+    status: string;
+    id?: number;
+    session_id?: number;
+  };
+  sessionActive: boolean;
+  onBuy: (skuCode: string) => void;
+  isBuying: boolean;
+}) {
+  const sold = item.sold_qty ?? 0;
+  const total = item.flash_stock ?? 0;
+  const remaining = total - sold;
+  const pct = total > 0 ? Math.round((sold / total) * 100) : 0;
+  const disc = item.original_price > 0
+    ? Math.round((1 - item.flash_price / item.original_price) * 100)
+    : 0;
+  const soldOut = remaining <= 0 || item.status === 'SOLD_OUT';
+
+  return (
+    <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group flex flex-col ${soldOut ? 'opacity-75' : ''}`}>
+      <div className="relative bg-gradient-to-br from-orange-50 to-red-50 aspect-square flex items-center justify-center overflow-hidden">
+        {item.image_url ? (
+          <img src={item.image_url} alt={item.product_name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-5xl">🔥</span>
+        )}
+        <span className="absolute top-2 left-2 bg-red-500 text-white font-black text-sm px-2 py-1 rounded-lg">
+          -{disc}%
         </span>
-      ))}
+        {soldOut && (
+          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+            <span className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg">HẾT HÀNG</span>
+          </div>
+        )}
+      </div>
+      <div className="p-3 flex flex-col flex-1">
+        <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 group-hover:text-red-600 transition-colors">
+          {item.product_name}
+        </h3>
+        <div className="flex items-baseline gap-1.5 mb-2">
+          <span className="text-base font-bold text-red-600">{fmt(item.flash_price)}</span>
+          {disc > 0 && (
+            <span className="text-xs text-gray-400 line-through">{fmt(item.original_price)}</span>
+          )}
+        </div>
+        {/* Progress bar */}
+        <div className="mb-3">
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>Đã bán {pct}%</span>
+            <span>Còn {remaining}</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${pct > 80 ? 'bg-red-500' : 'bg-orange-400'}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+        <button
+          onClick={() => !soldOut && !isBuying && sessionActive && onBuy(item.sku_code)}
+          disabled={soldOut || isBuying || !sessionActive}
+          className={`w-full py-2 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1 mt-auto ${
+            soldOut
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : !sessionActive
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
+          }`}
+        >
+          {isBuying ? (
+            <>
+              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Đang thêm...
+            </>
+          ) : soldOut ? (
+            'Hết hàng'
+          ) : !sessionActive ? (
+            'Chưa bắt đầu'
+          ) : (
+            <>
+              <span>⚡</span> Mua ngay
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
@@ -43,35 +144,54 @@ function Countdown({ seconds }: { seconds: number }) {
 export default function FlashSalePage() {
   const navigate = useNavigate();
   const { addToCart } = useCartStore();
-  const [timeLeft, setTimeLeft] = useState(3600 * 2 + 47 * 60 + 13);
-  const [addingId, setAddingId] = useState<number | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [buyingSku, setBuyingSku] = useState<string | null>(null);
 
-  useEffect(() => {
-    const t = setInterval(() => setTimeLeft((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(t);
-  }, []);
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
+    queryKey: ['flash-sale-sessions'],
+    queryFn: () => flashSaleApi.getSessions({ size: 10 }).then(r => r.data.data),
+    staleTime: 1000 * 60,
+  });
 
-  const handleBuyNow = async (product: FlashProduct) => {
-    setAddingId(product.id);
+  const sessions: FlashSaleSession[] = sessionsData?.content ?? [];
+
+  // Determine which session is active
+  const activeSession = sessions.find(s => s.status === 'ACTIVE') ?? sessions.find(s => s.status === 'UPCOMING');
+
+  const { data: sessionDetail, isLoading: detailLoading } = useQuery({
+    queryKey: ['flash-sale-session', activeSession?.id],
+    queryFn: () => flashSaleApi.getSession(activeSession!.id).then(r => r.data.data),
+    enabled: !!activeSession?.id,
+    staleTime: 1000 * 30,
+  });
+
+  const handleBuyNow = useCallback(async (skuCode: string) => {
+    setBuyingSku(skuCode);
+    setSuccessMsg(null);
     try {
-      await addToCart(product.skuCode, 1, product.fsItemId);
-      setSuccessMsg(`${product.name} đã được thêm vào giỏ hàng`);
+      await addToCart(skuCode, 1, sessionDetail?.items?.[0]?.id);
+      setSuccessMsg('Đã thêm vào giỏ hàng!');
+      setTimeout(() => navigate('/cart'), 1000);
+    } catch (err: any) {
+      setSuccessMsg(err?.response?.data?.message || 'Không thể thêm vào giỏ hàng.');
       setTimeout(() => setSuccessMsg(null), 3000);
-      navigate('/cart');
-    } catch {
-      setSuccessMsg(null);
     } finally {
-      setAddingId(null);
+      setBuyingSku(null);
     }
-  };
+  }, [addToCart, navigate, sessionDetail]);
+
+  const targetTime = activeSession?.end_time
+    ? new Date(activeSession.end_time)
+    : new Date(Date.now() + 2 * 3600 * 1000);
+  const isActive = activeSession?.status === 'ACTIVE';
 
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Success notification */}
       {successMsg && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 animate-in fade-in flex items-center gap-2">
-          <span>✓</span> {successMsg}
+        <div className="fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50">
+          ✓ {successMsg}
         </div>
       )}
 
@@ -79,116 +199,137 @@ export default function FlashSalePage() {
       <div className="bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 text-white py-10 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <span className="text-3xl animate-bounce">⚡</span>
+            <span className="text-3xl">⚡</span>
             <h1 className="text-4xl font-black tracking-tight">FLASH SALE</h1>
-            <span className="text-3xl animate-bounce">⚡</span>
+            <span className="text-3xl">⚡</span>
           </div>
           <p className="text-orange-100 mb-6 text-lg">Giảm giá cực sốc — chỉ trong hôm nay!</p>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-sm text-orange-100 uppercase tracking-widest font-medium">Kết thúc sau</p>
-            <Countdown seconds={timeLeft} />
-          </div>
+          {activeSession?.status === 'ACTIVE' && activeSession.end_time && (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-sm text-orange-100 uppercase tracking-widest font-medium">Kết thúc sau</p>
+              <Countdown targetTime={targetTime} />
+            </div>
+          )}
+          {activeSession?.status === 'UPCOMING' && activeSession.start_time && (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-sm text-orange-100 uppercase tracking-widest font-medium">Bắt đầu sau</p>
+              <Countdown targetTime={new Date(activeSession.start_time)} />
+            </div>
+          )}
         </div>
       </div>
 
       {/* Session tabs */}
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto py-2 scrollbar-none">
-          {['14:00', '16:00', '18:00', '20:00', '22:00'].map((time, i) => (
-            <button
-              key={time}
-              className={`shrink-0 flex flex-col items-center px-5 py-2 rounded-xl text-sm font-medium transition-all ${
-                i === 1
-                  ? 'bg-red-500 text-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <span>{time}</span>
-              {i === 1 && <span className="text-xs text-red-100 font-normal">Đang diễn ra</span>}
-              {i === 2 && <span className="text-xs text-gray-400 font-normal">Sắp diễn ra</span>}
-            </button>
-          ))}
+      {sessions.length > 0 && (
+        <div className="bg-white border-b border-gray-200 sticky top-16 z-30">
+          <div className="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto py-2 scrollbar-none">
+            {sessions.map((s, i) => {
+              const isActive = s.status === 'ACTIVE';
+              const isUpcoming = s.status === 'UPCOMING';
+              const startTime = s.start_time ? new Date(s.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveSessionId(s.id)}
+                  className={`shrink-0 flex flex-col items-center px-5 py-2 rounded-xl text-sm font-medium transition-all ${
+                    (activeSessionId ?? activeSession?.id) === s.id
+                      ? isActive
+                        ? 'bg-red-500 text-white shadow-sm'
+                        : 'bg-blue-500 text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>{startTime || `Phiên ${i + 1}`}</span>
+                  {isActive && <span className="text-xs opacity-80">Đang diễn ra</span>}
+                  {isUpcoming && <span className="text-xs opacity-80">Sắp diễn ra</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Products */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {FLASH_PRODUCTS.map((p) => {
-            const pct = Math.round((p.sold / p.total) * 100);
-            const disc = Math.round((1 - p.price / p.original) * 100);
-            const isSoldOut = p.sold >= p.total;
-            const isAdding = addingId === p.id;
-
-            return (
-              <div
-                key={p.id}
-                className={`bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group ${
-                  isSoldOut ? 'opacity-70' : ''
-                }`}
-              >
-                <div className="relative bg-gradient-to-br from-orange-50 to-red-50 aspect-square flex items-center justify-center">
-                  <span className="text-5xl">🔥</span>
-                  <span className="absolute top-2 left-2 bg-red-500 text-white font-black text-sm px-2 py-1 rounded-lg">
-                    -{disc}%
-                  </span>
-                  {isSoldOut && (
-                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                      <span className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg">HẾT HÀNG</span>
-                    </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 group-hover:text-red-600 transition-colors">
-                    {p.name}
-                  </h3>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-base font-bold text-red-600">{fmt(p.price)}</span>
-                    <span className="text-xs text-gray-400 line-through">{fmt(p.original)}</span>
-                  </div>
-                  {/* Progress */}
-                  <div className="mb-2">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Đã bán {pct}%</span>
-                      <span>Còn {p.total - p.sold}</span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${pct > 80 ? 'bg-red-500' : 'bg-orange-400'}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleBuyNow(p)}
-                    disabled={isSoldOut || isAdding}
-                    className={`w-full py-2 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1 ${
-                      isSoldOut
-                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white'
-                    }`}
-                  >
-                    {isAdding ? (
-                      <>
-                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Đang thêm...
-                      </>
-                    ) : isSoldOut ? (
-                      'Hết hàng'
-                    ) : (
-                      <>
-                        <span>⚡</span> Mua ngay
-                      </>
-                    )}
-                  </button>
+        {sessionsLoading || detailLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border animate-pulse">
+                <div className="aspect-square bg-gray-200" />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  <div className="h-6 bg-gray-200 rounded w-1/2" />
                 </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : !sessionDetail?.items?.length ? (
+          <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 py-20 text-center">
+            <span className="text-5xl block mb-4">⚡</span>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {activeSession?.status === 'ACTIVE' ? 'Chưa có sản phẩm flash sale nào' : 'Phiên flash sale chưa bắt đầu'}
+            </h3>
+            <p className="text-sm text-gray-500 max-w-sm mx-auto">
+              {activeSession?.status === 'ACTIVE'
+                ? 'Các sản phẩm sẽ được cập nhật sớm.'
+                : ' Quay lại sau khi phiên bắt đầu.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {sessionDetail.items.map((item) => (
+              <FlashItemCard
+                key={item.sku_code}
+                item={item}
+                sessionActive={isActive}
+                onBuy={handleBuyNow}
+                isBuying={buyingSku === item.sku_code}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* All sessions overview */}
+        {sessions.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Tất cả các phiên</h2>
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Tên phiên', 'Bắt đầu', 'Kết thúc', 'Trạng thái', 'Sản phẩm'].map(h => (
+                      <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map(s => (
+                    <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4 font-medium text-gray-900">{s.name}</td>
+                      <td className="px-5 py-4 text-gray-500 whitespace-nowrap">
+                        {s.start_time ? new Date(s.start_time).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="px-5 py-4 text-gray-500 whitespace-nowrap">
+                        {s.end_time ? new Date(s.end_time).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                          s.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                          s.status === 'UPCOMING' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {s.status === 'ACTIVE' ? 'Đang diễn ra' :
+                           s.status === 'UPCOMING' ? 'Sắp diễn ra' : 'Đã kết thúc'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-gray-500">{s.items?.length ?? 0} sản phẩm</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

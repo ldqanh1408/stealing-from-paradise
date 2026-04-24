@@ -1,0 +1,25 @@
+# ============================================================
+# DEV Profile — order-service
+# Chỉ active khi SPRING_PROFILES_ACTIVE=dev
+# ============================================================
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flashsale_platform?currentSchema=orders
+    username: postgres
+    password: postgres123!
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+
+logging:
+  level:
+    com.flashsale: DEBUG
+
+dev-data:
+  enabled: true
+  reset: false

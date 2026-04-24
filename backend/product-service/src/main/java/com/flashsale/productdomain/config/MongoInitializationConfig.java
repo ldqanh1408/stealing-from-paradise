@@ -5,33 +5,37 @@ import com.flashsale.productdomain.domain.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * MongoDB Initialization for product-service
- * Tạo các category mặc định khi service khởi động
+ * Category initialization — only runs in dev profile.
+ * In production, categories must be seeded via ProductDevDataLoader
+ * or a dedicated migration/admin API.
  */
 @Configuration
+@Profile("dev")
 @Slf4j
 @RequiredArgsConstructor
 public class MongoInitializationConfig {
 
     @Bean
+    @ConditionalOnProperty(name = "dev-data.enabled", havingValue = "true", matchIfMissing = false)
     public CommandLineRunner initializeCategories(CategoryRepository categoryRepository) {
         return args -> {
             long categoryCount = categoryRepository.count();
             if (categoryCount > 0) {
-                log.info("Categories already initialized. Skipping seed data.");
+                log.info("[MongoInit] Categories already initialized. ProductDevDataLoader will use them.");
                 return;
             }
 
-            log.info("Initializing default categories...");
+            log.info("[MongoInit] Initializing default categories...");
 
-            // Root categories (Level 0)
             List<Category> rootCategories = Arrays.asList(
                 Category.builder()
                     .name("Điện Thoại & Máy Tính Bảng")
@@ -54,9 +58,8 @@ public class MongoInitializationConfig {
             );
 
             List<Category> savedRoots = categoryRepository.saveAll(rootCategories);
-            log.info("Created {} root categories", savedRoots.size());
+            log.info("[MongoInit] Created {} root categories", savedRoots.size());
 
-            // Subcategories (Level 1)
             String phoneId = savedRoots.get(0).getId();
             List<Category> subCategories = Arrays.asList(
                 Category.builder()
@@ -73,9 +76,8 @@ public class MongoInitializationConfig {
                     .build()
             );
 
-            List<Category> savedSubs = categoryRepository.saveAll(subCategories);
-            log.info("Created {} subcategories", savedSubs.size());
-            log.info("Category initialization completed successfully");
+            categoryRepository.saveAll(subCategories);
+            log.info("[MongoInit] Category initialization completed successfully");
         };
     }
 }

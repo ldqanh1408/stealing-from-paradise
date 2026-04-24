@@ -1,0 +1,23 @@
+# ============================================================
+# DEV Profile — payment-service
+# Chỉ active khi SPRING_PROFILES_ACTIVE=dev
+# ============================================================
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flashsale_platform?currentSchema=payment
+    username: postgres
+    password: postgres123!
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+
+# Dev data loader — bật khi profile=dev
+dev-data:
+  enabled: true
+  # reset=true xóa toàn bộ data cũ rồi seed lại từ đầu
+  reset: false

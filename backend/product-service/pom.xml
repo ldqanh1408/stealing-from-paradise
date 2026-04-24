@@ -21,6 +21,12 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Catalog lÆ°u báº±ng MongoDB -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

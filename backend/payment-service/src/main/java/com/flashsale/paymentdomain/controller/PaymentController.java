@@ -55,6 +55,22 @@ public class PaymentController {
     }
 
     /**
+     * GET /api/v1/payments/by-intent/{stripePaymentIntentId}
+     * Tra cứu giao dịch thanh toán qua Stripe PaymentIntent ID.
+     * Dùng khi người dùng quay về từ redirect của Stripe mà không có context state.
+     */
+    @GetMapping("/payments/by-intent/{stripePaymentIntentId}")
+    @PreAuthorize("hasRole('BUYER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<TransactionDetailResponse>> getTransactionByPaymentIntent(
+            @PathVariable String stripePaymentIntentId,
+            @AuthenticationPrincipal UserDetailsImpl user) {
+
+        log.info("Get transaction by Stripe PI={} by userId={}", stripePaymentIntentId, user.getId());
+        TransactionDetailResponse response = paymentService.getTransactionByStripePiId(stripePaymentIntentId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
      * POST /api/v1/stripe/webhooks
      * Nhận và xử lý Stripe Webhook events.
      * Endpoint này KHÔNG yêu cầu JWT — xác thực bằng Stripe-Signature header.

@@ -3,18 +3,21 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@shared/components/Layout';
 import PrivateRoute from '@shared/components/PrivateRoute';
 
-const LoginPage             = lazy(() => import('@shared/pages/LoginPage'));
-const SellerRegisterPage    = lazy(() => import('@/pages/SellerRegisterPage'));
-const SellerDashboard       = lazy(() => import('@/pages/SellerDashboard'));
-const ProductManagementPage = lazy(() => import('@/pages/ProductManagementPage'));
-const SellerOrdersPage      = lazy(() => import('@/pages/SellerOrdersPage'));
-const StripeOnboardingPage  = lazy(() => import('@/pages/StripeOnboardingPage'));
+const LoginPage              = lazy(() => import('@shared/pages/LoginPage'));
+const SellerRegisterPage     = lazy(() => import('@/pages/SellerRegisterPage'));
+const SellerDashboard        = lazy(() => import('@/pages/SellerDashboard'));
+const ProductManagementPage   = lazy(() => import('@/pages/ProductManagementPage'));
+const SellerOrdersPage       = lazy(() => import('@/pages/SellerOrdersPage'));
+const SellerOrderDetailPage  = lazy(() => import('@/pages/SellerOrderDetailPage'));
+const StripeOnboardingPage   = lazy(() => import('@/pages/StripeOnboardingPage'));
+const TrustScorePage         = lazy(() => import('@/pages/TrustScorePage'));
 
 const AUTH_LINKS = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Sản phẩm', to: '/products' },
   { label: 'Đơn hàng', to: '/orders' },
   { label: 'Stripe', to: '/stripe-onboarding' },
+  { label: 'Trust Score', to: '/trust-score' },
 ];
 
 export default function App() {
@@ -34,7 +37,9 @@ export default function App() {
                 <Route path="/dashboard"         element={<PrivateRoute role="SELLER"><SellerDashboard /></PrivateRoute>} />
                 <Route path="/products"          element={<PrivateRoute role="SELLER"><ProductManagementPage /></PrivateRoute>} />
                 <Route path="/orders"            element={<PrivateRoute role="SELLER"><SellerOrdersPage /></PrivateRoute>} />
+                <Route path="/orders/:orderId"   element={<PrivateRoute role="SELLER"><SellerOrderDetailPage /></PrivateRoute>} />
                 <Route path="/stripe-onboarding" element={<PrivateRoute role="SELLER"><StripeOnboardingPage /></PrivateRoute>} />
+                <Route path="/trust-score"        element={<PrivateRoute role="SELLER"><TrustScorePage /></PrivateRoute>} />
 
                 <Route path="/"  element={<Navigate to="/dashboard" replace />} />
                 <Route path="*"  element={<Navigate to="/" replace />} />

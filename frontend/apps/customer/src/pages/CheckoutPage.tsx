@@ -9,11 +9,9 @@ const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 function PaymentForm({
   orderData,
-  clientSecret,
   onSuccess,
 }: {
   orderData: CheckoutResponse;
-  clientSecret: string;
   onSuccess: (piId: string) => void;
 }) {
   const stripe = useStripe();
@@ -94,15 +92,26 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [orderData, setOrderData] = useState<CheckoutResponse | null>(
+    (location.state?.orderData as CheckoutResponse) || null
+  );
 
-  const orderData = (location.state?.orderData as CheckoutResponse) || null;
-  const parentOrderId = orderData?.parent_order_id;
-
+  // Recover from sessionStorage if no location state (e.g., navigated here directly)
   useEffect(() => {
     if (!orderData) {
+      try {
+        const stored = sessionStorage.getItem('pending_checkout');
+        if (stored) {
+          const parsed: CheckoutResponse = JSON.parse(stored);
+          setOrderData(parsed);
+          return;
+        }
+      } catch (_) {}
       navigate('/cart');
     }
   }, [orderData, navigate]);
+
+  const parentOrderId = orderData?.parent_order_id;
 
   const { data: clientSecretData, isLoading: secretLoading } = useQuery({
     queryKey: ['client-secret', parentOrderId],
@@ -118,7 +127,7 @@ export default function CheckoutPage() {
       const remaining = Math.max(0, Math.floor((target - Date.now()) / 1000));
       setCountdown(remaining);
       if (remaining === 0) {
-        navigate('/checkout/result?status=failed', { state: { error: 'Hết thời gian thanh toán' } });
+        navigate('/checkout/result?status=failed', { state: { error: 'Hết thời gian thanh toán', parentOrderId: orderData.parent_order_id } });
       }
     };
     tick();
@@ -170,7 +179,6 @@ export default function CheckoutPage() {
           {!secretLoading && clientSecretData?.client_secret && (
             <PaymentForm
               orderData={orderData}
-              clientSecret={clientSecretData.client_secret}
               onSuccess={handleStripeSuccess}
             />
           )}
