@@ -506,11 +506,12 @@ jobs:
           ENVEOF
           log_ok "Production .env written with secrets"
 
-          # Step 3: Stop old services
-          log_info "Stopping current services..."
+          # Step 3: Remove old containers and volumes
+          log_info "Removing old containers..."
           cd "${PROJECT_DIR}"
-          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml --env-file "${PROJECT_DIR}/.env.production" down --remove-orphans 2>/dev/null || true
-          log_ok "Old services stopped"
+          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans -v 2>/dev/null || true
+          docker ps -aq --filter "name=fs-" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
+          log_ok "Old containers removed"
 
           # Step 4: Pull all images
           log_info "Pulling all images..."
