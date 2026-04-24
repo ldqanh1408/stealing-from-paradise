@@ -516,6 +516,39 @@ services:
     healthcheck:
       disable: true
 
+  # ================================================================
+  # 4. REVERSE PROXY (nginx — entry point for all traffic)
+  # ================================================================
+
+  reverse-proxy:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: fs-reverse-proxy
+    restart: unless-stopped
+    ports: ["${PORT_REVERSE_PROXY:-80}:${NGINX_PORT:-80}"]
+    env_file: .env
+    environment:
+      - NGINX_PORT=${NGINX_PORT:-80}
+      - GATEWAY_HOST=${REVERSE_PROXY_GATEWAY_HOST:-fs-gateway}
+      - GATEWAY_PORT=${REVERSE_PROXY_GATEWAY_PORT:-8080}
+      - CUSTOMER_HOST=${REVERSE_PROXY_CUSTOMER_HOST:-fs-customer-fe}
+      - CUSTOMER_PORT=${REVERSE_PROXY_CUSTOMER_PORT:-3000}
+      - SELLER_HOST=${REVERSE_PROXY_SELLER_HOST:-fs-seller-fe}
+      - SELLER_PORT=${REVERSE_PROXY_SELLER_PORT:-3001}
+      - ADMIN_HOST=${REVERSE_PROXY_ADMIN_HOST:-fs-admin-fe}
+      - ADMIN_PORT=${REVERSE_PROXY_ADMIN_PORT:-3002}
+    depends_on:
+      api-gateway: { condition: service_started }
+      customer-app: { condition: service_started }
+    networks: [*network]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${NGINX_PORT:-80}/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
 # ================================================================
 # VOLUMES & NETWORKS
 # ================================================================

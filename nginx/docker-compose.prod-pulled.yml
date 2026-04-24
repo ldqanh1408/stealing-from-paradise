@@ -1,0 +1,18 @@
+# ============================================================
+# NGINX REVERSE PROXY — PRODUCTION OVERRIDE (CD Server Deploy)
+# ============================================================
+# Overrides the build: context in the root docker-compose.yml
+# with a pre-built image pulled from GHCR.
+#
+# USE: IMAGE_PREFIX=owner/flashsale docker-compose \
+#          -f docker-compose.yml \
+#          -f nginx/docker-compose.prod-pulled.yml \
+#          up -d
+#
+# NOTE: Run from the project root.
+#       IMAGE_PREFIX = GHCR namespace (owner/repo), e.g. "myusername/flashsale".
+# ============================================================
+
+services:
+  reverse-proxy:
+    image: ghcr.io/${IMAGE_PREFIX}/reverse-proxy:prod-latest

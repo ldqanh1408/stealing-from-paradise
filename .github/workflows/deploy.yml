@@ -220,6 +220,7 @@ jobs:
           customer-app,
           seller-app,
           admin-app,
+          reverse-proxy,
         ]
 
     steps:
@@ -293,6 +294,11 @@ jobs:
               echo "file=./frontend/apps/admin/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
+            reverse-proxy)
+              echo "context=./nginx" >> $GITHUB_OUTPUT
+              echo "file=./nginx/Dockerfile" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}-reverse-proxy" >> $GITHUB_OUTPUT
+              ;;
           esac
 
       # ── Build and push Prod image ──
@@ -330,6 +336,7 @@ jobs:
             backend/docker-compose.prod.yml
             backend/docker-compose.prod-pulled.yml
             frontend/docker-compose.prod-pulled.yml
+            nginx/
             .env.example
           sparse-checkout-cone-mode: false
           fetch-depth: 1
@@ -419,7 +426,7 @@ jobs:
                     fs-zookeeper fs-kafka fs-kafka-init fs-axonserver \
                     fs-discovery fs-gateway fs-identity fs-payment fs-order \
                     fs-product fs-flashsale fs-search fs-notification fs-worker \
-                    fs-customer-fe fs-seller-fe fs-admin-fe; do
+                    fs-customer-fe fs-seller-fe fs-admin-fe fs-reverse-proxy; do
             docker stop "$c" 2>/dev/null && docker rm "$c" 2>/dev/null || true
           done
           docker image prune -f >/dev/null 2>&1 || true
@@ -438,13 +445,18 @@ jobs:
             docker pull "${IMG}" || log_warn "Failed to pull ${IMG}"
           done
 
-          # Step 4: Pull frontend images
+          # Step 4: Pull frontend + reverse-proxy images
           log_info "Pulling frontend images..."
           for app in customer seller admin; do
             IMG="${REGISTRY}/${IMAGE_PREFIX}-${app}-app:${IMAGE_TAG}"
             echo "  Pulling ${IMG}"
             docker pull "${IMG}" || log_warn "Failed to pull ${IMG}"
           done
+
+          log_info "Pulling reverse-proxy image..."
+          RP_IMG="${REGISTRY}/${IMAGE_PREFIX}-reverse-proxy:${IMAGE_TAG}"
+          echo "  Pulling ${RP_IMG}"
+          docker pull "${RP_IMG}" || log_warn "Failed to pull ${RP_IMG}"
 
           # Step 5: Tag images as prod-latest for docker-compose (local alias)
           log_info "Tagging images..."
@@ -456,6 +468,8 @@ jobs:
             docker tag "${REGISTRY}/${IMAGE_PREFIX}-${app}-app:${IMAGE_TAG}" \
                        "flashsale-${app}-app:prod-latest" 2>/dev/null || true
           done
+          docker tag "${REGISTRY}/${IMAGE_PREFIX}-reverse-proxy:${IMAGE_TAG}" \
+                     "flashsale-reverse-proxy:prod-latest" 2>/dev/null || true
           log_ok "Images tagged"
 
           # Step 6: Start services using prod-pulled compose files
@@ -467,6 +481,7 @@ jobs:
             -f docker-compose-backend.yml \
             -f backend/docker-compose.prod-pulled.yml \
             -f frontend/docker-compose.prod-pulled.yml \
+            -f nginx/docker-compose.prod-pulled.yml \
             up -d
           log_ok "Services started"
 
@@ -479,6 +494,7 @@ jobs:
             -f docker-compose-backend.yml \
             -f backend/docker-compose.prod-pulled.yml \
             -f frontend/docker-compose.prod-pulled.yml \
+            -f nginx/docker-compose.prod-pulled.yml \
             ps
           echo ''
           echo 'Health checks:'
@@ -498,6 +514,7 @@ jobs:
           echo "║  Customer:     http://${SERVER_IP}:3000"
           echo "║  Seller:       http://${SERVER_IP}:3001"
           echo "║  Admin:        http://${SERVER_IP}:3002"
+          echo "║  Reverse Proxy: http://${SERVER_IP}"
           echo "║  Eureka:       http://${SERVER_IP}:8761"
           echo "║  Swagger:      http://${SERVER_IP}:8080/swagger-ui.html"
           echo '╚══════════════════════════════════════════════════════════╝'
@@ -513,13 +530,22 @@ jobs:
              -i ~/.ssh/id_rsa \
              docker-compose.yml \
              docker-compose-backend.yml \
+             docker-compose-infrastructure.yml \
              "${SERVER}:/opt/flashsale/"
 
           scp -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=~/.ssh/known_hosts \
              -i ~/.ssh/id_rsa \
+             -r nginx/ \
+             "${SERVER}:/opt/flashsale/"
+
+          # Upload per-service prod-pulled overrides
+          scp -o StrictHostKeyChecking=no \
+             -o UserKnownHostsFile=~/.ssh/known_hosts \
+             -i ~/.ssh/id_rsa \
              backend/docker-compose.prod-pulled.yml \
-             "${SERVER}:/opt/flashsale/backend/"
+             nginx/docker-compose.prod-pulled.yml \
+             "${SERVER}:/opt/flashsale/"
 
           scp -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=~/.ssh/known_hosts \
