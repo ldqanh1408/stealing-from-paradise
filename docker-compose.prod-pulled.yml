@@ -29,7 +29,8 @@ services:
   api-gateway:
     image: ghcr.io/${IMAGE_PREFIX}/api-gateway:prod-latest
     env_file: .env.production
-    ports: []
+    ports:
+      - "0.0.0.0:${PORT_GATEWAY:-8080}:8080"
 
   identity-service:
     image: ghcr.io/${IMAGE_PREFIX}/identity-service:prod-latest

@@ -511,22 +511,16 @@ jobs:
           cd "${PROJECT_DIR}"
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans -v 2>/dev/null || true
           docker ps -aq --filter "name=fs-" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
-          log_ok "Old containers removed"
+          # Remove old images
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep -E 'ghcr.io.*:(prod-latest|prod-[0-9]' | xargs -r docker rmi -f 2>/dev/null || true
+          log_ok "Old containers and images removed"
 
-          # Step 4: Find a free port for gateway
-          log_info "Finding free port for gateway..."
-          for _PORT in 9080 9088 9090 8000 8008 8888 9000; do
-            if ! sudo lsof -i :${_PORT} > /dev/null 2>&1; then
-              GATEWAY_HOST_PORT=${_PORT}
-              echo "Using port ${_PORT} for API Gateway"
-              break
-            fi
-          done
-          if [ -z "$GATEWAY_HOST_PORT" ]; then
-            GATEWAY_HOST_PORT=9080
-            sudo fuser -k 9080/tcp 2>/dev/null || true
-          fi
-          log_ok "Gateway port selected: ${GATEWAY_HOST_PORT}"
+          # Step 4: Kill any process occupying gateway port
+          log_info "Freeing port 8080..."
+          sudo apt-get install -y psmisc lsof 2>/dev/null || true
+          sudo fuser -k 8080/tcp 2>/dev/null || true
+          sleep 2
+          log_ok "Port 8080 freed"
 
           # Step 5: Pull all images
           log_info "Pulling all images..."
@@ -560,9 +554,13 @@ jobs:
           echo "║  Tag:       ${IMAGE_TAG}"
           echo "║  Commit:    ${GITHUB_SHA:-local}"
           echo '╠══════════════════════════════════════════════════════════╣'
+          echo "║  API Gateway:  http://${SERVER_IP}:8080"
+          echo "║  Customer:     http://${SERVER_IP}:3000"
+          echo "║  Seller:       http://${SERVER_IP}:3001"
+          echo "║  Admin:        http://${SERVER_IP}:3002"
           echo "║  Reverse Proxy: http://${SERVER_IP}"
           echo "║  Eureka:       http://${SERVER_IP}:8761"
-          echo "║  Swagger:      http://${SERVER_IP}/swagger-ui.html"
+          echo "║  Swagger:      http://${SERVER_IP}:8080/swagger-ui.html"
           echo '╚══════════════════════════════════════════════════════════╝'
           log_ok "Deployment complete!"
 
@@ -600,10 +598,10 @@ jobs:
           echo ""
           echo "═══ Final health check ═══"
           sleep 10
-          if curl -sf --connect-timeout 10 http://${_IP}/health > /dev/null 2>&1; then
-            echo "[OK]  Reverse Proxy responding"
+          if curl -sf --connect-timeout 10 http://${_IP}:8080/actuator/health > /dev/null 2>&1; then
+            echo "[OK]  API Gateway responding on port 8080"
           else
-            echo "[!!] Reverse Proxy not responding (may still be starting)"
+            echo "[!!] API Gateway not yet responding (may still be starting)"
             echo "     Check server logs: ssh ${_USER}@${_IP}"
             echo "     Logs: cd /opt/flashsale && docker-compose logs --tail=50"
           fi
@@ -652,8 +650,11 @@ jobs:
           echo "  Image Tag: prod-latest"
           echo ""
           echo "  Services:"
-          echo "    Reverse Proxy http://${_IP}"
+          echo "    API Gateway  http://${_IP}:8080"
+          echo "    Customer     http://${_IP}:3000"
+          echo "    Seller       http://${_IP}:3001"
+          echo "    Admin        http://${_IP}:3002"
           echo "    Eureka       http://${_IP}:8761"
-          echo "    Swagger      http://${_IP}/swagger-ui.html"
+          echo "    Swagger      http://${_IP}:8080/swagger-ui.html"
           echo "══════════════════════════════════════════════════════════"
           echo ""
