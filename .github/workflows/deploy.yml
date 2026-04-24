@@ -407,6 +407,11 @@ jobs:
 
           IMAGE_TAG="${1}"; IMAGE_PREFIX="${2}"; REGISTRY="${3}"; SERVER_IP="${4}"
           PROJECT_DIR="/opt/flashsale"
+          BACKEND_SVCS=(
+            "discovery-service" "api-gateway" "identity-service" "product-service"
+            "order-service" "payment-service" "flashsale-service"
+            "search-service" "notification-service" "worker-service"
+          )
 
           log_info "Starting server deployment"
           log_info "Image tag: ${IMAGE_TAG}"
@@ -418,7 +423,7 @@ jobs:
             log_ok "Registry login OK"
           fi
 
-          # Step 2: Stop old services
+          # Step 2: Stop old services and remove old images
           log_info "Stopping current services..."
           cd "${PROJECT_DIR}"
           docker-compose -f docker-compose.yml -f docker-compose-backend.yml down --remove-orphans 2>/dev/null || true
@@ -429,16 +434,24 @@ jobs:
                     fs-customer-fe fs-seller-fe fs-admin-fe fs-reverse-proxy; do
             docker stop "$c" 2>/dev/null && docker rm "$c" 2>/dev/null || true
           done
+          # Step 2b: Remove old local images so new pulls always fetch from registry
+          # (prevents stale cached images from blocking updated deployments)
+          log_info "Removing old images..."
+          for svc in "${BACKEND_SVCS[@]}"; do
+            docker rmi "flashsale-${svc}:prod-latest" 2>/dev/null || true
+            docker rmi "${REGISTRY}/${IMAGE_PREFIX}-${svc}:${IMAGE_TAG}" 2>/dev/null || true
+          done
+          for app in customer seller admin; do
+            docker rmi "flashsale-${app}-app:prod-latest" 2>/dev/null || true
+            docker rmi "${REGISTRY}/${IMAGE_PREFIX}-${app}-app:${IMAGE_TAG}" 2>/dev/null || true
+          done
+          docker rmi "flashsale-reverse-proxy:prod-latest" 2>/dev/null || true
+          docker rmi "${REGISTRY}/${IMAGE_PREFIX}-reverse-proxy:${IMAGE_TAG}" 2>/dev/null || true
           docker image prune -f >/dev/null 2>&1 || true
-          log_ok "Old services stopped"
+          log_ok "Old services stopped and images removed"
 
           # Step 3: Pull backend images
           log_info "Pulling backend images..."
-          BACKEND_SVCS=(
-            "discovery-service" "api-gateway" "identity-service" "product-service"
-            "order-service" "payment-service" "flashsale-service"
-            "search-service" "notification-service" "worker-service"
-          )
           for svc in "${BACKEND_SVCS[@]}"; do
             IMG="${REGISTRY}/${IMAGE_PREFIX}-${svc}:${IMAGE_TAG}"
             echo "  Pulling ${IMG}"

@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+  address: ${SERVER_BIND:0.0.0.0}
 spring:
   main:
     allow-bean-definition-overriding: true  # Cho phép override bean definition (fix WebFlux + Security conflict)

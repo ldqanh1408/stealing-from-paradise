@@ -222,9 +222,10 @@ services:
       dockerfile: Dockerfile.dev
     container_name: fs-gateway
     restart: unless-stopped
-    ports: ["${PORT_GATEWAY:-8080}:8080"]
+    ports: ["127.0.0.1:${PORT_GATEWAY:-8080}:8080"]
     env_file: .env
     environment:
+      - SERVER_BIND=${SERVER_BIND:-0.0.0.0}
       - EUREKA_URI=${EUREKA_URI}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
