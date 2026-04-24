@@ -469,9 +469,10 @@ jobs:
           scp -o StrictHostKeyChecking=no \
              -o UserKnownHostsFile=~/.ssh/known_hosts \
              -i ~/.ssh/id_rsa \
+             -r \
              docker-compose.yml \
              docker-compose.prod-pulled.yml \
-             -r nginx/ \
+             nginx/ \
              "${SERVER}:/opt/flashsale/"
 
           scp -o StrictHostKeyChecking=no \
