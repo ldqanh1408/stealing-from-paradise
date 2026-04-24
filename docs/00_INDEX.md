@@ -1,7 +1,7 @@
 # 📚 Documentation Index - stealing-from-paradise
 
 **Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)
-**Last Updated**: 2026-04-23
+**Last Updated**: 2026-04-24
 **Status**: Complete & Production-Ready
 
 ---
@@ -12,6 +12,7 @@
 1. **[01_OVERVIEW.md](01_OVERVIEW.md)** - Project overview, tech stack, architecture, setup & running services
 2. **[CLAUDE.md](/CLAUDE.md)** - Quick setup & build commands
 3. **[09_RUNNING.md](09_RUNNING.md)** - Complete running guide, scripts, troubleshooting
+4. **[10_REPOSITORY_GUIDE.md](10_REPOSITORY_GUIDE.md)** - Codebase structure, technologies, and organization map
 
 ### For Development
 3. **[02_API.md](02_API.md)** - Complete API specification (v5.3 RTS) with all endpoints & Kafka topics
@@ -24,6 +25,7 @@
 8. **[07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md)** - Tổng hợp luồng nghiệp vụ tổng quan
 9. **[08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md)** - Integration details
 10. **[09_RUNNING.md](09_RUNNING.md)** - Complete running guide, scripts, troubleshooting
+11. **[10_REPOSITORY_GUIDE.md](10_REPOSITORY_GUIDE.md)** - Repository structure and code organization
 
 ### Architecture
 10. **[erd.mermaid](erd.mermaid)** - Database entity-relationship diagram
@@ -42,6 +44,7 @@
 | 06_PAYMENT_SAGA_FLOW.md | v2 | Payment flow, Stripe, Saga | ✅ Complete |
 | 07_BUSINESS_FLOWS.md | v1 | Luồng nghiệp vụ tổng hợp (Mermaid) | ✅ NEW |
 | 08_PAYMENT_ORDER_INTEGRATION.md | v2 | Integration details | ✅ Complete |
+| 10_REPOSITORY_GUIDE.md | v1 | Repo structure, technologies, organization | ✅ New |
 | erd.mermaid | v1 | Database ERD | ✅ Complete |
 
 **Total**: ~9,500+ lines of documentation
