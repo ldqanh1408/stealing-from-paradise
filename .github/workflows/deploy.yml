@@ -282,17 +282,17 @@ jobs:
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
-              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "context=./frontend/apps/customer" >> $GITHUB_OUTPUT
               echo "file=./frontend/apps/customer/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-customer-app" >> $GITHUB_OUTPUT
               ;;
             seller-app)
-              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "context=./frontend/apps/seller" >> $GITHUB_OUTPUT
               echo "file=./frontend/apps/seller/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-seller-app" >> $GITHUB_OUTPUT
               ;;
             admin-app)
-              echo "context=./frontend" >> $GITHUB_OUTPUT
+              echo "context=./frontend/apps/admin" >> $GITHUB_OUTPUT
               echo "file=./frontend/apps/admin/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-admin-app" >> $GITHUB_OUTPUT
               ;;
