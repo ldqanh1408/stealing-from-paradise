@@ -1,18 +1,21 @@
 package com.flashsale.apigateway.filter;
 
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.server.WebFilter;
-import org.springframework.web.server.WebFilterChain;
 import com.flashsale.commonlib.security.JwtUtils;
 import com.flashsale.apigateway.service.TokenBlacklistCheckService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * JWT Authentication Web Filter - Xác thực JWT tại API Gateway
@@ -20,23 +23,39 @@ import java.nio.charset.StandardCharsets;
  * ✅ Được dùng ở API Gateway (thay vì GatewayFilterFactory)
  *
  * Quy trình:
- * 1. Kiểm tra Authorization header ("Bearer <token>")
- * 2. Validate JWT token (hợp lệ, chưa hết hạn)
- * 3. Giải mã token: extract userId, email, role, jti
- * 4. Đặt decoded info vào headers để forward tới service (X-User-Id, X-User-Email, X-User-Role, X-Token-Jti)
- * 5. Service nhận headers → set vào SecurityContext
+ * 1. Skip các public endpoints (không cần JWT)
+ * 2. Nếu không có Authorization header → cho qua (WebFilterChain) để downstream service xử lý
+ * 3. Validate JWT token (hợp lệ, chưa hết hạn)
+ * 4. Giải mã token: extract userId, email, role, jti
+ * 5. Đặt decoded info vào headers để forward tới service (X-User-Id, X-User-Email, X-User-Role, X-Token-Jti)
  * 6. Forward request tới downstream service
  *
  * @since 1.0.0
  * @author API Gateway Team
  */
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthWebFilter implements WebFilter {
 
+    private static final List<String> PUBLIC_PATHS = List.of(
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+        "/api/v1/stripe/webhook",
+        "/actuator/health",
+        "/actuator/info"
+    );
+
     private final JwtUtils jwtUtils;
     private final TokenBlacklistCheckService tokenBlacklistCheckService;
+
+    private boolean isPublicPath(String path) {
+        return PUBLIC_PATHS.stream().anyMatch(path::startsWith);
+    }
 
     /**
      * Filter logic: Validate JWT and add user info to headers
@@ -47,8 +66,15 @@ public class JwtAuthWebFilter implements WebFilter {
      */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String requestPath = exchange.getRequest().getPath().value();
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
+        // Skip JWT validation for public endpoints entirely
+        if (isPublicPath(requestPath)) {
+            return chain.filter(exchange);
+        }
+
+        // No token present — let downstream service decide (some endpoints may be optional-auth)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return chain.filter(exchange);
         }

@@ -1,15 +1,182 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { orderApi, type CheckoutResponse } from '@shared/api/order.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
+function AddressFormModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: (address: UserAddress) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [addressText, setAddressText] = useState('');
+  const [provinceId, setProvinceId] = useState(1);
+  const [districtId, setDistrictId] = useState(1);
+  const [setAsDefault, setSetAsDefault] = useState(true);
+  const [error, setError] = useState('');
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      addressApi.create({
+        full_address: addressText,
+        province_id: provinceId,
+        district_id: districtId,
+        is_default: setAsDefault,
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      onSuccess(res.data.data!);
+      onClose();
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || 'Tạo địa chỉ thất bại');
+    },
+  });
+
+  const provinces = [
+    { id: 1, name: 'TP. Hồ Chí Minh' },
+    { id: 2, name: 'Hà Nội' },
+    { id: 3, name: 'Đà Nẵng' },
+    { id: 4, name: 'Hải Phòng' },
+    { id: 5, name: 'Cần Thơ' },
+    { id: 6, name: 'Bình Dương' },
+    { id: 7, name: 'Đồng Nai' },
+  ];
+
+  const districts: Record<number, { id: number; name: string }[]> = {
+    1: [
+      { id: 1, name: 'Quận 1' },
+      { id: 2, name: 'Quận 3' },
+      { id: 3, name: 'Quận 5' },
+      { id: 4, name: 'Quận 7' },
+      { id: 5, name: 'Quận Bình Thạnh' },
+      { id: 6, name: 'Thủ Đức' },
+      { id: 7, name: 'Gò Vấp' },
+      { id: 8, name: 'Tân Bình' },
+    ],
+    2: [
+      { id: 11, name: 'Hoàn Kiếm' },
+      { id: 12, name: 'Ba Đình' },
+      { id: 13, name: 'Đống Đa' },
+      { id: 14, name: 'Hai Bà Trưng' },
+      { id: 15, name: 'Thanh Xuân' },
+    ],
+    3: [
+      { id: 21, name: 'Hải Châu' },
+      { id: 22, name: 'Thanh Khê' },
+      { id: 23, name: 'Sơn Trà' },
+    ],
+    4: [
+      { id: 31, name: 'Hồng Bàng' },
+      { id: 32, name: 'Ngô Quyền' },
+    ],
+    5: [
+      { id: 41, name: 'Ninh Kiều' },
+      { id: 42, name: 'Bình Thủy' },
+    ],
+    6: [
+      { id: 51, name: 'Dĩ An' },
+      { id: 52, name: 'Thuận An' },
+    ],
+    7: [
+      { id: 61, name: 'Biên Hòa' },
+      { id: 62, name: 'Long Thành' },
+    ],
+  };
+
+  const currentDistricts = districts[provinceId] || [];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900">Thêm địa chỉ mới</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">
+            {error}
+          </div>
+        )}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tỉnh / Thành phố</label>
+            <select
+              value={provinceId}
+              onChange={e => {
+                const pid = Number(e.target.value);
+                setProvinceId(pid);
+                setDistrictId(districts[pid]?.[0]?.id ?? 1);
+              }}
+              className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {provinces.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Quận / Huyện</label>
+            <select
+              value={districtId}
+              onChange={e => setDistrictId(Number(e.target.value))}
+              className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {currentDistricts.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Địa chỉ chi tiết</label>
+            <textarea
+              value={addressText}
+              onChange={e => setAddressText(e.target.value)}
+              placeholder="Số nhà, đường, phường/xã..."
+              rows={3}
+              className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={setAsDefault}
+              onChange={e => setSetAsDefault(e.target.checked)}
+              className="w-4 h-4 accent-blue-600"
+            />
+            <span className="text-sm text-gray-700">Đặt làm địa chỉ mặc định</span>
+          </label>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50"
+          >
+            Huỷ
+          </button>
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={!addressText.trim() || createMutation.isPending}
+            className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {createMutation.isPending ? 'Đang lưu...' : 'Lưu địa chỉ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OrderReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { cart } = useCartStore();
 
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
@@ -17,11 +184,12 @@ export default function OrderReviewPage() {
   const [step, setStep] = useState<'address' | 'review' | 'payment'>('address');
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'cod'>('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const selectedItemIds = (location.state?.selectedItemIds || []) as number[];
 
-  // Fetch addresses from API — show mock addresses when backend unavailable
-  const { data: addresses = [], isLoading: addrsLoading } = useQuery({
+  const { data: addresses = [], isLoading: addrsLoading, refetch: refetchAddresses } = useQuery({
     queryKey: ['addresses'],
     queryFn: () => addressApi.list().then(r => r.data.data ?? []),
     retry: 1,
@@ -35,9 +203,14 @@ export default function OrderReviewPage() {
     }
   }, [addresses, selectedAddressId]);
 
+  const handleAddressCreated = (newAddr: UserAddress) => {
+    setSelectedAddressId(newAddr.address_id);
+  };
+
   const handleCreateOrder = async () => {
     if (!selectedAddressId || selectedItemIds.length === 0) return;
     setIsProcessing(true);
+    setApiError(null);
     try {
       const { data } = await orderApi.checkout({
         address_id: selectedAddressId,
@@ -48,7 +221,7 @@ export default function OrderReviewPage() {
         setStep('review');
       }
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Lỗi tạo đơn hàng');
+      setApiError(err?.response?.data?.message || 'Lỗi tạo đơn hàng');
     } finally {
       setIsProcessing(false);
     }
@@ -57,10 +230,11 @@ export default function OrderReviewPage() {
   const handleProceedToPayment = async () => {
     if (!orderData) return;
     setIsProcessing(true);
+    setApiError(null);
     try {
       if (paymentMethod === 'cod') {
         navigate('/checkout/result?status=success', {
-          state: { parentOrderId: orderData.parent_order_id },
+          state: { parentOrderId: orderData.parent_order_id, method: 'COD' },
         });
       } else {
         navigate('/checkout/payment', {
@@ -68,7 +242,7 @@ export default function OrderReviewPage() {
         });
       }
     } catch {
-      alert('Lỗi xử lý thanh toán');
+      setApiError('Lỗi xử lý thanh toán');
     } finally {
       setIsProcessing(false);
     }
@@ -94,6 +268,12 @@ export default function OrderReviewPage() {
   return (
     <div className="bg-gray-50 min-h-screen py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        {apiError && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+            {apiError}
+          </div>
+        )}
+
         {/* Step indicator */}
         <div className="mb-8 flex items-center justify-between">
           {[
@@ -101,7 +281,8 @@ export default function OrderReviewPage() {
             { id: 'review', label: 'Xem lại' },
             { id: 'payment', label: 'Thanh toán' },
           ].map((s, i, arr) => {
-            const currentIdx = ['address', 'review', 'payment'].indexOf(step);
+            const stepOrder = ['address', 'review', 'payment'];
+            const currentIdx = stepOrder.indexOf(step);
             return (
               <div key={s.id} className="flex items-center flex-1">
                 <div
@@ -126,7 +307,18 @@ export default function OrderReviewPage() {
 
         {step === 'address' && (
           <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Chọn địa chỉ giao hàng</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Chọn địa chỉ giao hàng</h2>
+              <button
+                onClick={() => setShowAddressForm(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Thêm địa chỉ
+              </button>
+            </div>
 
             {addrsLoading && (
               <div className="text-center py-12 text-gray-400">
@@ -136,14 +328,14 @@ export default function OrderReviewPage() {
             )}
 
             {!addrsLoading && addresses.length === 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center mb-6">
                 <p className="text-yellow-700 mb-3">Bạn chưa có địa chỉ giao hàng.</p>
-                <Link
-                  to="/products"
+                <button
+                  onClick={() => setShowAddressForm(true)}
                   className="inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded-xl hover:bg-blue-700"
                 >
-                  Tiếp tục mua sắm để thêm địa chỉ
-                </Link>
+                  Thêm địa chỉ ngay
+                </button>
               </div>
             )}
 
@@ -152,8 +344,10 @@ export default function OrderReviewPage() {
                 {addresses.map(addr => (
                   <label
                     key={addr.address_id}
-                    className={`flex items-start p-4 border-2 rounded-xl cursor-pointer transition-all has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 ${
-                      addr.address_id === selectedAddressId ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                    className={`flex items-start p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      addr.address_id === selectedAddressId
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-300'
                     }`}
                   >
                     <input
@@ -182,7 +376,7 @@ export default function OrderReviewPage() {
                 <h3 className="font-bold text-gray-900 mb-4">Sản phẩm cần giao ({selectedItems.length} sản phẩm)</h3>
                 <div className="space-y-3">
                   {selectedItems.map(item => (
-                    <div key={item.cart_item_id} className="flex items-center justify-between pb-3 border-b last:border-b-0">
+                    <div key={item.cart_item_id} className="flex items-center justify-between pb-3 border-b last:border-b-0 last:pb-0">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
                         <p className="text-xs text-gray-500">{item.variant_name} × {item.quantity}</p>
@@ -212,21 +406,45 @@ export default function OrderReviewPage() {
             <button
               onClick={handleCreateOrder}
               disabled={isProcessing || !selectedAddressId || selectedItemIds.length === 0}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold rounded-xl transition-colors"
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              {isProcessing ? '⏳ Đang xử lý...' : 'Tiếp tục'}
+              {isProcessing ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Đang xử lý...
+                </>
+              ) : (
+                'Tiếp tục'
+              )}
             </button>
           </div>
         )}
 
         {step === 'review' && orderData && (
           <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Xem lại đơn hàng</h2>
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => setStep('address')}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ←
+              </button>
+              <h2 className="text-2xl font-bold text-gray-900">Xem lại đơn hàng</h2>
+            </div>
 
             {selectedAddress && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
                 <h3 className="font-bold text-gray-900 mb-2">📍 Địa chỉ giao hàng</h3>
                 <p className="text-gray-700">{selectedAddress.full_address}</p>
+                <button
+                  onClick={() => setStep('address')}
+                  className="text-sm text-blue-600 hover:underline mt-2"
+                >
+                  Thay đổi
+                </button>
               </div>
             )}
 
@@ -305,13 +523,32 @@ export default function OrderReviewPage() {
             <button
               onClick={handleProceedToPayment}
               disabled={isProcessing}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl transition-all"
+              className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
             >
-              {isProcessing ? '⏳ Đang xử lý...' : `Thanh toán ${fmt(orderData.final_amount)}`}
+              {isProcessing ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Đang xử lý...
+                </>
+              ) : (
+                paymentMethod === 'cod'
+                  ? `Xác nhận đặt hàng (COD)`
+                  : `Thanh toán ${fmt(orderData.final_amount)}`
+              )}
             </button>
           </div>
         )}
       </div>
+
+      {showAddressForm && (
+        <AddressFormModal
+          onClose={() => setShowAddressForm(false)}
+          onSuccess={handleAddressCreated}
+        />
+      )}
     </div>
   );
 }
