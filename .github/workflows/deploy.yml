@@ -477,6 +477,7 @@ jobs:
           DB_NAME_NOTIFICATION=fs_notification
 
           # Infrastructure routing
+          PORT_GATEWAY=8088
           DB_HOST=postgres
           MONGO_HOST=mongo
           REDIS_HOST=redis
@@ -515,8 +516,13 @@ jobs:
 
           # Step 4: Kill any process occupying gateway port
           log_info "Freeing port 8080..."
-          sudo apt-get install -y psmisc 2>/dev/null || true
+          sudo apt-get install -y psmisc lsof 2>/dev/null || true
+          sudo lsof -i :8080 2>/dev/null || true
           sudo fuser -k 8080/tcp 2>/dev/null || true
+          # Also kill any dangling containers on that port
+          docker ps -aq --filter "publish=8080" | xargs -r docker rm -f 2>/dev/null || true
+          sleep 2
+          sudo lsof -i :8080 2>/dev/null || true
           log_ok "Port 8080 freed"
 
           # Step 5: Pull all images
@@ -538,7 +544,7 @@ jobs:
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml ps
           echo ''
           echo 'Health checks:'
-          curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
+          curl -sf http://localhost:8088/actuator/health > /dev/null 2>&1 && echo '[OK] API Gateway' || echo '[!!] API Gateway not ready'
           curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1 && echo '[OK] Eureka' || echo '[!!] Eureka not ready'
           log_ok "Health check complete"
 
@@ -550,13 +556,13 @@ jobs:
           echo "║  Tag:       ${IMAGE_TAG}"
           echo "║  Commit:    ${GITHUB_SHA:-local}"
           echo '╠══════════════════════════════════════════════════════════╣'
-          echo "║  API Gateway:  http://${SERVER_IP}:8080"
+          echo "║  API Gateway:  http://${SERVER_IP}:8088"
           echo "║  Customer:     http://${SERVER_IP}:3000"
           echo "║  Seller:       http://${SERVER_IP}:3001"
           echo "║  Admin:        http://${SERVER_IP}:3002"
           echo "║  Reverse Proxy: http://${SERVER_IP}"
           echo "║  Eureka:       http://${SERVER_IP}:8761"
-          echo "║  Swagger:      http://${SERVER_IP}:8080/swagger-ui.html"
+          echo "║  Swagger:      http://${SERVER_IP}:8088/swagger-ui.html"
           echo '╚══════════════════════════════════════════════════════════╝'
           log_ok "Deployment complete!"
 
@@ -594,8 +600,8 @@ jobs:
           echo ""
           echo "═══ Final health check ═══"
           sleep 10
-          if curl -sf --connect-timeout 10 http://${_IP}:8080/actuator/health > /dev/null 2>&1; then
-            echo "[OK]  API Gateway responding on port 8080"
+          if curl -sf --connect-timeout 10 http://${_IP}:8088/actuator/health > /dev/null 2>&1; then
+            echo "[OK]  API Gateway responding on port 8088"
           else
             echo "[!!] API Gateway not yet responding (may still be starting)"
             echo "     Check server logs: ssh ${_USER}@${_IP}"
@@ -646,11 +652,11 @@ jobs:
           echo "  Image Tag: prod-latest"
           echo ""
           echo "  Services:"
-          echo "    API Gateway  http://${_IP}:8080"
+          echo "    API Gateway  http://${_IP}:8088"
           echo "    Customer     http://${_IP}:3000"
           echo "    Seller       http://${_IP}:3001"
           echo "    Admin        http://${_IP}:3002"
           echo "    Eureka       http://${_IP}:8761"
-          echo "    Swagger      http://${_IP}:8080/swagger-ui.html"
+          echo "    Swagger      http://${_IP}:8088/swagger-ui.html"
           echo "══════════════════════════════════════════════════════════"
           echo ""
