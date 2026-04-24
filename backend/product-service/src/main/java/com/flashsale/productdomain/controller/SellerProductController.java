@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/seller")
+@RequestMapping("/v1/seller")
 @RequiredArgsConstructor
 @Slf4j
 public class SellerProductController {

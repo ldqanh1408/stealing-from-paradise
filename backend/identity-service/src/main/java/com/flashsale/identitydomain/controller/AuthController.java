@@ -24,7 +24,7 @@ import jakarta.servlet.http.HttpServletRequest;
  * Handles login, logout, registration, and token refresh
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/v1/auth")
 @RequiredArgsConstructor
 @Slf4j
 public class AuthController {

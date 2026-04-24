@@ -21,6 +21,7 @@ import org.springframework.web.servlet.DispatcherServlet;
  * ✅ Disable CSRF, Form Login, HTTP Basic
  * ✅ Stateless session management
  * ✅ Enable method-level security (@PreAuthorize, @PostAuthorize, etc.)
+ * ✅ Permits all requests by default
  *
  * Usage: Add @EnableWebSecurity to service config
  */
@@ -28,31 +29,25 @@ import org.springframework.web.servlet.DispatcherServlet;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass({DispatcherServlet.class, SecurityFilterChain.class})
 @EnableWebSecurity
-@EnableMethodSecurity  // Enable @PreAuthorize, @PostAuthorize, @Secured, @RolesAllowed
+@EnableMethodSecurity
 @Slf4j
 public class MvcSecurityConfig {
 
-    /**
-     * Security filter chain for MVC services
-     * - CSRF disabled
-     * - Headers disabled (removes all security headers)
-     * - Stateless session
-     */
     @Bean
     @ConditionalOnMissingBean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         log.info("🔐 [MVC] Configuring security filter chain with disabled headers");
-        
+
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .headers(AbstractHttpConfigurer::disable)  // ✨ Remove all security headers
-            .sessionManagement(session -> 
+            .headers(AbstractHttpConfigurer::disable)
+            .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .httpBasic(AbstractHttpConfigurer::disable)
-            .formLogin(AbstractHttpConfigurer::disable);
+            .formLogin(AbstractHttpConfigurer::disable)
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
     }
 }
-

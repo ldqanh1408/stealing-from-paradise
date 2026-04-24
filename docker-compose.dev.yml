@@ -1,27 +1,26 @@
 # ============================================================
-# FLASH SALE — DEV OVERRIDE
+# FLASH SALE — .dev OVERRIDE (local dev with Stripe CLI)
 # ============================================================
-# Contains dev-only services that should NOT run in production:
-#   - stripe-listener: Stripe CLI forwarding events to payment-service
+# Adds dev-only services to the base docker-compose.yml stack.
+# Contains: stripe-listener (Stripe CLI forwarding events to payment-service)
+#
+# MODE SUMMARY:
+#   .dev  → docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+#           → infra + backend + frontend + stripe-listener (Stripe CLI webhook)
+#
+#   .prod → docker compose -f docker-compose.yml up --build -d
+#           → infra + backend + frontend (Stripe events from Dashboard/Servers)
+#
+#   Frontend mock → cd frontend && docker compose -f docker-compose.yml up --build -d
 #
 # HOW IT WORKS:
 #   docker compose reads docker-compose.yml automatically.
-#   When you add -f docker-compose.dev.yml, it MERGES the dev services on top.
+#   Adding -f docker-compose.dev.yml MERGES the dev services on top.
 #   So stripe-listener only starts when you explicitly include this file.
-#
-# USE:
-#   Dev (with stripe webhook):  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-#   Dev (no stripe webhook):   docker compose -f docker-compose.yml up -d
-#   Prod:                       docker compose -f docker-compose.yml up -d  (no dev.yml)
-#
-#   Via script:
-#   -Up -All -D                 → includes dev.yml (stripe webhook ON by default)
-#   -Up -All -D -NoStripeWebhook → excludes stripe-listener
 #
 # NOTE: This file is intentionally NOT referenced by any prod override.
 #       Prod deploy uses: docker-compose.yml + docker-compose-backend.yml + backend/docker-compose.prod-pulled.yml
 #       → stripe-listener is never started in production.
-#
 # ============================================================
 
 services:

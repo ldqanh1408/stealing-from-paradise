@@ -1,22 +1,26 @@
 # ============================================================
 # FLASH SALE E-COMMERCE — ROOT DOCKER COMPOSE
 # ============================================================
-# Full-stack orchestrator: infrastructure + backend + frontend.
+# Entry point: infra + backend + frontend + nginx.
 # Reads configuration from ../.env (the root .env).
 #
-# COMMANDS (run from project root):
-#   docker-compose up --build                # Build & start all (foreground)
-#   docker-compose up --build -d             # Build & start all (background)
-#   docker-compose -f docker-compose.yml up  # Force this file only (ignore override)
+# DEPLOYMENT MODES:
 #
-# OVERRIDE BEHAVIOUR:
-#   docker-compose up                         # uses docker-compose.override.yml (dev mode)
-#   docker-compose -f docker-compose.yml up  # ignores override (prod mode)
+#   .dev  (local dev with Stripe CLI):
+#     docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+#     → infra + backend + frontend + stripe-listener (Stripe CLI webhook)
 #
-# PARTIAL STARTS (infra-only / backend-only):
-#   docker-compose -f docker-compose-infrastructure.yml up --build -d
-#   docker-compose -f docker-compose-backend.yml up --build -d
-#   cd frontend && docker-compose -f docker-compose.yml up --build -d
+#   .prod (staging/prod, no Stripe CLI):
+#     docker compose -f docker-compose.yml up --build -d
+#     → infra + backend + frontend (Stripe events from Dashboard/Servers)
+#
+#   Frontend mock only (no backend):
+#     cd frontend && docker compose -f docker-compose.yml up --build -d
+#     → 3 frontend apps with mock data (VITE_BACKEND_MODE=mock)
+#
+# PARTIAL STARTS:
+#   docker compose -f docker-compose-infrastructure.yml up --build -d   # infra only
+#   docker compose -f docker-compose.yml -f docker-compose-backend.yml up --build -d  # infra + backend
 #
 # ============================================================
 
@@ -298,8 +302,8 @@ services:
       test: ["CMD-SHELL", "curl -f -s http://localhost:8082/actuator/health > /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 8
+      start_period: 150s
 
   order-service:
     build:
@@ -470,6 +474,7 @@ services:
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
+      - VITE_PROXY_TARGET=http://fs-gateway:8080
       - NODE_ENV=development
     volumes:
       - ./frontend/apps/customer:/app/apps/customer:cached
@@ -489,6 +494,7 @@ services:
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
+      - VITE_PROXY_TARGET=http://fs-gateway:8080
       - NODE_ENV=development
     volumes:
       - ./frontend/apps/seller:/app/apps/seller:cached
@@ -508,6 +514,7 @@ services:
     env_file: .env
     environment:
       - VITE_API_URL=${VITE_API_URL}
+      - VITE_PROXY_TARGET=http://fs-gateway:8080
       - NODE_ENV=development
     volumes:
       - ./frontend/apps/admin:/app/apps/admin:cached
