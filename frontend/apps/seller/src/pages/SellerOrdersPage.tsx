@@ -226,7 +226,7 @@ function OrderDrawer({ order, onClose }: { order: SellerOrderSummary; onClose: (
 
           <div className="flex gap-3">
             <button
-              onClick={() => { onClose(); navigate(`/seller/orders/${order.order_id}`); }}
+              onClick={() => { onClose(); navigate(`/orders/${order.order_id}`); }}
               className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50"
             >
               Xem chi tiết đầy đủ
@@ -240,7 +240,6 @@ function OrderDrawer({ order, onClose }: { order: SellerOrderSummary; onClose: (
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SellerOrdersPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
@@ -369,6 +368,14 @@ export default function SellerOrdersPage() {
                             )}
                             {order.status === 'SHIPPING' && (
                               <span className="text-xs text-gray-400 whitespace-nowrap">Đang giao...</span>
+                            )}
+                            {order.status === 'RETURNED' && (
+                              <button
+                                onClick={() => setRtsOrder(order)}
+                                className="text-xs text-orange-600 hover:text-orange-700 font-medium whitespace-nowrap"
+                              >
+                                Xác nhận hoàn
+                              </button>
                             )}
                           </div>
                         </td>

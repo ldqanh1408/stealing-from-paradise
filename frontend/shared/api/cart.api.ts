@@ -14,6 +14,7 @@ export interface CartItem {
   fs_item_id?: number | null;
   flash_price?: number | null;
   flash_expires_at?: string | null;
+  max_quantity_per_user?: number | null; // flash sale per-user limit
   subtotal?: number;
   added_at?: string;
 }

@@ -473,9 +473,10 @@ services:
     ports: ["${PORT_CUSTOMER:-3000}:3000"]
     env_file: .env
     environment:
-      - VITE_API_URL=${VITE_API_URL}
-      - VITE_PROXY_TARGET=http://fs-gateway:8080
+      - VITE_API_URL=${VITE_API_URL:-/api/v1}
+      - VITE_BACKEND_MODE=real
       - NODE_ENV=development
+      - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
     volumes:
       - ./frontend/apps/customer:/app/apps/customer:cached
       - ./frontend/shared:/app/shared:cached
@@ -493,9 +494,10 @@ services:
     ports: ["${PORT_SELLER:-3001}:3001"]
     env_file: .env
     environment:
-      - VITE_API_URL=${VITE_API_URL}
-      - VITE_PROXY_TARGET=http://fs-gateway:8080
+      - VITE_API_URL=${VITE_API_URL:-/api/v1}
+      - VITE_BACKEND_MODE=real
       - NODE_ENV=development
+      - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
     volumes:
       - ./frontend/apps/seller:/app/apps/seller:cached
       - ./frontend/shared:/app/shared:cached
@@ -513,9 +515,10 @@ services:
     ports: ["${PORT_ADMIN:-3002}:3002"]
     env_file: .env
     environment:
-      - VITE_API_URL=${VITE_API_URL}
-      - VITE_PROXY_TARGET=http://fs-gateway:8080
+      - VITE_API_URL=${VITE_API_URL:-/api/v1}
+      - VITE_BACKEND_MODE=real
       - NODE_ENV=development
+      - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
     volumes:
       - ./frontend/apps/admin:/app/apps/admin:cached
       - ./frontend/shared:/app/shared:cached

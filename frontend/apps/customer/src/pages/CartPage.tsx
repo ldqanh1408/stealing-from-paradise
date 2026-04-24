@@ -4,6 +4,11 @@ import { useCartStore } from '@shared/store/cartStore';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
+function isFlashExpired(iso?: string | null) {
+  if (!iso) return false;
+  return new Date(iso).getTime() < Date.now();
+}
+
 export default function CartPage() {
   const { cart, isLoading, fetchCart, updateQuantity, removeFromCart } = useCartStore();
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
@@ -114,50 +119,95 @@ export default function CartPage() {
                 {seller.seller_name}
               </p>
               <div className="space-y-3">
-                {seller.items.map((item) => (
-                  <div key={item.cart_item_id} className="flex items-center gap-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(item.cart_item_id)}
-                      onChange={() => toggleItemSelection(item.cart_item_id)}
-                      className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
-                    />
-                    <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0">
-                      🛍️
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-400">{item.variant_name}</p>
-                      <h3 className="font-medium text-gray-900 truncate">{item.product_name}</h3>
-                      <p className="text-red-600 font-bold mt-1">{fmt(item.unit_price)}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Kho: <span className="font-semibold text-green-600">{item.stock_available}</span>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => updateQuantity(item.cart_item_id, Math.max(1, item.quantity - 1))}
-                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
-                      >
-                        −
-                      </button>
-                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.cart_item_id, Math.min(item.stock_available, item.quantity + 1))}
-                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => removeFromCart(item.cart_item_id)}
-                      className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                {seller.items.map((item) => {
+                    const isExpired = item.is_flash && isFlashExpired(item.flash_expires_at);
+                    const overLimit = item.max_quantity_per_user && item.quantity > item.max_quantity_per_user;
+                    const overStock = item.quantity > item.stock_available;
+
+                    return (
+                      <div key={item.cart_item_id} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
+                        isExpired ? 'border-red-200 bg-red-50/30' : item.is_flash ? 'border-orange-200 bg-orange-50/20' : 'border-gray-100'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(item.cart_item_id)}
+                          onChange={() => toggleItemSelection(item.cart_item_id)}
+                          className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
+                        />
+                        <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0 overflow-hidden">
+                          🛍️
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs text-gray-400">{item.variant_name}</p>
+                            {item.is_flash && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isExpired ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'}`}>
+                                🔥 Flash Sale
+                              </span>
+                            )}
+                            {isExpired && (
+                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Đã hết hạn</span>
+                            )}
+                          </div>
+                          <h3 className="font-medium text-gray-900 truncate">{item.product_name}</h3>
+                          {item.is_flash && item.flash_price ? (
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-red-600 font-bold">{fmt(item.flash_price)}</p>
+                              {item.unit_price !== item.flash_price && (
+                                <p className="text-xs text-gray-400 line-through">{fmt(item.unit_price)}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-red-600 font-bold mt-1">{fmt(item.unit_price)}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Kho: <span className={`font-semibold ${overStock ? 'text-red-600' : 'text-green-600'}`}>{item.stock_available}</span>
+                            {item.max_quantity_per_user && (
+                              <span className="ml-2 text-orange-500">· Mua tối đa: {item.max_quantity_per_user}</span>
+                            )}
+                          </p>
+                          {overLimit && (
+                            <p className="text-xs text-red-500 mt-0.5">
+                              ⚠️ Số lượng vượt quá giới hạn mua ({item.max_quantity_per_user})
+                            </p>
+                          )}
+                          {overStock && !overLimit && (
+                            <p className="text-xs text-red-500 mt-0.5">
+                              ⚠️ Số lượng vượt quá tồn kho ({item.stock_available})
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => updateQuantity(item.cart_item_id, Math.max(1, item.quantity - 1))}
+                            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
+                          >
+                            −
+                          </button>
+                          <span className={`w-8 text-center text-sm font-medium ${overLimit || overStock ? 'text-red-600' : 'text-gray-900'}`}>{item.quantity}</span>
+                          <button
+                            onClick={() => {
+                              const max = item.max_quantity_per_user
+                                ? Math.min(item.max_quantity_per_user, item.stock_available)
+                                : item.stock_available;
+                              updateQuantity(item.cart_item_id, item.quantity + 1 > max ? item.quantity : item.quantity + 1);
+                            }}
+                            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.cart_item_id)}
+                          className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           ))}

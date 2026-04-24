@@ -6,6 +6,7 @@
 .env.bak
 .env.backup
 .env.old
+.env.production
 
 # Local development
 .env.local

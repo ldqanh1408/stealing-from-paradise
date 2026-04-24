@@ -43,7 +43,7 @@ public class RouteConfig {
 
             // ===== Product Service =====
             .route("product-read", r -> r
-                .path("/api/v1/products/**", "/api/v1/categories/**")
+                .path("/api/v1/products/**", "/api/v1/categories/**", "/api/v1/seller/**")
                 .and().method(HttpMethod.GET)
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://product-service"))
@@ -61,6 +61,11 @@ public class RouteConfig {
                 .uri("lb://product-service"))
 
             // ===== Order Service (requires JWT) =====
+            .route("seller-orders", r -> r
+                .path("/api/v1/sellers/**")
+                .filters(f -> f.stripPrefix(1))
+                .uri("lb://order-service"))
+
             .route("order", r -> r
                 .path("/api/v1/orders/**")
                 .filters(f -> f.stripPrefix(1))

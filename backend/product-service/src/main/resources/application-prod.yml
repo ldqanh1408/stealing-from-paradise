@@ -1,0 +1,13 @@
+# ============================================================
+# PROD Profile — product-service
+# Active when SPRING_PROFILES_ACTIVE=prod
+# ============================================================
+logging:
+  level:
+    root: INFO
+    com.flashsale: INFO
+    org.springframework.data.mongodb: WARN
+    com.mongodb: WARN
+
+dev-data:
+  enabled: false

@@ -60,8 +60,44 @@ public class PaymentService {
         Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
                         "Không tìm thấy giao dịch cho parent order: " + parentOrderId));
+        return buildTransactionDetailResponse(tx);
+    }
 
-        List<SellerTransfer> transfers = sellerTransferRepository.findAllByParentOrderId(parentOrderId);
+    @Transactional(readOnly = true)
+    public ClientSecretResponse getClientSecret(Long parentOrderId) {
+        Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
+                        "Không tìm thấy giao dịch cho parent order: " + parentOrderId));
+
+        if (tx.getClientSecret() == null) {
+            throw new AppException(ErrorCode.NOT_FOUND,
+                    "Client secret chưa được khởi tạo cho parent order: " + parentOrderId);
+        }
+
+        return ClientSecretResponse.builder()
+                .parentOrderId(parentOrderId)
+                .transactionId(tx.getId())
+                .clientSecret(tx.getClientSecret())
+                .status(tx.getStatus())
+                .build();
+    }
+
+    /**
+     * GET /api/v1/payments/by-intent/{stripePaymentIntentId}
+     * Tra cứu giao dịch thanh toán qua Stripe PaymentIntent ID.
+     * Dùng khi người dùng quay về từ redirect của Stripe mà không có context state.
+     */
+    @Transactional(readOnly = true)
+    public TransactionDetailResponse getTransactionByStripePiId(String stripePiId) {
+        Transaction tx = transactionRepository.findByStripePiId(stripePiId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
+                        "Không tìm thấy giao dịch với PaymentIntent: " + stripePiId));
+
+        return buildTransactionDetailResponse(tx);
+    }
+
+    private TransactionDetailResponse buildTransactionDetailResponse(Transaction tx) {
+        List<SellerTransfer> transfers = sellerTransferRepository.findAllByParentOrderId(tx.getParentOrderId());
 
         List<SellerTransferInfo> sellerInfos = transfers.stream()
                 .map(t -> SellerTransferInfo.builder()
@@ -95,25 +131,6 @@ public class PaymentService {
                 .paidAt(tx.getPayAt() != null ? tx.getPayAt().toInstant(ZoneOffset.UTC) : null)
                 .remainingSeconds(remainingSeconds)
                 .sellers(sellerInfos)
-                .build();
-    }
-
-    @Transactional(readOnly = true)
-    public ClientSecretResponse getClientSecret(Long parentOrderId) {
-        Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
-                        "Không tìm thấy giao dịch cho parent order: " + parentOrderId));
-
-        if (tx.getClientSecret() == null) {
-            throw new AppException(ErrorCode.NOT_FOUND,
-                    "Client secret chưa được khởi tạo cho parent order: " + parentOrderId);
-        }
-
-        return ClientSecretResponse.builder()
-                .parentOrderId(parentOrderId)
-                .transactionId(tx.getId())
-                .clientSecret(tx.getClientSecret())
-                .status(tx.getStatus())
                 .build();
     }
 
