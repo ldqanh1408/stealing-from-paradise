@@ -12,7 +12,7 @@ Dùng **khi dev trên local**, cần Stripe webhook local để test thanh toán
 
 ```powershell
 # Chạy từ root
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
 ```
 
 Gồm: infrastructure + backend + frontend + **stripe-listener** (Stripe CLI forward events từ Stripe servers → `payment-service`).
@@ -25,14 +25,14 @@ Dùng **khi staging/prod** hoặc khi muốn test với Stripe live/test mode m�
 
 ```powershell
 # Full stack (không stripe-listener)
-docker compose -f docker-compose.yml up --build -d
+docker-compose -f docker-compose.yml up --build -d
 ```
 
 Hoặc stack rõ ràng:
 
 ```powershell
 # Infrastructure + backend + frontend (no stripe-listener)
-docker compose -f docker-compose.yml -f docker-compose-backend.yml up --build -d
+docker-compose -f docker-compose.yml -f docker-compose-backend.yml up --build -d
 ```
 
 Gồm: infrastructure + backend + frontend. **Không có stripe-listener**. Stripe events được gửi trực tiếp từ Stripe Dashboard/Servers đến endpoint.
@@ -46,7 +46,7 @@ Dùng **khi chỉ muốn dev UI/frontend mà không cần backend**. Dùng mock 
 ```powershell
 # Chạy từ thư mục frontend/
 cd frontend
-docker compose -f docker-compose.yml up --build -d
+docker-compose -f docker-compose.yml up --build -d
 ```
 
 Gồm: 3 frontend apps (customer, seller, admin) trên network `flashsale-frontend` (isolated). Không gọi backend, dùng mock data.
@@ -98,7 +98,7 @@ cd frontend && docker-compose -f docker-compose.yml up --build -d
 
 ```bash
 # deploy.yml chạy lệnh này trên server (chỉ cần 2 file compose):
-docker compose -f docker-compose.yml -f docker-compose.prod-pulled.yml up -d
+docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml up -d
 ```
 
 ---

@@ -18,13 +18,13 @@
 #
 #   • For full-stack dev (frontend + backend together):
 #       Use the ROOT docker-compose instead:
-#         cd .. && docker compose -f docker-compose.yml up --build -d
+#         cd .. && docker-compose -f docker-compose.yml up --build -d
 #       This ensures all apps share `flashsale-net` and can reach each other.
 #
 # USAGE:
 #   cd frontend
-#   docker compose up --build          # dev with Vite HMR (foreground)
-#   docker compose up --build -d       # dev in background
+#   docker-compose up --build          # dev with Vite HMR (foreground)
+#   docker-compose up --build -d       # dev in background
 #
 # NOTE: Run from the frontend/ directory.
 # ============================================================
