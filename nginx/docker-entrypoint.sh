@@ -13,6 +13,11 @@ set -e
 : ${ADMIN_PORT:=3002}
 
 cat > /etc/nginx/conf.d/default.conf <<EOF
+# Rate limiting zones — \$binary_remote_addr is an nginx runtime variable,
+# escaped as \\\$ so the shell heredoc preserves the literal \$ sign for nginx.
+limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone \$binary_remote_addr zone=frontend_limit:10m rate=20r/s;
+
 upstream gateway {
     server ${GATEWAY_HOST}:${GATEWAY_PORT};
 }
@@ -37,6 +42,9 @@ server {
     real_ip_recursive on;
 
     location /api/ {
+        # 10 req/s per IP, allow short bursts up to 20
+        limit_req zone=api_limit burst=20 nodelay;
+
         proxy_pass http://gateway/api/v1/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -54,6 +62,8 @@ server {
     }
 
     location /seller/ {
+        limit_req zone=frontend_limit burst=40 nodelay;
+
         proxy_pass http://seller-app/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -64,6 +74,8 @@ server {
     }
 
     location /admin/ {
+        limit_req zone=frontend_limit burst=40 nodelay;
+
         proxy_pass http://admin-app/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -74,6 +86,8 @@ server {
     }
 
     location / {
+        limit_req zone=frontend_limit burst=40 nodelay;
+
         proxy_pass http://customer-app/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
