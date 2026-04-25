@@ -88,16 +88,8 @@ public class RefundService {
 
         List<RefundItem> items = refundItemRepository.findAllByRefundId(refundId);
 
-        // Parse evidence images from JSON
-        List<String> evidenceImages = null;
-        if (refund.getEvidenceImages() != null) {
-            try {
-                evidenceImages = objectMapper.readValue(refund.getEvidenceImages(),
-                        new TypeReference<List<String>>() {});
-            } catch (Exception e) {
-                log.warn("Failed to parse evidence_images for refundId={}", refundId);
-            }
-        }
+        // Hibernate maps jsonb to List<String> directly
+        List<String> evidenceImages = refund.getEvidenceImages();
 
         // Build return evidence from RefundItems that have tracking
         List<AdminRefundApproveResponse.ReturnEvidence> returnEvidence = items.stream()
@@ -297,9 +289,8 @@ public class RefundService {
                 return;
             }
 
-            // Serialize evidence images
+            // Hibernate maps List<String> to jsonb directly
             List<String> evidenceImages = toStringList(payload.get("evidence_images"));
-            String evidenceJson = toJson(evidenceImages);
 
             Refund refund = Refund.builder()
                     .transactionId(tx.getId())
@@ -312,7 +303,7 @@ public class RefundService {
                     .amount(amount)
                     .reason(reason)
                     .status("PENDING")
-                    .evidenceImages(evidenceImages.isEmpty() ? null : evidenceJson)
+                    .evidenceImages(evidenceImages.isEmpty() ? null : evidenceImages)
                     .build();
             refund = refundRepository.save(refund);
 

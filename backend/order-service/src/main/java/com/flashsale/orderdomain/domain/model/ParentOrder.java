@@ -18,7 +18,8 @@ import java.util.List;
 @AllArgsConstructor
 public class ParentOrder {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "parentOrderSeq")
+    @SequenceGenerator(name = "parentOrderSeq", sequenceName = "seq_parent_orders", allocationSize = 1)
     private Long id;
 
     @Column(name = "order_code", nullable = false, unique = true)
@@ -50,6 +51,9 @@ public class ParentOrder {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Version
+    private Integer version;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "parent_order_id")

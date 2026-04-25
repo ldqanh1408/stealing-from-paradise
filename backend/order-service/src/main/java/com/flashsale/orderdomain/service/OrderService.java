@@ -100,9 +100,12 @@ public class OrderService {
         // 6. Build shipping address JSON
         String shippingAddressJson = buildShippingAddressJson(address);
 
-        // 7. Tạo ParentOrder (orderCode được set sau khi có ID)
+        // 7. Tạo ParentOrder — orderCode được tạo từ sequence ID trước khi persist
+        String parentOrderCode = "PO-"
+                + java.time.LocalDate.now().toString().replace("-", "")
+                + "-";  // suffix completed after save to get real ID
         ParentOrder parentOrder = ParentOrder.builder()
-                .orderCode("PO-PENDING")   // placeholder, sẽ cập nhật sau khi save
+                .orderCode(parentOrderCode)   // placeholder suffix will be corrected post-persist
                 .userId(userId)
                 .totalAmt(totalAmt)
                 .loyaltyDiscount(loyaltyDiscount)
@@ -112,11 +115,8 @@ public class OrderService {
                 .timeoutAt(LocalDateTime.now().plusMinutes(PAYMENT_TIMEOUT_MINUTES))
                 .build();
         parentOrder = parentOrderRepository.save(parentOrder);
-        // Update orderCode với ID thực
-        String parentOrderCode = "PO-"
-                + parentOrder.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + "-" + parentOrder.getId();
-        parentOrder.setOrderCode(parentOrderCode);
+        // Finalize orderCode with real DB-assigned ID
+        parentOrder.setOrderCode(parentOrderCode + parentOrder.getId());
         parentOrder = parentOrderRepository.save(parentOrder);
 
         // 8. Tạo sub-orders theo từng seller
