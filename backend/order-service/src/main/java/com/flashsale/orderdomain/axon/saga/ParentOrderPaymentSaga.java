@@ -6,6 +6,7 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.orderdomain.axon.event.*;
 import com.flashsale.orderdomain.domain.model.Order;
 import com.flashsale.orderdomain.domain.repository.OrderRepository;
+import com.flashsale.orderdomain.domain.repository.ParentOrderRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
 import org.axonframework.modelling.saga.EndSaga;
@@ -37,6 +38,9 @@ public class ParentOrderPaymentSaga {
     @Autowired
     private transient EventGateway eventGateway;
 
+    @Autowired
+    private transient ParentOrderRepository parentOrderRepository;
+
     @StartSaga
     @SagaEventHandler(associationProperty = "parentOrderId")
     public void on(ParentOrderCheckoutCreatedEvent event) {
@@ -67,20 +71,23 @@ public class ParentOrderPaymentSaga {
     @EndSaga
     @SagaEventHandler(associationProperty = "parentOrderId")
     public void on(ParentOrderPaymentSucceededEvent event) {
-        List<Order> orders = orderRepository.findAllByParentOrderIdAndStatus(event.getParentOrderId(), "PENDING");
-        orders.forEach(order -> {
-            order.setStatus("PAID");
-            orderRepository.save(order);
-            eventGateway.publish(new OrderPaidEvent(
-                    order.getId(),
-                    order.getParentOrderId(),
-                    order.getUserId(),
-                    order.getSellerId(),
-                    order.getFinalAmt()
-            ));
-        });
+        // Lock ParentOrder to prevent concurrent modification during payment confirmation
+        parentOrderRepository.findById(event.getParentOrderId()).ifPresent(po -> {
+            List<Order> orders = orderRepository.findAllByParentOrderIdAndStatusWithLock(event.getParentOrderId(), "PENDING");
+            orders.forEach(order -> {
+                order.setStatus("PAID");
+                orderRepository.save(order);
+                eventGateway.publish(new OrderPaidEvent(
+                        order.getId(),
+                        order.getParentOrderId(),
+                        order.getUserId(),
+                        order.getSellerId(),
+                        order.getFinalAmt()
+                ));
+            });
 
-        log.info("[ParentPaymentSaga][{}] Payment succeeded, updated {} sub-orders", event.getParentOrderId(), orders.size());
+            log.info("[ParentPaymentSaga][{}] Payment succeeded, updated {} sub-orders", event.getParentOrderId(), orders.size());
+        });
     }
 
     @EndSaga
@@ -90,26 +97,29 @@ public class ParentOrderPaymentSaga {
                 ? "Thanh toan that bai"
                 : event.getReason();
 
-        List<Order> orders = orderRepository.findAllByParentOrderIdAndStatus(event.getParentOrderId(), "PENDING");
-        orders.forEach(order -> {
-            order.setStatus("CANCELLED");
-            order.setCancelledBy("SYSTEM");
-            order.setCancelReason(failReason);
-            order.setCancelledAt(LocalDateTime.now());
-            orderRepository.save(order);
+        // Lock ParentOrder to prevent concurrent modification during payment failure handling
+        parentOrderRepository.findById(event.getParentOrderId()).ifPresent(po -> {
+            List<Order> orders = orderRepository.findAllByParentOrderIdAndStatusWithLock(event.getParentOrderId(), "PENDING");
+            orders.forEach(order -> {
+                order.setStatus("CANCELLED");
+                order.setCancelledBy("SYSTEM");
+                order.setCancelReason(failReason);
+                order.setCancelledAt(LocalDateTime.now());
+                orderRepository.save(order);
 
-            eventGateway.publish(new OrderCancelledEvent(
-                    order.getId(),
-                    order.getParentOrderId(),
-                    order.getUserId(),
-                    order.getSellerId(),
-                    "PAYMENT_FAILED",
-                    failReason,
-                    order.getTotalAmt()
-            ));
+                eventGateway.publish(new OrderCancelledEvent(
+                        order.getId(),
+                        order.getParentOrderId(),
+                        order.getUserId(),
+                        order.getSellerId(),
+                        "PAYMENT_FAILED",
+                        failReason,
+                        order.getTotalAmt()
+                ));
+            });
+
+            log.info("[ParentPaymentSaga][{}] Payment failed, cancelled {} sub-orders", event.getParentOrderId(), orders.size());
         });
-
-        log.info("[ParentPaymentSaga][{}] Payment failed, cancelled {} sub-orders", event.getParentOrderId(), orders.size());
     }
 
     private void send(String topic, String key, Map<String, Object> payload) {

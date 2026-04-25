@@ -194,7 +194,11 @@ public class PaymentDevDataLoader implements CommandLineRunner {
                     .refundRef("RFND-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                     .reviewedBy(1L)
                     .reviewedAt(LocalDateTime.now().minusDays(3))
-                    .rawResponse("{\"id\": \"re_test_refund1\", \"object\": \"refund\", \"status\": \"succeeded\"}")
+                    .rawResponse(Map.of(
+                            "id", "re_test_refund1",
+                            "object", "refund",
+                            "status", "succeeded"
+                    ))
                     .build();
             refund1 = refundRepository.save(refund1);
         }
@@ -214,7 +218,10 @@ public class PaymentDevDataLoader implements CommandLineRunner {
                     .adjustAmount(new BigDecimal("500000.00"))
                     .reason("Sản phẩm bị lỗi, xin hoàn 500k")
                     .status("PENDING")
-                    .evidenceImages("[\"https://picsum.photos/400/300?random=1\",\"https://picsum.photos/400/300?random=2\"]")
+                    .evidenceImages(Arrays.asList(
+                            "https://picsum.photos/400/300?random=1",
+                            "https://picsum.photos/400/300?random=2"
+                    ))
                     .build();
             refund2 = refundRepository.save(refund2);
 
@@ -275,7 +282,11 @@ public class PaymentDevDataLoader implements CommandLineRunner {
                     .status("RTS_COMPLETED")
                     .reviewedBy(1L)
                     .reviewedAt(LocalDateTime.now().minusDays(1))
-                    .rawResponse("{\"id\": \"re_test_rts\", \"object\": \"refund\", \"status\": \"succeeded\"}")
+                    .rawResponse(Map.of(
+                            "id", "re_test_rts",
+                            "object", "refund",
+                            "status", "succeeded"
+                    ))
                     .build();
             refund4 = refundRepository.save(refund4);
 
@@ -286,7 +297,7 @@ public class PaymentDevDataLoader implements CommandLineRunner {
                     .refundAmount(tx4.getAmount())
                     .status("RETURNED")
                     .returnTrackingNumber("VNPOST" + new Random().nextInt(9000000) + 1000000)
-                    .returnEvidenceImages("[\"https://picsum.photos/400/300?random=10\"]")
+                    .returnEvidenceImages(List.of("https://picsum.photos/400/300?random=10"))
                     .returnedAt(LocalDateTime.now().minusHours(6))
                     .build();
             refundItemRepository.save(item);

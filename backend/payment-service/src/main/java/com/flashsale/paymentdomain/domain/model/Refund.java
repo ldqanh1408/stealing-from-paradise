@@ -1,12 +1,16 @@
 package com.flashsale.paymentdomain.domain.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "refunds", indexes = {
@@ -51,8 +55,9 @@ public class Refund {
     @Column(nullable = false)
     private String status = "PENDING";
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "evidence_images", columnDefinition = "jsonb")
-    private String evidenceImages;
+    private List<String> evidenceImages;
 
     @Column(name = "reject_reason", columnDefinition = "TEXT")
     private String rejectReason;
@@ -72,8 +77,9 @@ public class Refund {
     @Column(name = "refund_ref")
     private String refundRef;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "raw_response", columnDefinition = "jsonb")
-    private String rawResponse;
+    private Map<String, Object> rawResponse;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

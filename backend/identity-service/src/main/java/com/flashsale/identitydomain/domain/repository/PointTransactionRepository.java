@@ -30,7 +30,7 @@ public interface PointTransactionRepository extends JpaRepository<PointTransacti
 
     @Query("SELECT COALESCE(SUM(pt.remainingDelta), 0) FROM PointTransaction pt " +
            "WHERE pt.userId = :userId AND pt.type = 'EARNED' AND pt.status = 'PENDING' " +
-           "AND pt.expiresAt IS NOT NULL AND pt.expiresAt < NOW()")
+           "AND pt.expiresAt IS NOT NULL AND pt.expiresAt < CURRENT_TIMESTAMP")
     int sumExpiredPendingPoints(@Param("userId") Long userId);
 
     Optional<PointTransaction> findByOrderIdAndType(Long orderId, String type);

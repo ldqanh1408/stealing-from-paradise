@@ -1,12 +1,15 @@
 package com.flashsale.paymentdomain.domain.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "refund_items")
@@ -40,8 +43,9 @@ public class RefundItem {
     @Column(name = "return_tracking_number")
     private String returnTrackingNumber;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "return_evidence_images", columnDefinition = "jsonb")
-    private String returnEvidenceImages;
+    private List<String> returnEvidenceImages;
 
     @Column(name = "returned_at")
     private LocalDateTime returnedAt;
