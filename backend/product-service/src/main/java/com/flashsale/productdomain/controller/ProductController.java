@@ -94,4 +94,16 @@ public class ProductController {
         Page<ProductResponse> result = productService.getSellerProducts(user.getId(), page, size);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
+
+    // ─── Public: GET /products ────────────────────────────────────────────────
+
+    @GetMapping("/products")
+    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProducts(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ProductResponse> result = productService.getProducts(category, search, page, size);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
 }

@@ -85,3 +85,4 @@ services:
   reverse-proxy:
     image: ghcr.io/${IMAGE_PREFIX}/reverse-proxy:prod-latest
     env_file: .env.production
+    ports: ["${PORT_REVERSE_PROXY:-80}:${NGINX_PORT:-80}"]
