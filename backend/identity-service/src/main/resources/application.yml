@@ -83,6 +83,12 @@ jwt:
   expiration: ${JWT_EXPIRATION:3600}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800}
 
+loyalty:
+  conversion-rate: 200
+  earning-rate: 0.05
+  max-usable-percentage: 0.20
+  expiry-days: 365
+
 logging:
   level:
     org.flywaydb: DEBUG

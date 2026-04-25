@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoginRequest {
-    private String username;  // Can be username or email
+    private String credential;  // username | email | phone
     private String password;
 }
 
