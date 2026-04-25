@@ -506,12 +506,21 @@ jobs:
           ENVEOF
           log_ok "Production .env written with secrets"
 
-          # Step 3: Remove old containers
-          log_info "Stopping api-gateway first to release port 8080..."
+          # Step 3: Release port 8080, then remove all old containers
+          log_info "Releasing port 8080 before teardown..."
+          sudo apt-get install -y psmisc lsof 2>/dev/null || true
+
+          # 3a. Disconnect fs-gateway from all Docker networks first (clears internal endpoint DB)
+          docker network ls --quiet 2>/dev/null | while read net_id; do
+            docker network disconnect --force "$net_id" fs-gateway 2>/dev/null || true
+          done
+          # 3b. Stop and remove the gateway container
           docker stop fs-gateway 2>/dev/null || true
           docker rm -f fs-gateway 2>/dev/null || true
-          # Kill any stale docker-proxy process that may still hold the port
-          sudo pkill -9 -f "docker-proxy.*8080" 2>/dev/null || true
+          # 3c. Kill ALL docker-proxy processes (any one of them could own the port binding)
+          sudo pkill -9 -f "docker-proxy" 2>/dev/null || true
+          # 3d. Kill whatever else is on 8080 by PID
+          sudo lsof -t -i :8080 2>/dev/null | xargs -r sudo kill -9 2>/dev/null || true
           sleep 2
 
           log_info "Removing remaining containers..."
@@ -524,16 +533,27 @@ jobs:
           docker images --format '{{.Repository}}:{{.Tag}}' | grep -E 'ghcr.io.*:(prod-latest|prod-[0-9]' | xargs -r docker rmi -f 2>/dev/null || true
           log_ok "Old containers and images removed"
 
-          # Step 4: Confirm port 8080 is free
-          log_info "Confirming port 8080 is free..."
-          sudo apt-get install -y psmisc lsof 2>/dev/null || true
-          if sudo lsof -i :8080 > /dev/null 2>&1; then
-            log_warn "Port 8080 still in use — force-killing..."
+          # Step 4: Hard gate — do not proceed unless port 8080 is confirmed free
+          log_info "Verifying port 8080 is free (blocking gate)..."
+          port_free=0
+          for attempt in $(seq 1 10); do
+            if ! sudo lsof -i :8080 > /dev/null 2>&1 && ! sudo ss -tlnp 2>/dev/null | grep -q ':8080 '; then
+              port_free=1
+              log_ok "Port 8080 is free (confirmed on attempt ${attempt})"
+              break
+            fi
+            log_warn "Port 8080 still in use (attempt ${attempt}/10) — killing..."
             sudo fuser -k -9 8080/tcp 2>/dev/null || true
-            sudo pkill -9 -f "docker-proxy.*8080" 2>/dev/null || true
+            sudo pkill -9 -f "docker-proxy" 2>/dev/null || true
+            sudo lsof -t -i :8080 2>/dev/null | xargs -r sudo kill -9 2>/dev/null || true
             sleep 3
+          done
+          if [ "$port_free" -eq 0 ]; then
+            log_err "FATAL: Port 8080 could not be freed after 10 attempts. Current holders:"
+            sudo ss -tlnp | grep ':8080' || true
+            sudo lsof -i :8080 || true
+            exit 1
           fi
-          sudo lsof -i :8080 || log_ok "Port 8080 is free"
 
           # Step 5: Pull all images
           log_info "Pulling all images..."
