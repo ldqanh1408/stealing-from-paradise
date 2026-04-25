@@ -473,10 +473,10 @@ services:
     ports: ["${PORT_CUSTOMER:-3000}:3000"]
     env_file: .env
     # Don't duplicate VITE_API_URL here — env_file already provides it.
-    # Adding `- VITE_API_URL=${VITE_API_URL:-/api/v1}` here triggers compose's
+    # Adding `- VITE_API_URL=${VITE_API_URL:-/api}` here triggers compose's
     # variable substitution with a context that may contain the literal "${...}"
-    # from .env, producing a literal "${VITE_API_URL:-/api/v1}" in container env,
-    # which Vite's dotenv-expand then mangles into "/api/v1/api/v1".
+    # from .env, producing a literal "${VITE_API_URL:-/api}" in container env,
+    # which Vite's dotenv-expand then mangles into "/api/api".
     environment:
       - VITE_BACKEND_MODE=real
       - NODE_ENV=development

@@ -7,10 +7,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Entity
 @Table(name = "refunds", indexes = {
@@ -34,8 +36,9 @@ public class Refund {
     @Column(name = "user_id")
     private Long userId;
 
+    @JdbcTypeCode(SqlTypes.UUID)
     @Column(name = "group_ref")
-    private String groupRef;
+    private UUID groupRef;
 
     @Column(nullable = false)
     private String type;
@@ -98,4 +101,3 @@ public class Refund {
         updatedAt = LocalDateTime.now();
     }
 }
-
