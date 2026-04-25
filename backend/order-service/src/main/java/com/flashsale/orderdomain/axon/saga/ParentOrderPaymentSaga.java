@@ -15,6 +15,7 @@ import org.axonframework.modelling.saga.StartSaga;
 import org.axonframework.spring.stereotype.Saga;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -44,7 +45,6 @@ public class ParentOrderPaymentSaga {
     @StartSaga
     @SagaEventHandler(associationProperty = "parentOrderId")
     public void on(ParentOrderCheckoutCreatedEvent event) {
-        // Include sub-order breakdown so payment-service can create SellerTransfer records
         List<Order> subOrders = orderRepository.findAllByParentOrderIdAndStatus(event.getParentOrderId(), "PENDING");
         List<Map<String, Object>> orders = subOrders.stream().map(o -> {
             Map<String, Object> m = new HashMap<>();
@@ -70,56 +70,62 @@ public class ParentOrderPaymentSaga {
 
     @EndSaga
     @SagaEventHandler(associationProperty = "parentOrderId")
+    @Transactional
     public void on(ParentOrderPaymentSucceededEvent event) {
-        // Lock ParentOrder to prevent concurrent modification during payment confirmation
-        parentOrderRepository.findById(event.getParentOrderId()).ifPresent(po -> {
-            List<Order> orders = orderRepository.findAllByParentOrderIdAndStatusWithLock(event.getParentOrderId(), "PENDING");
-            orders.forEach(order -> {
-                order.setStatus("PAID");
-                orderRepository.save(order);
-                eventGateway.publish(new OrderPaidEvent(
-                        order.getId(),
-                        order.getParentOrderId(),
-                        order.getUserId(),
-                        order.getSellerId(),
-                        order.getFinalAmt()
-                ));
-            });
+        // Pessimistic lock prevents concurrent transactions from incrementing ParentOrder.version
+        // while we process sub-orders. Previously this used findById (no lock), which caused
+        // ObjectOptimisticLockingFailureException when another transaction committed first.
+        parentOrderRepository.findByIdWithPessimisticLock(event.getParentOrderId());
 
-            log.info("[ParentPaymentSaga][{}] Payment succeeded, updated {} sub-orders", event.getParentOrderId(), orders.size());
-        });
+        List<Order> orders = orderRepository.findAllByParentOrderIdAndStatusWithLock(event.getParentOrderId(), "PENDING");
+        for (Order order : orders) {
+            order.setStatus("PAID");
+            orderRepository.save(order);
+            eventGateway.publish(new OrderPaidEvent(
+                    order.getId(),
+                    order.getParentOrderId(),
+                    order.getUserId(),
+                    order.getSellerId(),
+                    order.getFinalAmt()
+            ));
+        }
+
+        log.info("[ParentPaymentSaga][{}] Payment succeeded, updated {} sub-orders", event.getParentOrderId(), orders.size());
     }
 
     @EndSaga
     @SagaEventHandler(associationProperty = "parentOrderId")
+    @Transactional
     public void on(ParentOrderPaymentFailedEvent event) {
         String failReason = event.getReason() == null || event.getReason().isBlank()
                 ? "Thanh toan that bai"
                 : event.getReason();
 
-        // Lock ParentOrder to prevent concurrent modification during payment failure handling
-        parentOrderRepository.findById(event.getParentOrderId()).ifPresent(po -> {
-            List<Order> orders = orderRepository.findAllByParentOrderIdAndStatusWithLock(event.getParentOrderId(), "PENDING");
-            orders.forEach(order -> {
-                order.setStatus("CANCELLED");
-                order.setCancelledBy("SYSTEM");
-                order.setCancelReason(failReason);
-                order.setCancelledAt(LocalDateTime.now());
-                orderRepository.save(order);
+        // Pessimistic lock prevents concurrent transactions from incrementing ParentOrder.version
+        // while we process sub-orders. Previously this used findById (no lock), which caused
+        // ObjectOptimisticLockingFailureException when another transaction committed first.
+        parentOrderRepository.findByIdWithPessimisticLock(event.getParentOrderId());
 
-                eventGateway.publish(new OrderCancelledEvent(
-                        order.getId(),
-                        order.getParentOrderId(),
-                        order.getUserId(),
-                        order.getSellerId(),
-                        "PAYMENT_FAILED",
-                        failReason,
-                        order.getTotalAmt()
-                ));
-            });
+        List<Order> orders = orderRepository.findAllByParentOrderIdAndStatusWithLock(event.getParentOrderId(), "PENDING");
+        for (Order order : orders) {
+            order.setStatus("CANCELLED");
+            order.setCancelledBy("SYSTEM");
+            order.setCancelReason(failReason);
+            order.setCancelledAt(LocalDateTime.now());
+            orderRepository.save(order);
 
-            log.info("[ParentPaymentSaga][{}] Payment failed, cancelled {} sub-orders", event.getParentOrderId(), orders.size());
-        });
+            eventGateway.publish(new OrderCancelledEvent(
+                    order.getId(),
+                    order.getParentOrderId(),
+                    order.getUserId(),
+                    order.getSellerId(),
+                    "PAYMENT_FAILED",
+                    failReason,
+                    order.getTotalAmt()
+            ));
+        }
+
+        log.info("[ParentPaymentSaga][{}] Payment failed, cancelled {} sub-orders", event.getParentOrderId(), orders.size());
     }
 
     private void send(String topic, String key, Map<String, Object> payload) {

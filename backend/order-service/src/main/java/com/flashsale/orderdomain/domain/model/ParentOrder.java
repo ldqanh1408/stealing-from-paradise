@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -55,9 +54,9 @@ public class ParentOrder {
     @Version
     private Integer version;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany
     @JoinColumn(name = "parent_order_id")
-    private List<Order> orders;
+    private List<Order> orders = new java.util.ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

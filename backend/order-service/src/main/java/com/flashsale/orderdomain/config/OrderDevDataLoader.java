@@ -3,6 +3,8 @@ package com.flashsale.orderdomain.config;
 import com.flashsale.commonlib.config.DevDataProperties;
 import com.flashsale.orderdomain.domain.model.*;
 import com.flashsale.orderdomain.domain.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -26,6 +28,9 @@ public class OrderDevDataLoader implements CommandLineRunner {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final DevDataProperties devDataProperties;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     // ------------------------------------------------------------------ //
     //  ID RANGES — aligned with identity-service and payment-service
@@ -52,9 +57,12 @@ public class OrderDevDataLoader implements CommandLineRunner {
 
         if (devDataProperties.isReset()) {
             log.warn("[OrderDevDataLoader] RESET=true — wiping all order data...");
-            orderItemRepository.deleteAll();
-            orderRepository.deleteAll();
-            parentOrderRepository.deleteAll();
+            // Native DELETE in correct FK dependency order to avoid optimistic-lock conflicts
+            entityManager.createNativeQuery("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE parent_order_id IN (SELECT id FROM parent_orders))").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM orders WHERE parent_order_id IN (SELECT id FROM parent_orders)").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM parent_orders").executeUpdate();
+            entityManager.flush();
+            entityManager.clear();
             log.info("[OrderDevDataLoader] All order data wiped.");
         } else if (parentOrderRepository.count() > 0) {
             log.info("[OrderDevDataLoader] Data already exists, skipping. Set dev-data.reset=true to reload.");
@@ -129,8 +137,9 @@ public class OrderDevDataLoader implements CommandLineRunner {
                 .loyaltyDiscount(BigDecimal.ZERO)
                 .loyaltyPointsUsed(0)
                 .timeoutAt(timeoutAt)
+                .version(0)
                 .build();
-        return parentOrderRepository.save(po);
+        return parentOrderRepository.saveAndFlush(po);
     }
 
     private Order createSubOrder(Long parentOrderId, Long sellerId, String sellerName,

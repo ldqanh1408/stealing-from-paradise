@@ -651,7 +651,7 @@ function Start-FrontendDev {
 
     # Create a .env.local file for mock mode in each app
     $mockEnvContent = @"
-VITE_API_URL=/api/v1
+VITE_API_URL=/api
 VITE_BACKEND_MODE=mock
 "@
 

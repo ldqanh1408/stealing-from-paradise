@@ -41,6 +41,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -125,7 +126,7 @@ public class RefundService {
                 .refundId(refund.getId())
                 .refundCode(buildRefundCode(refund))
                 .orderId(refund.getOrderId())
-                .groupRef(refund.getGroupRef())
+                .groupRef(refund.getGroupRef() != null ? refund.getGroupRef().toString() : null)
                 .type(refund.getType())
                 .status(refund.getStatus())
                 .amount(refund.getAmount())
@@ -270,7 +271,7 @@ public class RefundService {
             Long orderId       = toLong(payload.get("order_id"));
             Long parentOrderId = toLong(payload.get("parent_order_id"));
             Long userId        = toLong(payload.get("user_id"));
-            String groupRef    = (String) payload.get("group_ref");
+            UUID groupRef      = parseUUID(payload.get("group_ref"));
             String reason      = (String) payload.get("reason");
             BigDecimal amount  = toBigDecimal(payload.get("amount"));
             String reasonType  = (String) payload.get("refund_reason_type");
@@ -361,7 +362,7 @@ public class RefundService {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
             Long parentOrderId = toLong(payload.get("parent_order_id"));
             Long userId        = toLong(payload.get("user_id"));
-            String groupRef    = (String) payload.get("group_ref");
+            UUID groupRef      = parseUUID(payload.get("group_ref"));
 
             Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
                     .orElse(null);
@@ -733,7 +734,7 @@ public class RefundService {
                 .refundId(r.getId())
                 .refundCode(buildRefundCode(r))
                 .orderId(r.getOrderId())
-                .groupRef(r.getGroupRef())
+                .groupRef(r.getGroupRef() != null ? r.getGroupRef().toString() : null)
                 .type(r.getType())
                 .status(r.getStatus())
                 .amount(r.getAmount())
@@ -819,6 +820,12 @@ public class RefundService {
         if (v instanceof BigDecimal bd) return bd;
         if (v instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
         try { return new BigDecimal(v.toString()); } catch (Exception e) { return BigDecimal.ZERO; }
+    }
+
+    private UUID parseUUID(Object v) {
+        if (v == null) return null;
+        if (v instanceof UUID u) return u;
+        try { return UUID.fromString(v.toString()); } catch (Exception e) { return null; }
     }
 
     @SuppressWarnings("unchecked")

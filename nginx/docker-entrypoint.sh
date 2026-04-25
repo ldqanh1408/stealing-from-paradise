@@ -45,14 +45,9 @@ server {
         # 10 req/s per IP, allow short bursts up to 20
         limit_req zone=api_limit burst=20 nodelay;
 
-        # Forward request URI as-is (no path rewriting). Frontend already
-        # sends /api/v1/... and gateway routes match /api/v1/**, so the
-        # path must reach gateway unchanged. Adding a trailing path here
-        # like 'http://gateway/api/v1/' would cause nginx to REPLACE the
-        # matched location prefix '/api/' with '/api/v1/', producing
-        # '/api/v1/v1/...' on the wire — which doesn't match any gateway
-        # route and returns 404.
-        proxy_pass http://gateway;
+        # Strip /api/ prefix, replace with /api/v1/ — browser calls /api/xxx
+        # but gateway receives /api/v1/xxx (matching Spring @RequestMapping("/api/v1"))
+        proxy_pass http://gateway/api/v1/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
