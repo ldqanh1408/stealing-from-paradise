@@ -9,6 +9,7 @@ import com.flashsale.commonlib.security.JwtUtils;
 import com.flashsale.identitydomain.domain.model.User;
 import com.flashsale.identitydomain.domain.repository.RoleRepository;
 import com.flashsale.identitydomain.service.AuthService;
+import com.flashsale.identitydomain.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,12 +45,12 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @RequestBody LoginRequest loginRequest,
             HttpServletRequest request) {
-        log.info("Login attempt for user: {}", loginRequest.getUsername());
+        log.info("Login attempt for user: {}", loginRequest.getCredential());
         try {
             // Extract domain from request (e.g., "seller.localhost", "admin.localhost", etc.)
             String domain = request.getServerName();
 
-            AuthResponse authResponse = authService.authenticateUser(loginRequest, domain);
+            AuthResponse authResponse = authService.authenticateUser(loginRequest.getCredential(), loginRequest.getPassword(), domain);
             return ResponseEntity.ok(ApiResponse.success(authResponse, "Login successful"));
         } catch (Exception e) {
             log.warn("Login failed: {}", e.getMessage());
@@ -86,7 +87,9 @@ public class AuthController {
             User newUser = authService.registerUser(
                     registerRequest.getUsername(),
                     registerRequest.getEmail(),
-                    registerRequest.getPassword()
+                    registerRequest.getPhone(),
+                    registerRequest.getPassword(),
+                    registerRequest.getFullName()
             );
 
             // Fetch role from roles table using user ID
@@ -95,18 +98,26 @@ public class AuthController {
                     .orElse("BUYER"); // Default to BUYER if no role found
 
             // Generate tokens for the newly registered user
-            String accessToken = jwtUtils.generateAccessToken(newUser.getId().toString(), newUser.getEmail(), roleName);
+            String accessToken = jwtUtils.generateAccessToken(newUser.getId().toString(), newUser.getEmail(), "BUYER");
             String refreshToken = jwtUtils.generateRefreshToken(newUser.getId().toString());
 
             // Build auth response with tokens
             AuthResponse authResponse = AuthResponse.builder()
                     .accessToken(accessToken)
                     .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(accessTokenExpiration)
+                    .refreshExpiresIn(604800L)
                     .userId(newUser.getId())
                     .username(newUser.getUsername())
                     .email(newUser.getEmail())
-                    .role(roleName)
-                    .expiresIn(accessTokenExpiration)
+                    .phone(newUser.getPhone())
+                    .fullName(newUser.getFullName())
+                    .roles(java.util.List.of("BUYER"))
+                    .status(newUser.getStatus())
+                    .trustScore(newUser.getTrustScore())
+                    .trustTier(UserService.computeTrustTier(newUser.getTrustScore()))
+                    .role("BUYER")
                     .build();
 
             return ResponseEntity
@@ -148,7 +159,9 @@ public class AuthController {
             User newUser = authService.registerUserWithRole(
                     registerRequest.getUsername(),
                     registerRequest.getEmail(),
+                    registerRequest.getPhone(),
                     registerRequest.getPassword(),
+                    registerRequest.getFullName(),
                     "SELLER"  // Automatically assign SELLER role
             );
 
@@ -158,18 +171,26 @@ public class AuthController {
                     .orElse("SELLER");
 
             // Generate tokens for the newly registered seller
-            String accessToken = jwtUtils.generateAccessToken(newUser.getId().toString(), newUser.getEmail(), roleName);
+            String accessToken = jwtUtils.generateAccessToken(newUser.getId().toString(), newUser.getEmail(), "SELLER");
             String refreshToken = jwtUtils.generateRefreshToken(newUser.getId().toString());
 
             // Generate response
             AuthResponse authResponse = AuthResponse.builder()
                     .accessToken(accessToken)
                     .refreshToken(refreshToken)
+                    .tokenType("Bearer")
+                    .expiresIn(accessTokenExpiration)
+                    .refreshExpiresIn(604800L)
                     .userId(newUser.getId())
                     .username(newUser.getUsername())
                     .email(newUser.getEmail())
-                    .role(roleName)
-                    .expiresIn(accessTokenExpiration)
+                    .phone(newUser.getPhone())
+                    .fullName(newUser.getFullName())
+                    .roles(java.util.List.of("SELLER"))
+                    .status(newUser.getStatus())
+                    .trustScore(newUser.getTrustScore())
+                    .trustTier(UserService.computeTrustTier(newUser.getTrustScore()))
+                    .role("SELLER")
                     .build();
 
             return ResponseEntity

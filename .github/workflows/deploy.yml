@@ -536,6 +536,13 @@ jobs:
           ENVEOF
           log_ok "Production .env written with secrets"
 
+          # Also write a .env file for docker-compose ${} interpolation.
+          # Docker Compose reads .env at the project root for variable substitution.
+          # .env.production already has all non-secret vars, so just copy it.
+          log_info "Writing .env (copying from .env.production for docker-compose interpolation)..."
+          cp "${PROJECT_DIR}/.env.production" "${PROJECT_DIR}/.env"
+          log_ok ".env written for docker-compose interpolation"
+
           # Step 3: Release port 8080, then remove all old containers
           log_info "Releasing port 8080 before teardown..."
           sudo apt-get install -y psmisc lsof 2>/dev/null || true
@@ -622,7 +629,20 @@ jobs:
             exit 1
           fi
 
-          # Step 5: Pull all images
+          # Step 5: Pull all images (export vars so docker-compose can interpolate ${IMAGE_PREFIX})
+          export IMAGE_PREFIX COMPOSE_PROJECT_NAME TZ POSTGRES_VER MONGO_VER REDIS_VER KAFKA_VER \
+                 ELASTIC_VER AXON_VER SPRING_PROFILES_ACTIVE \
+                 JWT_EXPIRATION_MS JWT_REFRESH_EXPIRATION_MS \
+                 DB_NAME DB_HOST DB_NAME_PRODUCT DB_NAME_NOTIFICATION \
+                 MONGO_HOST REDIS_HOST KAFKA_SERVER AXON_SERVER \
+                 ELASTIC_URI MINIO_URL EUREKA_URI \
+                 STRIPE_PLATFORM_FEE_PERCENTAGE \
+                 MAIL_HOST MAIL_PORT MAIL_USERNAME MAIL_FROM \
+                 ES_JAVA_OPTS \
+                 JVM_OPTS_COMMON JVM_OPTS_GATEWAY JVM_OPTS_IDENTITY \
+                 JVM_OPTS_PAYMENT JVM_OPTS_ORDER JVM_OPTS_FLASHSALE \
+                 JVM_OPTS_PRODUCT JVM_OPTS_SEARCH JVM_OPTS_NOTIFICATION JVM_OPTS_WORKER \
+                 VITE_API_URL NEXT_PUBLIC_API_URL NEXT_PUBLIC_WS_URL
           log_info "Pulling all images..."
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml pull
           log_ok "Images pulled"
@@ -661,9 +681,10 @@ jobs:
           sleep 2
 
           # Step 6: Start services
+          # Non-secret vars are already exported above (Step 5). IMAGE_PREFIX is always
+          # exported. Secrets are injected via .env.production env_file for containers.
           log_info "Starting services..."
           cd "${PROJECT_DIR}"
-          export IMAGE_PREFIX
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml --env-file "${PROJECT_DIR}/.env.production" up -d
           log_ok "Services started"
 

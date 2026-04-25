@@ -1,16 +1,17 @@
 package com.flashsale.identitydomain.service;
 
 import com.flashsale.commonlib.dto.AuthResponse;
-import com.flashsale.commonlib.dto.LoginRequest;
 import com.flashsale.commonlib.security.JwtUtils;
 import com.flashsale.identitydomain.domain.model.User;
 import com.flashsale.identitydomain.domain.repository.UserRepository;
 import com.flashsale.identitydomain.domain.repository.RoleRepository;
+import com.flashsale.identitydomain.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Service
@@ -27,6 +28,9 @@ public class AuthService {
     @Value("${jwt.expiration:3600}")
     private long accessTokenExpiration;
 
+    @Value("${jwt.refresh-expiration:604800}")
+    private long refreshTokenExpiration;
+
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
@@ -35,15 +39,18 @@ public class AuthService {
         return userRepository.findByEmail(email);
     }
 
-    public User registerUser(String username, String email, String password) {
+    @Transactional
+    public User registerUser(String username, String email, String phone, String password, String fullName) {
         log.info("Registering user: {}", username);
 
         if (userRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Username already exists: " + username);
         }
-
         if (userRepository.findByEmail(email).isPresent()) {
             throw new RuntimeException("Email already exists: " + email);
+        }
+        if (phone != null && !phone.isBlank() && userRepository.findByPhone(phone).isPresent()) {
+            throw new RuntimeException("Phone already exists: " + phone);
         }
 
         String hashedPassword = passwordEncoder.encode(password);
@@ -51,20 +58,30 @@ public class AuthService {
         User user = User.builder()
                 .username(username)
                 .email(email)
+                .phone(phone)
                 .password(hashedPassword)
+                .fullName(fullName)
                 .status("ACTIVE")
                 .trustScore(80)
                 .build();
 
-        return userRepository.save(user);
+        user = userRepository.save(user);
+
+        com.flashsale.identitydomain.domain.model.Role role = com.flashsale.identitydomain.domain.model.Role.builder()
+                .userId(user.getId())
+                .roleName("BUYER")
+                .build();
+        roleRepository.save(role);
+
+        return user;
     }
 
-    public User registerUserWithRole(String username, String email, String password, String roleParam) {
+    @Transactional
+    public User registerUserWithRole(String username, String email, String phone, String password, String fullName, String roleParam) {
         log.info("Registering user: {} with role: {}", username, roleParam);
 
-        User user = registerUser(username, email, password);
+        User user = registerUser(username, email, phone, password, fullName);
 
-        // Create role entry in roles table
         String assignedRole = (roleParam != null && !roleParam.isEmpty()) ? roleParam : "BUYER";
         com.flashsale.identitydomain.domain.model.Role role = com.flashsale.identitydomain.domain.model.Role.builder()
                 .userId(user.getId())
@@ -75,36 +92,28 @@ public class AuthService {
         return user;
     }
 
+    public AuthResponse authenticateUser(String credential, String password, String domain) {
+        log.info("Attempting to authenticate user: {} from domain: {}", credential, domain);
 
-
-    /**
-     * Authenticate user with domain detection
-     * Seller domain -> SELLER role
-     * Admin domain -> ADMIN role
-     * Other -> use role from roles table or BUYER
-     */
-    public AuthResponse authenticateUser(LoginRequest loginRequest, String domain) {
-        log.info("Attempting to authenticate user: {} from domain: {}", loginRequest.getUsername(), domain);
-
-        User user = userRepository.findByUsername(loginRequest.getUsername())
-                .or(() -> userRepository.findByEmail(loginRequest.getUsername()))
+        User user = userRepository.findByUsername(credential)
+                .or(() -> userRepository.findByEmail(credential))
+                .or(() -> userRepository.findByPhone(credential))
                 .orElseThrow(() -> new RuntimeException("Invalid username or password"));
 
         if (!"ACTIVE".equals(user.getStatus())) {
             throw new RuntimeException("Account is " + user.getStatus());
         }
 
-        if (!validatePassword(loginRequest.getPassword(), user.getPassword())) {
+        if (!validatePassword(password, user.getPassword())) {
             throw new RuntimeException("Invalid username or password");
         }
 
-        // Fetch role from roles table
         String dbRole = roleRepository.findByUserId(user.getId())
                 .map(role -> role.getRoleName())
                 .orElse("BUYER");
 
-        // Determine role based on domain
         String roleName = determineRoleFromDomain(domain, dbRole);
+        String trustTier = UserService.computeTrustTier(user.getTrustScore());
 
         String accessToken = jwtUtils.generateAccessToken(
                 user.getId().toString(),
@@ -119,21 +128,22 @@ public class AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(accessTokenExpiration)
+                .refreshExpiresIn(refreshTokenExpiration)
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .phone(user.getPhone())
+                .fullName(user.getFullName())
+                .roles(java.util.List.of(roleName))
+                .status(user.getStatus())
+                .trustScore(user.getTrustScore())
+                .trustTier(trustTier)
                 .role(roleName)
-                .expiresIn(accessTokenExpiration)
                 .build();
     }
 
-    /**
-     * Determine role based on domain
-     * seller.* domain -> SELLER
-     * admin.* domain -> ADMIN
-     * customer/app domain -> BUYER
-     * other -> user's existing role or BUYER
-     */
     private String determineRoleFromDomain(String domain, String userRole) {
         if (domain == null || domain.isEmpty()) {
             return (userRole != null && !userRole.isEmpty()) ? userRole : "BUYER";
@@ -171,10 +181,11 @@ public class AuthService {
         User user = userRepository.findById(Long.parseLong(userId))
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Fetch role from roles table using user ID
         String roleName = roleRepository.findByUserId(user.getId())
                 .map(role -> role.getRoleName())
-                .orElse("BUYER"); // Default to BUYER if no role found
+                .orElse("BUYER");
+
+        String trustTier = UserService.computeTrustTier(user.getTrustScore());
 
         String newAccessToken = jwtUtils.generateAccessToken(
                 user.getId().toString(),
@@ -182,16 +193,23 @@ public class AuthService {
                 roleName
         );
 
+        String newRefreshToken = jwtUtils.generateRefreshToken(user.getId().toString());
+
         log.info("Access token refreshed for user: {}", user.getUsername());
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .expiresIn(accessTokenExpiration)
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .roles(java.util.List.of(roleName))
+                .status(user.getStatus())
+                .trustScore(user.getTrustScore())
+                .trustTier(trustTier)
                 .role(roleName)
-                .expiresIn(accessTokenExpiration)
                 .build();
     }
 
