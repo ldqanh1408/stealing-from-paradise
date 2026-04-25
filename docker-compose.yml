@@ -472,8 +472,12 @@ services:
     restart: unless-stopped
     ports: ["${PORT_CUSTOMER:-3000}:3000"]
     env_file: .env
+    # Don't duplicate VITE_API_URL here — env_file already provides it.
+    # Adding `- VITE_API_URL=${VITE_API_URL:-/api/v1}` here triggers compose's
+    # variable substitution with a context that may contain the literal "${...}"
+    # from .env, producing a literal "${VITE_API_URL:-/api/v1}" in container env,
+    # which Vite's dotenv-expand then mangles into "/api/v1/api/v1".
     environment:
-      - VITE_API_URL=${VITE_API_URL:-/api/v1}
       - VITE_BACKEND_MODE=real
       - NODE_ENV=development
       - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
@@ -493,8 +497,8 @@ services:
     restart: unless-stopped
     ports: ["${PORT_SELLER:-3001}:3001"]
     env_file: .env
+    # See customer-app for why VITE_API_URL is intentionally NOT in environment:
     environment:
-      - VITE_API_URL=${VITE_API_URL:-/api/v1}
       - VITE_BACKEND_MODE=real
       - NODE_ENV=development
       - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
@@ -514,8 +518,8 @@ services:
     restart: unless-stopped
     ports: ["${PORT_ADMIN:-3002}:3002"]
     env_file: .env
+    # See customer-app for why VITE_API_URL is intentionally NOT in environment:
     environment:
-      - VITE_API_URL=${VITE_API_URL:-/api/v1}
       - VITE_BACKEND_MODE=real
       - NODE_ENV=development
       - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
