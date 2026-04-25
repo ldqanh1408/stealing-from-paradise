@@ -30,6 +30,9 @@ export const authApi = {
   register: (body: RegisterRequest) =>
     apiClient.post<ApiResponse<AuthResponse>>('/auth/register', body),
 
+  registerSeller: (body: RegisterRequest) =>
+    apiClient.post<ApiResponse<AuthResponse>>('/auth/register/seller', body),
+
   logout: () =>
     apiClient.post<ApiResponse<void>>('/auth/logout'),
 

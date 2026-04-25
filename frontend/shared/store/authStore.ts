@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import Cookies from 'js-cookie';
-import apiClient from '../lib/axios';
 import { authApi, type RegisterRequest } from '../api/auth.api';
-import type { ApiResponse } from '../types/api';
-import type { AuthResponse } from '../api/auth.api';
 
 export interface AuthUser {
   userId: number;
@@ -16,17 +13,27 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (req: RegisterRequest) => Promise<void>;
   registerSeller: (req: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
+  setHydrated: () => void;
+}
+
+/** Derives auth state from the accessToken cookie synchronously.
+ *  This avoids the race condition where persist-hydration is slow and
+ *  PrivateRoute sees isAuthenticated=false before state is restored. */
+export function isAuthFromCookie(): boolean {
+  return !!Cookies.get('accessToken');
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
+      _hasHydrated: false,
 
       login: async (username, password) => {
         const { data } = await authApi.login({ username, password });
@@ -55,10 +62,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       registerSeller: async (req) => {
-        const { data } = await apiClient.post<ApiResponse<AuthResponse>>(
-          '/auth/register/seller',
-          req
-        );
+        const { data } = await authApi.registerSeller(req);
         const auth = data.data!;
         Cookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'strict' });
         if (auth.refreshToken) {
@@ -76,11 +80,21 @@ export const useAuthStore = create<AuthState>()(
         Cookies.remove('refreshToken');
         set({ user: null, isAuthenticated: false });
       },
+
+      setHydrated: () => set({ _hasHydrated: true }),
     }),
     {
       name: 'auth-store',
       storage: createJSONStorage(() => sessionStorage),
-      partialize: (s) => ({ user: s.user, isAuthenticated: s.isAuthenticated }),
+      partialize: (s) => ({ user: s.user }),
+      onRehydrateStorage: () => (state) => {
+        // After persist rehydrates, sync isAuthenticated from the cookie
+        // so PrivateRoute always sees the correct value.
+        if (state) {
+          state.isAuthenticated = isAuthFromCookie();
+          state.setHydrated();
+        }
+      },
     }
   )
 );

@@ -5,10 +5,15 @@ import com.flashsale.commonlib.event.payload.ProductApprovedPayload;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.productdomain.domain.model.Product;
+import com.flashsale.productdomain.domain.model.ProductVariant;
+import com.flashsale.productdomain.domain.repository.CategoryRepository;
+import com.flashsale.productdomain.domain.repository.InventoryRepository;
 import com.flashsale.productdomain.domain.repository.ProductRepository;
+import com.flashsale.productdomain.domain.repository.ProductVariantRepository;
 import com.flashsale.productdomain.dto.request.AdminApproveRequest;
 import com.flashsale.productdomain.dto.request.AdminRejectRequest;
 import com.flashsale.productdomain.dto.response.ProductResponse;
+import com.flashsale.productdomain.dto.response.VariantResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,7 +22,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,24 +32,26 @@ import java.util.Map;
 public class AdminProductService {
 
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
+    private final ProductVariantRepository variantRepository;
+    private final InventoryRepository inventoryRepository;
     private final KafkaProducerService kafkaProducer;
 
     public Page<ProductResponse> getPendingProducts(String categoryId, Long sellerId, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
 
         if (categoryId != null && sellerId != null) {
-            // Both filters - use compound query via custom method
             return productRepository.findByStatusAndCategoryIdAndDeletedAtIsNull("PENDING", categoryId, pageable)
-                    .map(ProductResponse::from);
+                    .map(this::enrichResponse);
         } else if (categoryId != null) {
             return productRepository.findByStatusAndCategoryIdAndDeletedAtIsNull("PENDING", categoryId, pageable)
-                    .map(ProductResponse::from);
+                    .map(this::enrichResponse);
         } else if (sellerId != null) {
             return productRepository.findByStatusAndSellerIdAndDeletedAtIsNull("PENDING", sellerId, pageable)
-                    .map(ProductResponse::from);
+                    .map(this::enrichResponse);
         } else {
             return productRepository.findByStatusAndDeletedAtIsNull("PENDING", pageable)
-                    .map(ProductResponse::from);
+                    .map(this::enrichResponse);
         }
     }
 
@@ -60,7 +69,7 @@ public class AdminProductService {
         product = productRepository.save(product);
 
         publishProductApproved(product, req.getNote());
-        return ProductResponse.from(product);
+        return enrichResponse(product);
     }
 
     public ProductResponse rejectProduct(String productId, AdminRejectRequest req) {
@@ -77,7 +86,57 @@ public class AdminProductService {
         product = productRepository.save(product);
 
         publishProductRejected(product, req.getReason(), req.getNote());
-        return ProductResponse.from(product);
+        return enrichResponse(product);
+    }
+
+    /** Enriches a Product with category name and variants. */
+    private ProductResponse enrichResponse(Product p) {
+        String categoryName = null;
+        if (p.getCategoryId() != null) {
+            categoryName = categoryRepository.findById(p.getCategoryId())
+                    .map(c -> c.getName()).orElse(null);
+        }
+
+        List<ProductVariant> variants = variantRepository.findByProductId(p.getId());
+
+        Long price = null;
+        Long originalPrice = null;
+        if (!variants.isEmpty()) {
+            price = variants.get(0).getPrice().longValue();
+            originalPrice = price;
+        }
+
+        List<VariantResponse> variantResponses = variants.stream()
+                .map(v -> VariantResponse.builder()
+                        .variantId(v.getId())
+                        .productId(v.getProductId())
+                        .skuCode(v.getSkuCode())
+                        .tierName(v.getTierName())
+                        .price(v.getPrice())
+                        .createdAt(v.getCreatedAt())
+                        .updatedAt(v.getUpdatedAt())
+                        .build())
+                .toList();
+
+        return ProductResponse.builder()
+                .productId(p.getId())
+                .sellerId(p.getSellerId())
+                .name(p.getName())
+                .description(p.getDescription())
+                .categoryId(p.getCategoryId())
+                .categoryName(categoryName)
+                .attributes(p.getAttributes())
+                .images(p.getImages())
+                .isFlash(p.getIsFlash())
+                .status(p.getStatus())
+                .rejectReason(p.getRejectReason())
+                .stockAvailable(p.getStockAvailable())
+                .price(price)
+                .originalPrice(originalPrice)
+                .variants(variantResponses)
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build();
     }
 
     // ─── Kafka events ─────────────────────────────────────────────────────────

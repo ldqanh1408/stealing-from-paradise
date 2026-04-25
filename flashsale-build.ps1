@@ -341,15 +341,37 @@ ACTIONS
   Example:  .\flashsale-build.ps1 svc-up gateway
   Example:  .\flashsale-build.ps1 svc-build payment
 
-  [ STOP ]
+  [ PER-SERVICE OPS - Restart / Reset / Shell ]
+  ---------------------------------------------------------------------------
+  restart <target>    Restart ONE container without rebuild (fast, picks up
+                      env changes only). Target can be a service, app, or
+                      group: be | fe | infra | all.
+
+  reset <target>      Stop + remove + REBUILD + start. Use when source code
+                      changed and you want a fresh container. Target can be
+                      a single service/app, or 'be' / 'fe' for groups.
+
+  shell <service>     Open an interactive bash/sh shell inside a running
+                      container. Type 'exit' to leave.
+
+  fe-down [<app>]     Stop one or all frontend apps. Default = all.
+                      <app> = customer | seller | admin | all
+
+  Example:  .\flashsale-build.ps1 restart gateway
+  Example:  .\flashsale-build.ps1 reset customer
+  Example:  .\flashsale-build.ps1 shell postgres
+  Example:  .\flashsale-build.ps1 fe-down seller
+
+  [ STOP / DOWN ]
   ---------------------------------------------------------------------------
   stop <mode>         Stop and remove containers for a specific mode.
                       Removes containers but keeps volumes (data persists).
+  down <mode>         Alias for `stop`.
 
   <mode> = infra | be | fe | dev | prod | all
 
   Example:  .\flashsale-build.ps1 stop dev
-  Example:  .\flashsale-build.ps1 stop all
+  Example:  .\flashsale-build.ps1 down all
 
   [ LOGS ]
   ---------------------------------------------------------------------------
@@ -542,10 +564,15 @@ function Invoke-NpmInstall {
         $targetPath = Join-Path $ProjectRoot "frontend" "shared"
         Write-Host "[flashsale-build] npm install for: shared"
         Push-Location $targetPath
-        try
-            { npm install
-            if ($LASTEXITCODE -ne 0) { Write-Error "[flashsale-build] npm install FAILED."; exit 1 }
-        } finally { Pop-Location }
+        try {
+            npm install
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "[flashsale-build] npm install FAILED."
+                exit 1
+            }
+        } finally {
+            Pop-Location
+        }
     } else {
         # Install for all: shared first, then each app
         $sharedPath = Join-Path $ProjectRoot "frontend" "shared"
@@ -1147,6 +1174,149 @@ function Invoke-SvcRm {
 }
 
 # ============================================================
+# [RESTART] Restart a single service (without rebuild)
+# ============================================================
+function Invoke-Restart {
+    param([string]$Service)
+
+    if (-not $Service) {
+        Write-Error "[flashsale-build] restart requires a service name."
+        Write-Host "Valid: any backend service, frontend app, or 'all', 'be', 'fe', 'infra'"
+        exit 1
+    }
+
+    $lower = $Service.ToLower()
+    if ($lower -eq "all") {
+        Write-Host "[flashsale-build] Restarting ALL containers..."
+        Invoke-DockerCompose @("restart")
+        return
+    }
+
+    if ($lower -eq "be") {
+        Write-Host "[flashsale-build] Restarting backend services..."
+        Invoke-DockerCompose @("restart", "discovery-service", "api-gateway", "identity-service",
+            "payment-service", "order-service", "flashsale-service", "product-service",
+            "search-service", "notification-service", "worker-service")
+        return
+    }
+
+    if ($lower -eq "fe") {
+        Write-Host "[flashsale-build] Restarting frontend apps..."
+        Invoke-DockerCompose @("restart", "customer-app", "seller-app", "admin-app")
+        return
+    }
+
+    if ($lower -eq "infra") {
+        Write-Host "[flashsale-build] Restarting infrastructure..."
+        Invoke-DockerCompose @("restart", "postgres", "mongo", "redis", "kafka",
+            "elasticsearch", "minio", "axonserver")
+        return
+    }
+
+    $containerName = Get-ServiceContainerName $Service
+    Write-Host "[flashsale-build] Restarting: $containerName"
+    Invoke-DockerCompose @("restart", $containerName)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[flashsale-build] Failed to restart '$containerName'."
+        exit 1
+    }
+    Write-Host "[flashsale-build] '$containerName' restarted."
+}
+
+# ============================================================
+# [RESET] Stop + remove + rebuild + start a single service/app
+# ============================================================
+function Invoke-Reset {
+    param([string]$Service)
+
+    if (-not $Service) {
+        Write-Error "[flashsale-build] reset requires a service name."
+        Write-Host "Valid: any backend service, frontend app, or 'fe', 'be'"
+        exit 1
+    }
+
+    $lower = $Service.ToLower()
+
+    if ($lower -eq "fe") {
+        Write-Host "[flashsale-build] Resetting frontend apps (rebuild + restart)..."
+        Invoke-DockerCompose @("rm", "-s", "-f", "--", "customer-app", "seller-app", "admin-app")
+        Invoke-DockerCompose @("up", "-d", "--build", "--force-recreate",
+            "customer-app", "seller-app", "admin-app")
+        return
+    }
+
+    if ($lower -eq "be") {
+        Write-Host "[flashsale-build] Resetting backend services (rebuild + restart)..."
+        $beServices = @("discovery-service", "api-gateway", "identity-service",
+            "payment-service", "order-service", "flashsale-service", "product-service",
+            "search-service", "notification-service", "worker-service")
+        Invoke-DockerCompose (@("rm", "-s", "-f", "--") + $beServices)
+        Invoke-DockerCompose (@("up", "-d", "--build", "--force-recreate") + $beServices)
+        return
+    }
+
+    $containerName = Get-ServiceContainerName $Service
+    Write-Host "[flashsale-build] Resetting: $containerName (stop + remove + rebuild + start)"
+    Invoke-DockerCompose @("rm", "-s", "-f", "--", $containerName)
+    Invoke-DockerCompose @("up", "-d", "--build", "--force-recreate", $containerName)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[flashsale-build] Failed to reset '$containerName'."
+        exit 1
+    }
+    Write-Host "[flashsale-build] '$containerName' reset complete."
+}
+
+# ============================================================
+# [SHELL] Exec into a running container (for debugging)
+# ============================================================
+function Invoke-Shell {
+    param([string]$Service)
+
+    if (-not $Service) {
+        Write-Error "[flashsale-build] shell requires a service name."
+        exit 1
+    }
+
+    $containerName = Get-ServiceContainerName $Service
+    Write-Host "[flashsale-build] Opening shell in: $containerName"
+    Write-Host "(Type 'exit' to leave the container)"
+    Write-Host ""
+    # Try bash first, fall back to sh
+    docker exec -it $containerName /bin/bash 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        docker exec -it $containerName /bin/sh
+    }
+}
+
+# ============================================================
+# [FE-DOWN] Stop one or all frontend apps
+# ============================================================
+function Stop-Frontend {
+    param([string]$App)
+
+    if (-not $App -or $App.ToLower() -eq "all") {
+        Write-Host "[flashsale-build] Stopping ALL frontend apps..."
+        Invoke-DockerCompose @("rm", "-s", "-f", "--", "customer-app", "seller-app", "admin-app")
+        Write-Host "[flashsale-build] All frontend apps stopped."
+        return
+    }
+
+    $appContainerMap = @{
+        "customer" = "customer-app"
+        "seller"   = "seller-app"
+        "admin"    = "admin-app"
+    }
+    $containerName = $appContainerMap[$App.ToLower()]
+    if (-not $containerName) {
+        Write-Error "[flashsale-build] Unknown frontend app: '$App'. Valid: customer, seller, admin, all"
+        exit 1
+    }
+    Write-Host "[flashsale-build] Stopping frontend: $containerName"
+    Invoke-DockerCompose @("rm", "-s", "-f", "--", $containerName)
+    Write-Host "[flashsale-build] '$containerName' stopped."
+}
+
+# ============================================================
 # [MAIN] - Entry point
 # ============================================================
 function Main {
@@ -1301,10 +1471,30 @@ function Main {
             Invoke-SvcRm -Service $Target
         }
 
-        # ---- STOP ----
-        "stop" {
+        # ---- RESTART (no rebuild) ----
+        "restart" {
+            Invoke-Restart -Service $Target
+        }
+
+        # ---- RESET (stop + rebuild + start) ----
+        "reset" {
+            Invoke-Reset -Service $Target
+        }
+
+        # ---- SHELL (exec into container) ----
+        "shell" {
+            Invoke-Shell -Service $Target
+        }
+
+        # ---- FE-DOWN (stop one frontend app) ----
+        "fe-down" {
+            Stop-Frontend -App $Target
+        }
+
+        # ---- STOP / DOWN ----
+        { $_ -in "stop", "down" } {
             if (-not $Target) {
-                Write-Error "[flashsale-build] stop requires a mode."
+                Write-Error "[flashsale-build] $Action requires a mode."
                 Write-Host "Valid modes: infra | be | fe | dev | prod | all"
                 exit 1
             }

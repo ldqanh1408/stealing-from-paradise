@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, isAuthFromCookie } from '../store/authStore';
 
 export interface NavLink {
   label: string;
@@ -15,7 +15,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ appName, links = [], authLinks = [] }: NavbarProps) {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -27,7 +27,8 @@ export default function Navbar({ appName, links = [], authLinks = [] }: NavbarPr
     navigate('/login');
   };
 
-  const visibleLinks = isAuthenticated ? [...links, ...authLinks] : links;
+  const authed = isAuthFromCookie();
+  const visibleLinks = authed ? [...links, ...authLinks] : links;
   const isActive = (to: string) => location.pathname === to;
 
   return (
@@ -63,7 +64,7 @@ export default function Navbar({ appName, links = [], authLinks = [] }: NavbarPr
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            {isAuthenticated && user ? (
+            {authed && user ? (
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}

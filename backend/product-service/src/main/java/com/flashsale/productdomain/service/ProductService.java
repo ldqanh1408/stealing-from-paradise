@@ -5,22 +5,28 @@ import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.productdomain.domain.model.Category;
 import com.flashsale.productdomain.domain.model.Product;
+import com.flashsale.productdomain.domain.model.ProductVariant;
 import com.flashsale.productdomain.domain.repository.CategoryRepository;
 import com.flashsale.productdomain.domain.repository.ProductRepository;
+import com.flashsale.productdomain.domain.repository.ProductVariantRepository;
 import com.flashsale.productdomain.dto.request.CreateProductRequest;
 import com.flashsale.productdomain.dto.request.UpdateProductRequest;
 import com.flashsale.productdomain.dto.response.ProductResponse;
+import com.flashsale.productdomain.dto.response.VariantResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +42,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final ProductVariantRepository variantRepository;
     private final KafkaProducerService kafkaProducer;
 
     // ─── Create ───────────────────────────────────────────────────────────────
@@ -65,7 +72,7 @@ public class ProductService {
         product = productRepository.save(product);
 
         publishProductCreated(product);
-        return ProductResponse.from(product);
+        return enrichResponse(product);
     }
 
     // ─── Update ───────────────────────────────────────────────────────────────
@@ -92,7 +99,7 @@ public class ProductService {
 
         product = productRepository.save(product);
         publishProductUpdated(product);
-        return ProductResponse.from(product);
+        return enrichResponse(product);
     }
 
     // ─── Soft Delete ──────────────────────────────────────────────────────────
@@ -117,7 +124,86 @@ public class ProductService {
     public ProductResponse getProduct(String productId) {
         Product product = productRepository.findByIdAndDeletedAtIsNull(productId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại"));
-        return ProductResponse.from(product);
+        return enrichResponse(product);
+    }
+
+    // ─── Public Product Listing ───────────────────────────────────────────────
+
+    public Page<ProductResponse> getProducts(String category, String search, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Product> result;
+
+        boolean hasCategory = category != null && !category.isBlank();
+        boolean hasSearch = search != null && !search.isBlank();
+
+        if (hasCategory && hasSearch) {
+            String keyword = "%" + search.toLowerCase() + "%";
+            result = productRepository.findPublishedByCategoryAndNameContaining(
+                    category, keyword, pageable);
+        } else if (hasCategory) {
+            result = productRepository.findByStatusAndCategoryIdAndDeletedAtIsNull(
+                    "PUBLISHED", category, pageable);
+        } else if (hasSearch) {
+            String keyword = "%" + search.toLowerCase() + "%";
+            result = productRepository.findPublishedByNameContaining(keyword, pageable);
+        } else {
+            result = productRepository.findByStatusAndDeletedAtIsNull("PUBLISHED", pageable);
+        }
+
+        return result.map(this::enrichResponse);
+    }
+
+    /** Enriches a Product with category name and variants. */
+    private ProductResponse enrichResponse(Product p) {
+        String categoryName = null;
+        String categorySlug = null;
+        if (p.getCategoryId() != null) {
+            Optional<Category> cat = categoryRepository.findById(p.getCategoryId());
+            categoryName = cat.map(Category::getName).orElse(null);
+            categorySlug = cat.map(Category::getSlug).orElse(null);
+        }
+
+        List<ProductVariant> variants = variantRepository.findByProductId(p.getId());
+
+        Long price = null;
+        Long originalPrice = null;
+        if (!variants.isEmpty()) {
+            price = variants.get(0).getPrice().longValue();
+            originalPrice = price;
+        }
+
+        List<VariantResponse> variantResponses = variants.stream()
+                .map(v -> VariantResponse.builder()
+                        .variantId(v.getId())
+                        .productId(v.getProductId())
+                        .skuCode(v.getSkuCode())
+                        .tierName(v.getTierName())
+                        .price(v.getPrice())
+                        .createdAt(v.getCreatedAt())
+                        .updatedAt(v.getUpdatedAt())
+                        .build())
+                .toList();
+
+        return ProductResponse.builder()
+                .productId(p.getId())
+                .sellerId(p.getSellerId())
+                .name(p.getName())
+                .description(p.getDescription())
+                .categoryId(p.getCategoryId())
+                .categoryName(categoryName)
+                .categorySlug(categorySlug)
+                .attributes(p.getAttributes())
+                .images(p.getImages())
+                .isFlash(p.getIsFlash())
+                .status(p.getStatus())
+                .rejectReason(p.getRejectReason())
+                .stockAvailable(p.getStockAvailable())
+                .price(price)
+                .originalPrice(originalPrice)
+                .variants(variantResponses)
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build();
     }
 
     // ─── Seller List ──────────────────────────────────────────────────────────
@@ -125,7 +211,7 @@ public class ProductService {
     public Page<ProductResponse> getSellerProducts(Long sellerId, int page, int size) {
         return productRepository.findBySellerIdAndDeletedAtIsNull(
                         sellerId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
-                .map(ProductResponse::from);
+                .map(this::enrichResponse);
     }
 
     // ─── Submit for Review ────────────────────────────────────────────────────
@@ -144,7 +230,7 @@ public class ProductService {
         product = productRepository.save(product);
 
         publishProductPendingReview(product);
-        return ProductResponse.from(product);
+        return enrichResponse(product);
     }
 
     // ─── Publish / Unpublish ──────────────────────────────────────────────────
@@ -162,7 +248,7 @@ public class ProductService {
         product.setStatus("PUBLISHED");
         product = productRepository.save(product);
         publishProductUpdated(product);
-        return ProductResponse.from(product);
+        return enrichResponse(product);
     }
 
     public ProductResponse unpublishProduct(String productId, Long sellerId) {
@@ -178,7 +264,7 @@ public class ProductService {
         product.setStatus("UNPUBLISHED");
         product = productRepository.save(product);
         publishProductUpdated(product);
-        return ProductResponse.from(product);
+        return enrichResponse(product);
     }
 
     // ─── Kafka Consumer ───────────────────────────────────────────────────────

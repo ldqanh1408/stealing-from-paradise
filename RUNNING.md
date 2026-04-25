@@ -184,7 +184,7 @@ Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `
 .\flashsale-build.ps1 svc-rm payment     # Remove payment container
 ```
 
-### 4.6 Stop Commands
+### 4.6 Stop / Down Commands
 
 | Action | Description |
 |--------|-------------|
@@ -194,8 +194,48 @@ Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `
 | `stop dev` | Stop dev stack |
 | `stop prod` | Stop prod stack |
 | `stop all` | Stop ALL containers (keeps volumes) |
+| `down <mode>` | Alias for `stop <mode>` (giống hệt) |
 
-### 4.7 Utility Commands
+### 4.7 Per-Service Operations (NEW)
+
+Các lệnh per-service để control 1 container riêng lẻ trong khi dev:
+
+| Action | Description |
+|--------|-------------|
+| `restart <target>` | Restart container KHÔNG rebuild (nhanh, chỉ apply env changes) |
+| `reset <target>` | Stop + remove + REBUILD + start (dùng khi đổi source code) |
+| `shell <service>` | Mở interactive bash/sh shell trong container đang chạy |
+| `fe-down [<app>]` | Stop 1 hoặc tất cả frontend apps |
+
+`<target>` có thể là:
+- Tên service: `gateway`, `order`, `customer`, ...
+- Group alias: `be` (toàn bộ backend), `fe` (toàn bộ frontend), `infra`, `all`
+
+```powershell
+# Restart 1 service (giữ nguyên image, apply env mới nếu có)
+.\flashsale-build.ps1 restart gateway
+.\flashsale-build.ps1 restart fe                  # restart cả 3 FE apps
+.\flashsale-build.ps1 restart all                 # restart toàn bộ
+
+# Reset 1 service (rebuild image + restart container)
+.\flashsale-build.ps1 reset customer              # rebuild customer-app
+.\flashsale-build.ps1 reset be                    # rebuild + restart toàn bộ backend
+
+# Mở shell vào container để debug
+.\flashsale-build.ps1 shell postgres              # bash vào postgres
+.\flashsale-build.ps1 shell gateway               # bash/sh vào api-gateway
+.\flashsale-build.ps1 shell redis                 # vào redis (sh only)
+
+# Stop frontend riêng lẻ
+.\flashsale-build.ps1 fe-down seller              # chỉ stop seller-app
+.\flashsale-build.ps1 fe-down                     # stop tất cả FE
+```
+
+**Khác biệt giữa `restart` và `reset`:**
+- `restart` chỉ stop+start container (giữ nguyên image). Dùng khi đổi env vars hoặc cần "đá" container.
+- `reset` rebuild image rồi recreate container. Dùng khi đổi source code hoặc Dockerfile.
+
+### 4.8 Utility Commands
 
 | Action | Description |
 |--------|-------------|
@@ -270,13 +310,15 @@ Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `
 
 # After code changes:
 # Backend code changed:
-.\flashsale-build.ps1 mvn-all          # Rebuild JARs
-.\flashsale-build.ps1 stop be            # Stop backend
-.\flashsale-build.ps1 be-dev            # Restart backend
+.\flashsale-build.ps1 mvn <service>     # Rebuild JAR cho service đó
+.\flashsale-build.ps1 reset <service>   # Stop + rebuild + restart container
 
 # Frontend code changed:
 # No rebuild needed — hot-reload via volumes
 # Just refresh the browser
+
+# Chỉ đổi env vars (không đổi code):
+.\flashsale-build.ps1 restart gateway   # apply env mới, không rebuild
 
 # Full reset:
 .\flashsale-build.ps1 stop all
@@ -318,6 +360,67 @@ mvn spring-boot:run -pl identity-service
 # Then test via gateway:
 curl http://localhost:8080/api/v1/orders/...
 ```
+
+### 6.5 Per-Service Iteration (NEW)
+
+Workflow nhanh nhất để iterate trên 1 service:
+
+```powershell
+# 1. Đổi source code của order-service
+# 2. Rebuild JAR
+.\flashsale-build.ps1 mvn order
+
+# 3. Reset container (bao gồm rebuild image + restart)
+.\flashsale-build.ps1 reset order
+
+# 4. Tail log để verify
+.\flashsale-build.ps1 logs order
+```
+
+**Khi service không healthy / hành xử lạ**:
+```powershell
+# Mở shell vào container để debug
+.\flashsale-build.ps1 shell gateway
+# Trong container:
+ps aux               # check Java process
+cat /app/app.jar     # verify file
+exit
+```
+
+**Khi đổi config trong .env (không cần rebuild)**:
+```powershell
+.\flashsale-build.ps1 restart be       # restart toàn bộ backend, apply env mới
+# hoặc 1 service:
+.\flashsale-build.ps1 restart payment
+```
+
+**Khi frontend stuck cache cũ**:
+```powershell
+.\flashsale-build.ps1 reset customer    # rebuild image, recreate container
+# Plus hard refresh browser: Ctrl + Shift + R
+```
+
+### 6.6 Frontend-Only Development (mock mode, no backend)
+
+```powershell
+# Cách 1: Vite dev server trực tiếp trên host (recommended cho UI work)
+.\flashsale-build.ps1 fe-dev customer
+# Mở http://localhost:3000 — dùng mock data, hot-reload
+
+# Cách 2: Tất cả 3 apps cùng lúc trong 3 cửa sổ
+.\flashsale-build.ps1 fe-dev-all
+
+# Cách 3: Qua Docker (nếu muốn isolate)
+.\flashsale-build.ps1 fe-docker-all
+
+# Stop chỉ 1 frontend app
+.\flashsale-build.ps1 fe-down seller
+
+# Stop tất cả frontend (giữ backend + infra chạy)
+.\flashsale-build.ps1 fe-down
+```
+
+`fe-dev` tự động ghi `.env.local` với `VITE_BACKEND_MODE=mock`, axios sẽ trả mock data thay vì gọi backend thật.
 
 ---
 
@@ -508,8 +611,9 @@ Update `.env` and restart payment-service:
 
 ```powershell
 # Edit .env: STRIPE_WEBHOOK_SECRET=whsec_xxx
-.\flashsale-build.ps1 svc-rm payment
-.\flashsale-build.ps1 svc-up payment
+.\flashsale-build.ps1 restart payment    # apply env mới, không rebuild
+# hoặc nếu muốn rebuild:
+.\flashsale-build.ps1 reset payment
 ```
 
 ### Production
@@ -595,9 +699,42 @@ mvn clean install -DskipTests
 
 ---
 
+## Test Verification
+
+Tất cả lệnh trong `flashsale-build.ps1` đã được test trên Windows PowerShell 5.1:
+
+| Lệnh | Status |
+|------|--------|
+| Syntax check (PowerShell parser) | ✅ Pass |
+| `help` | ✅ Hiện help đầy đủ với lệnh mới |
+| `ps` / `status` | ✅ List containers chạy |
+| `mvn` (no target) | ✅ Error có usage hint |
+| `npm` (no target) | ✅ Error có usage hint |
+| `svc-build` (no target) | ✅ Error |
+| `restart` (no target) | ✅ Error có usage hint |
+| `reset` (no target) | ✅ Error có usage hint |
+| `shell` (no target) | ✅ Error |
+| `stop` (no target) | ✅ Error |
+| `down` (no target) | ✅ Error (alias works) |
+| `fe-down nonexistent` | ✅ Error với valid options |
+| Unknown action | ✅ Error → suggest `help` |
+
+Tự test trên máy bạn:
+```powershell
+.\flashsale-build.ps1 help          # show full help
+.\flashsale-build.ps1 ps            # list containers
+.\flashsale-build.ps1 unknown       # phải hiện error
+.\flashsale-build.ps1 restart       # phải hiện usage error
+```
+
+---
+
 ## Related Documents
 
 - [DEPLOY.md](DEPLOY.md) — Deployment guide (CD, server setup, GitHub Actions)
+- [docs/deployment-architecture.md](docs/deployment-architecture.md) — Production architecture với ASCII diagrams
+- [docs/spring-profiles-explained.md](docs/spring-profiles-explained.md) — Cách Spring profiles (`-dev`, `-prod`) hoạt động
+- [docs/deployment-port-8080-fix.md](docs/deployment-port-8080-fix.md) — Lịch sử fix bug port 8080
 - [docs/00_INDEX.md](docs/00_INDEX.md) — Documentation index
 - [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) — Project architecture
 - [docs/02_API.md](docs/02_API.md) — API specification
