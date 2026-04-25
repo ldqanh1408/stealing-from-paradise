@@ -657,13 +657,13 @@ jobs:
           echo "║  Tag:       ${IMAGE_TAG}"
           echo "║  Commit:    ${GITHUB_SHA:-local}"
           echo '╠══════════════════════════════════════════════════════════╣'
-          echo "║  API Gateway:  http://${SERVER_IP}:8080"
-          echo "║  Customer:     http://${SERVER_IP}:3000"
-          echo "║  Seller:       http://${SERVER_IP}:3001"
-          echo "║  Admin:        http://${SERVER_IP}:3002"
-          echo "║  Reverse Proxy: http://${SERVER_IP}"
-          echo "║  Eureka:       http://${SERVER_IP}:8761"
-          echo "║  Swagger:      http://${SERVER_IP}:8080/swagger-ui.html"
+          echo "║  Public entry (nginx):  http://${SERVER_IP}/"
+          echo "║    └─ Customer:         http://${SERVER_IP}/"
+          echo "║    └─ Seller:           http://${SERVER_IP}/seller/"
+          echo "║    └─ Admin:            http://${SERVER_IP}/admin/"
+          echo "║    └─ API Gateway:      http://${SERVER_IP}/api/"
+          echo "║  Eureka (internal):     http://${SERVER_IP}:8761"
+          echo "║  (API gateway no longer published on :8080 — routed via nginx)"
           echo '╚══════════════════════════════════════════════════════════╝'
           log_ok "Deployment complete!"
 
@@ -701,12 +701,23 @@ jobs:
           echo ""
           echo "═══ Final health check ═══"
           sleep 10
-          if curl -sf --connect-timeout 10 http://${_IP}:8080/actuator/health > /dev/null 2>&1; then
-            echo "[OK]  API Gateway responding on port 8080"
+          # Gateway is no longer published on host port 8080; check via SSH +
+          # docker exec into the running container instead. Public traffic now
+          # reaches the gateway via nginx (port 80) → upstream fs-gateway:8080.
+          if ssh -o StrictHostKeyChecking=no ${_USER}@${_IP} \
+              "docker exec fs-gateway curl -sf --max-time 5 http://localhost:8080/actuator/health" \
+              > /dev/null 2>&1; then
+            echo "[OK]  API Gateway healthy (via container exec)"
           else
             echo "[!!] API Gateway not yet responding (may still be starting)"
             echo "     Check server logs: ssh ${_USER}@${_IP}"
-            echo "     Logs: cd /opt/flashsale && docker-compose logs --tail=50"
+            echo "     Logs: cd /opt/flashsale && docker-compose logs --tail=50 api-gateway"
+          fi
+          # Also verify nginx is actually serving (since it now fronts the gateway)
+          if curl -sf --connect-timeout 10 http://${_IP}/health > /dev/null 2>&1; then
+            echo "[OK]  Reverse-proxy responding on port 80"
+          else
+            echo "[!!] Reverse-proxy not responding on port 80"
           fi
 
       - name: Deployment skipped
@@ -752,12 +763,11 @@ jobs:
           echo "  Commit:    ${{ github.sha }}"
           echo "  Image Tag: prod-latest"
           echo ""
-          echo "  Services:"
-          echo "    API Gateway  http://${_IP}:8080"
-          echo "    Customer     http://${_IP}:3000"
-          echo "    Seller       http://${_IP}:3001"
-          echo "    Admin        http://${_IP}:3002"
-          echo "    Eureka       http://${_IP}:8761"
-          echo "    Swagger      http://${_IP}:8080/swagger-ui.html"
+          echo "  Services (all routed via nginx on port 80):"
+          echo "    Customer     http://${_IP}/"
+          echo "    Seller       http://${_IP}/seller/"
+          echo "    Admin        http://${_IP}/admin/"
+          echo "    API Gateway  http://${_IP}/api/"
+          echo "    Eureka       http://${_IP}:8761  (internal only)"
           echo "══════════════════════════════════════════════════════════"
           echo ""
