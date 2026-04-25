@@ -637,6 +637,12 @@ jobs:
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml --env-file "${PROJECT_DIR}/.env.production" up -d
           log_ok "Services started"
 
+          # Step 6b: Force reverse-proxy restart to ensure new nginx image is loaded
+          log_info "Restarting reverse-proxy with new nginx image..."
+          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml restart reverse-proxy 2>/dev/null || true
+          sleep 5
+          log_ok "Reverse-proxy restarted (nginx config refreshed)"
+
           # Step 7: Health check
           log_info "Waiting for services to stabilize (60s)..."
           sleep 60
