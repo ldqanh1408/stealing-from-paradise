@@ -510,16 +510,33 @@ jobs:
           log_info "Releasing port 8080 before teardown..."
           sudo apt-get install -y psmisc lsof 2>/dev/null || true
 
-          # 3a. Disconnect fs-gateway from all Docker networks first (clears internal endpoint DB)
+          # 3a. Stage 1 — neutralize restart policy on fs-gateway so the daemon
+          #     cannot resurrect it mid-cleanup (race with `restart: unless-stopped`)
+          docker update --restart=no fs-gateway 2>/dev/null || true
+
+          # 3b. Stage 2 — sweep ANY container (running or stopped) that reserves
+          #     port 8080/tcp in HostConfig.PortBindings. This is the missing piece:
+          #     it catches containers that don't match the `fs-` name filter
+          #     (legacy `api-gateway`, ad-hoc `docker run`, orphans, etc.)
+          docker ps -aq 2>/dev/null | while read cid; do
+            bindings=$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" 2>/dev/null)
+            if echo "$bindings" | grep -q '"8080/tcp"'; then
+              name=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null)
+              log_warn "Found container $name ($cid) reserving port 8080 — force-removing"
+              docker rm -f "$cid" 2>/dev/null || true
+            fi
+          done
+
+          # 3c. Disconnect fs-gateway from all Docker networks (clears internal endpoint DB)
           docker network ls --quiet 2>/dev/null | while read net_id; do
             docker network disconnect --force "$net_id" fs-gateway 2>/dev/null || true
           done
-          # 3b. Stop and remove the gateway container
+          # 3d. Stop and remove the gateway container (idempotent — likely already gone via 3b)
           docker stop fs-gateway 2>/dev/null || true
           docker rm -f fs-gateway 2>/dev/null || true
-          # 3c. Kill ALL docker-proxy processes (any one of them could own the port binding)
+          # 3e. Kill ALL docker-proxy processes (any one of them could own the port binding)
           sudo pkill -9 -f "docker-proxy" 2>/dev/null || true
-          # 3d. Kill whatever else is on 8080 by PID
+          # 3f. Kill whatever else is on 8080 by PID
           sudo lsof -t -i :8080 2>/dev/null | xargs -r sudo kill -9 2>/dev/null || true
           sleep 2
 
@@ -533,24 +550,42 @@ jobs:
           docker images --format '{{.Repository}}:{{.Tag}}' | grep -E 'ghcr.io.*:(prod-latest|prod-[0-9]' | xargs -r docker rmi -f 2>/dev/null || true
           log_ok "Old containers and images removed"
 
-          # Step 4: Hard gate — do not proceed unless port 8080 is confirmed free
-          log_info "Verifying port 8080 is free (blocking gate)..."
+          # Step 4: Hard gate — verifies BOTH the OS layer (lsof/ss) AND Docker's
+          # internal port-reservation table. This is the key change: previous
+          # versions only checked the OS, but Docker can refuse `up` because of
+          # a stopped-container record even when the OS port is free.
+          log_info "Verifying port 8080 is free at OS and Docker level (blocking gate)..."
           port_free=0
           for attempt in $(seq 1 10); do
-            if ! sudo lsof -i :8080 > /dev/null 2>&1 && ! sudo ss -tlnp 2>/dev/null | grep -q ':8080 '; then
+            os_busy=0; docker_busy=0
+            if sudo lsof -i :8080 >/dev/null 2>&1 || sudo ss -tlnp 2>/dev/null | grep -q ':8080 '; then
+              os_busy=1
+            fi
+            if docker ps -aq 2>/dev/null | xargs -r -I{} docker inspect --format '{{json .HostConfig.PortBindings}}' {} 2>/dev/null | grep -q '"8080/tcp"'; then
+              docker_busy=1
+            fi
+            if [ "$os_busy" -eq 0 ] && [ "$docker_busy" -eq 0 ]; then
               port_free=1
-              log_ok "Port 8080 is free (confirmed on attempt ${attempt})"
+              log_ok "Port 8080 is free at OS and Docker level (attempt ${attempt})"
               break
             fi
-            log_warn "Port 8080 still in use (attempt ${attempt}/10) — killing..."
+            log_warn "Port 8080 still reserved (os=${os_busy} docker=${docker_busy}) — re-sweeping (attempt ${attempt}/10)..."
+            # Re-run the container sweep
+            docker ps -aq 2>/dev/null | while read cid; do
+              docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" 2>/dev/null | grep -q '"8080/tcp"' && docker rm -f "$cid" 2>/dev/null || true
+            done
             sudo fuser -k -9 8080/tcp 2>/dev/null || true
             sudo pkill -9 -f "docker-proxy" 2>/dev/null || true
             sudo lsof -t -i :8080 2>/dev/null | xargs -r sudo kill -9 2>/dev/null || true
             sleep 3
           done
           if [ "$port_free" -eq 0 ]; then
-            log_err "FATAL: Port 8080 could not be freed after 10 attempts. Current holders:"
+            log_err "FATAL: Port 8080 reservations could not be cleared. Diagnostic dump:"
+            echo '--- docker ps -a ---'
+            docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+            echo '--- ss -tlnp :8080 ---'
             sudo ss -tlnp | grep ':8080' || true
+            echo '--- lsof -i :8080 ---'
             sudo lsof -i :8080 || true
             exit 1
           fi
