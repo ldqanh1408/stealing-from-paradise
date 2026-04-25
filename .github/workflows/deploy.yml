@@ -515,14 +515,16 @@ jobs:
           docker update --restart=no fs-gateway 2>/dev/null || true
 
           # 3b. Stage 2 — sweep ANY container (running or stopped) that reserves
-          #     port 8080/tcp in HostConfig.PortBindings. This is the missing piece:
-          #     it catches containers that don't match the `fs-` name filter
-          #     (legacy `api-gateway`, ad-hoc `docker run`, orphans, etc.)
+          #     host port 8080 in HostConfig.PortBindings. Match BOTH forms:
+          #     - "8080/tcp" key (when container port == host port)
+          #     - "HostPort":"8080" value (when a different container port maps to host 8080)
           docker ps -aq 2>/dev/null | while read cid; do
             bindings=$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" 2>/dev/null)
-            if echo "$bindings" | grep -q '"8080/tcp"'; then
+            if echo "$bindings" | grep -qE '"8080/tcp"|"HostPort":"8080"'; then
               name=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null)
-              log_warn "Found container $name ($cid) reserving port 8080 — force-removing"
+              image=$(docker inspect --format '{{.Config.Image}}' "$cid" 2>/dev/null)
+              log_warn "Found container $name (image=$image, id=$cid) reserving host port 8080 — force-removing"
+              log_warn "  PortBindings: $bindings"
               docker rm -f "$cid" 2>/dev/null || true
             fi
           done
@@ -561,7 +563,7 @@ jobs:
             if sudo lsof -i :8080 >/dev/null 2>&1 || sudo ss -tlnp 2>/dev/null | grep -q ':8080 '; then
               os_busy=1
             fi
-            if docker ps -aq 2>/dev/null | xargs -r -I{} docker inspect --format '{{json .HostConfig.PortBindings}}' {} 2>/dev/null | grep -q '"8080/tcp"'; then
+            if docker ps -aq 2>/dev/null | xargs -r -I{} docker inspect --format '{{json .HostConfig.PortBindings}}' {} 2>/dev/null | grep -qE '"8080/tcp"|"HostPort":"8080"'; then
               docker_busy=1
             fi
             if [ "$os_busy" -eq 0 ] && [ "$docker_busy" -eq 0 ]; then
@@ -572,7 +574,7 @@ jobs:
             log_warn "Port 8080 still reserved (os=${os_busy} docker=${docker_busy}) — re-sweeping (attempt ${attempt}/10)..."
             # Re-run the container sweep
             docker ps -aq 2>/dev/null | while read cid; do
-              docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" 2>/dev/null | grep -q '"8080/tcp"' && docker rm -f "$cid" 2>/dev/null || true
+              docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" 2>/dev/null | grep -qE '"8080/tcp"|"HostPort":"8080"' && docker rm -f "$cid" 2>/dev/null || true
             done
             sudo fuser -k -9 8080/tcp 2>/dev/null || true
             sudo pkill -9 -f "docker-proxy" 2>/dev/null || true
@@ -594,6 +596,39 @@ jobs:
           log_info "Pulling all images..."
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml pull
           log_ok "Images pulled"
+
+          # Step 5b: Moment-of-truth diagnostic + last-second sweep.
+          # Step 4 passed earlier, but `pull` and other daemon activity have run
+          # since. Print exact host state right NOW so the next failure log shows
+          # the offender, then sweep one more time as a backstop.
+          log_info "Pre-up diagnostic — host state immediately before docker-compose up:"
+          echo '--- All containers (docker ps -a) ---'
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}' || true
+          echo '--- Listeners on :8080 (ss -tlnp) ---'
+          sudo ss -tlnp 2>/dev/null | grep ':8080' || echo '(no listeners on :8080)'
+          echo '--- Containers reserving host port 8080 ---'
+          docker ps -aq 2>/dev/null | while read cid; do
+            pb=$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" 2>/dev/null)
+            if echo "$pb" | grep -qE '"8080/tcp"|"HostPort":"8080"'; then
+              echo "  $(docker inspect --format '{{.Name}} (image={{.Config.Image}}, status={{.State.Status}})' "$cid"): $pb"
+            fi
+          done | tee /tmp/pre_up_8080.txt
+          echo '--- End diagnostic ---'
+
+          log_info "Last-second sweep before docker-compose up..."
+          swept=0
+          docker ps -aq 2>/dev/null | while read cid; do
+            pb=$(docker inspect --format '{{json .HostConfig.PortBindings}}' "$cid" 2>/dev/null)
+            if echo "$pb" | grep -qE '"8080/tcp"|"HostPort":"8080"'; then
+              name=$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null)
+              log_warn "LAST-SECOND: removing $name ($cid) which reserves port 8080"
+              docker rm -f "$cid" 2>/dev/null || true
+              swept=$((swept + 1))
+            fi
+          done
+          sudo pkill -9 -f "docker-proxy" 2>/dev/null || true
+          sudo lsof -t -i :8080 2>/dev/null | xargs -r sudo kill -9 2>/dev/null || true
+          sleep 2
 
           # Step 6: Start services
           log_info "Starting services..."
