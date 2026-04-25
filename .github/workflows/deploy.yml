@@ -511,6 +511,12 @@ jobs:
           cd "${PROJECT_DIR}"
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans -v 2>/dev/null || true
           docker ps -aq --filter "name=fs-" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
+          # Remove dangling endpoints that hold port bindings — these block re-binding
+          docker ps -aq 2>/dev/null | while read c; do
+            docker inspect --format '{{.Name}} {{range $k,$v:=.NetworkSettings.Ports}} {{$k}} {{end}}' "$c" 2>/dev/null | grep -q '8080/tcp' && docker rm -f "$c" 2>/dev/null && echo "Removed container holding port 8080: $c"
+          done
+          docker network ls --format '{{.Name}}' | grep -E '^(flashsale|flashsale_prod)' | xargs -r docker network rm 2>/dev/null || true
+          docker network prune -f 2>/dev/null || true
           # Remove old images
           docker images --format '{{.Repository}}:{{.Tag}}' | grep -E 'ghcr.io.*:(prod-latest|prod-[0-9]' | xargs -r docker rmi -f 2>/dev/null || true
           log_ok "Old containers and images removed"
@@ -518,9 +524,15 @@ jobs:
           # Step 4: Kill any process occupying gateway port
           log_info "Freeing port 8080..."
           sudo apt-get install -y psmisc lsof 2>/dev/null || true
-          sudo fuser -k 8080/tcp 2>/dev/null || true
-          sleep 2
-          log_ok "Port 8080 freed"
+          sudo lsof -i :8080 || true
+          sudo fuser -k -9 8080/tcp 2>/dev/null || true
+          sleep 3
+          if sudo lsof -i :8080 > /dev/null 2>&1; then
+            log_warn "Port 8080 still in use, retrying..."
+            sudo fuser -k -9 8080/tcp 2>/dev/null || true
+            sleep 3
+          fi
+          sudo lsof -i :8080 || log_ok "Port 8080 is free"
 
           # Step 5: Pull all images
           log_info "Pulling all images..."
