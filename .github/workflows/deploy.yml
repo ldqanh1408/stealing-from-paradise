@@ -186,7 +186,7 @@ jobs:
       - name: Build frontend app
         working-directory: ./frontend/apps/${{ matrix.app }}
         env:
-          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.SECRETS_VITE_STRIPE_PUBLISHABLE_KEY }}
         run: npm ci && npm run build
 
       - name: Upload frontend app
@@ -384,16 +384,18 @@ jobs:
           IMAGE_PREFIX: ${{ github.repository_owner }}/flashsale
           REGISTRY: ${{ env.REGISTRY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
-          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
-          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
-          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
-          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          JWT_SECRET: ${{ secrets.SECRETS_JWT_SECRET }}
+          REDIS_PASSWORD: ${{ secrets.SECRETS_REDIS_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ secrets.SECRETS_POSTGRES_PASSWORD }}
+          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.SECRETS_MONGO_INITDB_ROOT_PASSWORD }}
+          MINIO_ACCESS_KEY: ${{ secrets.SECRETS_MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY: ${{ secrets.SECRETS_MINIO_SECRET_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.SECRETS_STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.SECRETS_STRIPE_WEBHOOK_SECRET_PROD }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.SECRETS_VITE_STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.SECRETS_STRIPE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.SECRETS_STRIPE_PUBLISHABLE_KEY }}
+          MAIL_PASSWORD: ${{ secrets.SECRETS_MAIL_PASSWORD }}
         run: |
           SERVER="${_USER}@${_IP}"
           echo "═══════════════════════════════════════════════════"
@@ -421,14 +423,15 @@ jobs:
           JWT_SECRET="${JWT_SECRET:-}"
           REDIS_PASSWORD="${REDIS_PASSWORD:-}"
           POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
-          MONGO_PASSWORD="${MONGO_PASSWORD:-}"
+          MONGO_INITDB_ROOT_PASSWORD="${MONGO_INITDB_ROOT_PASSWORD:-}"
           MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-}"
           MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-}"
           STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
           STRIPE_WEBHOOK_SECRET_PROD="${STRIPE_WEBHOOK_SECRET_PROD:-}"
           VITE_STRIPE_PUBLISHABLE_KEY="${VITE_STRIPE_PUBLISHABLE_KEY:-}"
+          STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}"
           MAIL_PASSWORD="${MAIL_PASSWORD:-}"
-          MAIL_FROM="${MAIL_FROM:-no-reply@flashsale.com}"
+          MAIL_FROM="no-reply@flashsale.com"
 
           log_info "Starting server deployment"
           log_info "Image tag: ${IMAGE_TAG}"
@@ -449,34 +452,45 @@ jobs:
           # DO NOT COMMIT THIS FILE TO GIT
           # ============================================================
 
+          # ---- [A] VERSION PINNING ----
+          COMPOSE_PROJECT_NAME=flashsale
+          TZ=Asia/Ho_Chi_Minh
+          POSTGRES_VER=15.4-alpine
+          MONGO_VER=6.0.8
+          REDIS_VER=7.2.1-alpine
+          KAFKA_VER=7.4.0
+          ELASTIC_VER=8.10.2
+          AXON_VER=latest
+
+          # ---- [B] SPRING PROFILE ----
           SPRING_PROFILES_ACTIVE=prod
 
-          # JWT
-          JWT_SECRET=${JWT_SECRET}
+          # ---- [D] JWT ----
+          JWT_SECRET=${SECRETS_JWT_SECRET}
           JWT_EXPIRATION_MS=86400000
           JWT_REFRESH_EXPIRATION_MS=604800000
 
-          # PostgreSQL
+          # ---- [D] PostgreSQL ----
           POSTGRES_USER=postgres
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_PASSWORD=${SECRETS_POSTGRES_PASSWORD}
 
-          # MongoDB
+          # ---- [D] MongoDB ----
           MONGO_INITDB_ROOT_USERNAME=fs_mongo_admin
-          MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+          MONGO_INITDB_ROOT_PASSWORD=${SECRETS_MONGO_INITDB_ROOT_PASSWORD}
 
-          # Redis
-          REDIS_PASSWORD=${REDIS_PASSWORD}
+          # ---- [D] Redis ----
+          REDIS_PASSWORD=${SECRETS_REDIS_PASSWORD}
 
-          # MinIO
-          MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-          MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+          # ---- [D] MinIO ----
+          MINIO_ACCESS_KEY=${SECRETS_MINIO_ACCESS_KEY}
+          MINIO_SECRET_KEY=${SECRETS_MINIO_SECRET_KEY}
 
-          # Database names
+          # ---- [E] Database names ----
           DB_NAME=flashsale_platform
           DB_NAME_PRODUCT=fs_product
           DB_NAME_NOTIFICATION=fs_notification
 
-          # Infrastructure routing
+          # ---- [F] Infrastructure routing ----
           DB_HOST=postgres
           MONGO_HOST=mongo
           REDIS_HOST=redis
@@ -486,19 +500,35 @@ jobs:
           MINIO_URL=http://minio:9000
           EUREKA_URI=http://discovery-service:8761/eureka/
 
-          # Stripe
-          STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-          STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET_PROD}
-          VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
+          # ---- [G] Stripe ----
+          STRIPE_PUBLISHABLE_KEY=${SECRETS_STRIPE_PUBLISHABLE_KEY}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${SECRETS_STRIPE_PUBLISHABLE_KEY}
+          VITE_STRIPE_PUBLISHABLE_KEY=${SECRETS_STRIPE_PUBLISHABLE_KEY}
+          STRIPE_SECRET_KEY=${SECRETS_STRIPE_SECRET_KEY}
+          STRIPE_WEBHOOK_SECRET=${SECRETS_STRIPE_WEBHOOK_SECRET_PROD}
+          STRIPE_PLATFORM_FEE_PERCENTAGE=5.0
 
-          # Email
+          # ---- [G] Email ----
           MAIL_HOST=smtp.sendgrid.net
           MAIL_PORT=587
           MAIL_USERNAME=apikey
-          MAIL_PASSWORD=${MAIL_PASSWORD}
-          MAIL_FROM=${MAIL_FROM:-no-reply@flashsale.com}
+          MAIL_PASSWORD=${SECRETS_MAIL_PASSWORD}
+          MAIL_FROM=no-reply@flashsale.com
 
-          # Frontend
+          # ---- [H] JVM / resource tuning ----
+          ES_JAVA_OPTS=-Xms512m -Xmx512m
+          JVM_OPTS_COMMON=-Xms256m -Xmx512m -XX:+UseG1GC
+          JVM_OPTS_GATEWAY=-Xms512m -Xmx512m -XX:+UseG1GC
+          JVM_OPTS_IDENTITY=-Xms256m -Xmx512m -XX:+UseG1GC
+          JVM_OPTS_PAYMENT=-Xms512m -Xmx512m -XX:+UseG1GC --enable-native-access=ALL-UNNAMED
+          JVM_OPTS_ORDER=-Xms512m -Xmx1g -XX:+UseG1GC --enable-native-access=ALL-UNNAMED
+          JVM_OPTS_FLASHSALE=-Xms1g -Xmx1g -XX:+UseG1GC --enable-native-access=ALL-UNNAMED
+          JVM_OPTS_PRODUCT=-Xms512m -Xmx1g -XX:+UseG1GC
+          JVM_OPTS_SEARCH=-Xms512m -Xmx1g -XX:+UseG1GC
+          JVM_OPTS_NOTIFICATION=-Xms256m -Xmx512m -XX:+UseG1GC
+          JVM_OPTS_WORKER=-Xms512m -Xmx1g -XX:+UseG1GC
+
+          # ---- [I] Frontend ----
           VITE_API_URL=/api/v1
           NEXT_PUBLIC_API_URL=/api/v1
           NEXT_PUBLIC_WS_URL=/ws/user
@@ -696,7 +726,7 @@ jobs:
              -o UserKnownHostsFile=~/.ssh/known_hosts \
              -i ~/.ssh/id_rsa \
              "${SERVER}" \
-             "IMAGE_PREFIX='${IMAGE_PREFIX}' GITHUB_TOKEN='${GITHUB_TOKEN}' JWT_SECRET='${JWT_SECRET}' REDIS_PASSWORD='${REDIS_PASSWORD}' POSTGRES_PASSWORD='${POSTGRES_PASSWORD}' MONGO_PASSWORD='${MONGO_PASSWORD}' MINIO_ACCESS_KEY='${MINIO_ACCESS_KEY}' MINIO_SECRET_KEY='${MINIO_SECRET_KEY}' STRIPE_SECRET_KEY='${STRIPE_SECRET_KEY}' STRIPE_WEBHOOK_SECRET_PROD='${STRIPE_WEBHOOK_SECRET_PROD}' VITE_STRIPE_PUBLISHABLE_KEY='${VITE_STRIPE_PUBLISHABLE_KEY}' MAIL_PASSWORD='${MAIL_PASSWORD}' MAIL_FROM='${MAIL_FROM:-no-reply@flashsale.com}' GITHUB_SHA='${{ github.sha }}' bash /tmp/deploy.sh '${IMAGE_TAG}' '${IMAGE_PREFIX}' '${REGISTRY}' '${_IP}'"
+             "IMAGE_PREFIX='${IMAGE_PREFIX}' GITHUB_TOKEN='${GITHUB_TOKEN}' JWT_SECRET='${SECRETS_JWT_SECRET}' REDIS_PASSWORD='${SECRETS_REDIS_PASSWORD}' POSTGRES_PASSWORD='${SECRETS_POSTGRES_PASSWORD}' MONGO_INITDB_ROOT_PASSWORD='${SECRETS_MONGO_INITDB_ROOT_PASSWORD}' MINIO_ACCESS_KEY='${SECRETS_MINIO_ACCESS_KEY}' MINIO_SECRET_KEY='${SECRETS_MINIO_SECRET_KEY}' STRIPE_SECRET_KEY='${SECRETS_STRIPE_SECRET_KEY}' STRIPE_WEBHOOK_SECRET_PROD='${SECRETS_STRIPE_WEBHOOK_SECRET_PROD}' VITE_STRIPE_PUBLISHABLE_KEY='${SECRETS_VITE_STRIPE_PUBLISHABLE_KEY}' STRIPE_PUBLISHABLE_KEY='${SECRETS_STRIPE_PUBLISHABLE_KEY}' MAIL_PASSWORD='${SECRETS_MAIL_PASSWORD}' MAIL_FROM='no-reply@flashsale.com' GITHUB_SHA='${{ github.sha }}' bash /tmp/deploy.sh '${IMAGE_TAG}' '${IMAGE_PREFIX}' '${REGISTRY}' '${_IP}'"
 
       - name: Final health check
         if: env.SKIP_DEPLOY != 'true'
@@ -746,7 +776,7 @@ jobs:
           echo "  JWT_SECRET             (256-bit random string, base64)"
           echo "  POSTGRES_PASSWORD      (strong DB password)"
           echo "  REDIS_PASSWORD         (strong Redis password)"
-          echo "  MONGO_PASSWORD         (strong MongoDB password)"
+          echo "  MONGO_INITDB_ROOT_PASSWORD (strong MongoDB password)"
           echo "  MINIO_ACCESS_KEY       (MinIO access key)"
           echo "  MINIO_SECRET_KEY       (MinIO secret key)"
           echo "  STRIPE_SECRET_KEY      (sk_live_xxx)"
