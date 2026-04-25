@@ -506,30 +506,31 @@ jobs:
           ENVEOF
           log_ok "Production .env written with secrets"
 
-          # Step 3: Remove old containers and volumes
-          log_info "Removing old containers..."
+          # Step 3: Remove old containers
+          log_info "Stopping api-gateway first to release port 8080..."
+          docker stop fs-gateway 2>/dev/null || true
+          docker rm -f fs-gateway 2>/dev/null || true
+          # Kill any stale docker-proxy process that may still hold the port
+          sudo pkill -9 -f "docker-proxy.*8080" 2>/dev/null || true
+          sleep 2
+
+          log_info "Removing remaining containers..."
           cd "${PROJECT_DIR}"
-          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans -v 2>/dev/null || true
+          docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml down --remove-orphans 2>/dev/null || true
           docker ps -aq --filter "name=fs-" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
-          # Remove dangling endpoints that hold port bindings — these block re-binding
-          docker ps -aq 2>/dev/null | while read c; do
-            docker inspect --format '{{.Name}} {{range $k,$v:=.NetworkSettings.Ports}} {{$k}} {{end}}' "$c" 2>/dev/null | grep -q '8080/tcp' && docker rm -f "$c" 2>/dev/null && echo "Removed container holding port 8080: $c"
-          done
           docker network ls --format '{{.Name}}' | grep -E '^(flashsale|flashsale_prod)' | xargs -r docker network rm 2>/dev/null || true
           docker network prune -f 2>/dev/null || true
           # Remove old images
           docker images --format '{{.Repository}}:{{.Tag}}' | grep -E 'ghcr.io.*:(prod-latest|prod-[0-9]' | xargs -r docker rmi -f 2>/dev/null || true
           log_ok "Old containers and images removed"
 
-          # Step 4: Kill any process occupying gateway port
-          log_info "Freeing port 8080..."
+          # Step 4: Confirm port 8080 is free
+          log_info "Confirming port 8080 is free..."
           sudo apt-get install -y psmisc lsof 2>/dev/null || true
-          sudo lsof -i :8080 || true
-          sudo fuser -k -9 8080/tcp 2>/dev/null || true
-          sleep 3
           if sudo lsof -i :8080 > /dev/null 2>&1; then
-            log_warn "Port 8080 still in use, retrying..."
+            log_warn "Port 8080 still in use — force-killing..."
             sudo fuser -k -9 8080/tcp 2>/dev/null || true
+            sudo pkill -9 -f "docker-proxy.*8080" 2>/dev/null || true
             sleep 3
           fi
           sudo lsof -i :8080 || log_ok "Port 8080 is free"
