@@ -529,8 +529,10 @@ jobs:
           JVM_OPTS_WORKER=-Xms512m -Xmx1g -XX:+UseG1GC
 
           # ---- [I] Frontend ----
-          VITE_API_URL=/api
-          NEXT_PUBLIC_API_URL=/api
+          # Browser sends /api/v1/... → reverse-proxy/per-app nginx forwards
+          # as-is to gateway → gateway matches /api/v1/** routes.
+          VITE_API_URL=/api/v1
+          NEXT_PUBLIC_API_URL=/api/v1
           NEXT_PUBLIC_WS_URL=/ws/user
 
           ENVEOF

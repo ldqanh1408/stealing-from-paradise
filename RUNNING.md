@@ -160,10 +160,39 @@ Apps: `customer` (port 3000), `seller` (port 3001), `admin` (port 3002)
 | `infra-down` | Stop infrastructure |
 | `be-dev` | Start infra + backend (all backend containers, no frontend) |
 | `be-down` | Stop backend |
-| `dev` | Start full stack in DEV mode (infra + backend + frontend + stripe-listener) |
+| `dev` | Start full stack in DEV mode — Docker builds image on the fly via `up --build` |
+| `dev-build` | **Pre-build everything**: mvn-all (host) + frontend Docker images + start. Use for clean first-time setup. |
+| `dev-up` | **No build**: docker compose up -d using existing images. Fastest restart. |
 | `dev-down` | Stop dev stack |
 | `prod` | Start full stack in PROD mode (infra + backend + frontend, no stripe-listener) |
 | `prod-down` | Stop prod stack |
+| `fe-build [<app>]` | Build Docker dev image for ONE or ALL frontend apps. `<app>` = customer / seller / admin / all (default: all) |
+| `fe-build-all` | Same as `fe-build` with no arg |
+
+**Khác biệt 3 lệnh dev:**
+
+| | `dev-build` | `dev` | `dev-up` |
+|--|---|---|---|
+| Run mvn-all on host? | ✅ Yes | ❌ No | ❌ No |
+| Build frontend Docker images? | ✅ Yes (explicit) | ✅ Yes (via `--build`) | ❌ No |
+| Build backend Docker images? | ✅ Yes (via `--build`) | ✅ Yes (via `--build`) | ❌ No |
+| Speed | Slowest (3 phases) | Medium | Fastest |
+| Khi dùng | Clean setup, sau big changes | Daily dev | Fast restart, no code changes |
+
+```powershell
+# First-time setup hoặc sau khi pull main mới:
+.\flashsale-build.ps1 dev-build
+
+# Daily dev (đã có images, code nhẹ thay đổi):
+.\flashsale-build.ps1 dev
+
+# Restart nhanh sau khi `stop dev`:
+.\flashsale-build.ps1 dev-up
+
+# Chỉ rebuild frontend Docker image:
+.\flashsale-build.ps1 fe-build customer
+.\flashsale-build.ps1 fe-build-all
+```
 
 ### 4.5 Single-Service Container Commands
 
@@ -304,11 +333,28 @@ Các lệnh per-service để control 1 container riêng lẻ trong khi dev:
 
 ### 6.1 Full-Stack Development (daily dev)
 
+**3 cách start dev stack — chọn theo nhu cầu:**
+
 ```powershell
-# Start everything
+# Cách 1: dev-build (FULL pre-build, recommended cho first-time)
+# Phase 1: mvn-all (build JARs trên host)
+# Phase 2: build frontend Docker images
+# Phase 3: docker compose up --build
+.\flashsale-build.ps1 dev-build
+
+# Cách 2: dev (Docker tự build image, không pre-build host)
+# Daily dev khi đã có images sẵn, code nhẹ thay đổi
 .\flashsale-build.ps1 dev
 
-# After code changes:
+# Cách 3: dev-up (NO BUILD, fastest)
+# Restart nhanh sau khi stop, KHÔNG có code changes
+# Sẽ fail nếu image chưa tồn tại
+.\flashsale-build.ps1 dev-up
+```
+
+**Workflow sau khi đã start:**
+
+```powershell
 # Backend code changed:
 .\flashsale-build.ps1 mvn <service>     # Rebuild JAR cho service đó
 .\flashsale-build.ps1 reset <service>   # Stop + rebuild + restart container
@@ -317,13 +363,16 @@ Các lệnh per-service để control 1 container riêng lẻ trong khi dev:
 # No rebuild needed — hot-reload via volumes
 # Just refresh the browser
 
+# Frontend dependency thay đổi (package.json):
+.\flashsale-build.ps1 fe-build customer  # rebuild Docker image
+.\flashsale-build.ps1 reset customer     # restart container
+
 # Chỉ đổi env vars (không đổi code):
 .\flashsale-build.ps1 restart gateway   # apply env mới, không rebuild
 
 # Full reset:
 .\flashsale-build.ps1 stop all
-.\flashsale-build.ps1 mvn-all
-.\flashsale-build.ps1 dev
+.\flashsale-build.ps1 dev-build         # full rebuild
 ```
 
 ### 6.2 Backend-Only Development
@@ -717,6 +766,8 @@ Tất cả lệnh trong `flashsale-build.ps1` đã được test trên Windows P
 | `stop` (no target) | ✅ Error |
 | `down` (no target) | ✅ Error (alias works) |
 | `fe-down nonexistent` | ✅ Error với valid options |
+| `fe-build invalidapp` | ✅ Error với valid options |
+| `dev-build` / `dev-up` | ✅ Lệnh có trong help, gọi đúng function |
 | Unknown action | ✅ Error → suggest `help` |
 
 Tự test trên máy bạn:

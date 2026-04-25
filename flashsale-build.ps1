@@ -317,9 +317,24 @@ ACTIONS
 
   [ FULLSTACK DEV - Frontend + Backend + Stripe CLI ]
   ---------------------------------------------------------------------------
-  dev                 Start full stack in DEV mode:
+  dev                 Start full stack in DEV mode (Docker builds images on the fly):
                       infra + backend + frontend + stripe-listener
                       Uses: docker-compose.yml + docker-compose.dev.yml
+                      Equivalent to: docker compose up --build -d
+
+  dev-build           FULL PRE-BUILD + start: runs mvn-all on host first, then
+                      builds all frontend Docker images, then starts the stack.
+                      Use this for clean first-time setup OR after big changes.
+                      Slower but ensures everything is freshly built.
+
+  dev-up              Start DEV stack WITHOUT building. Uses existing images.
+                      Fast restart when nothing has changed. Will fail if
+                      images don't exist yet - run 'dev' or 'dev-build' first.
+
+  fe-build [<app>]    Build Docker dev image for ONE or ALL frontend apps.
+                      <app> = customer | seller | admin | all (default: all)
+
+  fe-build-all        Same as 'fe-build' with no arg.
 
   [ FULLSTACK PROD - Full Stack (production mode, no Stripe CLI) ]
   ---------------------------------------------------------------------------
@@ -920,6 +935,110 @@ function Stop-FullstackDev {
 }
 
 # ============================================================
+# [FE-BUILD] Build Docker image(s) for frontend in DEV mode
+# ============================================================
+function Invoke-FrontendDockerBuild {
+    param([string]$App, [switch]$All)
+
+    if (-not (Test-EnvFile)) { exit 1 }
+
+    $appContainerMap = @{
+        "customer" = "customer-app"
+        "seller"   = "seller-app"
+        "admin"    = "admin-app"
+    }
+
+    if ($All -or -not $App -or $App.ToLower() -eq "all") {
+        Write-Host "[flashsale-build] Building ALL frontend Docker images (dev mode)..."
+        Invoke-DockerCompose ($DevCompose + @("build", "customer-app", "seller-app", "admin-app"))
+    } else {
+        $containerName = $appContainerMap[$App.ToLower()]
+        if (-not $containerName) {
+            Write-Error "[flashsale-build] Unknown frontend app: '$App'. Valid: customer, seller, admin, all"
+            exit 1
+        }
+        Write-Host "[flashsale-build] Building frontend Docker image: $containerName"
+        Invoke-DockerCompose ($DevCompose + @("build", $containerName))
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[flashsale-build] Frontend Docker build FAILED."
+        exit 1
+    }
+    Write-Host "[flashsale-build] Frontend Docker image(s) built successfully."
+}
+
+# ============================================================
+# [DEV-BUILD] Pre-build everything on host + start dev stack
+# ============================================================
+function Start-FullstackDevWithBuild {
+    if (-not (Test-EnvFile)) { exit 1 }
+
+    Write-Host "================================================================"
+    Write-Host "  DEV-BUILD - Full pre-build + start"
+    Write-Host "================================================================"
+    Write-Host ""
+    Write-Host "[flashsale-build] === Phase 1/3: Building backend JARs (mvn-all) ==="
+    Invoke-MvnAllBuild
+    Write-Host ""
+    Write-Host "[flashsale-build] === Phase 2/3: Building frontend Docker images ==="
+    Invoke-DockerCompose ($DevCompose + @("build", "customer-app", "seller-app", "admin-app"))
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[flashsale-build] Frontend Docker build FAILED."
+        exit 1
+    }
+    Write-Host ""
+    Write-Host "[flashsale-build] === Phase 3/3: Building backend Docker images + starting stack ==="
+    Invoke-DockerCompose ($DevCompose + @("up", "--build", "-d"))
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[flashsale-build] Failed to start dev stack."
+        exit 1
+    }
+    Write-Host ""
+    Write-Host "[flashsale-build] DEV-BUILD complete. Stack is running."
+    Write-Host ""
+    Write-Host "  === FRONTEND ==="
+    Write-Host "  Customer:  http://localhost:3000"
+    Write-Host "  Seller:    http://localhost:3001"
+    Write-Host "  Admin:     http://localhost:3002"
+    Write-Host ""
+    Write-Host "  === BACKEND ==="
+    Write-Host "  Gateway:   http://localhost:8080"
+    Write-Host "  Discovery: http://localhost:8761"
+    Write-Host ""
+    Write-Host "  Logs:  .\flashsale-build.ps1 logs all"
+    Write-Host "  Stop:  .\flashsale-build.ps1 stop dev"
+}
+
+# ============================================================
+# [DEV-UP] Start dev stack WITHOUT rebuilding (fast restart)
+# ============================================================
+function Start-FullstackDevNoBuild {
+    if (-not (Test-EnvFile)) { exit 1 }
+    Write-Host "[flashsale-build] Starting DEV stack (NO BUILD) - using existing images..."
+    Write-Host "(If images don't exist, run '.\flashsale-build.ps1 dev-build' first)"
+    Write-Host ""
+    Invoke-DockerCompose ($DevCompose + @("up", "-d"))
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "[flashsale-build] Failed to start dev stack. Try '.\flashsale-build.ps1 dev-build' first."
+        exit 1
+    }
+    Write-Host ""
+    Write-Host "[flashsale-build] DEV stack started (no rebuild)."
+    Write-Host ""
+    Write-Host "  === FRONTEND ==="
+    Write-Host "  Customer:  http://localhost:3000"
+    Write-Host "  Seller:    http://localhost:3001"
+    Write-Host "  Admin:     http://localhost:3002"
+    Write-Host ""
+    Write-Host "  === BACKEND ==="
+    Write-Host "  Gateway:   http://localhost:8080"
+    Write-Host "  Discovery: http://localhost:8761"
+    Write-Host ""
+    Write-Host "  Logs:  .\flashsale-build.ps1 logs all"
+    Write-Host "  Stop:  .\flashsale-build.ps1 stop dev"
+}
+
+# ============================================================
 # [FULLSTACK PROD] prod mode = infra + backend + frontend (no stripe)
 # ============================================================
 function Start-FullstackProd {
@@ -1443,6 +1562,25 @@ function Main {
 
         "dev-down" {
             Stop-FullstackDev
+        }
+
+        # ---- DEV-BUILD: Full pre-build + start ----
+        "dev-build" {
+            Start-FullstackDevWithBuild
+        }
+
+        # ---- DEV-UP: Start without building (fast restart) ----
+        "dev-up" {
+            Start-FullstackDevNoBuild
+        }
+
+        # ---- FE-BUILD: Build frontend Docker dev image(s) ----
+        "fe-build" {
+            Invoke-FrontendDockerBuild -App $Target
+        }
+
+        "fe-build-all" {
+            Invoke-FrontendDockerBuild -All
         }
 
         # ---- FULLSTACK PROD ----
