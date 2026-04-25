@@ -1,6 +1,8 @@
 package com.flashsale.paymentdomain.domain.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -55,6 +57,7 @@ public class Transaction {
     @Column(name = "client_secret")
     private String clientSecret;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "raw_response", columnDefinition = "jsonb")
     private String rawResponse;
 
