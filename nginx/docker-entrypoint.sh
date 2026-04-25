@@ -13,8 +13,8 @@ set -e
 : ${ADMIN_PORT:=3002}
 
 cat > /etc/nginx/conf.d/default.conf <<EOF
-# Rate limiting zones — \$binary_remote_addr is an nginx runtime variable,
-# escaped as \\\$ so the shell heredoc preserves the literal \$ sign for nginx.
+# Rate limiting zones — \$binary_remote_addr is a literal nginx variable
+# (plain heredoc + \$ means the shell outputs a single $ character).
 limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=10r/s;
 limit_req_zone \$binary_remote_addr zone=frontend_limit:10m rate=20r/s;
 
