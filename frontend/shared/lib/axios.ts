@@ -2,7 +2,7 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'ax
 import Cookies from 'js-cookie';
 import { installMockInterceptor, isMockMode, isNetworkError } from '../api/mock';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api';
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
 
 console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
 console.log('All env:', import.meta.env);
