@@ -18,7 +18,7 @@ export default defineConfig({
     host: true,
     fs: {
       // Allow serving files from the shared folder (outside app root)
-      allow: ['..'],
+      allow: ['../..'],
     },
     proxy: {
       '/api': {

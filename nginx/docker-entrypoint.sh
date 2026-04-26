@@ -12,48 +12,50 @@ set -e
 : ${ADMIN_HOST:=fs-admin-fe}
 : ${ADMIN_PORT:=3002}
 
-cat > /etc/nginx/conf.d/default.conf <<EOF
-# Rate limiting zones — \$binary_remote_addr is a literal nginx variable
-# (plain heredoc + \$ means the shell outputs a single $ character).
-limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=10r/s;
-limit_req_zone \$binary_remote_addr zone=frontend_limit:10m rate=20r/s;
+cat > /etc/nginx/conf.d/default.conf <<'ENDNGINX'
+# Rate limiting zones
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=frontend_limit:10m rate=20r/s;
 
 upstream gateway {
-    server ${GATEWAY_HOST}:${GATEWAY_PORT};
+    server __GATEWAY_HOST__:__GATEWAY_PORT__;
 }
 
 upstream customer-app {
-    server ${CUSTOMER_HOST}:${CUSTOMER_PORT};
+    server __CUSTOMER_HOST__:__CUSTOMER_PORT__;
 }
 
 upstream seller-app {
-    server ${SELLER_HOST}:${SELLER_PORT};
+    server __SELLER_HOST__:__SELLER_PORT__;
 }
 
 upstream admin-app {
-    server ${ADMIN_HOST}:${ADMIN_PORT};
+    server __ADMIN_HOST__:__ADMIN_PORT__;
 }
 
 server {
-    listen ${NGINX_PORT};
+    listen __NGINX_PORT__;
     server_name _;
 
     real_ip_header X-Real-IP;
     real_ip_recursive on;
 
+    # ── API routing ─────────────────────────────────────────
+    # VITE_API_URL=/api/v1 → browser sends /api/v1/auth/register.
+    # nginx forwards the full path unchanged to gateway (no trailing / on proxy_pass).
+    # Gateway RouteConfig matches /api/v1/** and applies stripPrefix(1):
+    #   /api/v1/auth/register → stripPrefix(1) → /v1/auth/register
+    #   → identity-service @RequestMapping("/v1/auth") matches ✓
     location /api/ {
-        # 10 req/s per IP, allow short bursts up to 20
         limit_req zone=api_limit burst=20 nodelay;
 
-        # Strip /api/ prefix, replace with /api/v1/ — browser calls /api/xxx
-        # but gateway receives /api/v1/xxx (matching Spring @RequestMapping("/api/v1"))
-        proxy_pass http://gateway/api/v1/;
+        proxy_pass http://gateway;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_pass_request_body on;
         proxy_redirect off;
@@ -68,10 +70,10 @@ server {
 
         proxy_pass http://seller-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_redirect off;
     }
 
@@ -80,10 +82,10 @@ server {
 
         proxy_pass http://admin-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_redirect off;
     }
 
@@ -92,10 +94,10 @@ server {
 
         proxy_pass http://customer-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_redirect off;
     }
 
@@ -116,6 +118,17 @@ server {
         return 503 "Service temporarily unavailable";
     }
 }
-EOF
+ENDNGINX
+
+# Replace placeholder tokens with actual env values
+sed -i "s/__NGINX_PORT__/${NGINX_PORT}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__GATEWAY_HOST__/${GATEWAY_HOST}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__GATEWAY_PORT__/${GATEWAY_PORT}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__CUSTOMER_HOST__/${CUSTOMER_HOST}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__CUSTOMER_PORT__/${CUSTOMER_PORT}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__SELLER_HOST__/${SELLER_HOST}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__SELLER_PORT__/${SELLER_PORT}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__ADMIN_HOST__/${ADMIN_HOST}/g" /etc/nginx/conf.d/default.conf
+sed -i "s/__ADMIN_PORT__/${ADMIN_PORT}/g" /etc/nginx/conf.d/default.conf
 
 exec nginx -g 'daemon off;'
