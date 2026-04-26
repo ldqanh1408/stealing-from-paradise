@@ -137,7 +137,6 @@ public class OrderDevDataLoader implements CommandLineRunner {
                 .loyaltyDiscount(BigDecimal.ZERO)
                 .loyaltyPointsUsed(0)
                 .timeoutAt(timeoutAt)
-                .version(0)
                 .build();
         return parentOrderRepository.saveAndFlush(po);
     }
