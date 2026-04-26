@@ -187,6 +187,7 @@ jobs:
         working-directory: ./frontend/apps/${{ matrix.app }}
         env:
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
+          VITE_API_URL: /api/v1
         run: npm ci && npm run build
 
       - name: Upload frontend app
