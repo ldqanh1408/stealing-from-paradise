@@ -21,6 +21,7 @@ import com.flashsale.orderdomain.dto.request.CheckoutRequest;
 import com.flashsale.orderdomain.dto.request.ReturnToSenderRequest;
 import com.flashsale.orderdomain.dto.request.UpdateTrackingRequest;
 import com.flashsale.orderdomain.dto.response.*;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
@@ -51,6 +52,7 @@ public class OrderService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final EventGateway eventGateway;
+    private final EntityManager entityManager;
 
     // Thời gian timeout thanh toán: 30 phút
     private static final int PAYMENT_TIMEOUT_MINUTES = 30;
@@ -100,12 +102,24 @@ public class OrderService {
         // 6. Build shipping address JSON
         String shippingAddressJson = buildShippingAddressJson(address);
 
-        // 7. Tạo ParentOrder — orderCode được tạo từ sequence ID trước khi persist
+        // 7. Tạo ParentOrder với orderCode hoàn chỉnh trong một lần save duy nhất.
+        //    Sử dụng sequence trước để lấy ID, tránh second-save race condition
+        //    (trước đây gọi save hai lần → version tăng hai lần → gây
+        //    ObjectOptimisticLockingFailureException khi saga đọc entity giữa hai save).
         String parentOrderCode = "PO-"
                 + java.time.LocalDate.now().toString().replace("-", "")
-                + "-";  // suffix completed after save to get real ID
+                + "-";
+        // Lấy sequence ID trước khi persist
+        Long preAssignedId = entityManager
+                .createNativeQuery("SELECT nextval('seq_parent_orders')")
+                .getSingleResult() == null ? null
+                : ((Number) entityManager
+                        .createNativeQuery("SELECT currval('seq_parent_orders')")
+                        .getSingleResult()).longValue();
+
         ParentOrder parentOrder = ParentOrder.builder()
-                .orderCode(parentOrderCode)   // placeholder suffix will be corrected post-persist
+                .id(preAssignedId)
+                .orderCode(parentOrderCode + preAssignedId)  // final code from the start
                 .userId(userId)
                 .totalAmt(totalAmt)
                 .loyaltyDiscount(loyaltyDiscount)
@@ -114,9 +128,6 @@ public class OrderService {
                 .addressId(req.getAddressId())
                 .timeoutAt(LocalDateTime.now().plusMinutes(PAYMENT_TIMEOUT_MINUTES))
                 .build();
-        parentOrder = parentOrderRepository.save(parentOrder);
-        // Finalize orderCode with real DB-assigned ID
-        parentOrder.setOrderCode(parentOrderCode + parentOrder.getId());
         parentOrder = parentOrderRepository.save(parentOrder);
 
         // 8. Tạo sub-orders theo từng seller

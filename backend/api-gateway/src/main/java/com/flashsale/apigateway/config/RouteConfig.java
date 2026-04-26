@@ -10,13 +10,19 @@ import lombok.extern.slf4j.Slf4j;
  * API Gateway Route Configuration
  *
  * ✅ JWT Authentication is handled by JwtAuthWebFilter (@Component)
- *    No need to inject or configure filters here
+ *    No need to inject or configure filters here.
  *
- * ✅ All routes strip the /api prefix (first path segment) via StripPrefix(1) so that
- *    /api/v1/auth/register → /v1/auth/register → services receive paths starting with /v1
+ * ✅ Route paths match /api/v1/** — the EXACT path browsers/nginx send.
+ *    nginx forwards /api/v1/... unchanged to the gateway.
  *
- * ✅ Route ordering matters: more specific routes (identity-public) must come before
- *    more general routes (identity-protected) to avoid unintended matching
+ * ✅ stripPrefix(1) is applied on every route.
+ *    It removes the first path segment (/api), so:
+ *      /api/v1/products → /v1/products → product-service @RequestMapping("/v1")
+ *    Without stripPrefix, services would receive /api/v1/... which does NOT
+ *    match their @RequestMapping("/v1/...") handlers.
+ *
+ * ✅ Route ordering matters: specific routes (identity-public) must come before
+ *    more general routes (identity-protected) to avoid unintended matching.
  */
 @Configuration
 @Slf4j
@@ -26,9 +32,6 @@ public class RouteConfig {
     public RouteLocator routes(RouteLocatorBuilder b) {
         log.info("[Gateway] Initializing routes...");
         return b.routes()
-            // ===== Global prefix strip: /api/v1/* → /* ======================
-            // Applied to all routes via the shared filter builder below.
-
             // ===== Identity Service =====
             .route("identity-public", r -> r
                 .path("/api/v1/auth/**", "/api/v1/users/register")
