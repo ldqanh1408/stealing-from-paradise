@@ -27,7 +27,10 @@
             <optional>true</optional>
         </dependency>
 
-
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+        </dependency>
         <!-- Spring Web để chạy độc lập -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

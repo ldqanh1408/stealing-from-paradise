@@ -12,11 +12,7 @@ set -e
 : ${ADMIN_HOST:=fs-admin-fe}
 : ${ADMIN_PORT:=3002}
 
-cat > /etc/nginx/conf.d/default.conf <<'ENDNGINX'
-# Rate limiting zones (http context — written before the server block)
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-limit_req_zone $binary_remote_addr zone=frontend_limit:10m rate=20r/s;
-
+cat > /etc/nginx/conf.d/default.conf <<ENDNGINX
 upstream gateway {
     server __GATEWAY_HOST__:__GATEWAY_PORT__;
 }
@@ -32,6 +28,10 @@ upstream seller-app {
 upstream admin-app {
     server __ADMIN_HOST__:__ADMIN_PORT__;
 }
+
+# Rate limiting zones (http context — valid here, NOT inside upstream)
+limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone \$binary_remote_addr zone=frontend_limit:10m rate=20r/s;
 
 server {
     listen __NGINX_PORT__;
@@ -51,11 +51,11 @@ server {
 
         proxy_pass http://gateway;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_pass_request_body on;
         proxy_redirect off;
@@ -70,10 +70,10 @@ server {
 
         proxy_pass http://seller-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_redirect off;
     }
 
@@ -82,10 +82,10 @@ server {
 
         proxy_pass http://admin-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_redirect off;
     }
 
@@ -94,10 +94,10 @@ server {
 
         proxy_pass http://customer-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_redirect off;
     }
 
@@ -115,7 +115,7 @@ server {
     error_page 500 502 503 504 @error;
     location @error {
         default_type text/plain;
-        return 503 "Service temporarily unavailable";
+        return 503 "Service temporarily unavailable\n";
     }
 }
 ENDNGINX

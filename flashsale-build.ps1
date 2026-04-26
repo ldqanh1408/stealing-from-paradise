@@ -76,7 +76,7 @@ $EnvFile = Join-Path $ProjectRoot ".env"
 $InfraCompose   = "-f", "docker-compose.yml", "-f", "docker-compose-infrastructure.yml"
 $BackendCompose  = "-f", "docker-compose.yml", "-f", "docker-compose-backend.yml"
 $DevCompose     = "-f", "docker-compose.yml", "-f", "docker-compose.dev.yml"
-$ProdCompose    = "-f", "docker-compose.yml"
+$ProdCompose    = "-f", "docker-compose.yml", "-f", "docker-compose.prod-pulled.yml"
 
 # Service registry: maps friendly name -> container name
 $ServiceMap = @{
@@ -820,10 +820,9 @@ function Start-FrontendDocker {
         exit 1
     }
 
-    # For single app, use the main docker-compose but override the service
-    # We need to build the specific service
+    # For single app, use the frontend docker-compose with the specific service
     $serviceName = $containerName
-    $args = $DevCompose + @("up", "-d", "--build", $serviceName)
+    $args = $feDockerCompose + @("up", "-d", "--build", $serviceName)
     Write-Host "[flashsale-build] Starting frontend '$App' container (mock mode)..."
     Invoke-DockerCompose $args
     if ($LASTEXITCODE -ne 0) {
@@ -1598,7 +1597,7 @@ function Main {
         }
 
         "svc-run" {
-            Invoke-SvcRun -Service $Target -Build:($Rebuild -or $true)
+            Invoke-SvcRun -Service $Target -Build:$Rebuild
         }
 
         "svc-up" {
