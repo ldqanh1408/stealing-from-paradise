@@ -470,7 +470,10 @@ services:
       dockerfile: ./apps/customer/Dockerfile.dev
     container_name: fs-customer-fe
     restart: unless-stopped
-    ports: ["${PORT_CUSTOMER:-3000}:3000"]
+    # No host port binding by default — reverse-proxy routes / to this container
+    # over the Docker network. docker-compose.dev.yml exposes ports for local dev.
+    expose:
+      - "3000"
     env_file: .env
     # Don't duplicate VITE_API_URL here — env_file already provides it.
     # VITE_PROXY_TARGET tells Vite's dev-server proxy where to forward /api
@@ -481,10 +484,6 @@ services:
       - VITE_PROXY_TARGET=http://fs-gateway:8080
       - NODE_ENV=development
       - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
-    volumes:
-      - ./frontend/apps/customer:/app/apps/customer:cached
-      - ./frontend/shared:/app/shared:cached
-      - customer_nm:/app/apps/customer/node_modules
     networks: [*network]
     healthcheck:
       disable: true
@@ -495,17 +494,14 @@ services:
       dockerfile: ./apps/seller/Dockerfile.dev
     container_name: fs-seller-fe
     restart: unless-stopped
-    ports: ["${PORT_SELLER:-3001}:3001"]
+    expose:
+      - "3001"
     env_file: .env
     environment:
       - VITE_BACKEND_MODE=real
       - VITE_PROXY_TARGET=http://fs-gateway:8080
       - NODE_ENV=development
       - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
-    volumes:
-      - ./frontend/apps/seller:/app/apps/seller:cached
-      - ./frontend/shared:/app/shared:cached
-      - seller_nm:/app/apps/seller/node_modules
     networks: [*network]
     healthcheck:
       disable: true
@@ -516,17 +512,14 @@ services:
       dockerfile: ./apps/admin/Dockerfile.dev
     container_name: fs-admin-fe
     restart: unless-stopped
-    ports: ["${PORT_ADMIN:-3002}:3002"]
+    expose:
+      - "3002"
     env_file: .env
     environment:
       - VITE_BACKEND_MODE=real
       - VITE_PROXY_TARGET=http://fs-gateway:8080
       - NODE_ENV=development
       - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY}
-    volumes:
-      - ./frontend/apps/admin:/app/apps/admin:cached
-      - ./frontend/shared:/app/shared:cached
-      - admin_nm:/app/apps/admin/node_modules
     networks: [*network]
     healthcheck:
       disable: true

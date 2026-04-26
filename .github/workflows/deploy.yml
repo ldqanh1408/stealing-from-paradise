@@ -183,6 +183,13 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/apps/${{ matrix.app }}/package-lock.json
 
+      # Vite resolves `../../shared` via alias and dedupes packages with the
+      # app's node_modules. shared/ still needs its own install for axios,
+      # js-cookie, etc. that the app pulls in transitively.
+      - name: Install shared deps
+        working-directory: ./frontend/shared
+        run: npm install --no-audit --no-fund --no-progress
+
       - name: Build frontend app
         working-directory: ./frontend/apps/${{ matrix.app }}
         env:
@@ -280,7 +287,7 @@ jobs:
             api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
               echo "file=./backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
-              echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
+              echo "image_name=${{ env.IMAGE_PREFIX }}/${{ matrix.service }}" >> $GITHUB_OUTPUT
               ;;
             customer-app)
               echo "context=./frontend/apps/customer" >> $GITHUB_OUTPUT

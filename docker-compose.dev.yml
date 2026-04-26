@@ -25,6 +25,36 @@
 
 services:
   # ================================================================
+  # FRONTEND & GATEWAY HOST PORT BINDINGS (dev only)
+  # ================================================================
+  # In prod the reverse-proxy is the only public entry point. For local dev
+  # we expose ports directly so devs can hit Vite dev server (HMR) and the
+  # gateway without going through nginx.
+  api-gateway:
+    ports: ["${PORT_GATEWAY:-8080}:8080"]
+
+  # Vite dev server hot-reload requires source mounts. Volumes are dev-only —
+  # prod containers run nginx serving a baked-in /usr/share/nginx/html.
+  customer-app:
+    ports: ["${PORT_CUSTOMER:-3000}:3000"]
+    volumes:
+      - ./frontend/apps/customer:/app/apps/customer:cached
+      - ./frontend/shared:/app/shared:cached
+      - customer_nm:/app/apps/customer/node_modules
+  seller-app:
+    ports: ["${PORT_SELLER:-3001}:3001"]
+    volumes:
+      - ./frontend/apps/seller:/app/apps/seller:cached
+      - ./frontend/shared:/app/shared:cached
+      - seller_nm:/app/apps/seller/node_modules
+  admin-app:
+    ports: ["${PORT_ADMIN:-3002}:3002"]
+    volumes:
+      - ./frontend/apps/admin:/app/apps/admin:cached
+      - ./frontend/shared:/app/shared:cached
+      - admin_nm:/app/apps/admin/node_modules
+
+  # ================================================================
   # STRIPE WEBHOOK LISTENER (dev only — NOT for production)
   # ================================================================
   # Forwards Stripe events to payment-service webhook endpoint.
