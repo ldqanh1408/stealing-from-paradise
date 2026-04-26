@@ -13,7 +13,7 @@ set -e
 : ${ADMIN_PORT:=3002}
 
 cat > /etc/nginx/conf.d/default.conf <<'ENDNGINX'
-# Rate limiting zones
+# Rate limiting zones (http context — written before the server block)
 limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
 limit_req_zone $binary_remote_addr zone=frontend_limit:10m rate=20r/s;
 
