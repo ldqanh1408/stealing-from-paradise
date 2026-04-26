@@ -25,22 +25,22 @@ public class OrderItem {
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    @Column(name = "product_id")
+    @Column(name = "product_id", length = 100)
     private String productId;
 
-    @Column(name = "sku_code", nullable = false)
+    @Column(name = "sku_code", nullable = false, length = 100)
     private String skuCode;
 
-    @Column(name = "variant_id")
+    @Column(name = "variant_id", length = 100)
     private String variantId;
 
-    @Column(name = "name_snapshot")
+    @Column(name = "name_snapshot", length = 500)
     private String nameSnapshot;       // product name
 
-    @Column(name = "variant_name")
+    @Column(name = "variant_name", length = 255)
     private String variantName;        // e.g. "Đỏ / XL"
 
-    @Column(name = "image_snapshot")
+    @Column(name = "image_snapshot", length = 1000)
     private String imageSnapshot;
 
     @Column(name = "price_snapshot")

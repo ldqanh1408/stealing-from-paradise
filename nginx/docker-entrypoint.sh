@@ -1,5 +1,5 @@
 #!/bin/sh
-# Entrypoint for nginx reverse-proxy — no envsubst, pure shell substitution
+# Entrypoint for nginx reverse-proxy — generates config from env vars
 set -e
 
 : ${NGINX_PORT:=80}
@@ -12,7 +12,19 @@ set -e
 : ${ADMIN_HOST:=fs-admin-fe}
 : ${ADMIN_PORT:=3002}
 
-cat > /etc/nginx/conf.d/default.conf <<ENDNGINX
+# Generate nginx config with env values substituted
+# Using sed to replace __PLACEHOLDER__ tokens AFTER writing the template
+sed \
+    -e "s|__NGINX_PORT__|${NGINX_PORT}|g" \
+    -e "s|__GATEWAY_HOST__|${GATEWAY_HOST}|g" \
+    -e "s|__GATEWAY_PORT__|${GATEWAY_PORT}|g" \
+    -e "s|__CUSTOMER_HOST__|${CUSTOMER_HOST}|g" \
+    -e "s|__CUSTOMER_PORT__|${CUSTOMER_PORT}|g" \
+    -e "s|__SELLER_HOST__|${SELLER_HOST}|g" \
+    -e "s|__SELLER_PORT__|${SELLER_PORT}|g" \
+    -e "s|__ADMIN_HOST__|${ADMIN_HOST}|g" \
+    -e "s|__ADMIN_PORT__|${ADMIN_PORT}|g" \
+    > /etc/nginx/conf.d/default.conf <<'ENDNGINX'
 upstream gateway {
     server __GATEWAY_HOST__:__GATEWAY_PORT__;
 }
@@ -29,9 +41,9 @@ upstream admin-app {
     server __ADMIN_HOST__:__ADMIN_PORT__;
 }
 
-# Rate limiting zones (http context — valid here, NOT inside upstream)
-limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=10r/s;
-limit_req_zone \$binary_remote_addr zone=frontend_limit:10m rate=20r/s;
+# Rate limiting zones (http context)
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=frontend_limit:10m rate=20r/s;
 
 server {
     listen __NGINX_PORT__;
@@ -51,11 +63,11 @@ server {
 
         proxy_pass http://gateway;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_pass_request_body on;
         proxy_redirect off;
@@ -70,10 +82,10 @@ server {
 
         proxy_pass http://seller-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_redirect off;
     }
 
@@ -82,10 +94,10 @@ server {
 
         proxy_pass http://admin-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_redirect off;
     }
 
@@ -94,10 +106,10 @@ server {
 
         proxy_pass http://customer-app/;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_redirect off;
     }
 
@@ -119,16 +131,5 @@ server {
     }
 }
 ENDNGINX
-
-# Replace placeholder tokens with actual env values
-sed -i "s/__NGINX_PORT__/${NGINX_PORT}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__GATEWAY_HOST__/${GATEWAY_HOST}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__GATEWAY_PORT__/${GATEWAY_PORT}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__CUSTOMER_HOST__/${CUSTOMER_HOST}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__CUSTOMER_PORT__/${CUSTOMER_PORT}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__SELLER_HOST__/${SELLER_HOST}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__SELLER_PORT__/${SELLER_PORT}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__ADMIN_HOST__/${ADMIN_HOST}/g" /etc/nginx/conf.d/default.conf
-sed -i "s/__ADMIN_PORT__/${ADMIN_PORT}/g" /etc/nginx/conf.d/default.conf
 
 exec nginx -g 'daemon off;'

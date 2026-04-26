@@ -70,52 +70,52 @@ public class OrderDevDataLoader implements CommandLineRunner {
         }
 
         // Order 1: PAID, COMPLETED (shipped + delivered)
-        ParentOrder po1 = createParentOrder(1L, 1L, new BigDecimal("250000.00"),
+        ParentOrder po1 = createParentOrder(1L, new BigDecimal("250000.00"),
                 LocalDateTime.now().minusDays(7), LocalDateTime.now().minusDays(6));
         Order o1 = createSubOrder(po1.getId(), SELLER_IDS[0], "SELLER_1",
-                "ORD-1", 1L, new BigDecimal("250000.00"), new BigDecimal("250000.00"),
+                "ORD-1", new BigDecimal("250000.00"), new BigDecimal("250000.00"),
                 "COMPLETED", SHIPPING_ADDRESS_1, "VNPOST123456");
         createOrderItems(o1, "COMPLETED", null);
 
         // Order 2: PAID, SHIPPED (in transit)
-        ParentOrder po2 = createParentOrder(2L, 2L, new BigDecimal("1590000.00"),
+        ParentOrder po2 = createParentOrder(2L, new BigDecimal("1590000.00"),
                 LocalDateTime.now().minusDays(5), LocalDateTime.now().minusDays(4));
         Order o2 = createSubOrder(po2.getId(), SELLER_IDS[1], "SELLER_2",
-                "ORD-2", 2L, new BigDecimal("1590000.00"), new BigDecimal("1590000.00"),
+                "ORD-2", new BigDecimal("1590000.00"), new BigDecimal("1590000.00"),
                 "SHIPPED", SHIPPING_ADDRESS_2, "GHTK987654");
         createOrderItems(o2, "SHIPPED", null);
 
         // Order 3: PAID, CONFIRMED (just paid, awaiting shipment)
-        ParentOrder po3 = createParentOrder(3L, 3L, new BigDecimal("899000.00"),
+        ParentOrder po3 = createParentOrder(3L, new BigDecimal("899000.00"),
                 LocalDateTime.now().minusDays(3), LocalDateTime.now().minusDays(2));
         Order o3 = createSubOrder(po3.getId(), SELLER_IDS[2], "SELLER_3",
-                "ORD-3", 3L, new BigDecimal("899000.00"), new BigDecimal("899000.00"),
+                "ORD-3", new BigDecimal("899000.00"), new BigDecimal("899000.00"),
                 "CONFIRMED", SHIPPING_ADDRESS_1, null);
         createOrderItems(o3, "CONFIRMED", null);
 
         // Order 4: DELIVERED (delivered + return in progress)
-        ParentOrder po4 = createParentOrder(4L, 4L, new BigDecimal("3450000.00"),
+        ParentOrder po4 = createParentOrder(4L, new BigDecimal("3450000.00"),
                 LocalDateTime.now().minusDays(10), LocalDateTime.now().minusDays(9));
         Order o4 = createSubOrder(po4.getId(), SELLER_IDS[0], "SELLER_1",
-                "ORD-4", 4L, new BigDecimal("3450000.00"), new BigDecimal("3450000.00"),
+                "ORD-4", new BigDecimal("3450000.00"), new BigDecimal("3450000.00"),
                 "DELIVERED", SHIPPING_ADDRESS_2, "GHN555666");
         o4.setDeliveredAt(LocalDateTime.now().minusDays(2));
         orderRepository.save(o4);
         createOrderItems(o4, "DELIVERED", null);
 
         // Order 5: PENDING (awaiting payment — no transaction yet in payment-service)
-        ParentOrder po5 = createParentOrder(5L, 5L, new BigDecimal("459000.00"),
+        ParentOrder po5 = createParentOrder(5L, new BigDecimal("459000.00"),
                 LocalDateTime.now().minusHours(1), null);
         Order o5 = createSubOrder(po5.getId(), SELLER_IDS[1], "SELLER_2",
-                "ORD-5", 5L, new BigDecimal("459000.00"), new BigDecimal("459000.00"),
+                "ORD-5", new BigDecimal("459000.00"), new BigDecimal("459000.00"),
                 "PENDING", SHIPPING_ADDRESS_1, null);
         createOrderItems(o5, "PENDING", null);
 
         // Order 6: CANCELLED (buyer cancelled before payment)
-        ParentOrder po6 = createParentOrder(6L, 1L, new BigDecimal("1299000.00"),
+        ParentOrder po6 = createParentOrder(1L, new BigDecimal("1299000.00"),
                 LocalDateTime.now().minusDays(2), null);
         Order o6 = createSubOrder(po6.getId(), SELLER_IDS[2], "SELLER_3",
-                "ORD-6", 6L, new BigDecimal("1299000.00"), new BigDecimal("1299000.00"),
+                "ORD-6", new BigDecimal("1299000.00"), new BigDecimal("1299000.00"),
                 "CANCELLED", SHIPPING_ADDRESS_2, null);
         o6.setCancelledBy("BUYER");
         o6.setCancelReason("Đổi ý không mua nữa");
@@ -126,11 +126,10 @@ public class OrderDevDataLoader implements CommandLineRunner {
         log.info("[OrderDevDataLoader] Seeded {} parent_orders + sub_orders", 6);
     }
 
-    private ParentOrder createParentOrder(Long id, Long userId, BigDecimal totalAmt,
+    private ParentOrder createParentOrder(Long userId, BigDecimal totalAmt,
                                           LocalDateTime createdAt, LocalDateTime timeoutAt) {
         ParentOrder po = ParentOrder.builder()
-                .id(id)
-                .orderCode("PO-" + java.time.LocalDate.now().toString().replace("-", "") + "-" + id)
+                .orderCode("PO-" + java.time.LocalDate.now().toString().replace("-", "") + "-" + System.currentTimeMillis())
                 .userId(userId)
                 .totalAmt(totalAmt)
                 .finalAmt(totalAmt)
@@ -142,11 +141,10 @@ public class OrderDevDataLoader implements CommandLineRunner {
     }
 
     private Order createSubOrder(Long parentOrderId, Long sellerId, String sellerName,
-                                 String orderCode, Long id, BigDecimal totalAmt,
+                                 String orderCode, BigDecimal totalAmt,
                                  BigDecimal finalAmt, String status,
                                  String shippingAddress, String trackingNumber) {
         Order order = Order.builder()
-                .id(id)
                 .parentOrderId(parentOrderId)
                 .sellerId(sellerId)
                 .sellerName(sellerName)
@@ -159,7 +157,6 @@ public class OrderDevDataLoader implements CommandLineRunner {
                 .shippingAddress(shippingAddress)
                 .trackingNumber(trackingNumber)
                 .shippingDeadline(LocalDateTime.now().plusDays(3))
-                .version(0)
                 .build();
         return orderRepository.save(order);
     }
