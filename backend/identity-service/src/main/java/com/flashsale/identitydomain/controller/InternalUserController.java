@@ -31,7 +31,7 @@ public class InternalUserController {
                     .body(ApiResponse.error("USER_NOT_FOUND", "User not found: " + userId));
         }
 
-        String roleName = roleRepository.findByUserId(userId)
+        String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(userId)
                 .map(Role::getRoleName)
                 .orElse("BUYER");
 
@@ -48,7 +48,7 @@ public class InternalUserController {
                     .body(ApiResponse.error("USER_NOT_FOUND", "User not found: " + userId));
         }
 
-        String roleName = roleRepository.findByUserId(userId)
+        String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(userId)
                 .map(Role::getRoleName)
                 .orElse("BUYER");
 

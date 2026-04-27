@@ -23,8 +23,8 @@ export default function ProductDetailPage() {
     retry: 1,
   });
 
-  const disc = product && product.price && product.original_price
-    ? Math.round((1 - product.price / product.original_price) * 100)
+  const disc = product && product.price && product.originalPrice
+    ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
 
   const handleAddToCart = async () => {
@@ -33,7 +33,7 @@ export default function ProductDetailPage() {
     setAddError(null);
     setSuccessMsg(null);
     try {
-      const sku = product.variants[selectedVariant].sku_code;
+      const sku = product.variants[selectedVariant].skuCode;
       await addToCart(sku, quantity, undefined);
       setSuccessMsg('Đã thêm vào giỏ hàng!');
       setTimeout(() => navigate('/cart'), 1200);
@@ -82,7 +82,7 @@ export default function ProductDetailPage() {
   }
 
   const price = product.price ?? 0;
-  const original = product.original_price ?? price;
+  const original = product.originalPrice ?? price;
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">
@@ -91,10 +91,10 @@ export default function ProductDetailPage() {
         <div className="mb-8 flex items-center gap-2 text-sm flex-wrap">
           <Link to="/products" className="text-blue-600 hover:underline">Sản phẩm</Link>
           <span className="text-gray-400">/</span>
-          {product.category && (
+          {product.categoryName && (
             <>
-              <Link to={`/products?category=${product.category}`} className="text-blue-600 hover:underline">
-                {product.category}
+              <Link to={`/products?category=${product.categoryName}`} className="text-blue-600 hover:underline">
+                {product.categoryName}
               </Link>
               <span className="text-gray-400">/</span>
             </>
@@ -127,15 +127,15 @@ export default function ProductDetailPage() {
           <div>
             {/* Header */}
             <div className="mb-6">
-              {product.is_flash && (
+              {product.isFlash && (
                 <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full mb-3">
                   ⚡ FLASH SALE
                 </span>
               )}
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-              {product.seller_name && (
+              {product.sellerName && (
                 <p className="text-sm text-gray-500">
-                  Bán bởi <span className="font-semibold text-gray-700">{product.seller_name}</span>
+                  Bán bởi <span className="font-semibold text-gray-700">{product.sellerName}</span>
                 </p>
               )}
             </div>
@@ -156,7 +156,7 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="text-green-600 font-semibold">✓ Còn hàng</span>
                 <span className="text-gray-300">·</span>
-                <span>{product.stock_available} sản phẩm</span>
+                <span>{product.stockAvailable} sản phẩm</span>
               </div>
             </div>
 
@@ -167,7 +167,7 @@ export default function ProductDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   {product.variants.map((v, i) => (
                     <button
-                      key={v.sku_code}
+                      key={v.skuCode}
                       onClick={() => setSelectedVariant(i)}
                       className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
                         selectedVariant === i
@@ -176,7 +176,7 @@ export default function ProductDetailPage() {
                       } ${v.stock <= 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
                       disabled={v.stock <= 0}
                     >
-                      {v.variant_name}
+                      {v.variantName}
                       {v.stock <= 5 && v.stock > 0 && (
                         <span className="ml-1 text-xs text-orange-500">(còn {v.stock})</span>
                       )}
@@ -200,20 +200,20 @@ export default function ProductDetailPage() {
                   </button>
                   <span className="w-14 text-center font-semibold text-lg">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(q => Math.min(product.stock_available, q + 1))}
+                    onClick={() => setQuantity(q => Math.min(product.stockAvailable, q + 1))}
                     className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 font-bold text-lg"
                   >
                     +
                   </button>
                 </div>
                 <span className="text-sm text-gray-500">
-                  (tối đa {product.stock_available})
+                  (tối đa {product.stockAvailable})
                 </span>
               </div>
 
               <button
                 onClick={handleAddToCart}
-                disabled={isAdding || product.stock_available <= 0}
+                disabled={isAdding || product.stockAvailable <= 0}
                 className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold text-lg rounded-xl transition-all"
               >
                 {isAdding ? '⏳ Đang thêm...' : '🛒 Thêm vào giỏ hàng'}
@@ -242,7 +242,7 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-2">
                 <span>✓</span> Hỗ trợ 24/7
               </div>
-              {product.is_flash && (
+              {product.isFlash && (
                 <div className="flex items-center gap-2">
                   <span>⚡</span> Sản phẩm flash sale — giá đặc biệt
                 </div>

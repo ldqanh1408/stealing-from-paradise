@@ -80,9 +80,31 @@ public class AuthService {
     public User registerUserWithRole(String username, String email, String phone, String password, String fullName, String roleParam) {
         log.info("Registering user: {} with role: {}", username, roleParam);
 
-        User user = registerUser(username, email, phone, password, fullName);
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new RuntimeException("Username already exists: " + username);
+        }
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email already exists: " + email);
+        }
+        if (phone != null && !phone.isBlank() && userRepository.findByPhone(phone).isPresent()) {
+            throw new RuntimeException("Phone already exists: " + phone);
+        }
 
+        String hashedPassword = passwordEncoder.encode(password);
         String assignedRole = (roleParam != null && !roleParam.isEmpty()) ? roleParam : "BUYER";
+
+        User user = User.builder()
+                .username(username)
+                .email(email)
+                .phone(phone)
+                .password(hashedPassword)
+                .fullName(fullName)
+                .status("ACTIVE")
+                .trustScore(80)
+                .build();
+
+        user = userRepository.save(user);
+
         com.flashsale.identitydomain.domain.model.Role role = com.flashsale.identitydomain.domain.model.Role.builder()
                 .userId(user.getId())
                 .roleName(assignedRole)
@@ -108,7 +130,7 @@ public class AuthService {
             throw new RuntimeException("Invalid username or password");
         }
 
-        String dbRole = roleRepository.findByUserId(user.getId())
+        String dbRole = roleRepository.findFirstByUserIdOrderByIdAsc(user.getId())
                 .map(role -> role.getRoleName())
                 .orElse("BUYER");
 
@@ -181,7 +203,7 @@ public class AuthService {
         User user = userRepository.findById(Long.parseLong(userId))
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        String roleName = roleRepository.findByUserId(user.getId())
+        String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(user.getId())
                 .map(role -> role.getRoleName())
                 .orElse("BUYER");
 

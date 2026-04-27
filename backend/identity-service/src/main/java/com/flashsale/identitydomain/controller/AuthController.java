@@ -93,7 +93,7 @@ public class AuthController {
             );
 
             // Fetch role from roles table using user ID
-            String roleName = roleRepository.findByUserId(newUser.getId())
+            String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(newUser.getId())
                     .map(role -> role.getRoleName())
                     .orElse("BUYER"); // Default to BUYER if no role found
 
@@ -166,7 +166,7 @@ public class AuthController {
             );
 
             // Get role from roles table
-            String roleName = roleRepository.findByUserId(newUser.getId())
+            String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(newUser.getId())
                     .map(role -> role.getRoleName())
                     .orElse("SELLER");
 

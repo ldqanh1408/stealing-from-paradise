@@ -49,6 +49,7 @@ public final class KafkaTopics {
     public static final String STRIPE_DISPUTE_CLOSED     = "stripe.dispute.closed";
     public static final String STRIPE_TRANSFER_REVERSED  = "stripe.transfer.reversed";
     public static final String STRIPE_PAYOUT_FAILED      = "stripe.payout.failed";
+    public static final String SELLER_STRIPE_REQUIREMENT = "seller.stripe_requirement"; // → notification-service: seller cần hoàn tất yêu cầu Stripe
 
     // ──────────────────────────────────────────────
     // Refund  (Producer: Payment Service)

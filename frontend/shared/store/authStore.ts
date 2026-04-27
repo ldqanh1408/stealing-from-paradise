@@ -35,8 +35,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       _hasHydrated: false,
 
-      login: async (username, password) => {
-        const { data } = await authApi.login({ username, password });
+      login: async (credential, password) => {
+        const { data } = await authApi.login({ credential, password });
         const auth = data.data!;
         Cookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'strict' });
         if (auth.refreshToken) {

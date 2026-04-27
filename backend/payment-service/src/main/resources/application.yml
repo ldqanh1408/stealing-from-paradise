@@ -35,10 +35,12 @@ spring:
     defer-datasource-initialization: true
     hibernate:
       ddl-auto: none
+    show-sql: false
     properties:
       hibernate:
         dialect: com.flashsale.commonlib.config.ByteaPostgreSQLDialect
         show_sql: false
+        format_sql: false
         query.startup_check: false
         jdbc.batch_size: 10
         order_inserts: true
@@ -85,9 +87,20 @@ eureka:
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:sk_test_placeholder}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder}
-  platform-fee-percentage: ${STRIPE_PLATFORM_FEE_PERCENT:5.0}
+  platform-fee-percentage: ${STRIPE_PLATFORM_FEE_PERCENTAGE:5.0}
+  default-country: ${STRIPE_DEFAULT_COUNTRY:US}
   onboarding-return-url: ${STRIPE_RETURN_URL:http://localhost:3001/stripe/return}
   onboarding-refresh-url: ${STRIPE_REFRESH_URL:http://localhost:3001/stripe/refresh}
+
+# Actuator — always enabled so docker healthcheck works
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
 
 logging:
   level:
