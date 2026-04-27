@@ -1,6 +1,7 @@
 package com.flashsale.productdomain.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.productdomain.dto.request.AdminApproveRequest;
 import com.flashsale.productdomain.dto.request.AdminRejectRequest;
 import com.flashsale.productdomain.dto.response.ProductResponse;
@@ -8,7 +9,6 @@ import com.flashsale.productdomain.service.AdminProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -25,13 +25,12 @@ public class AdminProductController {
 
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getPendingProducts(
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getPendingProducts(
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) Long sellerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<ProductResponse> result = adminProductService.getPendingProducts(categoryId, sellerId, page, size);
-        return ResponseEntity.ok(ApiResponse.success(result));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(adminProductService.getPendingProducts(categoryId, sellerId, page, size))));
     }
 
     // ─── POST /admin/products/{productId}/approve ─────────────────────────────

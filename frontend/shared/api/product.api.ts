@@ -2,51 +2,52 @@ import apiClient from '../lib/axios';
 import type { ApiResponse } from '../types/api';
 
 export interface ProductVariant {
-  sku_code: string;
-  variant_name: string;
+  skuCode: string;
+  variantName: string;
   stock: number;
 }
 
 /** Matches backend ProductResponse: GET /products/{productId} */
 export interface ProductDetail {
-  product_id: string;
-  seller_id: number;
-  seller_name?: string;
+  productId: string;
+  sellerId: number;
+  sellerName?: string;
   name: string;
   description?: string;
   price?: number;
-  original_price?: number;
-  category_id: string;
-  category?: string;
+  originalPrice?: number;
+  categoryId?: string;
+  categoryName?: string;
+  categorySlug?: string;
   attributes?: Record<string, unknown>;
   images?: string[];
-  is_flash?: boolean;
+  isFlash?: boolean;
   status?: string;
-  reject_reason?: string;
-  stock_available: number;
+  rejectReason?: string;
+  stockAvailable: number;
   variants?: ProductVariant[];
   rating?: number;
-  reviews_count?: number;
-  created_at?: string;
-  updated_at?: string;
+  reviewsCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-/** Matches backend ProductListItem or similar (used in product grids) */
+/** Matches backend ProductResponse (used in product grids) */
 export interface ProductListItem {
-  product_id: string;
-  seller_id: number;
-  seller_name?: string;
+  productId: string;
+  sellerId: number;
+  sellerName?: string;
   name: string;
   description?: string;
   price?: number;
-  original_price?: number;
-  category?: string;
+  originalPrice?: number;
+  categoryName?: string;
   images?: string[];
   stock?: number;
   rating?: number;
-  reviews_count?: number;
-  is_flash?: boolean;
-  created_at?: string;
+  reviewsCount?: number;
+  isFlash?: boolean;
+  createdAt?: string;
 }
 
 export const productApi = {

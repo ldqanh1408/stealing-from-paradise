@@ -6,7 +6,7 @@ const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 const QUICK_ACTIONS = [
   { label: 'Thêm sản phẩm', icon: '➕', desc: 'Đăng sản phẩm mới lên cửa hàng', href: '/products', color: 'border-blue-200 hover:border-blue-400 hover:bg-blue-50' },
   { label: 'Xem đơn hàng', icon: '📋', desc: 'Quản lý và xử lý đơn hàng', href: '/orders', color: 'border-green-200 hover:border-green-400 hover:bg-green-50' },
-  { label: 'Kết nối Stripe', icon: '💳', desc: 'Thiết lập nhận thanh toán', href: '/stripe-onboarding', color: 'border-purple-200 hover:border-purple-400 hover:bg-purple-50' },
+  { label: 'Xem thu nhập', icon: '💰', desc: 'Theo dõi thu nhập từ Stripe', href: '/payments', color: 'border-violet-200 hover:border-violet-400 hover:bg-violet-50' },
 ];
 
 export default function SellerDashboard() {

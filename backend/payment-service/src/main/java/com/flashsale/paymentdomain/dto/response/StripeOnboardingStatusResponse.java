@@ -28,4 +28,7 @@ public class StripeOnboardingStatusResponse {
 
     @JsonProperty("onboarding_url")
     private String onboardingUrl;
+
+    @JsonProperty("express_dashboard_url")
+    private String expressDashboardUrl;
 }

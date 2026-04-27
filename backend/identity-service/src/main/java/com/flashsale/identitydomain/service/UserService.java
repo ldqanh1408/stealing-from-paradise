@@ -35,7 +35,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile(Long userId) {
         User user = getUserById(userId);
-        String roleName = roleRepository.findByUserId(userId)
+        String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(userId)
                 .map(Role::getRoleName)
                 .orElse("BUYER");
 
@@ -155,7 +155,7 @@ public class UserService {
     public void registerAsSeller(Long userId) {
         User user = getUserById(userId);
 
-        boolean alreadySeller = roleRepository.findByUserId(userId)
+        boolean alreadySeller = roleRepository.findFirstByUserIdOrderByIdAsc(userId)
                 .map(r -> "SELLER".equals(r.getRoleName()))
                 .orElse(false);
 
@@ -163,7 +163,7 @@ public class UserService {
             throw new RuntimeException("User is already a seller");
         }
 
-        Role role = roleRepository.findByUserId(userId)
+        Role role = roleRepository.findFirstByUserIdOrderByIdAsc(userId)
                 .orElse(Role.builder().userId(userId).build());
         role.setRoleName("SELLER");
         roleRepository.save(role);

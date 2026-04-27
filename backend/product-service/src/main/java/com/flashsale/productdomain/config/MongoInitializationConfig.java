@@ -14,18 +14,18 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Category initialization — only runs in dev profile.
- * In production, categories must be seeded via ProductDevDataLoader
- * or a dedicated migration/admin API.
+ * Category initialization — only runs in dev profile, AND ONLY when dev-data.enabled=false.
+ * When dev-data.enabled=true (the default), ProductDevDataLoader handles ALL seeding
+ * (categories + products + variants + carts).
  */
 @Configuration
 @Profile("dev")
 @Slf4j
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "dev-data.enabled", havingValue = "false", matchIfMissing = true)
 public class MongoInitializationConfig {
 
     @Bean
-    @ConditionalOnProperty(name = "dev-data.enabled", havingValue = "true", matchIfMissing = false)
     public CommandLineRunner initializeCategories(CategoryRepository categoryRepository) {
         return args -> {
             long categoryCount = categoryRepository.count();

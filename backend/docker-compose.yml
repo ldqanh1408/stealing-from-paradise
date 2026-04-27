@@ -272,6 +272,7 @@ services:
     ports: ["${PORT_PAYMENT:-8082}:8082"]
     env_file: .env
     environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
       - DB_HOST=${DB_HOST}
       - DB_NAME=${DB_NAME}
@@ -282,6 +283,7 @@ services:
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - STRIPE_PLATFORM_FEE_PERCENTAGE=${STRIPE_PLATFORM_FEE_PERCENTAGE}
+      - STRIPE_DEFAULT_COUNTRY=${STRIPE_DEFAULT_COUNTRY:-US}
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_PAYMENT}
@@ -290,6 +292,12 @@ services:
       kafka: { condition: service_started }
       axonserver: { condition: service_healthy }
     networks: [flashsale-net]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -s http://localhost:8082/actuator/health > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 150s
 
   order-service:
     build:
@@ -353,6 +361,7 @@ services:
     ports: ["${PORT_PRODUCT:-8090}:8090"]
     env_file: .env
     environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
       - MONGO_HOST=${MONGO_HOST}
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}

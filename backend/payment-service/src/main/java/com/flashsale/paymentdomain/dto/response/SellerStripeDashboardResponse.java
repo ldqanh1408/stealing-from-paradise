@@ -6,14 +6,14 @@ import lombok.Data;
 
 @Data
 @Builder
-public class StripeOnboardingResponse {
+public class SellerStripeDashboardResponse {
 
-    @JsonProperty("onboarding_url")
-    private String onboardingUrl;
+    @JsonProperty("dashboard_url")
+    private String dashboardUrl;
 
     @JsonProperty("stripe_account_id")
     private String stripeAccountId;
 
-    @JsonProperty("expires_at")
-    private java.time.Instant expiresAt;
+    @JsonProperty("account_status")
+    private String accountStatus;
 }

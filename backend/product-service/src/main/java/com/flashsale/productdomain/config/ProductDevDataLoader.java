@@ -113,7 +113,7 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 Arrays.asList(
                         "https://picsum.photos/seed/iphone15pm1/800/800",
                         "https://picsum.photos/seed/iphone15pm2/800/800"),
-                true, "APPROVED", 45));
+                true, "PUBLISHED", 45));
 
         products.add(createProduct("PROD-002", SELLER_IDS[0],
                 catMap.get("laptop").getId(),
@@ -121,19 +121,19 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 Arrays.asList(
                         "https://picsum.photos/seed/mba13m3/800/800",
                         "https://picsum.photos/seed/mba13m3b/800/800"),
-                false, "APPROVED", 20));
+                false, "PUBLISHED", 20));
 
         products.add(createProduct("PROD-003", SELLER_IDS[0],
                 catMap.get("phu-kien").getId(),
                 "USB-C Hub 7-in-1", "Hub chuyển đổi USB-C 7 cổng: HDMI 4K, USB-A 3.0, SD card...",
                 Arrays.asList("https://picsum.photos/seed/usbchub7/800/800"),
-                false, "APPROVED", 150));
+                false, "PUBLISHED", 150));
 
         products.add(createProduct("PROD-004", SELLER_IDS[0],
                 catMap.get("phu-kien").getId(),
                 "Cable USB-C sạc nhanh 100W 1m", "Cable USB-C to USB-C 100W, hỗ trợ PD 3.0, sạc nhanh.",
                 Arrays.asList("https://picsum.photos/seed/usbcable1m/800/800"),
-                false, "APPROVED", 300));
+                false, "PUBLISHED", 300));
 
         products.add(createProduct("PROD-005", SELLER_IDS[0],
                 catMap.get("am-thanh").getId(),
@@ -141,7 +141,7 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 Arrays.asList(
                         "https://picsum.photos/seed/airpods2a/800/800",
                         "https://picsum.photos/seed/airpods2b/800/800"),
-                true, "APPROVED", 30));
+                true, "PUBLISHED", 30));
 
         products.add(createProduct("PROD-006", SELLER_IDS[0],
                 catMap.get("am-thanh").getId(),
@@ -149,14 +149,14 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 Arrays.asList(
                         "https://picsum.photos/seed/watchse1/800/800",
                         "https://picsum.photos/seed/watchse2/800/800"),
-                true, "APPROVED", 15));
+                true, "PUBLISHED", 15));
 
         // Seller 2: Fashion Hub
         products.add(createProduct("PROD-007", SELLER_IDS[1],
                 catMap.get("nam").getId(),
                 "Áo Polo nam cao cấp", "Áo Polo nam, vải pique cotton, thoáng mát, nhiều màu.",
                 Arrays.asList("https://picsum.photos/seed/poloman1/800/800"),
-                false, "APPROVED", 200));
+                false, "PUBLISHED", 200));
 
         products.add(createProduct("PROD-008", SELLER_IDS[1],
                 catMap.get("nu").getId(),
@@ -164,13 +164,13 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 Arrays.asList(
                         "https://picsum.photos/seed/vayhoa1/800/800",
                         "https://picsum.photos/seed/vayhoa2/800/800"),
-                false, "APPROVED", 80));
+                false, "PUBLISHED", 80));
 
         products.add(createProduct("PROD-009", SELLER_IDS[1],
                 catMap.get("nam").getId(),
                 "Quần Jeans nam slim fit", "Quần Jeans nam ống slim fit, co giãn, phong cách trẻ trung.",
                 Arrays.asList("https://picsum.photos/seed/jeansnam1/800/800"),
-                false, "APPROVED", 120));
+                false, "PUBLISHED", 120));
 
         // Seller 3: Gadget Pro
         products.add(createProduct("PROD-010", SELLER_IDS[2],
@@ -179,25 +179,25 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 Arrays.asList(
                         "https://picsum.photos/seed/buds21/800/800",
                         "https://picsum.photos/seed/buds22/800/800"),
-                false, "APPROVED", 50));
+                false, "PUBLISHED", 50));
 
         products.add(createProduct("PROD-011", SELLER_IDS[2],
                 catMap.get("phu-kien").getId(),
                 "Logitech MX Master 3S", "Chuột không dây Logitech MX Master 3S — Sensor 8K, cuộn MagSpeed.",
                 Arrays.asList("https://picsum.photos/seed/mx3s1/800/800"),
-                false, "APPROVED", 25));
+                false, "PUBLISHED", 25));
 
         products.add(createProduct("PROD-012", SELLER_IDS[2],
                 catMap.get("phu-kien").getId(),
                 "MagSafe Charger 15W", "Sạc MagSafe Apple 15W — Nam châm snap, sạc không dây.",
                 Arrays.asList("https://picsum.photos/seed/magsafe1/800/800"),
-                false, "APPROVED", 100));
+                false, "PUBLISHED", 100));
 
         products.add(createProduct("PROD-013", SELLER_IDS[2],
                 catMap.get("nha-cua").getId(),
                 "Bộ dao nhà bếp 5 món", "Bộ dao nhà bếp cao cấp 5 món, lưỡi thép không gỉ, cầm chắc tay.",
                 Arrays.asList("https://picsum.photos/seed/daobep1/800/800"),
-                false, "APPROVED", 60));
+                false, "PUBLISHED", 60));
 
         // Pending products
         products.add(createProduct("PROD-PEND-1", SELLER_IDS[0],

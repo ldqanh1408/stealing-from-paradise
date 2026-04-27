@@ -492,7 +492,7 @@ function Invoke-MvnBuild {
         exit 1
     }
 
-    $svcPath = Join-Path $ProjectRoot "backend" $dir
+    $svcPath = Join-Path (Join-Path $ProjectRoot "backend") $dir
     if (-not (Test-Path $svcPath)) {
         Write-Error "[flashsale-build] Path not found: $svcPath"
         exit 1
@@ -559,7 +559,7 @@ function Invoke-NpmInstall {
             Write-Host "Valid apps: customer, seller, admin, shared"
             exit 1
         }
-        $targetPath = Join-Path $ProjectRoot "frontend" $subPath
+        $targetPath = Join-Path (Join-Path $ProjectRoot "frontend") $subPath
         if (-not (Test-Path $targetPath)) {
             Write-Error "[flashsale-build] Path not found: $targetPath"
             exit 1
@@ -576,7 +576,7 @@ function Invoke-NpmInstall {
             Pop-Location
         }
     } elseif ($App -and $App.ToLower() -eq "shared") {
-        $targetPath = Join-Path $ProjectRoot "frontend" "shared"
+        $targetPath = Join-Path (Join-Path $ProjectRoot "frontend") "shared"
         Write-Host "[flashsale-build] npm install for: shared"
         Push-Location $targetPath
         try {
@@ -590,7 +590,7 @@ function Invoke-NpmInstall {
         }
     } else {
         # Install for all: shared first, then each app
-        $sharedPath = Join-Path $ProjectRoot "frontend" "shared"
+        $sharedPath = Join-Path (Join-Path $ProjectRoot "frontend") "shared"
         Write-Host "[flashsale-build] npm install for: shared"
         Push-Location $sharedPath
         try {
@@ -599,7 +599,7 @@ function Invoke-NpmInstall {
         } finally { Pop-Location }
         foreach ($app in @("customer", "seller", "admin")) {
             $appDir = $appDirMap[$app]
-            $targetPath = Join-Path $ProjectRoot "frontend" "apps" $app
+            $targetPath = Join-Path (Join-Path (Join-Path $ProjectRoot "frontend") "apps") $app
             Write-Host "[flashsale-build] npm install for: $app"
             Push-Location $targetPath
             try {
@@ -628,7 +628,7 @@ function Invoke-NpmBuild {
             Write-Host "Valid apps: customer, seller, admin"
             exit 1
         }
-        $targetPath = Join-Path $ProjectRoot "frontend" $subPath
+        $targetPath = Join-Path (Join-Path $ProjectRoot "frontend") $subPath
         if (-not (Test-Path $targetPath)) {
             Write-Error "[flashsale-build] Path not found: $targetPath"
             exit 1
@@ -655,9 +655,9 @@ function Invoke-NpmBuild {
         }
         foreach ($app in @("shared", "customer", "seller", "admin")) {
             if ($app -eq "shared") {
-                $targetPath = Join-Path $ProjectRoot "frontend" "shared"
+                $targetPath = Join-Path (Join-Path $ProjectRoot "frontend") "shared"
             } else {
-                $targetPath = Join-Path $ProjectRoot "frontend" $appDirMap[$app]
+                $targetPath = Join-Path (Join-Path $ProjectRoot "frontend") $appDirMap[$app]
             }
             Write-Host "[flashsale-build] Building frontend app: $app"
             Push-Location $targetPath
@@ -703,7 +703,7 @@ VITE_BACKEND_MODE=mock
         Write-Host ""
         $jobs = @()
         foreach ($app in @("customer", "seller", "admin")) {
-            $targetPath = Join-Path $ProjectRoot "frontend" $appDirMap[$app]
+            $targetPath = Join-Path (Join-Path $ProjectRoot "frontend") $appDirMap[$app]
             if (-not (Test-Path $targetPath)) {
                 Write-Warning "[flashsale-build] Skipping missing app: $app"
                 continue
@@ -738,7 +738,7 @@ VITE_BACKEND_MODE=mock
         exit 1
     }
 
-    $targetPath = Join-Path $ProjectRoot "frontend" $subPath
+    $targetPath = Join-Path (Join-Path $ProjectRoot "frontend") $subPath
     if (-not (Test-Path $targetPath)) {
         Write-Error "[flashsale-build] Path not found: $targetPath"
         exit 1

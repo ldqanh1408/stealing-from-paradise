@@ -42,6 +42,9 @@ public class SellerStripeAccount {
     @Column(name = "onboarding_url_expires_at")
     private LocalDateTime onboardingUrlExpiresAt;
 
+    @Column(name = "express_dashboard_url", columnDefinition = "TEXT")
+    private String expressDashboardUrl;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
