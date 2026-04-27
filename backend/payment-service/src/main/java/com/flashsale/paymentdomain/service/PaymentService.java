@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.commonlib.event.payload.SellerStripeRequirementPayload;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.paymentdomain.config.StripeConfig;
@@ -21,6 +22,7 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
 import com.stripe.net.Webhook;
+import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.TransferCreateParams;
 import lombok.RequiredArgsConstructor;
@@ -328,6 +330,42 @@ public class PaymentService {
                 seller.setOnboardingUrl(null);
                 seller.setOnboardingUrlExpiresAt(null);
             }
+
+            // Check requirements: if seller needs to complete additional Stripe requirements,
+            // create a fresh Account Link and notify them via Kafka.
+            var requirements = account.getRequirements();
+            if (requirements != null && !requirements.getCurrentlyDue().isEmpty()) {
+                try {
+                    AccountLink accountLink = AccountLink.create(AccountLinkCreateParams.builder()
+                            .setAccount(account.getId())
+                            .setRefreshUrl(stripeConfig.getOnboardingRefreshUrl())
+                            .setReturnUrl(stripeConfig.getOnboardingReturnUrl())
+                            .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
+                            .build());
+
+                    Instant expiresAt = Instant.now().plusSeconds(86400);
+                    seller.setOnboardingUrl(accountLink.getUrl());
+                    seller.setOnboardingUrlExpiresAt(LocalDateTime.ofInstant(expiresAt, ZoneOffset.UTC));
+
+                    // Publish to notification service so seller receives the link
+                    SellerStripeRequirementPayload notification = SellerStripeRequirementPayload.builder()
+                            .sellerId(seller.getSellerId())
+                            .stripeAccountId(account.getId())
+                            .requirementType("verification_needed")
+                            .requirementReason(String.join(", ", requirements.getCurrentlyDue()))
+                            .accountLinkUrl(accountLink.getUrl())
+                            .accountLinkExpiresAt(expiresAt.toEpochMilli())
+                            .build();
+                    publish(KafkaTopics.SELLER_STRIPE_REQUIREMENT, String.valueOf(seller.getSellerId()), notification);
+
+                    log.info("Stripe requirements detected for seller {}: {}", seller.getSellerId(), requirements.getCurrentlyDue());
+                } catch (StripeException e) {
+                    log.error("Failed to create AccountLink for seller {} requirements: {}", seller.getSellerId(), e.getMessage());
+                }
+            }
+
+            // Sync Express Dashboard URL for identity verification link
+            seller.setExpressDashboardUrl("https://connect.stripe.com/express/" + account.getId());
             sellerStripeAccountRepository.save(seller);
             log.info("Seller Stripe account synced: sellerId={}, status={}", seller.getSellerId(), seller.getAccountStatus());
         });

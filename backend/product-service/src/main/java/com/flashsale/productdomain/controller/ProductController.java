@@ -1,6 +1,7 @@
 package com.flashsale.productdomain.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.productdomain.dto.request.CreateProductRequest;
 import com.flashsale.productdomain.dto.request.UpdateProductRequest;
@@ -12,7 +13,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -87,23 +87,21 @@ public class ProductController {
 
     @GetMapping("/sellers/me/products")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getMyProducts(
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getMyProducts(
             @AuthenticationPrincipal UserDetailsImpl user,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<ProductResponse> result = productService.getSellerProducts(user.getId(), page, size);
-        return ResponseEntity.ok(ApiResponse.success(result));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(productService.getSellerProducts(user.getId(), page, size))));
     }
 
     // ─── Public: GET /products ────────────────────────────────────────────────
 
     @GetMapping("/products")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProducts(
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getProducts(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<ProductResponse> result = productService.getProducts(category, search, page, size);
-        return ResponseEntity.ok(ApiResponse.success(result));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(productService.getProducts(category, search, page, size))));
     }
 }

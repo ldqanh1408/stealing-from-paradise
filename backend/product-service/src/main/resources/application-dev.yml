@@ -19,4 +19,4 @@ logging:
 
 dev-data:
   enabled: true
-  reset: false
+  reset: true

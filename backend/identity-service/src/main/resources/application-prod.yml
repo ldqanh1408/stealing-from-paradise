@@ -4,6 +4,7 @@
 # ============================================================
 spring:
   jpa:
+    show-sql: false
     properties:
       hibernate:
         show_sql: false

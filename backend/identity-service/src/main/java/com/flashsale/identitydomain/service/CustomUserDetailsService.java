@@ -36,7 +36,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         boolean enabled = "ACTIVE".equals(user.getStatus());
 
         // Fetch role from roles table using user ID
-        String roleName = roleRepository.findByUserId(user.getId())
+        String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(user.getId())
                 .map(role -> role.getRoleName())
                 .orElse("BUYER"); // Default to BUYER if no role found
 

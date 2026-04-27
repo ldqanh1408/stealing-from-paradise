@@ -24,20 +24,20 @@ function discountPct(original?: number, price?: number) {
 
 function ProductCard({ product, onAddToCart }: { product: ProductDetail; onAddToCart: (p: ProductDetail) => void }) {
   const price = product.price ?? 0;
-  const original = product.original_price ?? price;
+  const original = product.originalPrice ?? price;
   const disc = discountPct(original, price);
   const img = product.images?.[0];
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group flex flex-col">
-      <Link to={`/products/${product.product_id}`} className="block">
+      <Link to={`/products/${product.productId}`} className="block">
         <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 aspect-square flex items-center justify-center overflow-hidden">
           {img ? (
             <img src={img} alt={product.name} className="w-full h-full object-cover" />
           ) : (
             <span className="text-4xl">🛍️</span>
           )}
-          {product.is_flash && (
+          {product.isFlash && (
             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-bold text-white bg-red-500">
               ⚡ Flash Sale
             </span>
@@ -50,8 +50,8 @@ function ProductCard({ product, onAddToCart }: { product: ProductDetail; onAddTo
         </div>
       </Link>
       <div className="p-3 flex flex-col flex-1">
-        <p className="text-xs text-gray-400 mb-1">{product.category || product.category_id || 'Sản phẩm'}</p>
-        <Link to={`/products/${product.product_id}`} className="flex-1">
+        <p className="text-xs text-gray-400 mb-1">{product.categoryName || product.categoryId || 'Sản phẩm'}</p>
+        <Link to={`/products/${product.productId}`} className="flex-1">
           <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">
             {product.name}
           </h3>
@@ -65,19 +65,19 @@ function ProductCard({ product, onAddToCart }: { product: ProductDetail; onAddTo
         {product.rating != null && (
           <div className="flex items-center gap-1 mb-2">
             <span className="text-yellow-400 text-xs">{'★'.repeat(Math.round(product.rating))}</span>
-            <span className="text-xs text-gray-400">({product.reviews_count ?? 0})</span>
+            <span className="text-xs text-gray-400">({product.reviewsCount ?? 0})</span>
           </div>
         )}
         <div className="flex gap-1.5 mt-auto">
           <Link
-            to={`/products/${product.product_id}`}
+            to={`/products/${product.productId}`}
             className="flex-1 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 text-xs font-semibold rounded-xl transition-colors text-center"
           >
             Chi tiết
           </Link>
           <button
             onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
-            disabled={product.stock_available <= 0}
+            disabled={product.stockAvailable <= 0}
             className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1"
           >
             ➕
@@ -114,7 +114,7 @@ export default function ProductListPage() {
   const handleAddToCart = async (product: ProductDetail) => {
     if (!product.variants?.length) return;
     try {
-      const sku = product.variants[0].sku_code;
+      const sku = product.variants[0].skuCode;
       await addToCart(sku, 1, undefined);
       navigate('/cart');
     } catch (err: any) {
@@ -214,7 +214,7 @@ export default function ProductListPage() {
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
               {products.map(p => (
-                <ProductCard key={p.product_id} product={p} onAddToCart={handleAddToCart} />
+                <ProductCard key={p.productId} product={p} onAddToCart={handleAddToCart} />
               ))}
             </div>
 

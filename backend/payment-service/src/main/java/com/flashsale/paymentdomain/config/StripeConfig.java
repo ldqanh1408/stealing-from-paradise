@@ -25,6 +25,9 @@ public class StripeConfig {
     @Value("${stripe.onboarding-refresh-url}")
     private String onboardingRefreshUrl;
 
+    @Value("${stripe.default-country:US}")
+    private String defaultCountry;
+
     @PostConstruct
     public void init() {
         Stripe.apiKey = secretKey;
@@ -45,5 +48,9 @@ public class StripeConfig {
 
     public String getOnboardingRefreshUrl() {
         return onboardingRefreshUrl;
+    }
+
+    public String getDefaultCountry() {
+        return defaultCountry;
     }
 }

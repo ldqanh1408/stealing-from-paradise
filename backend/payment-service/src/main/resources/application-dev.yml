@@ -10,14 +10,31 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
-        show_sql: true
+        format_sql: false
+        show_sql: false
 
 # Dev data loader — bật khi profile=dev
 dev-data:
   enabled: true
   # reset=true xóa toàn bộ data cũ rồi seed lại từ đầu
   reset: false
+
+# Actuator — enable health endpoint for docker healthcheck
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    axonserver:
+      enabled: true

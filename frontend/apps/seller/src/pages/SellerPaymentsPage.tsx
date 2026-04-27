@@ -1,0 +1,299 @@
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { sellerApi } from '@shared/api/seller.api';
+
+const fmt = (n: number) => (n / 100).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+const fmtNum = (n: number) => n.toLocaleString('vi-VN');
+
+const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string; icon: string }> = {
+  SUCCEEDED:       { bg: 'bg-green-50',  color: 'text-green-700',  label: 'Đã chuyển',         icon: '✓' },
+  PENDING:         { bg: 'bg-yellow-50', color: 'text-yellow-700', label: 'Đang chờ',          icon: '⏳' },
+  FAILED:         { bg: 'bg-red-50',    color: 'text-red-700',    label: 'Thất bại',           icon: '✗' },
+  SKIPPED:        { bg: 'bg-gray-50',   color: 'text-gray-600',   label: 'Bị bỏ qua',          icon: '⊘' },
+  REVERSED:       { bg: 'bg-orange-50', color: 'text-orange-700', label: 'Bị đảo ngược',       icon: '↩' },
+  CANCELLED:      { bg: 'bg-gray-50',   color: 'text-gray-500',   label: 'Đã hủy',            icon: '⊘' },
+};
+
+function formatDate(iso?: string) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+type Tab = 'earnings' | 'stripe';
+
+export default function SellerPaymentsPage() {
+  const [tab, setTab] = useState<Tab>('earnings');
+  const [dashError, setDashError] = useState<string | null>(null);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['seller-earnings'],
+    queryFn: () => sellerApi.getEarnings().then(r => r.data.data),
+    retry: 1,
+  });
+
+  const dashMut = useMutation({
+    mutationFn: () => sellerApi.getStripeDashboardLink(),
+    onSuccess: (res) => {
+      const url = res.data.data?.dashboard_url;
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    },
+    onError: (err: any) => {
+      setDashError(err?.response?.data?.message || 'Không thể mở Stripe Dashboard. Hãy đảm bảo bạn đã hoàn tất onboarding.');
+    },
+  });
+
+  const st = data
+    ? {
+        total: data.total_earnings / 100,
+        available: data.available_balance / 100,
+        pending: data.pending_balance / 100,
+        fee: data.platform_fee_percentage,
+        count: data.total_orders,
+      }
+    : null;
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Thanh toán & Thu nhập</h1>
+        <p className="text-gray-500 mt-1">Theo dõi thu nhập và quản lý tài khoản Stripe của bạn</p>
+      </div>
+
+      {/* Balance cards */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[
+          {
+            label: 'Tổng thu nhập',
+            value: st ? fmtNum(Math.round(st.total)) : null,
+            icon: '💰',
+            gradient: 'from-violet-500 to-purple-600',
+            light: 'bg-violet-50 text-violet-700',
+          },
+          {
+            label: 'Sẵn sàng nhận',
+            value: st ? fmtNum(Math.round(st.available)) : null,
+            icon: '✅',
+            gradient: 'from-emerald-500 to-green-600',
+            light: 'bg-emerald-50 text-emerald-700',
+            highlight: true,
+          },
+          {
+            label: 'Đang xử lý',
+            value: st ? fmtNum(Math.round(st.pending)) : null,
+            icon: '⏳',
+            gradient: 'from-amber-500 to-orange-500',
+            light: 'bg-amber-50 text-amber-700',
+          },
+        ].map(({ label, value, icon, gradient, light, highlight }) => (
+          <div
+            key={label}
+            className={`bg-white rounded-2xl border p-5 ${highlight ? 'border-green-200 shadow-sm shadow-green-100' : 'border-gray-100'}`}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-lg shadow-sm`}>
+                {icon}
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="h-8 bg-gray-100 rounded-lg animate-pulse mb-1" />
+            ) : (
+              <p className={`text-2xl font-bold text-gray-900 mb-1 ${highlight ? 'text-green-700' : ''}`}>
+                {value ?? '—'}
+                {!isLoading && value && <span className="text-sm font-normal text-gray-400 ml-1">VND</span>}
+              </p>
+            )}
+            <p className="text-sm text-gray-500">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Fee & orders info strip */}
+      {st && (
+        <div className="flex items-center gap-6 mb-6 text-sm text-gray-500">
+          <span>
+            <span className="font-medium text-gray-700">{st.fee}%</span> phí nền tảng
+          </span>
+          <span className="text-gray-200">|</span>
+          <span>
+            <span className="font-medium text-gray-700">{fmtNum(st.count)}</span> giao dịch
+          </span>
+          <span className="text-gray-200">|</span>
+          <span>Thanh toán qua <span className="font-medium text-violet-600">Stripe</span></span>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setTab('earnings')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+            tab === 'earnings'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Lịch sử thu nhập
+        </button>
+        <button
+          onClick={() => setTab('stripe')}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+            tab === 'stripe'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Stripe Dashboard
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm mb-6">
+          Không thể tải dữ liệu thanh toán. Vui lòng thử lại.
+        </div>
+      )}
+
+      {/* Earnings table */}
+      {tab === 'earnings' && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <h2 className="font-bold text-gray-900">Lịch sử thu nhập</h2>
+            <span className="text-sm text-gray-400">{data?.transfers?.length ?? 0} giao dịch</span>
+          </div>
+
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-400">
+              <div className="text-4xl mb-3">⏳</div>
+              Đang tải...
+            </div>
+          ) : !data?.transfers?.length ? (
+            <div className="p-12 text-center">
+              <div className="text-5xl mb-4">💸</div>
+              <h3 className="font-semibold text-gray-900 mb-2">Chưa có thu nhập nào</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Khi khách hàng thanh toán đơn hàng của bạn, thu nhập sẽ xuất hiện tại đây.
+              </p>
+              <div className="flex justify-center gap-3">
+                <a href="/products" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors">
+                  Thêm sản phẩm
+                </a>
+                <a href="/stripe-onboarding" className="px-4 py-2 border border-blue-200 text-blue-700 hover:bg-blue-50 text-sm font-medium rounded-xl transition-colors">
+                  Kết nối Stripe
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-5 py-3 text-left font-medium">Mã đơn hàng</th>
+                    <th className="px-4 py-3 text-right font-medium">Số tiền</th>
+                    <th className="px-4 py-3 text-right font-medium">Phí</th>
+                    <th className="px-4 py-3 text-right font-medium">Thu nhập</th>
+                    <th className="px-4 py-3 text-center font-medium">Trạng thái</th>
+                    <th className="px-5 py-3 text-left font-medium">Ngày</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {data.transfers.map((t) => {
+                    const cfg = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.PENDING;
+                    return (
+                      <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-4">
+                          <span className="font-mono text-gray-900">
+                            {t.order_id ? `#${t.order_id}` : '—'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-right text-gray-600">
+                          {fmt(t.transfer_amount)}
+                        </td>
+                        <td className="px-4 py-4 text-right text-red-500">
+                          {t.fee_amount > 0 ? `-${fmt(t.fee_amount)}` : fmt(t.fee_amount)}
+                        </td>
+                        <td className="px-4 py-4 text-right font-bold text-gray-900">
+                          {fmt(t.net_amount)}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                            <span>{cfg.icon}</span>
+                            {cfg.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
+                          {formatDate(t.created_at)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stripe Dashboard tab */}
+      {tab === 'stripe' && (
+        <div className="space-y-6">
+          {/* Info card */}
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-6 flex items-start gap-4">
+            <span className="text-4xl shrink-0">🔗</span>
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-1">Quản lý qua Stripe Dashboard</h3>
+              <p className="text-sm text-gray-600">
+                Nhấn nút bên dưới để mở Stripe Dashboard — nơi bạn có thể xem số dư,
+                lịch sử giao dịch chi tiết, tạo lệnh rút tiền (payout), cập nhật thông tin
+                tài khoản ngân hàng, và quản lý phương thức thanh toán được chấp nhận.
+              </p>
+            </div>
+          </div>
+
+          {dashError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
+              {dashError}
+              <button onClick={() => setDashError(null)} className="ml-2 underline font-medium">Đóng</button>
+            </div>
+          )}
+
+          {/* Open Dashboard button */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+            <div className="text-5xl mb-4">💳</div>
+            <h3 className="font-bold text-gray-900 mb-2">Mở Stripe Dashboard</h3>
+            <p className="text-sm text-gray-500 mb-5 max-w-sm mx-auto">
+              Liên kết đăng nhập có hiệu lực trong 30 phút. Nếu hết hạn, nhấn lại nút bên dưới để tạo liên kết mới.
+            </p>
+            <button
+              onClick={() => dashMut.mutate()}
+              disabled={dashMut.isPending}
+              className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold rounded-xl shadow-sm transition-all text-sm"
+            >
+              {dashMut.isPending ? '⏳ Đang mở...' : '↗ Mở Stripe Dashboard'}
+            </button>
+          </div>
+
+          {/* Features */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {[
+              { icon: '💵', label: 'Số dư & Thu nhập', desc: 'Xem số dư khả dụng và đang xử lý' },
+              { icon: '🏦', label: 'Rút tiền', desc: 'Chuyển tiền về tài khoản ngân hàng VN' },
+              { icon: '📜', label: 'Lịch sử GD', desc: 'Chi tiết mọi giao dịch Stripe' },
+              { icon: '⚙️', label: 'Cài đặt TK', desc: 'Thông tin tài khoản & ngân hàng' },
+              { icon: '📊', label: 'Báo cáo', desc: 'Thống kê doanh thu theo ngày/tháng' },
+              { icon: '🔔', label: 'Thông báo', desc: 'Cài đặt email & SMS alerts' },
+            ].map(({ icon, label, desc }) => (
+              <div key={label} className="bg-white rounded-2xl border border-gray-100 p-4 text-center hover:border-gray-200 transition-colors">
+                <span className="text-3xl block mb-2">{icon}</span>
+                <h4 className="font-semibold text-gray-900 text-sm mb-1">{label}</h4>
+                <p className="text-xs text-gray-500">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

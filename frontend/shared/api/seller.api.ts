@@ -11,12 +11,46 @@ export interface SellerDashboardStats {
   active_products: number;
 }
 
-/** Stripe onboarding status */
+/** Stripe onboarding status — matches StripeOnboardingStatusResponse from backend */
 export interface StripeOnboardingStatus {
-  status: 'NOT_STARTED' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'SUSPENDED';
-  dashboard_url?: string;
+  stripe_account_id?: string;
+  account_status?: string;
+  details_submitted?: boolean;
   charges_enabled?: boolean;
   payouts_enabled?: boolean;
+  onboarding_status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'SUSPENDED';
+  onboarding_url?: string | null;
+}
+
+/** Stripe dashboard link response */
+export interface StripeDashboardLink {
+  dashboard_url: string;
+  stripe_account_id: string;
+  account_status: string;
+}
+
+/** Seller earnings summary */
+export interface SellerEarnings {
+  total_earnings: number;
+  available_balance: number;
+  pending_balance: number;
+  platform_fee_percentage: number;
+  total_orders: number;
+  transfers: SellerTransferItem[];
+}
+
+/** A single seller transfer / earnings record */
+export interface SellerTransferItem {
+  id: number;
+  order_id: number;
+  order_code?: string;
+  transfer_amount: number;
+  fee_amount: number;
+  net_amount: number;
+  stripe_transfer_id: string | null;
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED' | 'REVERSED';
+  created_at: string;
+  updated_at: string;
 }
 
 /** Product variant response */
@@ -93,4 +127,12 @@ export const sellerApi = {
     apiClient.get<ApiResponse<{ url: string; key: string }>>(`/products/${productId}/presigned-url`, {
       params: { fileName, contentType },
     }),
+
+  /** Get seller earnings summary with all transfer records */
+  getEarnings: () =>
+    apiClient.get<ApiResponse<SellerEarnings>>('/seller/payments/earnings'),
+
+  /** Get Stripe Dashboard single-use login link (valid 30 min) */
+  getStripeDashboardLink: () =>
+    apiClient.get<ApiResponse<StripeDashboardLink>>('/seller/payments/stripe-dashboard'),
 };

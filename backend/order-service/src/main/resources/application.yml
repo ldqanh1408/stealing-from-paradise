@@ -35,10 +35,12 @@ spring:
     defer-datasource-initialization: true
     hibernate:
       ddl-auto: none
+    show-sql: false
     properties:
       hibernate:
         dialect: com.flashsale.commonlib.config.ByteaPostgreSQLDialect
         show_sql: false
+        format_sql: false
         query.startup_check: false
         jdbc.batch_size: 10
         order_inserts: true

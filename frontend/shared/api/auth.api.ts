@@ -2,7 +2,7 @@ import apiClient from '../lib/axios';
 import type { ApiResponse } from '../types/api';
 
 export interface LoginRequest {
-  username: string;
+  credential: string;
   password: string;
 }
 
