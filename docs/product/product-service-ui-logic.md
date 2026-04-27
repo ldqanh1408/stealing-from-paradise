@@ -160,35 +160,27 @@ Bấm "Mua ngay":
 
 ### 3.2 Các trạng thái cảnh báo
 
-| Trạng thái | Hiển thị |
+| Trạng thái | 
 |---|---|
-| `sku.price != price_snapshot` | "⚠ Giá đã thay đổi từ X → Y" |
-| `sku.stock_quantity < quantity` | "⚠ Chỉ còn X sản phẩm, số lượng đã được điều chỉnh" |
-| `is_price_changed = true` | "⚠ Sản phẩm này có thay đổi, vui lòng kiểm tra lại" |
-| `sku.status = 'discontinued'` | "Sản phẩm không còn bán, vui lòng xóa khỏi giỏ" (disable checkbox) |
-| `sku.status = 'out_of_stock'` | "Tạm hết hàng" (disable checkbox, không thể checkout) |
+| Runtime check: `sku.price != price_snapshot`
+| Runtime check: `sku.status = 'inactive'`
+| Runtime check: `sku.stock_quantity = 0`
+Hiển thị cảnh báo chung: "Dữ liệu giỏ hàng đã thay đổi, vui lòng xem lại dữ liệu mới nhất"
 
 ### 3.3 Logic kiểm tra khi mở giỏ hàng
 
 ```
 Mỗi khi khách mở trang giỏ hàng:
-  Batch load tất cả SKU trong cart (1 query)
+  Batch fetch data của các SKU liên quan từ Redis/DB (Lazy load).
 
-  Với mỗi cart_item:
-    Nếu sku.price_updated_at > cart_item.price_checked_at:
-      → Cập nhật cart_item.price_checked_at = NOW()
-      → Nếu sku.price != price_snapshot:
-          hiển thị cảnh báo giá thay đổi
+  Với mỗi item API kiểm tra on-the-fly:
+    Nếu sku.price != cart_item.price_snapshot (Lệch giá, sale kết thúc...):
+      → Tính trả JSON attribute để UI hiển thị cảnh báo từ Z -> Y đ. Khách bấm cập nhật giỏ để confirm Y đ.
+    
+    Nếu sku.stock_quantity == 0 HOẶC status != 'active':
+      → API trả về cờ disable tương ứng. UI mờ item, bỏ tick checkbox đi. (Khách có hàng lại thì lại hiện lên).
 
-    Nếu sku.stock_quantity < cart_item.quantity:
-      → Điều chỉnh hiển thị số lượng (không auto-update DB,
-        để khách tự quyết định)
-
-    Nếu sku.status = 'discontinued':
-      → Uncheck item, disable, hiển thị thông báo
-
-  Tổng tiền = SUM(sku.price hiện tại * quantity)
-  Không dùng price_snapshot để tính tổng (luôn dùng giá hiện tại)
+  Tổng tiền = SUM (giá có đánh dấu tick chọn checkbox x quantity).
 ```
 
 ---
@@ -199,18 +191,18 @@ Mỗi khi khách mở trang giỏ hàng:
 
 ```
 Hiển thị:
-  - Danh sách sản phẩm với giá mới nhất (không dùng price_snapshot)
+  - Danh sách sản phẩm 
   - Địa chỉ giao hàng
-  - Ô nhập voucher
-  - Phương thức thanh toán
-  - Tổng cộng
+  - Voucher / Payment Method / Total.
 
-Validate trước khi hiển thị:
-  Nếu có item hết hàng hoặc ngừng bán:
-    → Hiển thị cảnh báo, không cho tiến hành
-  Nếu số lượng vượt tồn kho:
-    → Tự động điều chỉnh xuống và thông báo
-
+**Giai đoạn trước khi vào màn hình này (Bấm Checkout ở Giỏ)**:
+  Khi khách bấm "Check out" sau khi nán lại trang giỏ hàng quá lâu (vd bị afk lúc flash sale diễn ra).
+  API /checkout/preview bắn lên Backend. Backend check real-time:
+  - Giá lệch (sku.price != price_snapshot)
+  - Số lượng hụt, hết hàng
+  - Inactive.
+  Nếu GẶP LỖI: API bắn 400 Bad Request / 409 Conflict.
+  ➔ FE chặn load Preview => Quăng popup "Dữ liệu giỏ hàng vừa thay đổi, vui lòng update", tự refresh lại giỏ. Khách phải nhấn lại Checkout khi data đồng bộ.
   *** CHƯA lock tồn kho ở bước này ***
 ```
 

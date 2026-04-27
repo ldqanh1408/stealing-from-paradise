@@ -70,7 +70,7 @@ CREATE TABLE product (
     slug        VARCHAR(500) NOT NULL UNIQUE,
     description TEXT,            -- Rich text / HTML — phần "Mô tả sản phẩm"
     attributes  JSONB,           -- Structured key-value — phần "Chi tiết sản phẩm"
-    status      VARCHAR(50) NOT NULL DEFAULT 'draft',
+    status      VARCHAR(50) NOT NULL DEFAULT 'active',
     created_at  TIMESTAMP DEFAULT NOW(),
     updated_at  TIMESTAMP DEFAULT NOW()
 );
@@ -86,26 +86,14 @@ CREATE INDEX idx_product_attributes ON product USING GIN(attributes);
 
 | Giá trị | Ý nghĩa |
 |---|---|
-| `draft` | Seller đang soạn thảo, chưa gửi duyệt, chỉ seller thấy |
-| `pending_review` | Đã gửi lên chờ admin/hệ thống kiểm duyệt |
-| `active` | Đang bán bình thường — toàn bộ SKU còn ít nhất 1 cái active và còn hàng |
-| `partially_available` | Ít nhất 1 SKU còn hàng, nhưng không phải tất cả SKU đều available |
+| `active` | Đang bán bình thường — toàn bộ SKU còn ít nhất 1 cái active (còn hàng) |
 | `out_of_stock` | Tất cả SKU đều hết hàng (`stock_quantity = 0`), vẫn hiển thị trang detail |
 | `inactive` | Seller tự ẩn sản phẩm tạm thời |
-| `banned` | Admin gỡ sản phẩm vi phạm chính sách |
 
 **Logic cập nhật `status` product theo SKU (chạy trong application layer, cùng transaction với update SKU):**
 
-```
-active_count      = số SKU có status = 'active' và stock_quantity > 0
-out_of_stock_count = số SKU có status = 'active' và stock_quantity = 0
-inactive_count    = số SKU có status = 'inactive'
+**Product.status** phải được tính lại trong cùng transaction với bất kỳ thay đổi nào trên SKU (cập nhật stock, thay đổi status SKU, thêm/xóa SKU).
 
-Nếu active_count > 0 và out_of_stock_count = 0  → product.status = 'active'
-Nếu active_count > 0 và out_of_stock_count > 0  → product.status = 'partially_available'
-Nếu active_count = 0 và out_of_stock_count > 0  → product.status = 'out_of_stock'
-Nếu active_count = 0 và out_of_stock_count = 0  → product.status = 'inactive'
-```
 
 #### Trường `attributes` — ví dụ theo ngành hàng
 
@@ -155,6 +143,7 @@ CREATE TABLE sku (
     original_price      DECIMAL(18,2),       -- Giá gốc để hiển thị gạch chéo
     stock_quantity      INT NOT NULL DEFAULT 0,
     status              VARCHAR(50) NOT NULL DEFAULT 'active',
+    version             INT NOT NULL DEFAULT 1,              -- Optimistic Lock phiên bản
     image_url           TEXT,                -- Ảnh đại diện nhanh cho SKU
     price_updated_at    TIMESTAMP,           -- Dùng để so sánh với cart snapshot
     created_at          TIMESTAMP DEFAULT NOW(),
@@ -171,10 +160,9 @@ CREATE INDEX idx_sku_variant_attributes ON sku USING GIN(variant_attributes);
 
 | Giá trị | Ý nghĩa |
 |---|---|
-| `active` | Đang bán bình thường |
+| `active` | Đang bán bình thường và còn hàng |
 | `out_of_stock` | Hết hàng (`stock_quantity = 0`), vẫn hiển thị để khách biết, disable nút mua |
 | `inactive` | Seller tạm ẩn biến thể này |
-| `discontinued` | Ngừng bán vĩnh viễn, không khôi phục |
 
 #### Trường `variant_name` và `variant_attributes` — ví dụ cụ thể
 
@@ -323,7 +311,7 @@ CREATE INDEX idx_cart_customer ON cart(customer_id);
 | Trường | Vai trò |
 |---|---|
 | `customer_id` | ID từ User/Auth Service, UNIQUE vì 1 khách = 1 cart |
-| `status` | `active` (đang dùng), `merged` (sau khi guest checkout merge vào tài khoản) |
+| `status` | `active` (đang dùng) |
 
 ---
 
@@ -343,10 +331,6 @@ CREATE TABLE cart_item (
     sku_name_snapshot   VARCHAR(500),   -- Tên + variant để hiển thị kể cả SKU bị xóa
     sku_image_snapshot  TEXT,
 
-    -- Tracking thay đổi giá
-    is_price_changed    BOOLEAN DEFAULT FALSE,
-    price_checked_at    TIMESTAMP DEFAULT NOW(),
-
     created_at          TIMESTAMP DEFAULT NOW(),
     updated_at          TIMESTAMP DEFAULT NOW(),
 
@@ -359,19 +343,19 @@ CREATE INDEX idx_cart_item_sku ON cart_item(sku_id);
 
 | Trường | Vai trò | Ghi chú |
 |---|---|---|
-| `price_snapshot` | Giá SKU tại lúc thêm vào giỏ | Dùng để so sánh với `sku.price` hiện tại |
+| `price_snapshot` | Giá SKU tại lúc thêm vào giỏ | Dùng để so sánh với `sku.price` hiện tại (Lazy calculation). Nếu khác, yêu cầu user confirm và update lại snapshot. |
 | `sku_name_snapshot` | Tên + biến thể lưu lại | Hiển thị được kể cả khi SKU bị discontinued |
-| `is_price_changed` | Flag cảnh báo giá đã đổi | Bật khi seller thay đổi giá hoặc SKU ngừng bán |
-| `price_checked_at` | Lần cuối validate giá | So với `sku.price_updated_at` để biết cần recheck không |
 
-**Chiến lược cập nhật giỏ hàng khi seller thay đổi SKU:**
+**Chiến lược cập nhật giỏ hàng theo cơ chế Lazy Evaluation:**
+Thay vì theo dõi và đẩy cập nhật từ backend vào DB mỗi khi trạng thái SKU đổi, giỏ hàng sẽ tính toán real-time (on-the-fly) khi có request.
 
-| Loại thay đổi | Cách xử lý |
+| Loại thay đổi (từ Seller) | Cách xử lý (tại Giỏ hàng) |
 |---|---|
-| Seller thay đổi giá | **Async / lazy**: không update ngay, chỉ recheck khi khách mở giỏ hàng. So sánh `sku.price_updated_at` vs `cart_item.price_checked_at` |
-| SKU hết hàng | **Async**: set `is_price_changed = true` để cảnh báo khách |
-| SKU bị xóa / discontinued | **Sync**: bật `is_price_changed = true` ngay, push notification cho khách |
-| Bước Checkout | **Bắt buộc validate lại** giá và tồn kho real-time trước khi tạo đơn |
+| Thay đổi giá / Flash sale hết hạn | **Pull (Get Cart)**: Tính toán so sánh `sku.price` và `cart_item.price_snapshot`. Nếu lệch, trả flag cảnh báo qua API để UI hiển thị. |
+| SKU hết hàng | **Pull (Get Cart)**: Tính `sku.stock_quantity == 0`, trả flag `out_of_stock` qua API. |
+| SKU bị inactive | **Pull (Get Cart)**: Tính `sku.status != 'active'`, trả flag `unavailable` qua API. |
+| SKU có hàng lại / Active lại | **Pull (Get Cart)**: Do fetch real-time, dữ liệu trả về bình thường, tự động gỡ cảnh báo trên UI. |
+| Block tại bước Checkout | **Validate Strict**: Bắt buộc kiểm tra lại toàn bộ trạng thái (giá, tồn kho, active) trước khi vào Checkout Preview. Nếu có thay đổi (do khách nán lại ở giỏ quá lâu), block lập tức, trả lỗi yêu cầu reload lại giỏ hàng chứ không cho vào preview. |
 
 ---
 
@@ -390,9 +374,7 @@ CREATE TABLE review (
     rating        SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
     title         VARCHAR(255),
     content       TEXT,
-    is_anonymous  BOOLEAN DEFAULT FALSE,
     status        VARCHAR(50) NOT NULL DEFAULT 'approved',
-    helpful_count INT DEFAULT 0,   -- Số người bấm "Đánh giá này hữu ích"
 
     created_at    TIMESTAMP DEFAULT NOW(),
     updated_at    TIMESTAMP DEFAULT NOW()
@@ -410,9 +392,6 @@ CREATE INDEX idx_review_status ON review(status);
 | Giá trị | Ý nghĩa |
 |---|---|
 | `approved` | Hiển thị bình thường (mặc định nếu không cần duyệt) |
-| `pending` | Chờ admin duyệt (nếu có chính sách kiểm duyệt) |
-| `rejected` | Không đạt tiêu chuẩn, không hiển thị |
-| `hidden` | Admin ẩn tạm thời để xem xét |
 
 ---
 
@@ -493,12 +472,12 @@ Tất cả file binary (ảnh sản phẩm, ảnh/video review của khách) đ�
 
 ```
 Flow upload ảnh sản phẩm (seller):
-  Seller upload → API Gateway → Media Service → MinIO
-                                              → trả về URL
+  Seller upload → API Gateway → MinIO
+                              → trả về URL
                               → Product Service lưu URL vào product_image.url
 
 Flow upload ảnh review (khách):
-  Khách upload → API Gateway → Media Service → MinIO
-                                             → trả về URL
+  Khách upload → API Gateway → MinIO
+                             → trả về URL
                              → Product Service lưu URL vào review_media.url
 ```

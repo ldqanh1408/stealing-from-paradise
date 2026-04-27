@@ -35,14 +35,11 @@ Seller POST /products
   ├── Tạo các bản ghi SKU tương ứng
   ├── Upload ảnh → MinIO → lưu URL vào product_image
   │
-  ├── [Nếu marketplace yêu cầu kiểm duyệt]
-  │     └── product.status = 'pending_review'
-  │         Async → Notification Service → báo admin có sản phẩm chờ duyệt
   │
-  └── [Nếu không cần duyệt]
-        └── product.status = 'active'
-            Async → Kafka topic: product.created
-                  → Search Service lập index document mới
+  └── 
+    └── product.status = 'active'
+        Async → Kafka topic: product.created
+              → Search Service lập index document mới
 ```
 
 ### 1.2 Seller cập nhật giá SKU
@@ -74,10 +71,8 @@ Seller PATCH /skus/:id  { status: 'inactive' | stock_quantity: 0 }
   ├── Tính lại product.status (cùng transaction)
   │
   ├── [Nếu SKU hết hàng hoặc ngừng bán]
-  │     Sync (ngay lập tức):
-  │       UPDATE cart_item SET is_price_changed = TRUE
-  │       WHERE sku_id = :id
-  │     Async → Notification Service → push cho các khách đang giữ SKU này trong cart
+  │     KHÔNG can thiệp/update trực tiếp vào bảng cart_item (Lazy Evaluation).
+  │     (Tùy chọn) Async → Notification Service → push gửi cảnh báo cho khách đang có SKU này trong giỏ hàng.
   │
   └── Async → Kafka topic: sku.stock_updated
               → Search Service cập nhật stock_status trong document
@@ -168,7 +163,6 @@ Khách POST /cart/items  { sku_id, quantity }
   │     price_snapshot = sku.price (tại thời điểm này)
   │     sku_name_snapshot = product.name + variant info
   │     sku_image_snapshot = sku.image_url
-  │     price_checked_at = NOW()
   │
   └── Trả về cart_item mới
 ```
@@ -183,18 +177,17 @@ Khách GET /cart
         ├── SELECT cart_items WHERE cart_id = :id
         │
         ├── Với mỗi cart_item:
-        │     Đọc sku hiện tại (batch query, 1 lần)
-        │     So sánh:
-        │       sku.price != cart_item.price_snapshot?
-        │         → item.price_changed = true, hiển thị cảnh báo
-        │       sku.price_updated_at > cart_item.price_checked_at?
-        │         → Cập nhật price_checked_at = NOW()
-        │       sku.stock_quantity < cart_item.quantity?
-        │         → item.stock_warning = "Chỉ còn X sản phẩm"
-        │       sku.status = 'discontinued' hoặc 'inactive'?
-        │         → item.unavailable = true
+        │     Đọc data sku hiện tại (batch query, 1 lần từ Redis/DB)
+        │     Thực hiện Lazy Evaluation:
+        │       sku.price != cart_item.price_snapshot? (giá thay đổi / hết sale)
+        │         → item.has_price_change = true, kèm giá mới
+        │       sku.stock_quantity == 0?
+        │         → item.out_of_stock = true
+        │       sku.status != 'active'? (ngừng bán, bị ẩn)
+        │         → item.is_unavailable = true
         │
-        └── Trả về cart với enriched data (giá hiện tại, cảnh báo nếu có)
+        └── Trả về response cart với đầy đủ enriched data (transient states):
+            (Không ghi chép xuống DB để tránh bottleneck)
 ```
 
 ---
@@ -205,7 +198,7 @@ Khách GET /cart
 
 ```
 Giai đoạn 1: Checkout Preview
-  Khách xem lại đơn hàng, chọn địa chỉ, chọn voucher
+  Khách xem lại đơn hàng, chọn địa chỉ
   → KHÔNG lock tồn kho
   → Validate lại số lượng (soft check) để cảnh báo nếu hết hàng
 
@@ -223,16 +216,22 @@ Khách POST /checkout/preview  { cart_item_ids[] }
   └── Product Service
         │
         ├── Batch load tất cả SKU liên quan
-        ├── Validate từng item:
-        │     sku.stock_quantity >= cart_item.quantity?
-        │       Không → warning, giảm quantity xuống còn stock_quantity
-        │     sku.status = 'active'?
-        │       Không → mark item unavailable
-        │     sku.price != cart_item.price_snapshot?
-        │       → Hiển thị giá mới, cảnh báo giá đã thay đổi
-        │
-        └── Trả về preview order với giá và trạng thái cập nhật nhất
-            (Khách confirm thì mới tiến hành bước đặt hàng)
+├── Validate từng item (Bắt chặn thay đổi do nán lại giỏ hàng):
+            │     Khách bấm Checkout nhưng nán lại Cart quá lâu nên giá/stock thay đổi?
+            │     Check:
+            │       sku.status != 'active' HOẶC sku.stock_quantity == 0
+            │         → Error: Có sản phẩm hết hàng hoặc ngừng bán.
+            │       sku.stock_quantity < cart_item.quantity
+            │         → Error: Sản phẩm không còn đủ số lượng.
+            │       sku.price != cart_item.price_snapshot
+            │         → Error: Có sản phẩm thay đổi giá hoặc hết Flash Sale.
+            │
+            │     Nếu BẤT KỲ check nào fail:
+            │       → Trả HTTP 409 Conflict/Error kèm JSON mô tả item lỗi.
+            │       FRONTEND BẮT BUỘC RELOAD LẠI GIỎ HÀNG để khách xem lại thông báo. (Khách update snapshot thì mới qua bước này).
+            │
+            └── Nếu MỌI YÊU CẦU đều PASS (Data real-time matching perfect):
+                  Cho phép trả về Preview order với giá mới. Khách có thể đi tiếp sang bước Đặt Hàng.
 ```
 
 ### 4.3 Luồng Đặt hàng — xử lý concurrency 2 lớp
@@ -287,39 +286,40 @@ Scheduler chạy mỗi 1 phút:
   Với mỗi reservation hết hạn:
     BEGIN TRANSACTION
       UPDATE stock_reservation SET status = 'released'
-      -- Không cần UPDATE sku vì stock đã được trừ ở Lớp 2,
-      -- cần cộng lại:
+      -- Do tồn kho đã bị trừ thẳng ở bảng sku lúc đặt hàng (Lớp 2), 
+      -- nên khi đơn bị hủy/quá hạn, ta bắt buộc phải cộng hoàn trả lại:
       UPDATE sku SET stock_quantity = stock_quantity + quantity
                    WHERE id = sku_id
+                   
+      -- Phục hồi trạng thái Product nếu trước đó vì đơn này mà bị đánh dấu hiển thị hết hàng
+      UPDATE product SET status = 'active'
+                   WHERE id = (SELECT product_id FROM sku WHERE id = sku_id) 
+                   AND status = 'out_of_stock'
+
       Redis INCRBY stock:{sku_id} quantity
     COMMIT
-```
 
----
+### 4.5 Job đồng bộ tồn kho DB sang Redis (Self-healing & Cold Data)
 
-## 5. Luồng Flash Sale — Pre-warm Redis
-
-Flash sale là chương trình giảm giá có thời hạn. Seller set `sku.price < sku.original_price` trong khoảng thời gian nhất định. Để tránh **cache stampede** (hàng nghìn request đồng thời miss cache và hit DB), cần pre-warm Redis trước giờ mở bán.
+Để phòng hờ trường hợp hệ thống sập gây "mất tồn kho ảo" (Microservice crash lúc vừa trừ DECRBY xong nhưng chưa lưu log vào DB), hệ thống áp dụng cơ chế Self-healing lấy Database làm Source of Truth:
 
 ```
-Job Pre-warm (chạy T-15 phút trước flash sale):
-  SELECT id, stock_quantity FROM sku
-  WHERE id IN (danh sách SKU thuộc flash sale)
-
+Scheduler chạy mỗi 5 phút (Reconciliation Job):
+  Batch load tất cả SKU đang 'active' trên database.
+  
   Với mỗi SKU:
-    SET stock:{sku_id} = stock_quantity
-    TTL = duration flash sale + 30 phút buffer
+    Cập nhật đè cứng tồn kho thực lên: SET stock:{sku_id} = sku.stock_quantity
+    Gán TTL vòng đời cho key: EXPIRE stock:{sku_id} 3600 (1 tiếng)
+```
 
-Kết thúc flash sale:
-  Job cleanup release các reservation pending còn lại
-  Sync lại stock_quantity: DB = source of truth
-  Redis key sẽ tự expire theo TTL hoặc được overwrite
-  bởi lần đọc DB tiếp theo (cache-aside pattern)
+Kiến trúc này giúp:
+- **Tự chữa lành**: Mọi sai lệch, request ma kẹt trong Redis sẽ bị "ủi phẳng" và sửa sai cứ điều đặn sau 5 phút, giữ tỉ lệ Oversell/Memory leak ở mức 0.
+- **Chống tràn RAM (OOM)**: Với TTL 1 tiếng, thiết kế tự thu gọn tiết kiệm RAM cho máy chủ Redis khi tự động dọn dẹp các key `stock` của các sản phẩm ế, "nhường" tài nguyên cho Flash sale.
 ```
 
 ---
 
-## 6. Luồng đồng bộ sang Search Service
+## 5. Luồng đồng bộ sang Search Service
 
 ```
 Mỗi khi có thay đổi quan trọng trong Product Service:
