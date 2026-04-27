@@ -1,12 +1,8 @@
 # ============================================================
 # DEV Profile — product-service
-# Chỉ active khi SPRING_PROFILES_ACTIVE=dev
+# Active when SPRING_PROFILES_ACTIVE=dev
 # ============================================================
 spring:
-  mongodb:
-    host: ${MONGO_HOST:localhost}
-    port: 27017
-    database: ${DB_NAME_PRODUCT:fs_product}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -15,8 +11,9 @@ spring:
 logging:
   level:
     com.flashsale: DEBUG
-    org.springframework.data.mongodb: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
 
 dev-data:
   enabled: true
-  reset: true
+  reset: false

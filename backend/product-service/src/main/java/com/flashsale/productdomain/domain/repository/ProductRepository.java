@@ -1,35 +1,15 @@
 package com.flashsale.productdomain.domain.repository;
 
 import com.flashsale.productdomain.domain.model.Product;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
-import org.springframework.stereotype.Repository;
+import com.flashsale.productdomain.domain.model.ProductStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
+import java.util.UUID;
 
-@Repository
-public interface ProductRepository extends MongoRepository<Product, String> {
+public interface ProductRepository extends JpaRepository<Product, UUID> {
+    Optional<Product> findBySlugAndStatusIn(String slug, Collection<ProductStatus> statuses);
 
-    Optional<Product> findByIdAndSellerId(String id, Long sellerId);
-
-    Page<Product> findBySellerIdAndDeletedAtIsNull(Long sellerId, Pageable pageable);
-
-    Page<Product> findByStatusAndDeletedAtIsNull(String status, Pageable pageable);
-
-    Page<Product> findByStatusAndCategoryIdAndDeletedAtIsNull(String status, String categoryId, Pageable pageable);
-
-    Page<Product> findByStatusAndSellerIdAndDeletedAtIsNull(String status, Long sellerId, Pageable pageable);
-
-    long countBySellerIdAndStatusAndDeletedAtIsNull(Long sellerId, String status);
-
-    Optional<Product> findByIdAndDeletedAtIsNull(String id);
-
-    @Query("{ 'status': 'PUBLISHED', 'deletedAt': null, 'name': { $regex: ?0, $options: 'i' } }")
-    Page<Product> findPublishedByNameContaining(String namePattern, Pageable pageable);
-
-    @Query("{ 'status': 'PUBLISHED', 'deletedAt': null, 'categoryId': ?0, 'name': { $regex: ?1, $options: 'i' } }")
-    Page<Product> findPublishedByCategoryAndNameContaining(String categoryId, String namePattern, Pageable pageable);
+    Optional<Product> findByIdAndSellerId(UUID id, Long sellerId);
 }

@@ -1,22 +1,19 @@
 package com.flashsale.productdomain.domain.repository;
 
 import com.flashsale.productdomain.domain.model.CartItem;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-@Repository
-public interface CartItemRepository extends MongoRepository<CartItem, String> {
-    List<CartItem> findByCartId(String cartId);
+public interface CartItemRepository extends JpaRepository<CartItem, UUID> {
+    Optional<CartItem> findByCartIdAndSkuId(UUID cartId, UUID skuId);
 
-    List<CartItem> findByUserId(Long userId);
+    List<CartItem> findByCartId(UUID cartId);
 
-    Optional<CartItem> findByCartIdAndSkuCode(String cartId, String skuCode);
+    List<CartItem> findByIdInAndCartId(Collection<UUID> ids, UUID cartId);
 
-    void deleteByCartId(String cartId);
-
-    long countByCartId(String cartId);
+    void deleteByCartId(UUID cartId);
 }
-

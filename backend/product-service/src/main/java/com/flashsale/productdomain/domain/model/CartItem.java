@@ -1,48 +1,83 @@
 package com.flashsale.productdomain.domain.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
-/**
- * MG_CART_ITEMS - Standalone MongoDB collection
- * Mỗi item trong giỏ hàng được lưu riêng thay vì embedded trong Cart document
- * Này giúp query/update item độc lập mà không phải load toàn bộ giỏ hàng
- */
-@Document(collection = "cart_items")
-@CompoundIndex(name = "idx_cart_user", def = "{'cart_id': 1, 'user_id': 1}")
+@Entity
+@Table(name = "cart_item",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"cart_id", "sku_id"})
+    },
+    indexes = {
+        @Index(columnList = "cart_id"),
+        @Index(columnList = "sku_id")
+    }
+)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CartItem {
     @Id
-    private String id;
+    @GeneratedValue
+    @JdbcTypeCode(SqlTypes.UUID)
+    @Column(columnDefinition = "uuid")
+    private UUID id;
 
-    @Indexed
-    private String cartId;  // FK -> MG_CARTS._id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cart_id", nullable = false)
+    private Cart cart;
 
-    @Indexed
-    private Long userId;  // FK -> USERS.id (denormalized for fast query)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sku_id", nullable = false)
+    private Sku sku;
 
-    private String variantId;  // Logic ID của variant
+    @Column(nullable = false)
+    private Integer quantity = 1;
 
-    @Indexed
-    private String skuCode;  // Mã SKU
+    @Column(name = "price_snapshot", nullable = false, precision = 18, scale = 2)
+    private BigDecimal priceSnapshot;
 
-    private Long fsItemId;  // FK -> FS_ITEMS.id (nullable, nếu từ Flash Sale)
+    @Column(name = "sku_name_snapshot", length = 500)
+    private String skuNameSnapshot;
 
-    private BigDecimal priceSnapshot;  // Giá tại thời điểm thêm vào giỏ (đặc phòng giảm giá)
+    @Column(name = "sku_image_snapshot")
+    private String skuImageSnapshot;
 
-    private Integer quantity;  // Số lượng
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    private LocalDateTime addedAt;  // Thời điểm thêm vào giỏ
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
-

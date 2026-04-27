@@ -1,30 +1,37 @@
 package com.flashsale.productdomain.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CreateProductRequest {
+    @NotNull
+    private UUID categoryId;
 
     @NotBlank
-    @Size(min = 5, max = 200)
     private String name;
 
     @NotBlank
-    @Size(max = 10000)
-    private String description;
+    private String slug;
 
-    @NotBlank
-    private String categoryId;
+    private String description;
 
     private Map<String, Object> attributes;
 
     @NotEmpty
-    @Size(min = 1, max = 10)
-    private List<String> images;
+    @Valid
+    private List<CreateSkuRequest> skus;
 }

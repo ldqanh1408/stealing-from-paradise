@@ -2,6 +2,8 @@ package com.flashsale.productdomain.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -22,15 +24,17 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "category", indexes = {
-    @Index(columnList = "parent_id"),
-    @Index(columnList = "slug")
+@Table(name = "stock_reservation", indexes = {
+    @Index(columnList = "sku_id"),
+    @Index(columnList = "order_id"),
+    @Index(columnList = "status"),
+    @Index(columnList = "expires_at")
 })
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Category {
+public class StockReservation {
     @Id
     @GeneratedValue
     @JdbcTypeCode(SqlTypes.UUID)
@@ -38,26 +42,22 @@ public class Category {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Category parent;
+    @JoinColumn(name = "sku_id", nullable = false)
+    private Sku sku;
 
-    @Column(nullable = false, length = 255)
-    private String name;
+    @JdbcTypeCode(SqlTypes.UUID)
+    @Column(name = "order_id", nullable = false, columnDefinition = "uuid")
+    private UUID orderId;
 
-    @Column(nullable = false, unique = true, length = 255)
-    private String slug;
+    @Column(nullable = false)
+    private Integer quantity;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private ReservationStatus status = ReservationStatus.PENDING;
 
-    @Column(name = "image_url")
-    private String imageUrl;
-
-    @Column(name = "sort_order")
-    private Integer sortOrder = 0;
-
-    @Column(name = "is_active")
-    private Boolean isActive = true;
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

@@ -28,7 +28,7 @@ Card sản phẩm ở trang chủ hiển thị ở **Product level** (không ph�
 |---|---|
 | `product.status = 'out_of_stock'` | "Hết hàng" (màu xám) |
 | Có ít nhất 1 SKU: `price < original_price` | "SALE" hoặc phần trăm giảm |
-| `product.status = 'partially_available'` | Không badge, nhưng một số biến thể sẽ disable trong Detail |
+| `product.status = 'inactive'` | Không hiển thị card (ẩn khỏi listing) |
 | `sold_count > threshold` | "Bán chạy" hoặc "Phổ biến" |
 
 ---
@@ -201,8 +201,10 @@ Hiển thị:
   - Giá lệch (sku.price != price_snapshot)
   - Số lượng hụt, hết hàng
   - Inactive.
-  Nếu GẶP LỖI: API bắn 400 Bad Request / 409 Conflict.
+  Nếu GẶP LỖI: API bắn 409 Conflict.
   ➔ FE chặn load Preview => Quăng popup "Dữ liệu giỏ hàng vừa thay đổi, vui lòng update", tự refresh lại giỏ. Khách phải nhấn lại Checkout khi data đồng bộ.
+  Nếu đã có preview session: API bắn 409 preview_in_use. FE hiển thị thông báo và không mở thêm preview.
+  Nếu OK: API trả preview_token + expires_at (TTL 10 phút) để dùng khi place-order.
   *** CHƯA lock tồn kho ở bước này ***
 ```
 
@@ -212,6 +214,10 @@ Hiển thị:
 Khách bấm "Đặt hàng":
   → Bắt đầu lock tồn kho (tạo stock_reservation)
   → Xử lý payment
+
+Nếu preview_token hết hạn:
+  → API trả 409 preview_expired
+  → FE chuyển về giỏ hàng và yêu cầu preview lại
 
 Trong thời gian chờ payment (tối đa 15 phút):
   Hiển thị màn hình chờ hoặc redirect sang cổng thanh toán
@@ -273,10 +279,10 @@ Khi chọn tab:
 │                                          │
 │ [Ảnh 1] [Ảnh 2] [Video]                 │ ← review_media (url, media_type)
 │                                          │
-│ 👍 Hữu ích (24)                          │ ← review.helpful_count
+│                                          │
 └───────────────────────────────────────────┘
 
-is_anonymous = true → Ẩn tên thật, hiển thị "Người dùng ẩn danh"
+
 ```
 
 ---

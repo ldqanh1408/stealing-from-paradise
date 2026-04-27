@@ -2,12 +2,7 @@ package com.flashsale.productdomain.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -22,42 +17,40 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "category", indexes = {
-    @Index(columnList = "parent_id"),
-    @Index(columnList = "slug")
-})
+@Table(name = "review_summary")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Category {
+public class ReviewSummary {
     @Id
-    @GeneratedValue
     @JdbcTypeCode(SqlTypes.UUID)
-    @Column(columnDefinition = "uuid")
-    private UUID id;
+    @Column(name = "product_id", columnDefinition = "uuid")
+    private UUID productId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
-    private Category parent;
+    @Column(name = "avg_rating")
+    private Double avgRating = 0.0;
 
-    @Column(nullable = false, length = 255)
-    private String name;
+    @Column(name = "total_count")
+    private Long totalCount = 0L;
 
-    @Column(nullable = false, unique = true, length = 255)
-    private String slug;
+    @Column(name = "count_5star")
+    private Long count5Star = 0L;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "count_4star")
+    private Long count4Star = 0L;
 
-    @Column(name = "image_url")
-    private String imageUrl;
+    @Column(name = "count_3star")
+    private Long count3Star = 0L;
 
-    @Column(name = "sort_order")
-    private Integer sortOrder = 0;
+    @Column(name = "count_2star")
+    private Long count2Star = 0L;
 
-    @Column(name = "is_active")
-    private Boolean isActive = true;
+    @Column(name = "count_1star")
+    private Long count1Star = 0L;
+
+    @Column(name = "count_with_media")
+    private Long countWithMedia = 0L;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

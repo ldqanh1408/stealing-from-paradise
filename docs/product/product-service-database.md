@@ -208,7 +208,7 @@ Nếu `original_price` có giá trị và `price < original_price`, frontend hi�
 
 #### Trường `price_updated_at`
 
-Được ghi lại mỗi khi seller thay đổi `price`. Dùng để so sánh với `cart_item.price_snapshot` khi khách mở lại giỏ hàng — nếu `price_updated_at > cart_item.price_checked_at` thì cảnh báo giá đã thay đổi.
+Được ghi lại mỗi khi seller thay đổi `price`. Khi khách mở lại giỏ hàng, so sánh trực tiếp `sku.price` với `cart_item.price_snapshot`; nếu lệch thì cảnh báo giá đã thay đổi. `price_updated_at` dùng để audit thay đổi giá.
 
 ---
 

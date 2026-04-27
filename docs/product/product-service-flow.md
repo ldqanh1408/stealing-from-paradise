@@ -31,7 +31,7 @@ API Gateway
 Seller POST /products
   │
   ├── Validate input (name, category_id, ít nhất 1 SKU)
-  ├── Tạo bản ghi product (status = 'draft')
+  ├── Tạo bản ghi product (status = 'inactive')
   ├── Tạo các bản ghi SKU tương ứng
   ├── Upload ảnh → MinIO → lưu URL vào product_image
   │
@@ -78,6 +78,31 @@ Seller PATCH /skus/:id  { status: 'inactive' | stock_quantity: 0 }
               → Search Service cập nhật stock_status trong document
 ```
 
+### 1.4 Seller cập nhật thông tin sản phẩm
+
+```
+Seller PATCH /products/:id  { name, description, attributes, status }
+  │
+  ├── Cập nhật product fields
+  ├── Nếu status = 'inactive' → ẩn khỏi listing
+  │
+  └── Async → Kafka topic: product.updated / product.inactive
+        → Search Service cập nhật document
+```
+
+### 1.5 Seller quản lý ảnh sản phẩm
+
+```
+Seller POST /products/:id/images
+  │
+  ├── Upload ảnh → MinIO → lưu URL vào product_image
+  └── Trả về danh sách ảnh mới nhất
+
+Seller DELETE /products/:id/images/:image_id
+  │
+  └── Xóa product_image theo id
+```
+
 ---
 
 ## 2. Luồng khách hàng xem sản phẩm
@@ -109,7 +134,7 @@ Khách GET /products/:slug
   │
   └── Product Service (gọi trực tiếp, không qua Search Service)
         │
-        ├── SELECT product WHERE slug = :slug AND status != 'banned'
+        ├── SELECT product WHERE slug = :slug AND status IN ('active', 'out_of_stock')
         ├── SELECT sku WHERE product_id = :id (tất cả SKU, kể cả out_of_stock)
         ├── SELECT product_image WHERE product_id = :id ORDER BY sort_order
         ├── SELECT review_summary WHERE product_id = :id
@@ -138,6 +163,16 @@ Khách GET /products/:id/reviews?rating=5&has_media=true&page=1
         ├── [tất cả] → SELECT WHERE product_id AND status='approved'
         │
         └── Kết hợp LEFT JOIN review_media để lấy ảnh/video kèm theo
+```
+
+### 2.4 Khách tạo đánh giá
+
+```
+Khách POST /products/:id/reviews
+  │
+  ├── Validate đã mua hàng (order_item_id)
+  ├── Lưu review + review_media
+  └── Cập nhật review_summary
 ```
 
 ---
@@ -190,6 +225,24 @@ Khách GET /cart
             (Không ghi chép xuống DB để tránh bottleneck)
 ```
 
+### 3.3 Cập nhật số lượng trong giỏ hàng
+
+```
+Khách PATCH /cart/items/:sku_id  { quantity }
+  │
+  ├── Đọc sku từ Redis/DB để validate tồn kho và status
+  ├── Nếu vượt tồn kho hoặc inactive → trả 409
+  └── UPDATE cart_item.quantity
+```
+
+### 3.4 Xóa item khỏi giỏ hàng
+
+```
+Khách DELETE /cart/items/:sku_id
+  │
+  └── Xóa cart_item tương ứng
+```
+
 ---
 
 ## 4. Luồng Checkout và xử lý Concurrency
@@ -216,7 +269,10 @@ Khách POST /checkout/preview  { cart_item_ids[] }
   └── Product Service
         │
         ├── Batch load tất cả SKU liên quan
-├── Validate từng item (Bắt chặn thay đổi do nán lại giỏ hàng):
+  ├── Check preview session:
+  │     Nếu tồn tại `checkout_preview:{customer_id}`
+  │       → Trả 409: preview_in_use
+  ├── Validate từng item (Bắt chặn thay đổi do nán lại giỏ hàng):
             │     Khách bấm Checkout nhưng nán lại Cart quá lâu nên giá/stock thay đổi?
             │     Check:
             │       sku.status != 'active' HOẶC sku.stock_quantity == 0
@@ -231,13 +287,31 @@ Khách POST /checkout/preview  { cart_item_ids[] }
             │       FRONTEND BẮT BUỘC RELOAD LẠI GIỎ HÀNG để khách xem lại thông báo. (Khách update snapshot thì mới qua bước này).
             │
             └── Nếu MỌI YÊU CẦU đều PASS (Data real-time matching perfect):
+                  Tạo preview token + TTL 10 phút:
+                    SET checkout_preview:{customer_id} = {preview_token} EX 600
+                  Trả về preview_token + expires_at
                   Cho phép trả về Preview order với giá mới. Khách có thể đi tiếp sang bước Đặt Hàng.
+```
+
+### 4.2.1 Hủy preview (giải phóng session)
+
+```
+Khách DELETE /checkout/preview
+  │
+  └── DEL checkout_preview:{customer_id}
 ```
 
 ### 4.3 Luồng Đặt hàng — xử lý concurrency 2 lớp
 
 ```
-Khách POST /checkout/place-order  { items[], payment_method, address_id }
+Khách POST /checkout/place-order  { items[], payment_method, address_id, preview_token }
+  │
+  ├── Validate preview_token:
+  │     checkout_preview:{customer_id} không tồn tại hoặc token không khớp?
+  │       → Trả lỗi 409: preview_expired
+  │
+  ├── Re-validate tất cả items (status/stock/price) trước khi lock
+  │     Sai lệch → Trả lỗi 409 + danh sách item lỗi
   │
   ├── [LỚP 1 — Redis Atomic, xử lý nhanh, loại bỏ request thừa sớm]
   │     Với mỗi SKU trong order:
@@ -266,14 +340,18 @@ Khách POST /checkout/place-order  { items[], payment_method, address_id }
   │
   ├── Gọi Order Service [Sync] để tạo order và tiến hành payment
   │
-  ├── [Payment thành công]
-  │     UPDATE stock_reservation SET status = 'confirmed'
-  │     Async → Kafka: order.confirmed
+  ├── Order Service xử lý payment (async)
+  │     → Emit Kafka: order.confirmed / order.failed
   │
-  └── [Payment thất bại / timeout]
+  ├── [Consume order.confirmed]
+  │     UPDATE stock_reservation SET status = 'confirmed'
+  │
+  └── [Consume order.failed]
         UPDATE stock_reservation SET status = 'released'
         Redis INCRBY stock:{sku_id} quantity  (hoàn trả)
-        Async → Kafka: order.failed → Notification Service báo khách
+        Async → Notification Service báo khách
+
+  └── Xóa preview key: DEL checkout_preview:{customer_id}
 ```
 
 ### 4.4 Job cleanup reservation hết hạn
@@ -338,7 +416,7 @@ Event: sku.price_updated
 Event: sku.stock_updated
   → Update stock_status: 'in_stock' | 'out_of_stock'
 
-Event: product.banned / product.inactive
+Event: product.inactive
   → Delete hoặc mark is_active=false tất cả document của product đó
 ```
 
