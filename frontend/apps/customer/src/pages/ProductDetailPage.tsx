@@ -1,18 +1,23 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
+import { orderApi } from '@shared/api/order.api';
+import { addressApi } from '@shared/api/address.api';
+import { cartApi } from '@shared/api/cart.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { addToCart } = useCartStore();
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
+  const [isBuyNow, setIsBuyNow] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -20,6 +25,12 @@ export default function ProductDetailPage() {
     queryKey: ['product', productId],
     queryFn: () => productApi.getProductById(productId!).then(r => r.data.data),
     enabled: !!productId,
+    retry: 1,
+  });
+
+  const { data: addresses = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: () => addressApi.list().then(r => r.data.data ?? []),
     retry: 1,
   });
 
@@ -41,6 +52,62 @@ export default function ProductDetailPage() {
       setAddError(err?.response?.data?.message || 'Không thể thêm vào giỏ hàng.');
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!product || !product.variants?.length) return;
+    setIsBuyNow(true);
+    setAddError(null);
+    setSuccessMsg(null);
+    try {
+      // Ensure user has an address
+      let addr = addresses.find((a: any) => a.is_default) ?? addresses[0];
+      if (!addr) {
+        const { data: newAddr } = await addressApi.create({
+          province_id: 1,
+          district_id: 1,
+          full_address: '123 Đường Test, Phường Test, Quận Test, TP. Hồ Chí Minh',
+          is_default: true,
+        });
+        addr = newAddr.data;
+      }
+
+      // Add item to cart and immediately fetch updated cart
+      const sku = product.variants[selectedVariant].skuCode;
+      await cartApi.addItem(sku, quantity, undefined);
+      const { data: cartRes } = await cartApi.getCart();
+      const cartData = cartRes.data;
+      const newestItem = cartData?.sellers
+        ?.flatMap((s: any) => s.items)
+        .sort((a: any, b: any) => {
+          const ta = a.added_at ? new Date(a.added_at).getTime() : 0;
+          const tb = b.added_at ? new Date(b.added_at).getTime() : 0;
+          return tb - ta;
+        })[0];
+
+      if (!newestItem) throw new Error('Cannot find added cart item');
+
+      // Checkout
+      const { data: checkoutRes } = await orderApi.checkout({
+        address_id: addr.address_id,
+        item_ids: [newestItem.cart_item_id],
+      });
+
+      if (checkoutRes.data) {
+        const orderData = checkoutRes.data;
+        sessionStorage.setItem('pending_checkout', JSON.stringify({
+          parentOrderId: orderData.parent_order_id,
+          orderData,
+        }));
+        navigate('/checkout/payment', {
+          state: { orderData, parentOrderId: orderData.parent_order_id },
+        });
+      }
+    } catch (err: any) {
+      setAddError(err?.response?.data?.message || err.message || 'Mua ngay thất bại.');
+    } finally {
+      setIsBuyNow(false);
     }
   };
 
@@ -213,10 +280,18 @@ export default function ProductDetailPage() {
 
               <button
                 onClick={handleAddToCart}
-                disabled={isAdding || product.stockAvailable <= 0}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold text-lg rounded-xl transition-all"
+                disabled={isAdding || isBuyNow || product.stockAvailable <= 0}
+                className="flex-1 py-4 bg-white border-2 border-blue-600 hover:bg-blue-50 disabled:from-gray-400 disabled:to-gray-400 disabled:border-gray-300 text-blue-600 font-bold text-lg rounded-xl transition-all"
               >
                 {isAdding ? '⏳ Đang thêm...' : '🛒 Thêm vào giỏ hàng'}
+              </button>
+
+              <button
+                onClick={handleBuyNow}
+                disabled={isAdding || isBuyNow || product.stockAvailable <= 0}
+                className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold text-lg rounded-xl transition-all"
+              >
+                {isBuyNow ? '⏳ Đang xử lý...' : '⚡ Mua ngay'}
               </button>
 
               {successMsg && (

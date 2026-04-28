@@ -12,16 +12,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.servlet.DispatcherServlet;
 
 /**
  * Common Security Configuration for MVC Services
  *
- * ✅ Automatically disables security headers
- * ✅ Disable CSRF, Form Login, HTTP Basic
- * ✅ Stateless session management
+ * ✅ Stateless session management (JWT-based)
  * ✅ Enable method-level security (@PreAuthorize, @PostAuthorize, etc.)
- * ✅ Permits all requests by default
+ * ✅ Security headers enabled for protection against common attacks
  *
  * Usage: Add @EnableWebSecurity to service config
  */
@@ -36,11 +35,25 @@ public class MvcSecurityConfig {
     @Bean
     @ConditionalOnMissingBean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        log.info("🔐 [MVC] Configuring security filter chain with disabled headers");
+        log.info("🔐 [MVC] Configuring security filter chain with security headers enabled");
 
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .headers(AbstractHttpConfigurer::disable)
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.deny())
+                .contentTypeOptions(contentType -> {})
+                .xssProtection(xss -> {})
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)
+                )
+                .referrerPolicy(referrer -> referrer
+                    .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                )
+                .permissionsPolicy(permissions -> permissions
+                    .policy("geolocation=(), microphone=(), camera=(), payment=()")
+                )
+            )
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )

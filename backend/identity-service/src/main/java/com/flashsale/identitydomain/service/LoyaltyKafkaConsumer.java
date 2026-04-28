@@ -1,8 +1,7 @@
 package com.flashsale.identitydomain.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.payload.OrderDeliveredPayload;
-import com.flashsale.commonlib.event.payload.BaseKafkaEvent;
-import com.flashsale.identitydomain.service.LoyaltyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,6 +19,7 @@ import java.math.BigDecimal;
 public class LoyaltyKafkaConsumer {
 
     private final LoyaltyService loyaltyService;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(
             topics = "order.delivered",
@@ -27,16 +27,21 @@ public class LoyaltyKafkaConsumer {
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void onOrderDelivered(
-            @Payload OrderDeliveredPayload payload,
+            @Payload String payloadJson,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET) long offset) {
-        log.info("Received order.delivered event: orderId={}, buyerId={}, amount={}, partition={}, offset={}",
-                payload.getOrderId(), payload.getBuyerId(), payload.getTotalAmount(), partition, offset);
+            @Header(KafkaHeaders.OFFSET) long offset,
+            Acknowledgment acknowledgment) {
+
+        log.info("Received order.delivered event: partition={}, offset={}, payload={}",
+                partition, offset, payloadJson);
 
         try {
+            OrderDeliveredPayload payload = objectMapper.readValue(payloadJson, OrderDeliveredPayload.class);
+
             Long buyerId = parseUserId(payload.getBuyerId());
             if (buyerId == null) {
                 log.warn("Invalid buyerId in order.delivered event: {}", payload.getBuyerId());
+                acknowledgment.acknowledge();
                 return;
             }
 
@@ -47,10 +52,11 @@ public class LoyaltyKafkaConsumer {
                     BigDecimal.valueOf(payload.getTotalAmount())
             );
 
+            acknowledgment.acknowledge();
             log.info("Loyalty points earned for order {} by user {}", payload.getOrderId(), buyerId);
         } catch (Exception e) {
-            log.error("Failed to process order.delivered for order {}: {}", payload.getOrderId(), e.getMessage(), e);
-            throw e;
+            log.error("Failed to process order.delivered: {}", payloadJson, e);
+            throw new RuntimeException("Failed to process order.delivered", e);
         }
     }
 

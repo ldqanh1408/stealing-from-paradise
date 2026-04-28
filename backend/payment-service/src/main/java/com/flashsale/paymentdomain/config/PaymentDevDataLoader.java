@@ -36,18 +36,25 @@ public class PaymentDevDataLoader implements CommandLineRunner {
     //  Payment:   transactions 1-50, refunds 1-20
     // ------------------------------------------------------------------ //
 
-    private static final long[] SELLER_IDS = {1L, 2L, 3L};
-    private static final long[] USER_IDS   = {1L, 2L, 3L, 4L, 5L};
+    private static final long[] SELLER_IDS = {1L, 2L, 3L, 4L, 5L};
+    private static final long[] USER_IDS   = {1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L};
 
-    // Parent order IDs that match order-service seed
-    private static final long[] PARENT_ORDER_IDS = {1L, 2L, 3L, 4L, 5L};
+    // Parent order IDs that match order-service seed (1-10)
+    private static final long[] PARENT_ORDER_IDS = {1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L};
 
-    // Transaction amounts (VND)
-    private static final BigDecimal TX_AMT_1 = new BigDecimal("250000.00");
-    private static final BigDecimal TX_AMT_2 = new BigDecimal("1590000.00");
-    private static final BigDecimal TX_AMT_3 = new BigDecimal("899000.00");
-    private static final BigDecimal TX_AMT_4 = new BigDecimal("3450000.00");
-    private static final BigDecimal TX_AMT_5 = new BigDecimal("459000.00");
+    // Transaction amounts (VND) — 10 orders
+    private static final BigDecimal[] TX_AMOUNTS = {
+            new BigDecimal("250000.00"),   // order 1
+            new BigDecimal("1590000.00"),  // order 2
+            new BigDecimal("899000.00"),   // order 3
+            new BigDecimal("3450000.00"),  // order 4
+            new BigDecimal("459000.00"),   // order 5 (PENDING)
+            new BigDecimal("6800000.00"),  // order 6 (new)
+            new BigDecimal("1200000.00"),  // order 7 (new)
+            new BigDecimal("4200000.00"),  // order 8 (new)
+            new BigDecimal("3200000.00"),  // order 9 (new)
+            new BigDecimal("8500000.00"),  // order 10 (PENDING, new)
+    };
 
     // Stripe test PI IDs (fake but realistic format)
     private static final String[] STRIPE_PI_IDS = {
@@ -56,13 +63,20 @@ public class PaymentDevDataLoader implements CommandLineRunner {
             "pi_test_1AbCdEfGhIjKlMnOpQrStU",
             "pi_test_9LmNpQrS2TuVwXyZ4AaBbC",
             "pi_test_5EfGhIjK6LmNoPqR8StUvWx",
+            "pi_test_2AaBbCcDdEeFfGgHhIiJjK",
+            "pi_test_8RrSsTtUuVvWwXxYyZzAaBb",
+            "pi_test_4CcDdEeFfGgHhIiJjKkLlMm",
+            "pi_test_6NnOoPpQqRrSsTtUuVvWwXx",
+            "pi_test_3YyZzAaBbCcDdEeFfGgHhIi",
     };
 
-    // Stripe test Connect account IDs
+    // Stripe test Connect account IDs (5 sellers)
     private static final String[] STRIPE_ACCOUNT_IDS = {
             "acct_test_SELLER001_AABBCC",
             "acct_test_SELLER002_DDEEFF",
             "acct_test_SELLER003_GGHHII",
+            "acct_test_SELLER004_JJKKLL",
+            "acct_test_SELLER005_MMNOPP",
     };
 
     @Override
@@ -107,73 +121,51 @@ public class PaymentDevDataLoader implements CommandLineRunner {
     }
 
     private void seedTransactionsAndTransfers() {
-        // Order 1: PAID transaction + transfer
-        createTransaction(PARENT_ORDER_IDS[0], TX_AMT_1, "PAID",
-                STRIPE_PI_IDS[0], 1L, 1L, "SELLER_1",
-                "COMPLETED", TX_AMT_1.multiply(new BigDecimal("0.95")));
+        // Order statuses: 1-4 COMPLETED, 5 PENDING, 6-9 PAID, 10 PENDING
+        String[] statuses = {"PAID", "PAID", "PAID", "PAID", "PENDING", "PAID", "PAID", "PAID", "PAID", "PENDING"};
+        long[] userIds   = {1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L};
+        long[] sellerIds = {1L, 2L, 3L, 1L, 2L, 4L, 5L, 1L, 3L, 4L};
+        String[] sellerNames = {"TechWorld Store", "Fashion Hub", "Gadget Pro", "TechWorld Store",
+                "Fashion Hub", "Home & Living", "Sport & Outdoor", "TechWorld Store", "Gadget Pro", "Home & Living"};
 
-        // Order 2: PAID transaction + transfer
-        createTransaction(PARENT_ORDER_IDS[1], TX_AMT_2, "PAID",
-                STRIPE_PI_IDS[1], 2L, 2L, "SELLER_2",
-                "COMPLETED", TX_AMT_2.multiply(new BigDecimal("0.95")));
+        for (int i = 0; i < PARENT_ORDER_IDS.length; i++) {
+            String status = statuses[i];
+            BigDecimal amount = TX_AMOUNTS[i];
+            LocalDateTime paidAt = "PAID".equals(status) ? LocalDateTime.now().minusDays(7 - i) : null;
+            BigDecimal transferAmount = "PAID".equals(status) ? amount.multiply(new BigDecimal("0.95")) : null;
 
-        // Order 3: PAID transaction + transfer
-        createTransaction(PARENT_ORDER_IDS[2], TX_AMT_3, "PAID",
-                STRIPE_PI_IDS[2], 3L, 3L, "SELLER_3",
-                "COMPLETED", TX_AMT_3.multiply(new BigDecimal("0.95")));
-
-        // Order 4: PAID full (paid_at = 5 days ago — for completed orders)
-        createTransaction(PARENT_ORDER_IDS[3], TX_AMT_4, "PAID",
-                STRIPE_PI_IDS[3], 4L, 1L, "SELLER_1",
-                "COMPLETED", TX_AMT_4.multiply(new BigDecimal("0.95")));
-
-        // Order 5: PENDING (awaiting payment)
-        createTransaction(PARENT_ORDER_IDS[4], TX_AMT_5, "PENDING",
-                STRIPE_PI_IDS[4], 5L, 2L, "SELLER_2",
-                null, null);
-
-        log.info("[PaymentDevDataLoader] Seeded {} transactions + transfers", 5);
-    }
-
-    private void createTransaction(Long parentOrderId, BigDecimal amount, String status,
-                                   String stripePiId, Long orderId, Long sellerId,
-                                   String sellerName, String transferStatus, BigDecimal transferAmount) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime payAt = status.equals("PAID") ? now.minusDays(5) : null;
-
-        Transaction tx = Transaction.builder()
-                .parentOrderId(parentOrderId)
-                .amount(amount)
-                .method("STRIPE")
-                .transRef(UUID.randomUUID().toString().substring(0, 16).toUpperCase())
-                .stripePiId(stripePiId)
-                .stripeConnectMode("DESTINATION")
-                .applicationFeePct(new BigDecimal("5.00"))
-                .applicationFeeAmount(amount.multiply(new BigDecimal("0.05")))
-                .status(status)
-                .clientSecret("pi_secret_" + stripePiId.substring(8) + "_secret_" + UUID.randomUUID().toString().substring(0, 8))
-                .payAt(payAt)
-                .build();
-        tx = transactionRepository.save(tx);
-
-        if (transferStatus != null) {
-            BigDecimal feeAmount = transferAmount != null
-                    ? amount.subtract(transferAmount) : BigDecimal.ZERO;
-            BigDecimal netAmount = transferAmount;
-
-            SellerTransfer transfer = SellerTransfer.builder()
-                    .parentOrderId(parentOrderId)
-                    .orderId(orderId)
-                    .sellerId(sellerId)
-                    .sellerName(sellerName)
-                    .transferAmount(amount)
-                    .feeAmount(feeAmount)
-                    .netAmount(netAmount)
-                    .stripeTransferId("tr_test_" + UUID.randomUUID().toString().substring(0, 16).toUpperCase())
-                    .status(transferStatus)
+            Transaction tx = Transaction.builder()
+                    .parentOrderId(PARENT_ORDER_IDS[i])
+                    .amount(amount)
+                    .method("STRIPE")
+                    .transRef("TX" + String.format("%06d", i + 1))
+                    .stripePiId(STRIPE_PI_IDS[i])
+                    .stripeConnectMode("DESTINATION")
+                    .applicationFeePct(new BigDecimal("5.00"))
+                    .applicationFeeAmount(amount.multiply(new BigDecimal("0.05")))
+                    .status(status)
+                    .clientSecret("pi_secret_" + STRIPE_PI_IDS[i].substring(8) + "_secret_" + UUID.randomUUID().toString().substring(0, 8))
+                    .payAt(paidAt)
                     .build();
-            sellerTransferRepository.save(transfer);
+            tx = transactionRepository.save(tx);
+
+            if (transferAmount != null) {
+                SellerTransfer transfer = SellerTransfer.builder()
+                        .parentOrderId(PARENT_ORDER_IDS[i])
+                        .orderId(PARENT_ORDER_IDS[i])
+                        .sellerId(sellerIds[i])
+                        .sellerName(sellerNames[i])
+                        .transferAmount(amount)
+                        .feeAmount(amount.subtract(transferAmount))
+                        .netAmount(transferAmount)
+                        .stripeTransferId("tr_test_" + UUID.randomUUID().toString().substring(0, 16).toUpperCase())
+                        .status("COMPLETED")
+                        .build();
+                sellerTransferRepository.save(transfer);
+            }
         }
+
+        log.info("[PaymentDevDataLoader] Seeded {} transactions + transfers", PARENT_ORDER_IDS.length);
     }
 
     private void seedRefunds() {

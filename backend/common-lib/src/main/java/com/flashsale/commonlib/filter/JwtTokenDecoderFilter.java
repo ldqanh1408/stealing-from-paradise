@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Set;
 
 /**
  * JWT Token Decoder Filter — Decodes X-User-* headers into SecurityContext.
@@ -24,12 +25,20 @@ import java.util.Collections;
  * This filter populates the SecurityContext BEFORE Spring Security's AuthorizationFilter
  * runs, so @PreAuthorize annotations work correctly.
  *
+ * Security measures:
+ * - Validates role against allowed values (defense-in-depth)
+ * - Validates userId as positive number
+ * - Uses role whitelist to prevent privilege escalation
+ *
  * Must run at HIGHEST_PRECEDENCE + 10 to precede AuthorizationFilter (order ~-100).
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 @Slf4j
 public class JwtTokenDecoderFilter extends OncePerRequestFilter {
+
+    /** Allowed role values - prevents role injection */
+    private static final Set<String> ALLOWED_ROLES = Set.of("ADMIN", "SELLER", "BUYER");
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -39,33 +48,74 @@ public class JwtTokenDecoderFilter extends OncePerRequestFilter {
         String userId = request.getHeader("X-User-Id");
         String email = request.getHeader("X-User-Email");
         String role = request.getHeader("X-User-Role");
-        String jti = request.getHeader("X-Token-Jti");
 
         if (userId != null && !userId.isBlank()) {
             try {
-                var authorities = (role != null && !role.isEmpty())
-                        ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-                        : Collections.<org.springframework.security.core.GrantedAuthority>emptyList();
+                // Validate and parse userId as positive number
+                long userIdLong = parseAndValidateUserId(userId);
+                if (userIdLong <= 0) {
+                    log.warn("[JwtTokenDecoder] Invalid userId (not positive): {}", userId);
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                // Validate role against allowed values (defense-in-depth)
+                String validatedRole = validateRole(role);
+                if (validatedRole == null) {
+                    log.warn("[JwtTokenDecoder] Invalid or missing role: {}, defaulting to empty authority list", role);
+                }
+
+                var authorities = (validatedRole != null)
+                    ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + validatedRole))
+                    : Collections.<org.springframework.security.core.GrantedAuthority>emptyList();
 
                 UserDetailsImpl userDetails = UserDetailsImpl.builder()
-                        .id(Long.parseLong(userId))
-                        .username(userId)
-                        .email(email)
-                        .role(role)
-                        .enabled(true)
-                        .build();
+                    .id(userIdLong)
+                    .username(userId)
+                    .email(email)
+                    .role(validatedRole)
+                    .enabled(true)
+                    .build();
 
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                    new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-                log.debug("[JwtTokenDecoder] Set SecurityContext - userId: {}, email: {}, role: {}", userId, email, role);
+                log.debug("[JwtTokenDecoder] Set SecurityContext - userId: {}, email: {}, role: {}", userId, email, validatedRole);
+            } catch (NumberFormatException e) {
+                log.warn("[JwtTokenDecoder] Failed to parse userId as number: {}", userId);
             } catch (Exception e) {
                 log.warn("[JwtTokenDecoder] Failed to set SecurityContext: {}", e.getMessage());
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Parse userId and validate it's a positive number
+     */
+    private long parseAndValidateUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("userId is null or blank");
+        }
+        long parsed = Long.parseLong(userId.trim());
+        if (parsed <= 0) {
+            throw new IllegalArgumentException("userId must be positive");
+        }
+        return parsed;
+    }
+
+    /**
+     * Validate role against allowed values.
+     * Returns the uppercase validated role, or null if invalid/missing.
+     */
+    private String validateRole(String role) {
+        if (role == null || role.isBlank()) {
+            return null;
+        }
+        String upperRole = role.toUpperCase().trim();
+        return ALLOWED_ROLES.contains(upperRole) ? upperRole : null;
     }
 }

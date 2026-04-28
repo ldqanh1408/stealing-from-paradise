@@ -1,6 +1,7 @@
 package com.flashsale.commonlib.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -33,6 +34,19 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.<Map<String,String>>builder()
                 .success(false).errorCode(ErrorCode.VALIDATION_FAILED.getCode())
                 .message("Dữ liệu không hợp lệ").data(errors).build());
+    }
+
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNullPointer(NullPointerException ex) {
+        String msg = ex.getMessage();
+        if (msg != null && (msg.contains("getId()") || msg.contains("UserDetailsImpl") || msg.contains("AuthenticationPrincipal"))) {
+            log.warn("[AUTH] Null user in protected endpoint: {}", msg);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ErrorCode.UNAUTHORIZED.getCode(), "Vui lòng đăng nhập"));
+        }
+        log.error("Unhandled NullPointerException", ex);
+        return ResponseEntity.internalServerError()
+            .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR.getCode(), "Lỗi nội bộ"));
     }
 
     @ExceptionHandler(Exception.class)

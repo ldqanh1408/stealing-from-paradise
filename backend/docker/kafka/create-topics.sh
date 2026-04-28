@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BROKER="kafka:29092"
+BROKER="kafka:9092"
 
 create_topic() {
   local topic=$1

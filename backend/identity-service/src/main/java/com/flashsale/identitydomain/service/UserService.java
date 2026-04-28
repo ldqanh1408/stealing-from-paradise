@@ -6,11 +6,15 @@ import com.flashsale.identitydomain.domain.model.User;
 import com.flashsale.identitydomain.domain.repository.AddressRepository;
 import com.flashsale.identitydomain.domain.repository.RoleRepository;
 import com.flashsale.identitydomain.domain.repository.UserRepository;
+import com.flashsale.identitydomain.dto.request.ChangePasswordRequest;
 import com.flashsale.identitydomain.dto.request.AddressCreateRequest;
 import com.flashsale.identitydomain.dto.request.AddressUpdateRequest;
 import com.flashsale.identitydomain.dto.request.UserProfileUpdateRequest;
 import com.flashsale.identitydomain.dto.response.AddressResponse;
 import com.flashsale.identitydomain.dto.response.UserProfileResponse;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final AddressRepository addressRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
@@ -169,6 +174,20 @@ public class UserService {
         roleRepository.save(role);
 
         log.info("User {} registered as seller", userId);
+    }
+
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = getUserById(userId);
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Password changed for user {}", userId);
     }
 
     public static String computeTrustTier(Integer trustScore) {

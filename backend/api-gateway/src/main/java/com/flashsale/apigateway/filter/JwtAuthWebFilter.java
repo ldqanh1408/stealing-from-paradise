@@ -24,7 +24,9 @@ import java.util.List;
  *
  * Quy trình:
  * 1. Skip các public endpoints (không cần JWT)
- * 2. Nếu không có Authorization header → cho qua (WebFilterChain) để downstream service xử lý
+ * 2. Nếu không có Authorization header → kiểm tra xem có phải protected endpoint không
+ *    - Protected: trả 401 ngay lập tức (thay vì để downstream xử lý gây 500)
+ *    - Public: cho qua để downstream service xử lý
  * 3. Validate JWT token (hợp lệ, chưa hết hạn)
  * 4. Giải mã token: extract userId, email, role, jti
  * 5. Đặt decoded info vào headers để forward tới service (X-User-Id, X-User-Email, X-User-Role, X-Token-Jti)
@@ -77,8 +79,18 @@ public class JwtAuthWebFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-        // No token present — let downstream service decide (some endpoints may be optional-auth)
+        // No token present — return 401 for protected endpoints
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            if (requestPath.startsWith("/api/v1/users/me")
+                    || requestPath.startsWith("/api/v1/loyalty")
+                    || requestPath.startsWith("/api/v1/cart")
+                    || requestPath.startsWith("/api/v1/orders")
+                    || requestPath.startsWith("/api/v1/support")
+                    || requestPath.startsWith("/api/v1/notifications")
+                    || requestPath.startsWith("/api/v1/payments")
+                    || requestPath.startsWith("/api/v1/refunds")) {
+                return onError(exchange, "AUTH_001", "Vui lòng đăng nhập", HttpStatus.UNAUTHORIZED);
+            }
             return chain.filter(exchange);
         }
 

@@ -38,6 +38,9 @@ public class CartController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<CartResponse>> getCart(
             @AuthenticationPrincipal UserDetailsImpl user) {
+        if (user == null) {
+            throw new AppException(ErrorCode.UNAUTHORIZED, "Vui lòng đăng nhập để xem giỏ hàng");
+        }
         CartResponse cart = buildCartResponse(user.getId());
         return ResponseEntity.ok(ApiResponse.success(cart));
     }

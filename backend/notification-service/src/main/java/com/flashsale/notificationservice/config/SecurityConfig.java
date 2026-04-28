@@ -7,9 +7,9 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
  * Notification Service Security Configuration
  *
  * Uses WebFluxSecurityConfig from common-lib which:
- * - Disables CSRF
- * - Disables all security headers
- * - Permits all exchanges
+ * - Disables CSRF (stateless JWT)
+ * - Security headers enabled (X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy)
+ * - Permits all exchanges (authorization via @PreAuthorize)
  */
 @Configuration
 @EnableWebFluxSecurity
