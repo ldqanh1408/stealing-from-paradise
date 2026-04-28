@@ -1,648 +1,386 @@
-# Payment Service — API Documentation
+# 💳 Payment Service API (+ Refund Management)
 
-**Base URL:** `http://{host}:8080/api/v1`
-**Authentication:** JWT Bearer token (except webhook endpoints)
-**Service Port:** 8082 (internal)
+**Service Name**: Payment Service + Refund Management (Consolidated)  
+**Port**: `:8085`  
+**Base URL**: `/api/v1`  
+**Status**: v5.3 RTS
 
-All responses follow the standard `ApiResponse<T>` wrapper. See [Response Format](#response-format) for details.
+**Mô tả**: Stripe Connect · Destination Charges · Transfer API · Refund Management · Webhooks
 
 ---
 
-## Response Format
+## 📡 Kafka Integration
 
-### ApiResponse\<T\>
+### Produces (Event Publisher)
+- `payment.success` → Order Service (Payment succeeded)
+- `payment.failed` → Order, Notification Services (Payment failed)
+- `refund.requested` → Notification Service (Refund requested)
+- `refund.admin_approved` → Notification Service (Refund approved)
+- `refund.rejected` → Notification Service (Refund rejected)
+- `refund.stripe_auto` → Order, Loyalty Services (Stripe chargeback)
 
+### Consumes (Event Subscriber)
+- `order.created` ← Order Service (Receive order for payment processing)
+
+---
+
+## 💰 Stripe Onboarding (Seller)
+
+### POST /stripe/onboarding/start
+**Bắt đầu onboarding Stripe (Seller)**
+
+**Quyền truy cập**: JWT Required (SELLER)  
+**Tags**: Stripe Connect
+
+**Mô tả**: Gọi Stripe API `accountLinks.create` để tạo onboarding URL. URL hợp lệ trong 24 giờ, sau đó tự null bởi JOB-15.
+
+**Request Body**: (không có body)
+
+**Response 201**:
 ```json
 {
-  "success": true,
-  "message": "Operation succeeded",
-  "data": { ... },
-  "errorCode": null,
-  "timestamp": 1713964800000
+  "onboarding_url": "https://connect.stripe.com/setup/e/acct_xxx/...",
+  "expires_at": "2025-10-02T10:00:00Z"
 }
 ```
 
-### PageResponse\<T\> (paginated lists)
+**Error Responses**:
+| Status | Mô tả |
+|--------|-------|
+| 409 | Seller đã có Stripe account (details_submitted = true) |
 
+---
+
+### GET /stripe/onboarding/status
+**Kiểm tra trạng thái Stripe account**
+
+**Quyền truy cập**: JWT Required (SELLER)
+
+**Response 200**:
 ```json
 {
-  "content": [ ... ],
-  "page": 0,
-  "size": 20,
-  "totalElements": 150,
-  "totalPages": 8,
-  "last": false
+  "stripe_account_id": "acct_1OxABC",
+  "details_submitted": true,
+  "charges_enabled": true,
+  "payouts_enabled": true,
+  "onboarding_status": "COMPLETE",
+  "onboarding_url": null
+}
+```
+
+**Ghi chú**:
+- PENDING = chưa bắt đầu
+- IN_PROGRESS = đang KYC
+- COMPLETE = đã xong
+- SUSPENDED = bị Stripe đình chỉ
+
+---
+
+### POST /stripe/onboarding/refresh-link
+**Tạo lại onboarding link (hết hạn)**
+
+**Quyền truy cập**: JWT Required (SELLER)  
+**Tags**: Stripe Connect
+
+**Request Body**: (không có body)
+
+**Response 200**:
+```json
+{
+  "onboarding_url": "https://connect.stripe.com/setup/e/acct_xxx/new-link",
+  "expires_at": "2025-10-03T10:00:00Z"
 }
 ```
 
 ---
 
-## Table of Contents
+## 💳 Payment Endpoints
 
-1. [Payment Endpoints](#1-payment-endpoints) — Buyer-facing payment operations
-2. [Stripe Webhook](#2-stripe-webhook) — Inbound webhook (no auth)
-3. [Stripe Onboarding](#3-stripe-onboarding) — Seller Stripe Connect onboarding
-4. [Admin Refunds](#4-admin-refunds) — Admin refund management
+### GET /payments/parent-order/{parentOrderId}
+**Thông tin giao dịch thanh toán**
 
----
+**Quyền truy cập**: JWT Required (BUYER \| ADMIN)
 
-## 1. Payment Endpoints
-
-Buyer and Admin use these to query transaction status and retrieve Stripe client secrets.
-
----
-
-### `GET /payments/parent-order/{parentOrderId}`
-
-Retrieve the full transaction detail for a parent order, including per-seller transfer breakdown.
-
-**Authorization:** `BUYER` or `ADMIN` role required.
-
-**Path Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `parentOrderId` | long | Parent order ID |
-
-**Response** `200 OK`
-
+**Response 200**:
 ```json
 {
-  "success": true,
-  "data": {
-    "transaction_id": 1001,
-    "parent_order_id": 5001,
-    "amount": "299.00",
-    "method": "stripe",
-    "status": "PENDING",
-    "stripe_pi_id": "pi_3Ox...",
-    "application_fee": "14.95",
-    "application_fee_percentage": "5.00",
-    "trans_ref": "TXN-20240425-001",
-    "paid_at": null,
-    "remaining_seconds": 599,
-    "sellers": [
-      {
-        "seller_id": 42,
-        "seller_name": "TechGadget Store",
-        "order_id": 5002,
-        "amount": "199.00",
-        "fee": "9.95",
-        "net_amount": "189.05",
-        "stripe_transfer_id": null,
-        "transfer_status": "PENDING"
-      }
-    ]
-  }
+  "transaction_id": 301,
+  "parent_order_id": 55,
+  "amount": 1330000,
+  "method": "STRIPE",
+  "status": "SUCCESS",
+  "stripe_pi_id": "pi_3PxABC...",
+  "application_fee": 66500,
+  "trans_ref": "TXN-20251001-301",
+  "paid_at": "2025-10-01T10:05:00Z",
+  "remaining_seconds": null
 }
 ```
 
-**Field Details**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `transaction_id` | long | Internal transaction ID |
-| `parent_order_id` | long | Parent order this transaction belongs to |
-| `amount` | decimal | Total transaction amount |
-| `method` | string | Payment method used (`stripe`) |
-| `status` | string | `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED` |
-| `stripe_pi_id` | string | Stripe PaymentIntent ID |
-| `application_fee` | decimal | Platform fee deducted |
-| `application_fee_percentage` | decimal | Platform fee percentage |
-| `trans_ref` | string | Internal transaction reference |
-| `paid_at` | ISO 8601 | Timestamp when payment succeeded |
-| `remaining_seconds` | long | Seconds left to complete payment (only when `PENDING`) |
-| `sellers` | array | Per-seller transfer breakdown |
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | Transaction found |
-| `401 Unauthorized` | Missing or invalid JWT |
-| `403 Forbidden` | User is not BUYER or ADMIN |
-| `404 Not Found` | Transaction not found |
+**Ghi chú**: `remaining_seconds` chỉ có giá trị khi status = PENDING
 
 ---
 
-### `GET /payments/parent-order/{parentOrderId}/client-secret`
+### POST /stripe/webhooks
+**Nhận Stripe Webhook events**
 
-Retrieve the Stripe PaymentIntent `client_secret` for frontend payment confirmation (Stripe Elements / Payment Sheet).
+**Quyền truy cập**: Webhook (không cần JWT)
 
-**Authorization:** `BUYER` role required.
+**Events xử lý**:
+| Event | Xử lý |
+|-------|-------|
+| payment_intent.succeeded | TRANSACTIONS → SUCCESS, produce payment.success |
+| payment_intent.payment_failed | TRANSACTIONS → FAILED, produce payment.failed |
+| charge.refunded | REFUNDS → SUCCESS |
+| account.updated | Sync SELLER_STRIPE_ACCOUNTS |
+| transfer.created | Ghi stripe_transfer_id |
 
-**Path Parameters**
+---
 
-| Name | Type | Description |
-|------|------|-------------|
-| `parentOrderId` | long | Parent order ID |
+## ↩️ Refund Management APIs
 
-**Response** `200 OK`
+### POST /orders/parent/{parentOrderId}/refund
+**Full Refund toàn bộ đơn cha**
 
+**Quyền truy cập**: JWT Required (BUYER)  
+**Tags**: Stripe Refund API | Kafka → refund.full_requested
+
+**Điều kiện**:
+- order.status == "PAID" (chưa ship)
+- transaction.status == "SUCCESS" (đã thanh toán)
+- refunds_pending == 0 (không có refund PENDING)
+- Nếu BẤT KỲ sub-order nào SHIPPING/DELIVERED → Reject 422
+
+**Request Body**:
 ```json
 {
-  "success": true,
-  "data": {
-    "parent_order_id": 5001,
-    "transaction_id": 1001,
-    "client_secret": "pi_3Ox..._secret_abc...",
-    "status": "PENDING"
-  }
+  "reason": "string",           // Lý do hủy đơn (Required)
+  "evidence_images": ["string"] // Mảng URL ảnh bằng chứng (Optional)
 }
 ```
 
-**Pre-conditions**
-
-- Transaction status must be `PENDING`.
-- Payment page must be loaded within the payment window (e.g., 10 minutes).
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | Client secret retrieved |
-| `400 Bad Request` | Transaction not in PENDING state |
-| `401 Unauthorized` | Missing or invalid JWT |
-| `403 Forbidden` | User is not BUYER |
-| `404 Not Found` | Transaction not found |
+**Response 201**: Full refund created
 
 ---
 
-## 2. Stripe Webhook
+### GET /orders/parent/{parentOrderId}/refund
+**Trạng thái Full Refund của đơn cha**
 
-> **No JWT authentication.** This endpoint is authenticated via the `Stripe-Signature` header.
+**Quyền truy cập**: JWT Required (BUYER \| ADMIN)
 
----
-
-### `POST /stripe/webhooks`
-
-Receive and process Stripe webhook events. All events are validated against the configured webhook secret before processing.
-
-**Headers**
-
-| Name | Required | Description |
-|------|----------|-------------|
-| `Stripe-Signature` | Yes | Stripe webhook signature (HMAC SHA256) |
-| `Content-Type` | Yes | `application/json` |
-
-**Request Body** — Raw Stripe event JSON (forwarded directly)
-
-**Events Handled**
-
-| Stripe Event | Action |
-|--------------|--------|
-| `payment_intent.succeeded` | Set transaction status to `SUCCESS` |
-| `payment_intent.payment_failed` | Set transaction status to `FAILED` |
-| `charge.refunded` | Publish `refund.stripe_auto` event via Kafka |
-| `account.updated` | Sync Stripe Express account status |
-| `transfer.created` | Record `stripe_transfer_id` on seller transfer record |
-
-**Response** `200 OK`
-
-```json
-"received"
-```
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | Event received and validated |
-| `400 Bad Request` | Signature validation failed |
+**Response 200**: Full refund status
 
 ---
 
-## 3. Stripe Onboarding
+### POST /orders/{orderId}/refunds
+**Partial Refund — 1 sub-order (1 seller)**
 
-Seller Stripe Connect onboarding — required for sellers to receive payments.
+**Quyền truy cập**: JWT Required (BUYER)  
+**Tags**: Stripe Refund API | Kafka → refund.requested
 
----
+**Điều kiện**:
+- order.status IN ["PAID", "SHIPPING", "DELIVERED", "PARTIALLY_REFUNDED"]
+- qty_to_refund > 0
+- qty_to_refund ≤ (item.quantity - item.refunded_quantity)
+- Nếu status = DELIVERED: NOW() - order.updated_at ≤ 7 ngày
 
-### `POST /stripe/onboarding/start`
-
-Start a new Stripe Connect Express onboarding flow. Creates a Stripe Express account and returns an onboarding link.
-
-**Authorization:** `SELLER` role required.
-
-**Response** `201 Created`
-
+**Request Body**:
 ```json
 {
-  "success": true,
-  "message": "Stripe onboarding started",
-  "data": {
-    "onboarding_url": "https://connect.stripe.com/express/oauth/authorize?...",
-    "stripe_account_id": "acct_1Ox...",
-    "expires_at": "2024-04-26T10:00:00Z"
-  }
+  "reason": "string",                // Lý do hoàn chung (Required)
+  "items": [                         // Danh sách items cần hoàn (Required)
+    {
+      "order_item_id": "long",       // ID của ORDER_ITEM (Required)
+      "quantity": "integer",         // Số lượng cần hoàn (Required)
+      "item_reason": "string"        // Lý do hoàn riêng cho item này (Optional)
+    }
+  ],
+  "evidence_images": ["string"]      // Ảnh bằng chứng (MinIO URLs) (Optional)
 }
 ```
 
-**Side Effects**
-
-- Creates a new `SELLER_STRIPE_ACCOUNTS` record (status `PENDING`).
-- If an account already exists and is incomplete, reuses it and generates a fresh AccountLink.
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `201 Created` | Onboarding started |
-| `401 Unauthorized` | Missing or invalid JWT |
-| `403 Forbidden` | User is not SELLER |
-| `409 Conflict` | Stripe account already fully onboarded |
+**Response 201**: Yêu cầu tạo thành công
 
 ---
 
-### `GET /stripe/onboarding/status`
+### POST /orders/parent/{parentOrderId}/refunds/partial
+**Partial Refund — nhiều sub-orders / sellers**
 
-Check the current Stripe Connect account status for the authenticated seller.
+**Quyền truy cập**: JWT Required (BUYER)  
+**Tags**: Kafka → refund.requested (per seller)
 
-**Authorization:** `SELLER` role required.
+**Mô tả**: System tự động nhóm items theo sub-order, tạo REFUNDS riêng cho mỗi seller, liên kết bằng `group_ref`.
 
-**Response** `200 OK`
-
+**Request Body**:
 ```json
 {
-  "success": true,
-  "data": {
-    "stripe_account_id": "acct_1Ox...",
-    "account_status": "RESTRICTED",
-    "details_submitted": true,
-    "charges_enabled": false,
-    "payouts_enabled": false,
-    "onboarding_status": "IN_PROGRESS",
-    "onboarding_url": "https://connect.stripe.com/express/reauth?..."
-  }
+  "reason": "string",          // Lý do hoàn chung (Required)
+  "items": [                   // Items từ nhiều sub-orders/sellers (Required)
+    {
+      "order_item_id": "long",  // ID ORDER_ITEM (Required)
+      "quantity": "integer",    // Số lượng (Required)
+      "item_reason": "string"   // Lý do riêng (Optional)
+    }
+  ],
+  "evidence_images": ["string"] // Ảnh bằng chứng (Optional)
 }
 ```
 
-**Onboarding Status Values**
-
-| Value | Meaning |
-|-------|---------|
-| `PENDING` | Onboarding not started |
-| `IN_PROGRESS` | Seller has started but not completed |
-| `COMPLETE` | Fully onboarded — can receive payouts |
-| `SUSPENDED` | Account suspended by Stripe |
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | Status retrieved |
-| `404 Not Found` | No Stripe account found for this seller |
+**Response 201**: All refunds created with group_ref
 
 ---
 
-### `POST /stripe/onboarding/refresh-link`
+### GET /orders/{orderId}/refunds
+**Lịch sử hoàn tiền của 1 sub-order**
 
-Generate a new onboarding link when the previous one has expired.
+**Quyền truy cập**: JWT Required (BUYER \| SELLER - owner \| ADMIN)
 
-**Authorization:** `SELLER` role required.
-
-**Response** `200 OK`
-
-```json
-{
-  "success": true,
-  "message": "Onboarding link refreshed",
-  "data": {
-    "onboarding_url": "https://connect.stripe.com/express/oauth/authorize?...",
-    "stripe_account_id": "acct_1Ox...",
-    "expires_at": "2024-04-26T12:00:00Z"
-  }
-}
-```
-
-**Pre-conditions**
-
-- Seller must have an existing Stripe account record.
-- Only works when the account is not yet fully onboarded.
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | New link generated |
-| `404 Not Found` | No Stripe account found |
-| `409 Conflict` | Account already fully onboarded |
+**Response 200**: List of refunds
 
 ---
 
-## 4. Admin Refunds
+### GET /orders/{orderId}/refunds/{refundId}
+**Chi tiết 1 yêu cầu hoàn tiền**
 
-Admin-only endpoints for managing refund requests across the platform.
+**Quyền truy cập**: JWT Required (BUYER \| ADMIN)
 
----
-
-### `GET /admin/refunds`
-
-List all refund requests with optional filters and pagination.
-
-**Authorization:** `ADMIN` role required.
-
-**Query Parameters**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `status` | string | No | `PENDING`, `SUCCESS`, `FAILED`, `REJECTED` |
-| `type` | string | No | `FULL`, `PARTIAL` |
-| `from_date` | string | No | Start date filter `yyyy-MM-dd` |
-| `to_date` | string | No | End date filter `yyyy-MM-dd` |
-| `page` | int | No | Page number (default `0`) |
-| `size` | int | No | Page size (default `20`) |
-
-**Response** `200 OK`
-
-```json
-{
-  "success": true,
-  "data": {
-    "content": [
-      {
-        "refund_id": 301,
-        "refund_code": "RFD-20240425-001",
-        "order_id": 5002,
-        "group_ref": "550e8400-e29b-41d4-a716-446655440000",
-        "type": "PARTIAL",
-        "status": "PENDING",
-        "amount": "99.00",
-        "adjust_amount": null,
-        "initiated_by": "BUYER",
-        "refund_reason_type": "DEFECTIVE",
-        "admin_note": null,
-        "reject_reason": null,
-        "reviewed_by": null,
-        "reviewed_at": null,
-        "refund_ref": null,
-        "created_at": "2024-04-25T08:30:00Z"
-      }
-    ],
-    "page": 0,
-    "size": 20,
-    "totalElements": 45,
-    "totalPages": 3,
-    "last": false
-  }
-}
-```
-
-**Refund Type Values**
-
-| Value | Description |
-|-------|-------------|
-| `FULL` | Full order refund |
-| `PARTIAL` | Partial refund for specific items |
-
-**Refund Status Values**
-
-| Value | Description |
-|-------|-------------|
-| `PENDING` | Awaiting admin review |
-| `SUCCESS` | Refund processed successfully |
-| `FAILED` | Stripe refund failed |
-| `REJECTED` | Admin rejected the request |
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | List retrieved |
-| `401 Unauthorized` | Missing or invalid JWT |
-| `403 Forbidden` | User is not ADMIN |
+**Response 200**: Full refund detail: REFUNDS + REFUND_ITEMS + admin_note
 
 ---
 
-### `GET /admin/refunds/{refundId}`
+### GET /orders/refunds
+**Tất cả yêu cầu hoàn tiền của Buyer**
 
-Get full details of a single refund request, including items, evidence images, and review history.
+**Quyền truy cập**: JWT Required (BUYER)
 
-**Authorization:** `ADMIN` role required.
+**Query Params**:
+| Param | Type | Mô tả |
+|-------|------|-------|
+| status | string | PENDING \| SUCCESS \| FAILED \| REJECTED |
+| type | string | FULL \| PARTIAL |
+| from_date / to_date | date | ISO 8601 |
+| page, size | integer | Phân trang |
 
-**Path Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `refundId` | long | Refund request ID |
-
-**Response** `200 OK`
-
-```json
-{
-  "success": true,
-  "data": {
-    "refund_id": 301,
-    "refund_code": "RFD-20240425-001",
-    "order_id": 5002,
-    "group_ref": "550e8400-e29b-41d4-a716-446655440000",
-    "type": "PARTIAL",
-    "status": "PENDING",
-    "amount": "99.00",
-    "adjust_amount": null,
-    "reason": "Product arrived damaged",
-    "initiated_by": "BUYER",
-    "refund_reason_type": "DEFECTIVE",
-    "evidence_images": [
-      "https://storage.example.com/evidence/img1.jpg",
-      "https://storage.example.com/evidence/img2.jpg"
-    ],
-    "admin_note": null,
-    "reject_reason": null,
-    "caused_by": "SELLER",
-    "tracking_number": null,
-    "return_evidence": [],
-    "reviewed_by": null,
-    "reviewed_at": null,
-    "stripe_refund_id": null,
-    "items": [
-      {
-        "item_id": 101,
-        "quantity": 1,
-        "refund_amount": "99.00",
-        "item_reason": "DEFECTIVE",
-        "status": "PENDING",
-        "return_tracking_number": null,
-        "returned_at": null
-      }
-    ],
-    "created_at": "2024-04-25T08:30:00Z",
-    "updated_at": "2024-04-25T08:30:00Z"
-  }
-}
-```
-
-**Caused By Values**
-
-| Value | Description |
-|-------|-------------|
-| `SELLER` | Seller at fault (affects seller trust score) |
-| `BUYER` | Buyer at fault (fraud flag) |
-| `LOGISTICS` | Shipping carrier at fault |
-| `SYSTEM` | Platform system error |
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | Refund detail retrieved |
-| `404 Not Found` | Refund not found |
+**Response 200**: List of refunds
 
 ---
 
-### `POST /admin/refunds/{refundId}/approve`
+### GET /orders/{orderId}/refunds/presigned-url
+**Lấy MinIO Pre-signed URL để upload ảnh bằng chứng hoàn tiền**
 
-Approve a refund request. Executes the Stripe refund and updates all related records.
+**Quyền truy cập**: JWT Required (BUYER - owner)
 
-**Authorization:** `ADMIN` role required.
+**Mô tả**: Trả về Pre-signed PUT URL từ MinIO với TTL **15 phút**.
 
-**Path Parameters**
+**Query Params**:
+| Param | Type | Required | Mô tả |
+|-------|------|----------|-------|
+| file_name | string | ✓ | Tên file gốc (vd: evidence.jpg) |
+| content_type | string | ✓ | MIME type: image/jpeg \| image/png \| image/webp |
 
-| Name | Type | Description |
-|------|------|-------------|
-| `refundId` | long | Refund request ID |
-
-**Request Body**
-
+**Response 200**:
 ```json
 {
-  "admin_note": "Approved after evidence review. Defective item confirmed.",
-  "adjust_amount": "95.00",
-  "caused_by": "SELLER",
-  "tracking_number": "VN123456789"
+  "presigned_url": "https://minio.internal/refund-evidence/orders/100/uuid-abc.jpg?X-Amz-Signature=...",
+  "object_url": "https://cdn.marketplace.vn/refund-evidence/orders/100/uuid-abc.jpg",
+  "expires_in": 900
 }
 ```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `admin_note` | string | **Yes** | Admin note (1–1000 chars) |
-| `adjust_amount` | decimal | No | Override refund amount (e.g., deduct restocking fee) |
-| `caused_by` | string | No | `SELLER`, `BUYER`, `LOGISTICS`, `SYSTEM` |
-| `tracking_number` | string | No | Return shipping tracking number (format: `XX123456789`) |
-
-**Response** `200 OK`
-
-```json
-{
-  "success": true,
-  "message": "Refund approved successfully",
-  "data": {
-    "refund_id": 301,
-    "refund_code": "RFD-20240425-001",
-    "status": "SUCCESS",
-    "type": "PARTIAL",
-    "amount": "99.00",
-    "adjust_amount": "95.00",
-    "tracking_number": "VN123456789",
-    "return_evidence": [
-      {
-        "type": "TRACKING_NUMBER",
-        "tracking_number": "VN123456789",
-        "recorded_at": "2024-04-25T10:00:00Z"
-      }
-    ],
-    "reviewed_by": 1,
-    "admin_note": "Approved after evidence review.",
-    "reviewed_at": "2024-04-25T10:00:00Z",
-    "stripe_refund_id": "re_3Ox..."
-  }
-}
-```
-
-**Side Effects**
-
-1. Calls `Stripe refunds.create` (with `adjust_amount` if provided).
-2. Updates `REFUNDS.status = SUCCESS`.
-3. If `tracking_number` is provided, updates `REFUND_ITEMS` records.
-4. Publishes `refund.admin_approved` Kafka event (triggers notification to buyer).
-5. If `caused_by = SELLER`, decreases seller trust score by 5 (via Kafka → identity-service).
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | Refund approved and processed |
-| `400 Bad Request` | Invalid request body or already processed |
-| `404 Not Found` | Refund not found |
-| `409 Conflict` | Refund not in `PENDING` state |
 
 ---
 
-### `POST /admin/refunds/{refundId}/reject`
+## 🛡️ Admin Refund Management
 
-Reject a refund request.
+### GET /admin/refunds
+**Tất cả yêu cầu hoàn tiền (Admin)**
 
-**Authorization:** `ADMIN` role required.
+**Quyền truy cập**: JWT Required (ADMIN)
 
-**Path Parameters**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `refundId` | long | Refund request ID |
-
-**Request Body**
-
-```json
-{
-  "reject_reason": "Evidence insufficient. Product damage not verified.",
-  "fraud_evidence": false
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `reject_reason` | string | **Yes** | Reason for rejection |
-| `fraud_evidence` | boolean | No | Set `true` if fraud suspected (default `false`) |
-
-**Response** `200 OK`
-
-```json
-{
-  "success": true,
-  "message": "Refund rejected",
-  "data": null
-}
-```
-
-**Side Effects**
-
-1. Updates `REFUNDS.status = REJECTED` and records `reject_reason`.
-2. Publishes `refund.rejected` Kafka event (triggers notification to buyer).
-3. If `fraud_evidence = true`, flags the buyer (trust score impact via Kafka → identity-service).
-
-**Status Codes**
-
-| Code | Meaning |
-|------|---------|
-| `200 OK` | Refund rejected |
-| `400 Bad Request` | Missing reject_reason |
-| `404 Not Found` | Refund not found |
-| `409 Conflict` | Refund not in `PENDING` state |
+**Query Params**:
+| Param | Type | Mô tả |
+|-------|------|-------|
+| status | string | PENDING \| SUCCESS \| FAILED \| REJECTED |
+| type | string | FULL \| PARTIAL |
+| seller_id | long | Lọc theo seller bị ảnh hưởng |
+| group_ref | uuid | Lọc theo nhóm Full Refund |
+| from_date / to_date | date | Khoảng thời gian |
+| page, size | integer | Phân trang |
 
 ---
 
-## Appendix: Common Error Codes
+### POST /admin/refunds/{refundId}/approve
+**Duyệt hoàn tiền thủ công**
 
-| Error Code | HTTP Status | Meaning |
-|------------|-------------|---------|
-| `UNAUTHORIZED` | 401 | Missing or invalid JWT token |
-| `FORBIDDEN` | 403 | Insufficient role permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `CONFLICT` | 409 | State conflict (e.g., already processed) |
-| `BAD_REQUEST` | 400 | Invalid request parameters |
-| `INTERNAL_ERROR` | 500 | Unexpected server error |
+**Quyền truy cập**: JWT Required (ADMIN)  
+**Tags**: Stripe Refund API | Kafka → refund.admin_approved
 
-## Appendix: Role Requirements Summary
+**Khi nào dùng**:
+1. Tự động xử lý thất bại (FAILED) — Admin retry thủ công
+2. Tranh chấp Buyer vs Seller — Admin phán quyết
+3. Stripe webhook miss — Admin force approve
 
-| Endpoint | BUYER | SELLER | ADMIN | None |
-|----------|-------|--------|-------|------|
-| `GET /payments/parent-order/{id}` | Yes | No | Yes | No |
-| `GET /payments/parent-order/{id}/client-secret` | Yes | No | No | No |
-| `POST /stripe/webhooks` | No | No | No | Yes (Stripe sig) |
-| `POST /stripe/onboarding/start` | No | Yes | No | No |
-| `GET /stripe/onboarding/status` | No | Yes | No | No |
-| `POST /stripe/onboarding/refresh-link` | No | Yes | No | No |
-| `GET /admin/refunds` | No | No | Yes | No |
-| `GET /admin/refunds/{id}` | No | No | Yes | No |
-| `POST /admin/refunds/{id}/approve` | No | No | Yes | No |
-| `POST /admin/refunds/{id}/reject` | No | No | Yes | No |
+**Request Body**:
+```json
+{
+  "admin_note": "string",        // Lý do Admin can thiệp (Required)
+  "adjust_amount": "decimal",    // Override số tiền hoàn (Optional)
+  "caused_by": "string",         // SELLER | BUYER (Optional)
+  "tracking_number": "string"    // Mã vận đơn hoàn (Optional - v5.3 NEW)
+}
+```
+
+**Mô tả trường mới (v5.3)**:
+- `tracking_number`: Mã vận đơn hoàn hàng. Lưu vào `REFUND_ITEMS` để theo dõi hàng phản lại.
+
+**Response 200**: Stripe refund created, REFUNDS.status = SUCCESS
+
+---
+
+### POST /admin/refunds/{refundId}/reject
+**Từ chối yêu cầu hoàn tiền**
+
+**Quyền truy cập**: JWT Required (ADMIN)  
+**Tags**: Kafka → refund.rejected
+
+**Request Body**:
+```json
+{
+  "reject_reason": "string",      // Lý do từ chối (Required)
+  "fraud_evidence": "boolean"     // true = trừ điểm Buyer (Optional)
+}
+```
+
+**Response 200**: REFUNDS.status = REJECTED
+
+---
+
+## 📊 Summary
+
+| Metric | Value |
+|--------|-------|
+| **Total Endpoints** | 13 |
+| **Stripe Onboarding** | 3 |
+| **Payment Endpoints** | 2 |
+| **Refund Endpoints** | 8 |
+| **Kafka Topics Produced** | 6 |
+| **Kafka Topics Consumed** | 1 |
+
+---
+
+## 🔗 Integration Points
+
+| Service | Topic | Direction | Mô tả |
+|---------|-------|-----------|-------|
+| **Order Service** | order.created | ← | Receive order for payment |
+| **Order Service** | payment.success | → | Payment succeeded |
+| **Order Service** | payment.failed | → | Payment failed |
+| **Notification Service** | refund.requested | → | Refund requested |
+| **Notification Service** | refund.admin_approved | → | Refund approved |
+| **Notification Service** | refund.rejected | → | Refund rejected |
+| **Loyalty Service** | refund.stripe_auto | → | Chargeback refunds |
+
+---
+
+**Last Updated**: 2026-04-28  
+**Version**: v5.3 RTS
+
