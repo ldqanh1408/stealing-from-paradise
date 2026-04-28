@@ -8,6 +8,13 @@ spring:
   threads:
     virtual:
       enabled: true             # Virtual Threads Java 21+ — bật cho MVC, không cần cho WebFlux
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 100
+      thread-name-prefix: "scheduled-task-"
   jackson:
     deserialization:
       fail-on-unknown-properties: false
