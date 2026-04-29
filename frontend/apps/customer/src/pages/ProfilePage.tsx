@@ -1,9 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, type UserProfileResponse } from '@shared/api/user.api';
-import { useAuthStore } from '@shared/store/authStore';
-
-const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 function TierBadge({ tier, score }: { tier?: string; score: number }) {
   const cfg =
@@ -41,6 +38,100 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
+function AvatarUpload({
+  currentAvatar,
+  username,
+  onUploadSuccess,
+}: {
+  currentAvatar?: string;
+  username: string;
+  onUploadSuccess: (cdnUrl: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(currentAvatar ?? null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Vui lòng chọn file hình ảnh');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Kích thước file không được vượt quá 5MB');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+    setUploading(true);
+    setError('');
+
+    try {
+      const contentType = file.type;
+      const { data: urlData } = await userApi.getAvatarPresignedUrl(contentType);
+      const { uploadUrl, cdnUrl } = urlData.data!;
+
+      const uploadResp = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': contentType },
+      });
+      if (!uploadResp.ok) throw new Error('Upload failed');
+
+      onUploadSuccess(cdnUrl);
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? err.message ?? 'Upload ảnh thất bại');
+      setPreview(currentAvatar ?? null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative shrink-0">
+        {preview ? (
+          <img src={preview} alt={username} className="w-16 h-16 rounded-full object-cover ring-4 ring-gray-100" />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xl font-bold ring-4 ring-gray-100">
+            {username.charAt(0).toUpperCase()}
+          </div>
+        )}
+        {uploading && (
+          <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center">
+            <svg className="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+        )}
+      </div>
+      <div>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="px-4 py-2 text-sm border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          Đổi ảnh đại diện
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <p className="text-xs text-gray-400 mt-1">JPG, PNG, tối đa 5MB</p>
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
 function EditModal({ profile, onClose, onSuccess }: {
   profile: UserProfileResponse;
   onClose: () => void;
@@ -53,7 +144,6 @@ function EditModal({ profile, onClose, onSuccess }: {
     avatarUrl: profile.avatarUrl ?? '',
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const mut = useMutation({
     mutationFn: () => userApi.updateProfile(form),
@@ -72,6 +162,14 @@ function EditModal({ profile, onClose, onSuccess }: {
         )}
         <div className="space-y-4">
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Ảnh đại diện</label>
+            <AvatarUpload
+              currentAvatar={profile.avatarUrl}
+              username={profile.username}
+              onUploadSuccess={(cdnUrl) => setForm(f => ({ ...f, avatarUrl: cdnUrl }))}
+            />
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Họ tên</label>
             <input
               type="text"
@@ -89,16 +187,6 @@ function EditModal({ profile, onClose, onSuccess }: {
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0xxx xxx xxx"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Avatar URL</label>
-            <input
-              type="url"
-              value={form.avatarUrl}
-              onChange={e => setForm(f => ({ ...f, avatarUrl: e.target.value }))}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="https://..."
             />
           </div>
         </div>
@@ -120,7 +208,6 @@ function EditModal({ profile, onClose, onSuccess }: {
 }
 
 export default function ProfilePage() {
-  const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 

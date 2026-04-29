@@ -21,7 +21,7 @@ function RejectModal({ product, onClose, onSuccess }: { product: PendingProduct;
   const [reason, setReason] = useState('');
 
   const mut = useMutation({
-    mutationFn: () => adminApi.rejectProduct(product.product_id, reason),
+    mutationFn: () => adminApi.rejectProduct(product.productId, reason),
     onSuccess: () => { onSuccess(); onClose(); },
     onError: () => {},
   });
@@ -31,7 +31,7 @@ function RejectModal({ product, onClose, onSuccess }: { product: PendingProduct;
       <div className="bg-white rounded-2xl p-6 max-w-md w-full">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Từ chối sản phẩm</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Từ chối "<strong>{product.name}</strong>" của seller #{product.seller_id}.
+          Từ chối "<strong>{product.name}</strong>" của seller #{product.sellerId}.
         </p>
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Lý do từ chối *</label>
@@ -155,7 +155,7 @@ export default function ProductModerationPage() {
         <>
           <div className="space-y-4">
             {pendingProducts.map(p => (
-              <div key={p.product_id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-start gap-4 hover:shadow-sm transition-shadow">
+              <div key={p.productId} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-start gap-4 hover:shadow-sm transition-shadow">
                 <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
                   {p.images?.[0] ? (
                     <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
@@ -169,7 +169,7 @@ export default function ProductModerationPage() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-500">
-                    Người bán: #{p.seller_id} {p.seller_name && `(${p.seller_name})`}
+                    Người bán: #{p.sellerId} {p.sellerName && `(${p.sellerName})`}
                     {p.category && ` · ${p.category}`}
                   </p>
                   {p.price && <p className="font-bold text-gray-900 mt-1">{fmt(p.price)}</p>}
@@ -223,7 +223,7 @@ export default function ProductModerationPage() {
             <div className="flex gap-3">
               <button onClick={() => setApproveProduct(null)} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
               <button
-                onClick={() => approveMut.mutate(approveProduct.product_id)}
+                onClick={() => approveMut.mutate(approveProduct.productId)}
                 disabled={approveMut.isPending}
                 className="flex-1 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >

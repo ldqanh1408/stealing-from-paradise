@@ -27,6 +27,14 @@ public final class KafkaTopics {
     public static final String INVENTORY_ADJUSTED       = "inventory.adjusted";
 
     // ──────────────────────────────────────────────
+    // Review  (Producer: Product Service)
+    // ──────────────────────────────────────────────
+    public static final String REVIEW_CREATED           = "review.created";
+    public static final String REVIEW_UPDATED           = "review.updated";
+    public static final String REVIEW_DELETED           = "review.deleted";
+    public static final String REVIEW_SUMMARY_UPDATED   = "review.summary_updated";  // → search-service: update reviewCount/avgRating
+
+    // ──────────────────────────────────────────────
     // Order  (Producer: Order Service / Worker)
     // ──────────────────────────────────────────────
     public static final String ORDER_CREATED            = "order.created";

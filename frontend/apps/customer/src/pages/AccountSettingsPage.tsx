@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import apiClient from '@shared/lib/axios';
+import { userApi } from '@shared/api/user.api';
 
 export default function AccountSettingsPage() {
   const [activeTab, setActiveTab] = useState<'password' | 'notifications' | 'security'>('password');
@@ -55,7 +55,7 @@ function PasswordTab() {
     mutationFn: async () => {
       if (form.newPassword !== form.confirmPassword) throw new Error('Mật khẩu xác nhận không khớp');
       if (form.newPassword.length < 6) throw new Error('Mật khẩu mới phải có ít nhất 6 ký tự');
-      await apiClient.post('/users/me/change-password', {
+      await userApi.changePassword({
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
       });

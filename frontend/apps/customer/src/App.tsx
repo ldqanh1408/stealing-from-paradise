@@ -19,6 +19,7 @@ const AddressPage        = lazy(() => import('@/pages/AddressPage'));
 const LoyaltyPage        = lazy(() => import('@/pages/LoyaltyPage'));
 const TrustScorePage     = lazy(() => import('@/pages/TrustScorePage'));
 const AccountSettingsPage = lazy(() => import('@/pages/AccountSettingsPage'));
+const RefundHistoryPage = lazy(() => import('@/pages/RefundHistoryPage'));
 
 const NAV_LINKS = [
   { label: 'Sản phẩm', to: '/products' },
@@ -28,6 +29,7 @@ const NAV_LINKS = [
 const AUTH_LINKS = [
   { label: 'Giỏ hàng', to: '/cart' },
   { label: 'Đơn hàng', to: '/orders' },
+  { label: 'Hoàn tiền', to: '/refunds' },
   { label: 'Hồ sơ', to: '/profile' },
   { label: 'Địa chỉ', to: '/addresses' },
   { label: 'Điểm tích luỹ', to: '/loyalty' },
@@ -59,6 +61,7 @@ export default function App() {
                 <Route path="/checkout/payment" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
                 <Route path="/orders"   element={<PrivateRoute><OrderHistoryPage /></PrivateRoute>} />
                 <Route path="/orders/:parentOrderId" element={<PrivateRoute><OrderDetailPage /></PrivateRoute>} />
+                <Route path="/refunds" element={<PrivateRoute><RefundHistoryPage /></PrivateRoute>} />
 
                 <Route path="/profile"          element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
                 <Route path="/addresses"        element={<PrivateRoute><AddressPage /></PrivateRoute>} />

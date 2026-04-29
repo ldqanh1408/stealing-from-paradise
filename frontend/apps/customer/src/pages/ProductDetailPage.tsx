@@ -44,12 +44,12 @@ export default function ProductDetailPage() {
     setAddError(null);
     setSuccessMsg(null);
     try {
-      const sku = product.variants[selectedVariant].skuCode;
-      await addToCart(sku, quantity, undefined);
+      const variant = product.variants[selectedVariant];
+      await addToCart(variant.skuCode, quantity, (product as any).fsItemId);
       setSuccessMsg('Đã thêm vào giỏ hàng!');
       setTimeout(() => navigate('/cart'), 1200);
     } catch (err: any) {
-      setAddError(err?.response?.data?.message || 'Không thể thêm vào giỏ hàng.');
+      setAddError(err?.response?.data?.message || err?.response?.data?.error || 'Không thể thêm vào giỏ hàng.');
     } finally {
       setIsAdding(false);
     }
@@ -62,50 +62,55 @@ export default function ProductDetailPage() {
     setSuccessMsg(null);
     try {
       // Ensure user has an address
-      let addr = addresses.find((a: any) => a.is_default) ?? addresses[0];
+      let addr = addresses.find((a: any) => a.isDefault) ?? addresses[0];
       if (!addr) {
         const { data: newAddr } = await addressApi.create({
-          province_id: 1,
-          district_id: 1,
-          full_address: '123 Đường Test, Phường Test, Quận Test, TP. Hồ Chí Minh',
-          is_default: true,
+          provinceId: 1,
+          districtId: 1,
+          fullAddress: '123 Đường Test, Phường Test, Quận Test, TP. Hồ Chí Minh',
+          isDefault: true,
         });
         addr = newAddr.data;
       }
 
+      const variant = product.variants[selectedVariant];
+      const fsItemId = (product as any).fsItemId;
+
       // Add item to cart and immediately fetch updated cart
-      const sku = product.variants[selectedVariant].skuCode;
-      await cartApi.addItem(sku, quantity, undefined);
+      await cartApi.addItem(variant.skuCode, quantity, fsItemId);
       const { data: cartRes } = await cartApi.getCart();
       const cartData = cartRes.data;
+
+      // Find the item we just added by matching sku and most recent addedAt
       const newestItem = cartData?.sellers
         ?.flatMap((s: any) => s.items)
+        .filter((item: any) => item.skuCode === variant.skuCode)
         .sort((a: any, b: any) => {
-          const ta = a.added_at ? new Date(a.added_at).getTime() : 0;
-          const tb = b.added_at ? new Date(b.added_at).getTime() : 0;
+          const ta = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+          const tb = b.addedAt ? new Date(b.addedAt).getTime() : 0;
           return tb - ta;
         })[0];
 
-      if (!newestItem) throw new Error('Cannot find added cart item');
+      if (!newestItem) throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
 
       // Checkout
       const { data: checkoutRes } = await orderApi.checkout({
-        address_id: addr.address_id,
-        item_ids: [newestItem.cart_item_id],
+        addressId: addr.addressId,
+        itemIds: [String(newestItem.cartItemId)],
       });
 
       if (checkoutRes.data) {
         const orderData = checkoutRes.data;
         sessionStorage.setItem('pending_checkout', JSON.stringify({
-          parentOrderId: orderData.parent_order_id,
-          orderData,
+          ...orderData,
+          _paymentMethod: 'stripe',
         }));
         navigate('/checkout/payment', {
-          state: { orderData, parentOrderId: orderData.parent_order_id },
+          state: { orderData, parentOrderId: orderData.parentOrderId },
         });
       }
     } catch (err: any) {
-      setAddError(err?.response?.data?.message || err.message || 'Mua ngay thất bại.');
+      setAddError(err?.response?.data?.message || err?.response?.data?.error || err.message || 'Mua ngay thất bại.');
     } finally {
       setIsBuyNow(false);
     }

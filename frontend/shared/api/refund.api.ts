@@ -4,104 +4,104 @@ import type { ApiResponse } from '../types/api';
 // ─── Refund Types ────────────────────────────────────────────────────────────
 
 export interface RefundItemRequest {
-  order_item_id: number;
+  orderItemId: number;
   quantity: number;
-  item_reason?: string;
+  itemReason?: string;
 }
 
 export interface FullRefundRequest {
   reason: string;
-  evidence_images?: string[];
+  evidenceImages?: string[];
 }
 
 export interface PartialRefundRequest {
   reason: string;
   items: RefundItemRequest[];
-  evidence_images?: string[];
+  evidenceImages?: string[];
 }
 
 export interface RefundItemResponse {
-  order_item_id: number;
+  orderItemId: number;
   quantity: number;
-  refund_amount: number;
-  item_reason?: string;
+  refundAmount: number;
+  itemReason?: string;
   status: string;
-  tracking_number?: string;
-  returned_at?: string;
+  trackingNumber?: string;
+  returnedAt?: string;
 }
 
 export interface RefundResponse {
-  refund_id: number;
-  order_id: number;
-  group_ref: string;
+  refundId: number;
+  orderId: number;
+  groupRef: string;
   type: string;
   status: string;
   amount: number;
   reason: string;
-  initiated_by: string;
-  refund_reason_type?: string;
-  evidence_images?: string[];
-  admin_note?: string;
-  reject_reason?: string;
-  adjust_amount?: number;
-  reviewed_by?: number;
-  reviewed_at?: string;
-  stripe_refund_id?: string;
+  initiatedBy: string;
+  refundReasonType?: string;
+  evidenceImages?: string[];
+  adminNote?: string;
+  rejectReason?: string;
+  adjustAmount?: number;
+  reviewedBy?: number;
+  reviewedAt?: string;
+  stripeRefundId?: string;
   items?: RefundItemResponse[];
-  created_at: string;
-  updated_at?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface FullRefundCreatedResponse {
-  group_ref: string;
+  groupRef: string;
   type: string;
-  total_amount: number;
+  totalAmount: number;
   status: string;
   refunds: {
-    refund_id: number;
-    order_id: number;
-    seller_id: number;
+    refundId: number;
+    orderId: number;
+    sellerId: number;
     amount: number;
-    item_count: number;
+    itemCount: number;
   }[];
-  loyalty_points_to_return?: number;
-  estimated_days: number;
+  loyaltyPointsToReturn?: number;
+  estimatedDays: number;
 }
 
 export interface FullRefundStatus {
-  group_ref: string;
+  groupRef: string;
   type: string;
-  overall_status: string;
-  total_amount: number;
+  overallStatus: string;
+  totalAmount: number;
   refunds: {
-    refund_id: number;
-    order_id: number;
+    refundId: number;
+    orderId: number;
     status: string;
-    refund_ref?: string;
+    refundRef?: string;
   }[];
 }
 
 // ─── Admin Refund Types ──────────────────────────────────────────────────────
 
 export interface AdminRefundApproveRequest {
-  admin_note: string;
-  adjust_amount?: number;
-  caused_by?: 'SELLER' | 'BUYER';
-  tracking_number?: string;
+  adminNote: string;
+  adjustAmount?: number;
+  causedBy?: 'SELLER' | 'BUYER';
+  trackingNumber?: string;
 }
 
 export interface AdminRefundRejectRequest {
-  reject_reason: string;
-  fraud_evidence?: boolean;
+  rejectReason: string;
+  fraudEvidence?: boolean;
 }
 
 export interface AdminRefundApproveResponse {
-  refund_id: number;
+  refundId: number;
   status: string;
   amount: number;
-  tracking_number?: string;
-  reviewed_by: string;
-  reviewed_at: string;
+  trackingNumber?: string;
+  reviewedBy: string;
+  reviewedAt: string;
 }
 
 // ─── Admin Refund API ────────────────────────────────────────────────────────
@@ -111,14 +111,14 @@ export const adminRefundApi = {
   list: (params?: {
     status?: string;
     type?: string;
-    seller_id?: number;
-    group_ref?: string;
-    from_date?: string;
-    to_date?: string;
+    sellerId?: number;
+    groupRef?: string;
+    fromDate?: string;
+    toDate?: string;
     page?: number;
     size?: number;
   }) =>
-    apiClient.get<ApiResponse<{ content: RefundResponse[]; total_elements: number; total_pages: number }>>('/admin/refunds', { params }),
+    apiClient.get<ApiResponse<{ content: RefundResponse[]; totalElements: number; totalPages: number }>>('/admin/refunds', { params }),
 
   /** Get refund detail */
   getById: (refundId: number) =>
@@ -162,5 +162,5 @@ export const refundApi = {
 
   /** List all buyer's refunds */
   getMyRefunds: (params?: { status?: string; page?: number; size?: number }) =>
-    apiClient.get<ApiResponse<{ content: RefundResponse[]; total_elements: number; total_pages: number }>>('/orders/refunds', { params }),
+    apiClient.get<ApiResponse<{ content: RefundResponse[]; totalElements: number; totalPages: number }>>('/orders/refunds', { params }),
 };

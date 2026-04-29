@@ -256,6 +256,7 @@ services:
     ports: ["${PORT_IDENTITY:-8081}:8081"]
     env_file: .env
     environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
       - DB_HOST=${DB_HOST}
       - DB_NAME=${DB_NAME}

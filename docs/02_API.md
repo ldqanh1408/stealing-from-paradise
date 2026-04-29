@@ -1397,7 +1397,7 @@ For complete understanding, also read:
 
 **Mô tả**: Full Refund · Partial Refund (multi-seller) · Admin Override · Stripe Reversal (v4.1)
 
-**Nguyên tắc**: 
+**Nguyên tắc**:
 - Mỗi ORDERS thuộc 1 Seller → mỗi REFUNDS gắn với 1 sub-order
 - Full Refund trên parent order tạo N bản ghi REFUNDS (N = số seller)
 - Liên kết qua `group_ref` UUID chung
@@ -1407,7 +1407,7 @@ For complete understanding, also read:
 ### POST /orders/parent/{parentOrderId}/refund
 **Full Refund toàn bộ đơn cha**
 
-**Quyền truy cập**: JWT Required (BUYER)  
+**Quyền truy cập**: JWT Required (BUYER)
 **Tags**: Stripe Refund API | Kafka → refund.full_requested | NEW v4.1
 
 **Điều kiện**:
@@ -1505,7 +1505,7 @@ For complete understanding, also read:
 ### POST /orders/{orderId}/refunds
 **Partial Refund — 1 sub-order (1 seller)**
 
-**Quyền truy cập**: JWT Required (BUYER)  
+**Quyền truy cập**: JWT Required (BUYER)
 **Tags**: Stripe Refund API | Kafka → refund.requested
 
 **Điều kiện**:
@@ -1546,7 +1546,7 @@ For complete understanding, also read:
 ### POST /orders/parent/{parentOrderId}/refunds/partial
 **Partial Refund — nhiều sub-orders / sellers**
 
-**Quyền truy cập**: JWT Required (BUYER)  
+**Quyền truy cập**: JWT Required (BUYER)
 **Tags**: Kafka → refund.requested (per seller) | NEW v4.1
 
 **Mô tả**: System tự động nhóm items theo sub-order, tạo REFUNDS riêng cho mỗi seller, liên kết bằng `group_ref`. Payment Service xử lý song song.
@@ -1646,7 +1646,7 @@ order_101 (seller_9): items [601]      → REFUNDS id=91, amount=200000
 ### GET /orders/{orderId}/refunds/presigned-url
 **Lấy MinIO Pre-signed URL để upload ảnh bằng chứng hoàn tiền**
 
-**Quyền truy cập**: JWT Required (BUYER - owner)  
+**Quyền truy cập**: JWT Required (BUYER - owner)
 **Tag**: NEW v5.1 — Gap A
 
 **Mô tả**: Trả về Pre-signed PUT URL từ MinIO với TTL **15 phút**.
@@ -1696,7 +1696,7 @@ order_101 (seller_9): items [601]      → REFUNDS id=91, amount=200000
 ### POST /admin/refunds/{refundId}/approve
 **Duyệt hoàn tiền thủ công**
 
-**Quyền truy cập**: JWT Required (ADMIN)  
+**Quyền truy cập**: JWT Required (ADMIN)
 **Tags**: Stripe Refund API | Kafka → refund.admin_approved
 
 **Khi nào dùng**:
@@ -1754,7 +1754,7 @@ order_101 (seller_9): items [601]      → REFUNDS id=91, amount=200000
 ### POST /admin/refunds/{refundId}/reject
 **Từ chối yêu cầu hoàn tiền**
 
-**Quyền truy cập**: JWT Required (ADMIN)  
+**Quyền truy cập**: JWT Required (ADMIN)
 **Tags**: Kafka → refund.rejected
 
 **Request Body**:
@@ -3113,9 +3113,9 @@ GET /orders?
 
 # 📋 API Detailed JSON Request/Response v5.3 RTS [COMPLETE]
 
-**Phiên bản:** v5.3 RTS  
-**Cập nhật:** 2026-04-15  
-**Trạng thái:** Production-Ready ✅  
+**Phiên bản:** v5.3 RTS
+**Cập nhật:** 2026-04-15
+**Trạng thái:** Production-Ready ✅
 
 Tài liệu này trình bày **chi tiết** toàn bộ JSON request/response, Kafka payloads, và validation rules cho các API endpoints. Dựa trên ERD, nghiệp vụ hệ thống, và v5.3 RTS updates.
 
@@ -5214,6 +5214,6 @@ status=DEAD&topic_or_task=order.delivered&page=0&size=20
 
 ---
 
-**Tài liệu cập nhật:** 2026-04-15  
-**Phiên bản:** 5.3 RTS Unified  
+**Tài liệu cập nhật:** 2026-04-15
+**Phiên bản:** 5.3 RTS Unified
 **Trạng thái:** ✅ Production-Ready

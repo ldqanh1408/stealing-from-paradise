@@ -8,7 +8,14 @@ interface RegisterPageProps {
 }
 
 export default function RegisterPage({ title = 'Tạo tài khoản', redirectTo = '/products' }: RegisterPageProps) {
-  const [formData, setFormData] = useState({ username: '', email: '', password: '', confirmPassword: '' });
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    phone: '',
+    fullName: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,7 +38,13 @@ export default function RegisterPage({ title = 'Tạo tài khoản', redirectTo 
     }
     setLoading(true);
     try {
-      await register({ username: formData.username, email: formData.email, password: formData.password });
+      await register({
+        username: formData.username,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        fullName: formData.fullName || undefined,
+        password: formData.password,
+      });
       navigate(redirectTo);
     } catch (err: any) {
       setError(
@@ -102,6 +115,16 @@ export default function RegisterPage({ title = 'Tạo tài khoản', redirectTo 
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
                   <input name="email" type="email" value={formData.email} onChange={handleChange}
                     placeholder="email@example.com" required className={inputClass} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Số điện thoại <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+                  <input name="phone" type="tel" value={formData.phone} onChange={handleChange}
+                    placeholder="0xxx xxx xxx" className={inputClass} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Họ tên <span className="text-gray-400 font-normal">(tuỳ chọn)</span></label>
+                  <input name="fullName" type="text" value={formData.fullName} onChange={handleChange}
+                    placeholder="Nguyễn Văn A" className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Mật khẩu</label>

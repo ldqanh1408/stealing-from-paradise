@@ -35,9 +35,9 @@ export default function SellerOrderDetailPage() {
   });
 
   const { data: paymentData } = useQuery({
-    queryKey: ['payment-for-seller', order?.parent_order_id],
-    queryFn: () => paymentApi.getPayment(order!.parent_order_id!).then(r => r.data.data),
-    enabled: !!order?.parent_order_id,
+    queryKey: ['payment-for-seller', order?.parentOrderId],
+    queryFn: () => paymentApi.getPayment(order!.parentOrderId!).then(r => r.data.data),
+    enabled: !!order?.parentOrderId,
     retry: 1,
   });
 
@@ -76,7 +76,7 @@ export default function SellerOrderDetailPage() {
         <a href="/orders" className="text-gray-400 hover:text-gray-600 text-2xl">←</a>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Chi tiết đơn hàng</h1>
-          <p className="text-sm text-gray-500 font-mono">{order.order_code}</p>
+          <p className="text-sm text-gray-500 font-mono">{order.orderCode}</p>
         </div>
       </div>
 
@@ -86,12 +86,12 @@ export default function SellerOrderDetailPage() {
           {st.label}
         </span>
         <div className="flex-1 text-sm text-gray-500">
-          Đặt lúc {formatDate(order.created_at)}
+          Đặt lúc {formatDate(order.createdAt)}
         </div>
-        {order.tracking_number && (
+        {order.trackingNumber && (
           <div className="text-sm">
             <span className="text-gray-500">Mã vận đơn: </span>
-            <span className="font-mono font-medium text-gray-900">{order.tracking_number}</span>
+            <span className="font-mono font-medium text-gray-900">{order.trackingNumber}</span>
             {order.carrier && <span className="text-gray-400"> ({order.carrier})</span>}
           </div>
         )}
@@ -103,17 +103,17 @@ export default function SellerOrderDetailPage() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-gray-500 text-xs">Tên</p>
-            <p className="font-medium text-gray-900">{order.buyer_name || `User #${order.buyer_id}`}</p>
+            <p className="font-medium text-gray-900">{order.buyerName || `User #${order.buyerId}`}</p>
           </div>
           <div>
             <p className="text-gray-500 text-xs">Username</p>
-            <p className="font-medium text-gray-900">{order.buyer_name ? `@${order.buyer_id}` : '—'}</p>
+            <p className="font-medium text-gray-900">{order.buyerName ? `@${order.buyerId}` : '—'}</p>
           </div>
-          {order.shipping_address && (
+          {order.shippingAddress && (
             <>
               <div className="col-span-2">
                 <p className="text-gray-500 text-xs">Địa chỉ giao hàng</p>
-                <p className="font-medium text-gray-900">{order.shipping_address.full_address}</p>
+                <p className="font-medium text-gray-900">{order.shippingAddress.fullAddress}</p>
               </div>
             </>
           )}
@@ -135,12 +135,12 @@ export default function SellerOrderDetailPage() {
             </div>
             <div>
               <p className="text-gray-500 text-xs">Mã giao dịch</p>
-              <p className="font-mono text-xs text-gray-600">{paymentData.trans_ref}</p>
+              <p className="font-mono text-xs text-gray-600">{paymentData.transRef}</p>
             </div>
-            {paymentData.paid_at && (
+            {paymentData.paidAt && (
               <div>
                 <p className="text-gray-500 text-xs">Thanh toán lúc</p>
-                <p className="font-medium text-gray-700 text-xs">{formatDate(paymentData.paid_at)}</p>
+                <p className="font-medium text-gray-700 text-xs">{formatDate(paymentData.paidAt)}</p>
               </div>
             )}
           </div>
@@ -153,30 +153,30 @@ export default function SellerOrderDetailPage() {
           <h2 className="font-bold text-gray-900">📦 Sản phẩm ({order.items?.length ?? 0})</h2>
         </div>
         {order.items?.map(item => (
-          <div key={item.order_item_id} className="flex items-center gap-4 px-5 py-4 border-b border-gray-50 last:border-b-0">
+          <div key={item.orderItemId} className="flex items-center gap-4 px-5 py-4 border-b border-gray-50 last:border-b-0">
             <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
-              {item.image_snapshot ? (
-                <img src={item.image_snapshot} alt="" className="w-full h-full object-cover" />
+              {item.imageSnapshot ? (
+                <img src={item.imageSnapshot} alt="" className="w-full h-full object-cover" />
               ) : '📦'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 truncate">{item.product_name}</p>
-              <p className="text-sm text-gray-500">{item.variant_name}</p>
+              <p className="font-medium text-gray-900 truncate">{item.productName}</p>
+              <p className="text-sm text-gray-500">{item.variantName}</p>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs text-gray-400">SKU: {item.sku_code}</span>
+                <span className="text-xs text-gray-400">SKU: {item.skuCode}</span>
                 <span className="text-gray-300">·</span>
                 <span className="text-xs text-gray-400">x{item.quantity}</span>
-                {item.refunded_quantity > 0 && (
+                {item.refundedQuantity > 0 && (
                   <>
                     <span className="text-gray-300">·</span>
-                    <span className="text-xs text-blue-600">Đã hoàn: {item.refunded_quantity}</span>
+                    <span className="text-xs text-blue-600">Đã hoàn: {item.refundedQuantity}</span>
                   </>
                 )}
               </div>
             </div>
             <div className="text-right shrink-0">
-              <p className="font-bold text-gray-900">{fmt(item.price_snapshot * item.quantity)}</p>
-              <p className="text-xs text-gray-400">{fmt(item.price_snapshot)}/sp</p>
+              <p className="font-bold text-gray-900">{fmt(item.priceSnapshot * item.quantity)}</p>
+              <p className="text-xs text-gray-400">{fmt(item.priceSnapshot)}/sp</p>
             </div>
           </div>
         ))}
@@ -188,11 +188,11 @@ export default function SellerOrderDetailPage() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>Tổng tiền</span>
-            <span>{fmt(order.total_amt)}</span>
+            <span>{fmt(order.totalAmt)}</span>
           </div>
           <div className="flex justify-between font-bold text-base">
             <span>Thanh toán</span>
-            <span className="text-red-600 text-lg">{fmt(order.final_amt)}</span>
+            <span className="text-red-600 text-lg">{fmt(order.finalAmt)}</span>
           </div>
         </div>
       </div>

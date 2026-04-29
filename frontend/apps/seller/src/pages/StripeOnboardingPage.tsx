@@ -56,7 +56,7 @@ export default function StripeOnboardingPage() {
     // Poll while we wait for Stripe webhook / lazy-sync to flip status to COMPLETE.
     refetchInterval: (query) => {
       const data: any = query.state.data;
-      const s = normalizeStatus(data?.onboarding_status);
+      const s = normalizeStatus(data?.onboardingStatus);
       if (s === 'COMPLETE') return false;
       return justReturnedFromStripe ? 3000 : false;
     },
@@ -66,7 +66,7 @@ export default function StripeOnboardingPage() {
   const startMut = useMutation({
     mutationFn: () => sellerApi.startStripeOnboarding(),
     onSuccess: (res) => {
-      const url = res.data.data?.onboarding_url;
+      const url = res.data.data?.onboardingUrl;
       if (url) {
         window.open(url, '_blank', 'noopener,noreferrer');
         queryClient.invalidateQueries({ queryKey: ['stripe-onboarding-status'] });
@@ -80,7 +80,7 @@ export default function StripeOnboardingPage() {
   const refreshMut = useMutation({
     mutationFn: () => sellerApi.refreshStripeLink(),
     onSuccess: (res) => {
-      const url = res.data.data?.onboarding_url;
+      const url = res.data.data?.onboardingUrl;
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     },
     onError: (err: any) => {
@@ -100,7 +100,7 @@ export default function StripeOnboardingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestRefresh]);
 
-  const currentStatus: OnboardingStatus = normalizeStatus(status?.onboarding_status);
+  const currentStatus: OnboardingStatus = normalizeStatus(status?.onboardingStatus);
   const isComplete = currentStatus === 'COMPLETE';
   const isSuspended = currentStatus === 'SUSPENDED';
   const isInProgress = currentStatus === 'IN_PROGRESS';

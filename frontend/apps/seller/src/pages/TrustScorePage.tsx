@@ -39,7 +39,7 @@ export default function TrustScorePage() {
     retry: 1,
   });
 
-  const score = stats?.trust_score ?? 0;
+  const score = stats?.trustScore ?? 0;
   const tier =
     score >= 90 ? { label: 'Diamond', emoji: '💎', color: 'text-blue-600 bg-blue-50 border-blue-200' } :
     score >= 80 ? { label: 'Gold', emoji: '🥇', color: 'text-amber-600 bg-amber-50 border-amber-200' } :

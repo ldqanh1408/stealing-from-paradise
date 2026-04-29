@@ -43,35 +43,38 @@ function FlashItemCard({
   isBuying,
 }: {
   item: {
-    sku_code: string;
-    product_name: string;
-    image_url?: string;
-    flash_price: number;
-    original_price: number;
-    flash_stock: number;
-    sold_qty: number;
+    skuCode: string;
+    productName: string;
+    imageUrl?: string;
+    flashPrice: number;
+    originalPrice: number;
+    flashStock: number;
+    soldQty: number;
     status: string;
     id?: number;
-    session_id?: number;
+    sessionId?: number;
   };
   sessionActive: boolean;
-  onBuy: (skuCode: string) => void;
+  onBuy: (item: {
+    skuCode: string;
+    id?: number;
+  }) => void;
   isBuying: boolean;
 }) {
-  const sold = item.sold_qty ?? 0;
-  const total = item.flash_stock ?? 0;
+  const sold = item.soldQty ?? 0;
+  const total = item.flashStock ?? 0;
   const remaining = total - sold;
   const pct = total > 0 ? Math.round((sold / total) * 100) : 0;
-  const disc = item.original_price > 0
-    ? Math.round((1 - item.flash_price / item.original_price) * 100)
+  const disc = item.originalPrice > 0
+    ? Math.round((1 - item.flashPrice / item.originalPrice) * 100)
     : 0;
   const soldOut = remaining <= 0 || item.status === 'SOLD_OUT';
 
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group flex flex-col ${soldOut ? 'opacity-75' : ''}`}>
       <div className="relative bg-gradient-to-br from-orange-50 to-red-50 aspect-square flex items-center justify-center overflow-hidden">
-        {item.image_url ? (
-          <img src={item.image_url} alt={item.product_name} className="w-full h-full object-cover" />
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
         ) : (
           <span className="text-5xl">🔥</span>
         )}
@@ -86,12 +89,12 @@ function FlashItemCard({
       </div>
       <div className="p-3 flex flex-col flex-1">
         <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 group-hover:text-red-600 transition-colors">
-          {item.product_name}
+          {item.productName}
         </h3>
         <div className="flex items-baseline gap-1.5 mb-2">
-          <span className="text-base font-bold text-red-600">{fmt(item.flash_price)}</span>
+          <span className="text-base font-bold text-red-600">{fmt(item.flashPrice)}</span>
           {disc > 0 && (
-            <span className="text-xs text-gray-400 line-through">{fmt(item.original_price)}</span>
+            <span className="text-xs text-gray-400 line-through">{fmt(item.originalPrice)}</span>
           )}
         </div>
         {/* Progress bar */}
@@ -108,7 +111,7 @@ function FlashItemCard({
           </div>
         </div>
         <button
-          onClick={() => !soldOut && !isBuying && sessionActive && onBuy(item.sku_code)}
+          onClick={() => !soldOut && !isBuying && sessionActive && onBuy({ skuCode: item.skuCode, id: item.id })}
           disabled={soldOut || isBuying || !sessionActive}
           className={`w-full py-2 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1 mt-auto ${
             soldOut
@@ -166,11 +169,11 @@ export default function FlashSalePage() {
     staleTime: 1000 * 30,
   });
 
-  const handleBuyNow = useCallback(async (skuCode: string) => {
-    setBuyingSku(skuCode);
+  const handleBuyNow = useCallback(async (item: { skuCode: string; id?: number }) => {
+    setBuyingSku(item.skuCode);
     setSuccessMsg(null);
     try {
-      await addToCart(skuCode, 1, sessionDetail?.items?.[0]?.id);
+      await addToCart(item.skuCode, 1, item.id);
       setSuccessMsg('Đã thêm vào giỏ hàng!');
       setTimeout(() => navigate('/cart'), 1000);
     } catch (err: any) {
@@ -179,10 +182,10 @@ export default function FlashSalePage() {
     } finally {
       setBuyingSku(null);
     }
-  }, [addToCart, navigate, sessionDetail]);
+  }, [addToCart, navigate]);
 
-  const targetTime = activeSession?.end_time
-    ? new Date(activeSession.end_time)
+  const targetTime = activeSession?.endTime
+    ? new Date(activeSession.endTime)
     : new Date(Date.now() + 2 * 3600 * 1000);
   const isActive = activeSession?.status === 'ACTIVE';
 
@@ -204,16 +207,16 @@ export default function FlashSalePage() {
             <span className="text-3xl">⚡</span>
           </div>
           <p className="text-orange-100 mb-6 text-lg">Giảm giá cực sốc — chỉ trong hôm nay!</p>
-          {activeSession?.status === 'ACTIVE' && activeSession.end_time && (
+          {activeSession?.status === 'ACTIVE' && activeSession.endTime && (
             <div className="flex flex-col items-center gap-2">
               <p className="text-sm text-orange-100 uppercase tracking-widest font-medium">Kết thúc sau</p>
               <Countdown targetTime={targetTime} />
             </div>
           )}
-          {activeSession?.status === 'UPCOMING' && activeSession.start_time && (
+          {activeSession?.status === 'UPCOMING' && activeSession.startTime && (
             <div className="flex flex-col items-center gap-2">
               <p className="text-sm text-orange-100 uppercase tracking-widest font-medium">Bắt đầu sau</p>
-              <Countdown targetTime={new Date(activeSession.start_time)} />
+              <Countdown targetTime={new Date(activeSession.startTime)} />
             </div>
           )}
         </div>
@@ -226,7 +229,7 @@ export default function FlashSalePage() {
             {sessions.map((s, i) => {
               const isActive = s.status === 'ACTIVE';
               const isUpcoming = s.status === 'UPCOMING';
-              const startTime = s.start_time ? new Date(s.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+              const startTime = s.startTime ? new Date(s.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
               return (
                 <button
                   key={s.id}
@@ -279,11 +282,11 @@ export default function FlashSalePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {sessionDetail.items.map((item) => (
               <FlashItemCard
-                key={item.sku_code}
+                key={item.skuCode}
                 item={item}
                 sessionActive={isActive}
                 onBuy={handleBuyNow}
-                isBuying={buyingSku === item.sku_code}
+                isBuying={buyingSku === item.skuCode}
               />
             ))}
           </div>
@@ -307,10 +310,10 @@ export default function FlashSalePage() {
                     <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-4 font-medium text-gray-900">{s.name}</td>
                       <td className="px-5 py-4 text-gray-500 whitespace-nowrap">
-                        {s.start_time ? new Date(s.start_time).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                        {s.startTime ? new Date(s.startTime).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                       <td className="px-5 py-4 text-gray-500 whitespace-nowrap">
-                        {s.end_time ? new Date(s.end_time).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                        {s.endTime ? new Date(s.endTime).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                       <td className="px-5 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${

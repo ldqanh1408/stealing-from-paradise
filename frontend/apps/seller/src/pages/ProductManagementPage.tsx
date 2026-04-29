@@ -31,8 +31,8 @@ function VariantModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [sku, setSku] = useState(initial?.sku_code ?? '');
-  const [name, setName] = useState(initial?.variant_name ?? '');
+  const [sku, setSku] = useState(initial?.skuCode ?? '');
+  const [name, setName] = useState(initial?.variantName ?? '');
   const [price, setPrice] = useState(initial?.price?.toString() ?? '');
   const [stock, setStock] = useState(initial?.stock?.toString() ?? '1');
   const [error, setError] = useState('');
@@ -40,9 +40,9 @@ function VariantModal({
 
   const mut = useMutation({
     mutationFn: () => {
-      const data = { sku_code: sku.trim(), variant_name: name.trim(), price: Number(price), stock: Number(stock) };
+      const data = { skuCode: sku.trim(), variantName: name.trim(), price: Number(price), stock: Number(stock) };
       return initial
-        ? sellerApi.updateVariant(initial.sku_code, data)
+        ? sellerApi.updateVariant(initial.skuCode, data)
         : sellerApi.createVariant(productId, data);
     },
     onSuccess: () => { setDone(true); setTimeout(() => { onSuccess(); onClose(); }, 1200); },
@@ -181,24 +181,24 @@ function ProductFormModal({
   const [category, setCategory] = useState(product?.category ?? 'electronics');
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [price, setPrice] = useState(product?.price?.toString() ?? '');
-  const [stock, setStock] = useState(product?.stock_available?.toString() ?? '1');
+  const [stock, setStock] = useState(product?.stockAvailable?.toString() ?? '1');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'images' | 'variants'>('info');
 
   // Variants
   const { data: variants = [] } = useQuery({
-    queryKey: ['seller-variants', product?.product_id],
-    queryFn: () => sellerApi.getVariants(product!.product_id).then(r => r.data.data ?? []),
-    enabled: !!product?.product_id,
+    queryKey: ['seller-variants', product?.productId],
+    queryFn: () => sellerApi.getVariants(product!.productId).then(r => r.data.data ?? []),
+    enabled: !!product?.productId,
   });
   const [showVariant, setShowVariant] = useState<SellerVariant | undefined>(undefined);
   const [showVariantForm, setShowVariantForm] = useState(false);
 
   const mut = useMutation({
-    mutationFn: (data: { name: string; description: string; category_id: string; images?: string[] }) =>
+    mutationFn: (data: { name: string; description: string; categoryId: string; images?: string[] }) =>
       product
-        ? apiClient.put<ApiResponse<SellerProduct>>(`/products/${product.product_id}`, data)
+        ? apiClient.put<ApiResponse<SellerProduct>>(`/products/${product.productId}`, data)
         : apiClient.post<ApiResponse<SellerProduct>>('/products', { ...data, price: Number(price), stock: Number(stock) }),
     onSuccess: (res) => {
       if (!product && res.data.data) {
@@ -306,7 +306,7 @@ function ProductFormModal({
         )}
 
         {activeTab === 'images' && (
-          <ImageUploader productId={product?.product_id ?? 'new'} images={images} onChange={setImages} />
+          <ImageUploader productId={product?.productId ?? 'new'} images={images} onChange={setImages} />
         )}
 
         {activeTab === 'variants' && (
@@ -322,17 +322,17 @@ function ProductFormModal({
                     <p className="text-sm text-gray-400 text-center py-4">Chưa có biến thể nào.</p>
                   )}
                   {variants.map(v => (
-                    <div key={v.sku_code} className="flex items-center gap-3 p-2 border border-gray-100 rounded-lg">
+                    <div key={v.skuCode} className="flex items-center gap-3 p-2 border border-gray-100 rounded-lg">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{v.variant_name}</p>
-                        <p className="text-xs text-gray-400">SKU: {v.sku_code} · {fmt(v.price)} · Kho: {v.stock}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{v.variantName}</p>
+                        <p className="text-xs text-gray-400">SKU: {v.skuCode} · {fmt(v.price)} · Kho: {v.stock}</p>
                       </div>
                       <button onClick={() => { setShowVariant(v); setShowVariantForm(true); }}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0">Sửa</button>
                       <button onClick={() => {
-                        if (confirm(`Xóa biến thể "${v.variant_name}"?`)) {
-                          sellerApi.deleteVariant(v.sku_code).then(() => {
-                            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.product_id] });
+                        if (confirm(`Xóa biến thể "${v.variantName}"?`)) {
+                          sellerApi.deleteVariant(v.skuCode).then(() => {
+                            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
                           });
                         }
                       }} className="text-xs text-red-500 hover:text-red-600 font-medium shrink-0">Xoá</button>
@@ -361,11 +361,11 @@ function ProductFormModal({
 
       {showVariantForm && product && (
         <VariantModal
-          productId={product.product_id}
+          productId={product.productId}
           initial={showVariant}
           onClose={() => { setShowVariantForm(false); setShowVariant(undefined); }}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.product_id] });
+            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
             queryClient.invalidateQueries({ queryKey: ['seller-products'] });
           }}
         />
@@ -510,7 +510,7 @@ export default function ProductManagementPage() {
                 </thead>
                 <tbody>
                   {products.map(p => (
-                    <tr key={p.product_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <tr key={p.productId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-xl shrink-0 overflow-hidden">
@@ -520,8 +520,8 @@ export default function ProductManagementPage() {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900 line-clamp-1 max-w-[200px]">{p.name}</p>
-                            {p.variants_count > 0 && (
-                              <p className="text-xs text-gray-400">{p.variants_count} biến thể</p>
+                            {p.variantsCount > 0 && (
+                              <p className="text-xs text-gray-400">{p.variantsCount} biến thể</p>
                             )}
                           </div>
                         </div>
@@ -531,13 +531,13 @@ export default function ProductManagementPage() {
                         {p.price ? fmt(p.price) : '—'}
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`font-medium ${p.stock_available > 0 ? 'text-green-700' : 'text-red-600'}`}>
-                          {p.stock_available}
+                        <span className={`font-medium ${p.stockAvailable > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                          {p.stockAvailable}
                         </span>
                       </td>
                       <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
                       <td className="px-5 py-4 text-gray-400 whitespace-nowrap text-xs">
-                        {p.created_at ? new Date(p.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex gap-2 flex-wrap">
@@ -548,7 +548,7 @@ export default function ProductManagementPage() {
 
                           {/* DRAFT → Submit for review */}
                           {p.status === 'DRAFT' && (
-                            <button onClick={() => submitMut.mutate(p.product_id)}
+                            <button onClick={() => submitMut.mutate(p.productId)}
                               disabled={submitMut.isPending}
                               className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
                               {submitMut.isPending ? '...' : 'Gửi duyệt'}
@@ -557,7 +557,7 @@ export default function ProductManagementPage() {
 
                           {/* APPROVED → Publish */}
                           {(p.status === 'APPROVED' || p.status === 'UNPUBLISHED') && (
-                            <button onClick={() => publishMut.mutate(p.product_id)}
+                            <button onClick={() => publishMut.mutate(p.productId)}
                               disabled={publishMut.isPending}
                               className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
                               {publishMut.isPending ? '...' : 'Hiển thị'}
@@ -566,7 +566,7 @@ export default function ProductManagementPage() {
 
                           {/* PUBLISHED → Unpublish */}
                           {p.status === 'PUBLISHED' && (
-                            <button onClick={() => unpublishMut.mutate(p.product_id)}
+                            <button onClick={() => unpublishMut.mutate(p.productId)}
                               disabled={unpublishMut.isPending}
                               className="text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50">
                               {unpublishMut.isPending ? '...' : 'Ẩn'}

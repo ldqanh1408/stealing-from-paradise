@@ -19,28 +19,28 @@ export default function SellerDashboard() {
   const displayStats = [
     {
       label: 'Tổng sản phẩm',
-      value: stats?.total_products?.toLocaleString('vi-VN') ?? '—',
+      value: stats?.totalProducts?.toLocaleString('vi-VN') ?? '—',
       icon: '📦',
       color: 'from-blue-500 to-blue-600',
       light: 'bg-blue-50 text-blue-700',
     },
     {
       label: 'Đơn hàng hôm nay',
-      value: stats?.orders_today?.toLocaleString('vi-VN') ?? '—',
+      value: stats?.ordersToday?.toLocaleString('vi-VN') ?? '—',
       icon: '🛒',
       color: 'from-green-500 to-green-600',
       light: 'bg-green-50 text-green-700',
     },
     {
       label: 'Doanh thu tháng',
-      value: stats ? fmt(stats.revenue_month) : '—',
+      value: stats ? fmt(stats.revenueMonth) : '—',
       icon: '💰',
       color: 'from-purple-500 to-purple-600',
       light: 'bg-purple-50 text-purple-700',
     },
     {
       label: 'Điểm tin cậy',
-      value: stats?.trust_score?.toFixed(1) ?? '—',
+      value: stats?.trustScore?.toFixed(1) ?? '—',
       icon: '⭐',
       color: 'from-amber-500 to-orange-500',
       light: 'bg-amber-50 text-amber-700',
@@ -75,12 +75,12 @@ export default function SellerDashboard() {
       </div>
 
       {/* Pending orders badge */}
-      {stats && stats.pending_orders > 0 && (
+      {stats && stats.pendingOrders > 0 && (
         <div className="mb-8 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
           <span className="text-2xl">⚠️</span>
           <div className="flex-1">
             <p className="font-semibold text-amber-900">
-              Bạn có {stats.pending_orders} đơn hàng chờ xác nhận
+              Bạn có {stats.pendingOrders} đơn hàng chờ xác nhận
             </p>
             <p className="text-sm text-amber-700">Hãy cập nhật mã vận đơn để đơn hàng được chuyển sang trạng thái "Đang giao".</p>
           </div>
@@ -94,7 +94,7 @@ export default function SellerDashboard() {
       )}
 
       {/* Getting started notice */}
-      {(!stats || stats.total_products === 0) && !isLoading && (
+      {(!stats || stats.totalProducts === 0) && !isLoading && (
         <div className="bg-gradient-to-r from-blue-50 to-violet-50 border border-blue-100 rounded-2xl p-6 flex items-start gap-4 mb-8">
           <span className="text-3xl shrink-0">🚀</span>
           <div>

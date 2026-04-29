@@ -116,9 +116,16 @@ export interface PointTransactionSummary {
 }
 
 export interface LoyaltyEstimateResponse {
-  estimatedPoints: number;
-  currentBalance: number;
-  afterBalance: number;
+  orderAmount: number;
+  pointsToEarn: number;
+  pointsToEarnFormula: string;
+  availablePoints: number;
+  maxPointsUsable: number;
+  maxPointsUsableFormula: string;
+  conversionRate: number;
+  pointsRequested?: number;
+  discountIfUse50?: number;
+  capPercent?: number;
 }
 
 // ─── Trust Score ───────────────────────────────────────────────────────────────
@@ -212,13 +219,13 @@ export interface AppealAdminResponse {
 }
 
 export interface AdminUser {
-  user_id: number;
+  userId: number;
   username: string;
   email: string;
   role: string;
   status: 'ACTIVE' | 'BANNED' | 'PENDING';
-  trust_score: number;
-  created_at: string;
+  trustScore: number;
+  createdAt: string;
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -230,6 +237,9 @@ export const userApi = {
 
   updateProfile: (data: UserProfileUpdateRequest) =>
     apiClient.put<ApiResponse<UserProfileResponse>>('/users/me', data),
+
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    apiClient.post<ApiResponse<void>>('/users/me/change-password', data),
 
   getAvatarPresignedUrl: (contentType: string) =>
     apiClient.get<ApiResponse<PresignedUrlResponse>>('/users/me/avatar/presigned-url', {
