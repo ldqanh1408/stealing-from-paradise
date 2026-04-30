@@ -574,6 +574,48 @@ SET revoked_token:{jti} = 1 EX 900
 
 ---
 
+### POST /auth/register/seller
+**Đăng ký tài khoản Seller mới**
+
+**Quyền truy cập**: Public (không cần JWT)
+
+**Request Body**: Giống `/auth/register`, tài khoản được tạo với role SELLER.
+
+**Response 201**: Tương tự `/auth/register` với `roles: ["SELLER"]`.
+
+---
+
+### POST /users/me/change-password
+**Đổi mật khẩu**
+
+**Quyền truy cập**: JWT Required
+
+**Request Body**:
+```json
+{
+  "old_password": "OldPass123!",
+  "new_password": "NewPass456!"
+}
+```
+
+**Response 200**:
+```json
+{
+  "message": "Đổi mật khẩu thành công"
+}
+```
+
+---
+
+### GET /support/trust-score-appeal
+**Danh sách khiếu nại của tôi**
+
+**Quyền truy cập**: JWT Required
+
+**Response 200**: Danh sách các appeal của user kèm trạng thái (PENDING/APPROVED/REJECTED).
+
+---
+
 ## ⭐ Loyalty Endpoints
 
 > **Ghi chú**: Loyalty Service (port `:8084`) đã được gộp vào Identity Service. Các endpoint loyalty được đặt dưới Identity Service.
@@ -687,9 +729,12 @@ SET revoked_token:{jti} = 1 EX 900
 | /users/me/addresses | POST | JWT |
 | /users/me/addresses/{id} | PUT | JWT |
 | /users/me/addresses/{id} | DELETE | JWT |
+| /auth/register/seller | POST | Public |
 | /users/me/roles/seller | POST | JWT (BUYER) |
+| /users/me/change-password | POST | JWT |
 | /support/trust-score-appeal/presigned-url | GET | JWT |
 | /support/trust-score-appeal | POST | JWT |
+| /support/trust-score-appeal | GET | JWT |
 | /users/me/trust-score/logs | GET | JWT |
 | /loyalty/balance | GET | JWT |
 | /loyalty/transactions | GET | JWT |
@@ -697,5 +742,5 @@ SET revoked_token:{jti} = 1 EX 900
 
 ---
 
-**Phiên bản:** v5.3 RTS Unified  
-**Cập nhật:** 2026-04-15
+**Phiên bản:** v5.4  
+**Cập nhật:** 2026-04-30

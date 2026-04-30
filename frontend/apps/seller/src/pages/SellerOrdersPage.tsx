@@ -358,6 +358,19 @@ export default function SellerOrdersPage() {
                         <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDate(order.createdAt)}</td>
                         <td className="px-5 py-4">
                           <div className="flex gap-2 flex-wrap">
+                            {order.status === 'PENDING' && (
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Hủy đơn ${order.orderCode}? Hành động này không thể hoàn tác.`)) {
+                                    orderApi.cancelOrder(order.orderId, { reason: 'Người bán hủy đơn' })
+                                      .then(() => queryClient.invalidateQueries({ queryKey: ['seller-orders'] }));
+                                  }
+                                }}
+                                className="text-xs text-red-500 hover:text-red-600 font-medium whitespace-nowrap"
+                              >
+                                Huỷ đơn
+                              </button>
+                            )}
                             {order.status === 'PAID' && (
                               <button
                                 onClick={() => setTrackingOrder(order)}

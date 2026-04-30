@@ -155,6 +155,105 @@
 
 ---
 
+---
+
+### GET /payments/parent-order/{parentOrderId}/client-secret
+**Lấy Stripe client secret để thanh toán**
+
+**Quyền truy cập**: JWT Required (BUYER)
+
+**Response 200**:
+```json
+{
+  "client_secret": "pi_3PxABC2K1234567_secret_abc123..."
+}
+```
+
+---
+
+### GET /payments/by-intent/{stripePaymentIntentId}
+**Tra cứu giao dịch theo Stripe Payment Intent ID**
+
+**Quyền truy cập**: JWT Required (BUYER \| ADMIN)
+
+**Response 200**: Thông tin TRANSACTIONS theo `stripePaymentIntentId`.
+
+---
+
+## Seller Payments
+
+### GET /seller/payments/earnings
+**Xem thu nhập của Seller**
+
+**Quyền truy cập**: JWT Required (SELLER)
+
+**Response 200**: Tổng quan thu nhập, lịch sử transfer, số dư.
+
+---
+
+### GET /seller/payments/stripe-dashboard
+**Lấy link Stripe Dashboard**
+
+**Quyền truy cập**: JWT Required (SELLER)
+
+**Response 200**:
+```json
+{
+  "dashboard_url": "https://dashboard.stripe.com/express/..."
+}
+```
+
+---
+
+## Admin Refund Management
+
+> Các endpoint này nằm trong Payment Service, yêu cầu quyền ADMIN.
+
+### GET /admin/refunds
+**Danh sách tất cả refund**
+
+**Quyền truy cập**: JWT Required (ADMIN)
+
+**Query Params**: status, from_date, to_date, page, size
+
+---
+
+### GET /admin/refunds/{refundId}
+**Chi tiết một refund**
+
+**Quyền truy cập**: JWT Required (ADMIN)
+
+---
+
+### POST /admin/refunds/{refundId}/approve
+**Admin duyệt refund**
+
+**Quyền truy cập**: JWT Required (ADMIN)
+
+**Request Body**:
+```json
+{
+  "tracking_number": "VT123456789",
+  "note": "Đã xác nhận, hoàn tiền"
+}
+```
+
+---
+
+### POST /admin/refunds/{refundId}/reject
+**Admin từ chối refund**
+
+**Quyền truy cập**: JWT Required (ADMIN)
+
+**Request Body**:
+```json
+{
+  "reason": "Không đủ điều kiện hoàn tiền"
+}
+```
+
+---
+
 ## 📊 Summary
 
 | Endpoint | Method | Auth |
@@ -163,7 +262,15 @@
 | /stripe/onboarding/status | GET | JWT (SELLER) |
 | /stripe/onboarding/refresh-link | POST | JWT (SELLER) |
 | /payments/parent-order/{id} | GET | JWT (BUYER\|ADMIN) |
+| /payments/parent-order/{id}/client-secret | GET | JWT (BUYER) |
+| /payments/by-intent/{id} | GET | JWT (BUYER\|ADMIN) |
 | /stripe/webhooks | POST | Stripe signature |
+| /seller/payments/earnings | GET | JWT (SELLER) |
+| /seller/payments/stripe-dashboard | GET | JWT (SELLER) |
+| /admin/refunds | GET | JWT (ADMIN) |
+| /admin/refunds/{id} | GET | JWT (ADMIN) |
+| /admin/refunds/{id}/approve | POST | JWT (ADMIN) |
+| /admin/refunds/{id}/reject | POST | JWT (ADMIN) |
 
 **Kafka Topics published by Payment Service**:
 - `payment.success` — Thanh toán thành công
@@ -172,5 +279,5 @@
 
 ---
 
-**Phiên bản:** v5.3 RTS Unified  
-**Cập nhật:** 2026-04-15
+**Phiên bản:** v5.4  
+**Cập nhật:** 2026-04-30

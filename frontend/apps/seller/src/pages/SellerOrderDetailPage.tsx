@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi } from '@shared/api/order.api';
 import { paymentApi } from '@shared/api/payment.api';
 
@@ -26,6 +26,7 @@ function formatDate(iso?: string) {
 export default function SellerOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const id = Number(orderId);
+  const queryClient = useQueryClient();
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ['seller-order', id],
@@ -39,6 +40,14 @@ export default function SellerOrderDetailPage() {
     queryFn: () => paymentApi.getPayment(order!.parentOrderId!).then(r => r.data.data),
     enabled: !!order?.parentOrderId,
     retry: 1,
+  });
+
+  const cancelMut = useMutation({
+    mutationFn: (reason: string) => orderApi.cancelOrder(id, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-order', id] });
+      queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
+    },
   });
 
   if (id <= 0) {
@@ -81,7 +90,7 @@ export default function SellerOrderDetailPage() {
       </div>
 
       {/* Status */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 flex items-center gap-4">
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 flex items-center gap-4 flex-wrap">
         <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${st.bg} ${st.color}`}>
           {st.label}
         </span>
@@ -94,6 +103,19 @@ export default function SellerOrderDetailPage() {
             <span className="font-mono font-medium text-gray-900">{order.trackingNumber}</span>
             {order.carrier && <span className="text-gray-400"> ({order.carrier})</span>}
           </div>
+        )}
+        {order.status === 'PENDING' && (
+          <button
+            onClick={() => {
+              if (confirm(`Hủy đơn ${order.orderCode}? Hành động này không thể hoàn tác.`)) {
+                cancelMut.mutate('Người bán hủy đơn');
+              }
+            }}
+            disabled={cancelMut.isPending}
+            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-medium disabled:opacity-50"
+          >
+            {cancelMut.isPending ? 'Đang huỷ...' : 'Huỷ đơn'}
+          </button>
         )}
       </div>
 

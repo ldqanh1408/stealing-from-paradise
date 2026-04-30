@@ -634,5 +634,5 @@
 
 ---
 
-**Phiên bản:** v5.3 RTS Unified  
-**Cập nhật:** 2026-04-15
+**Phiên bản:** v5.4  
+**Cập nhật:** 2026-04-30

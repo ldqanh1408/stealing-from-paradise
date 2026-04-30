@@ -47,7 +47,7 @@ public class JwtAuthWebFilter implements WebFilter {
         "/api/v1/auth/refresh",
         "/api/v1/auth/forgot-password",
         "/api/v1/auth/reset-password",
-        "/api/v1/stripe/webhook",
+        "/api/v1/stripe/webhooks",
         "/actuator/health",
         "/actuator/info"
     );

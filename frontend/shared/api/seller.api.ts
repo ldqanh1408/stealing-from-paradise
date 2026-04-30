@@ -20,6 +20,7 @@ export interface StripeOnboardingStatus {
   payoutsEnabled?: boolean;
   onboardingStatus?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'SUSPENDED';
   onboardingUrl?: string | null;
+  expressDashboardUrl?: string | null;
 }
 
 /** Stripe dashboard link response */
@@ -55,6 +56,7 @@ export interface SellerTransferItem {
 
 /** Product variant response */
 export interface SellerVariant {
+  variantId: string;
   skuCode: string;
   variantName: string;
   price: number;
@@ -135,4 +137,39 @@ export const sellerApi = {
   /** Get Stripe Dashboard single-use login link (valid 30 min) */
   getStripeDashboardLink: () =>
     apiClient.get<ApiResponse<StripeDashboardLink>>('/seller/payments/stripe-dashboard'),
+
+  /** Delete a product (seller owner) */
+  deleteProduct: (productId: string) =>
+    apiClient.delete<ApiResponse<void>>(`/products/${productId}`),
+
+  /** Update a product */
+  updateProduct: (productId: string, data: { name: string; description: string; categoryId: string; images?: string[] }) =>
+    apiClient.put<ApiResponse<SellerProduct>>(`/products/${productId}`, data),
+
+  // ─── Inventory ──────────────────────────────────────────────────────────────
+
+  /** Adjust inventory by SKU */
+  adjustInventory: (data: { skuCode: string; delta: number; reason: string }) =>
+    apiClient.post<ApiResponse<{ skuCode: string; stockAvailable: number }>>('/seller/inventory/adjust', data),
+
+  /** Get inventory adjustment logs for a SKU */
+  getInventoryLogs: (skuCode: string) =>
+    apiClient.get<ApiResponse<InventoryLogEntry[]>>(`/seller/inventory/${skuCode}/logs`),
+
+  /** Restock inventory by SKU */
+  restockInventory: (skuCode: string, data: { quantity: number; reason: string; note?: string }) =>
+    apiClient.put<ApiResponse<{ skuCode: string; stockAvailable: number }>>(`/inventory/${skuCode}/restock`, data),
 };
+
+/** Inventory log entry */
+export interface InventoryLogEntry {
+  logId: number;
+  skuCode: string;
+  delta: number;
+  stockBefore: number;
+  stockAfter: number;
+  reason: string;
+  note?: string;
+  changedBy: string;
+  createdAt: string;
+}

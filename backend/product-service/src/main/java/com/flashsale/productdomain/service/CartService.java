@@ -8,8 +8,12 @@ import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.productdomain.domain.model.Cart;
 import com.flashsale.productdomain.domain.model.CartItem;
+import com.flashsale.productdomain.domain.model.Product;
+import com.flashsale.productdomain.domain.model.ProductVariant;
 import com.flashsale.productdomain.domain.repository.CartRepository;
 import com.flashsale.productdomain.domain.repository.CartItemRepository;
+import com.flashsale.productdomain.domain.repository.ProductRepository;
+import com.flashsale.productdomain.domain.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -28,6 +32,8 @@ public class CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final ProductVariantRepository productVariantRepository;
+    private final ProductRepository productRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
@@ -61,21 +67,52 @@ public class CartService {
             List<String> itemIds = objectMapper.convertValue(itemIdsObj, new TypeReference<>() {});
 
             List<CartItem> items = cartItemRepository.findByUserId(userId);
-            List<CartItem> requestedItems = new ArrayList<>();
+            List<Map<String, Object>> enrichedItems = new ArrayList<>();
 
             for (CartItem item : items) {
-                if (itemIds.contains(item.getId())) {
-                    requestedItems.add(item);
+                if (!itemIds.contains(item.getId())) {
+                    continue;
                 }
+
+                Map<String, Object> enriched = new HashMap<>();
+                enriched.put("cartItemId", item.getId());
+                enriched.put("skuCode", item.getSkuCode());
+                enriched.put("variantId", item.getVariantId());
+                enriched.put("priceSnapshot", item.getPriceSnapshot());
+                enriched.put("quantity", item.getQuantity());
+                enriched.put("fsItemId", item.getFsItemId());
+
+                // Enrich from ProductVariant (by skuCode) and Product
+                if (item.getSkuCode() != null) {
+                    Optional<ProductVariant> variantOpt =
+                            productVariantRepository.findBySkuCode(item.getSkuCode());
+                    if (variantOpt.isPresent()) {
+                        ProductVariant variant = variantOpt.get();
+                        enriched.put("variantName", variant.getTierName());
+                        enriched.put("productId", variant.getProductId());
+
+                        if (variant.getProductId() != null) {
+                            productRepository.findById(variant.getProductId()).ifPresent(product -> {
+                                enriched.put("productName", product.getName());
+                                enriched.put("sellerId", product.getSellerId());
+                                if (product.getImages() != null && !product.getImages().isEmpty()) {
+                                    enriched.put("imageUrl", product.getImages().get(0));
+                                }
+                            });
+                        }
+                    }
+                }
+
+                enrichedItems.add(enriched);
             }
 
             Map<String, Object> response = new HashMap<>();
             response.put("correlation_id", correlationId);
-            response.put("items", requestedItems);
+            response.put("items", enrichedItems);
             response.put("error", false);
 
             kafkaTemplate.send(KafkaTopics.ORDER_CART_ITEMS_RESPONSE, correlationId, toJson(response));
-            log.debug("Cart items response sent: correlationId={}, itemCount={}", correlationId, requestedItems.size());
+            log.debug("Cart items response sent: correlationId={}, itemCount={}", correlationId, enrichedItems.size());
 
         } catch (Exception e) {
             log.error("Failed to process cart items request: {}", e.getMessage(), e);

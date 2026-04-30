@@ -1,9 +1,9 @@
 # 📚 API Documentation Summary
 
 **Project**: stealing-from-paradise Marketplace  
-**Version**: v5.3 RTS  
+**Version**: v5.4  
 **Status**: Reorganized & Consolidated  
-**Last Updated**: 2026-04-28
+**Last Updated**: 2026-04-30
 
 ---
 
@@ -22,20 +22,19 @@ Tài liệu API gốc `02_API.md` (5,220 dòng) đã được tách ra thành **
 ## 📁 File Organization
 
 ```
-docs/api/
-├── 00-index.md                    # 📋 Navigation & Overview
-├── 01-identity-service.md         # 🔐 Auth, Users, Loyalty (21 endpoints)
-├── 02-product-service.md          # 📦 Products, Variants, Inventory (16 endpoints)
-├── 03-search-service.md           # 🔍 Search, Autocomplete (2 endpoints)
-├── 04-cart-service.md             # 🛒 Shopping Cart (5 endpoints)
-├── 05-order-service.md            # 📋 Orders, Checkout, RTS (8 endpoints)
-├── 06-payment-service.md          # 💳 Payment, Stripe, Refunds (13 endpoints)
-├── 07-flash-sale-service.md       # ⚡ Flash Sales, Items, Purchase (11 endpoints)
-├── 08-notification-service.md     # 🔔 Real-time SSE, Notifications (5 endpoints)
-└── 09-admin-service.md            # 🛡️ Admin, Moderation (14 endpoints)
+docs/
+├── identity-service/02_API_identity_service.md   # 🔐 Auth, Users, Loyalty (31 endpoints)
+├── product-service/02_API_product_service.md     # 📦 Products, Variants, Inventory, Cart (24 endpoints)
+├── search-service/02_API_search_service.md       # 🔍 Search (routes configured, controllers WIP)
+├── order-service/02_API_order_service.md         # 📋 Orders, Checkout, RTS, Refunds (16 endpoints)
+├── payment-service/02_API_payment_service.md     # 💳 Payment, Stripe, Refunds (12 endpoints)
+├── flashsale-service/02_API_flash_sale_service.md # ⚡ Flash Sales (routes configured, controllers WIP)
+├── notification-service/02_API_notification_service.md # 🔔 SSE Notifications (routes configured)
+├── admin-service/02_API_admin.md                 # 🛡️ Admin, Moderation (14 endpoints)
+└── api/README.md                                 # 📋 This index file
 ```
 
-**Total**: 95 endpoints across 9 consolidated services
+**Total**: 97+ endpoints across 8 services (Cart merged into Product, Loyalty merged into Identity)
 
 ---
 
@@ -43,24 +42,26 @@ docs/api/
 
 | Original | Consolidated Into | Rationale |
 |----------|-------------------|-----------|
-| Loyalty Service | Identity Service (01) | User-centric, points management tied to user account |
-| Refund Service | Payment Service (06) | Refund logic depends on Stripe payment state |
+| Loyalty Service | Identity Service | User-centric, points management tied to user account |
+| Cart Service | Product Service | Cart data is product-adjacent, shared MongoDB backend |
+| Refund Service | Payment Service | Refund logic depends on Stripe payment state |
 
 ---
 
 ## 📊 Quick Service Reference
 
-| # | Service | Port | File | Endpoints | Producers | Consumers |
-|---|---------|------|------|-----------|-----------|-----------|
-| 1 | **Identity** | 8081 | [01](01-identity-service.md) | 21 | 4 | 2 |
-| 2 | **Product** | 8082 | [02](02-product-service.md) | 16 | 3 | 0 |
-| 3 | **Search** | 8089 | [03](03-search-service.md) | 2 | 0 | 5 |
-| 4 | **Cart** | 8083 | [04](04-cart-service.md) | 5 | 0 | 1 |
-| 5 | **Order** | 8087 | [05](05-order-service.md) | 8 | 6 | 1 |
-| 6 | **Payment** | 8085 | [06](06-payment-service.md) | 13 | 6 | 1 |
-| 7 | **Flash Sale** | 8086 | [07](07-flash-sale-service.md) | 11 | 4 | 0 |
-| 8 | **Notification** | 8088 | [08](08-notification-service.md) | 5 | 0 | 15+ |
-| 9 | **Admin** | - | [09](09-admin-service.md) | 14 | 2 | 0 |
+| # | Service | Port | File | Endpoints | Status |
+|---|---------|------|------|-----------|--------|
+| 1 | **Identity** | 8081 | [Identity doc](../identity-service/02_API_identity_service.md) | 31 | Implemented |
+| 2 | **Product (+ Cart)** | 8082 | [Product doc](../product-service/02_API_product_service.md) | 24 | Implemented |
+| 3 | **Search** | 8089 | [Search doc](../search-service/02_API_search_service.md) | 0* | Routes configured |
+| 4 | **Order** | 8087 | [Order doc](../order-service/02_API_order_service.md) | 16 | Implemented |
+| 5 | **Payment (+ Refund)** | 8085 | [Payment doc](../payment-service/02_API_payment_service.md) | 12 | Implemented |
+| 6 | **Flash Sale** | 8086 | [Flash Sale doc](../flashsale-service/02_API_flash_sale_service.md) | 0* | Routes configured |
+| 7 | **Notification** | 8088 | [Notification doc](../notification-service/02_API_notification_service.md) | 0* | Routes configured |
+| 8 | **Admin** | - | [Admin doc](../admin-service/02_API_admin.md) | 14 | Implemented |
+
+> *Controllers still under development; gateway routes are configured.
 
 ---
 
@@ -112,7 +113,7 @@ docs/api/
 - `product.approved`, `product.updated`, `product.deleted`
 - `product.auto_hidden`, `inventory.adjusted`, `category.updated`
 
-**Cart Service**: 1 topic
+**Cart** (in Product Service): 1 topic
 - `order.checkout_completed` (remove items after checkout)
 
 **Notification Service**: 15+ topics
@@ -223,16 +224,17 @@ docs/api/
 
 | Service | Endpoints |
 |---------|-----------|
-| Identity (+ Loyalty) | 21 |
-| Order | 8 |
-| Product | 16 |
-| Payment (+ Refund) | 13 |
-| Flash Sale | 11 |
+| Identity (+ Loyalty) | 31 |
+| Product (+ Cart) | 24 |
+| Order | 16 |
+| Payment (+ Refund) | 12 |
 | Admin | 14 |
-| Cart | 5 |
-| Notification | 5 |
-| Search | 2 |
-| **Total** | **95+** |
+| Flash Sale | 0* |
+| Notification | 0* |
+| Search | 0* |
+| **Total** | **97+** |
+
+> *Controllers WIP; gateway routes configured
 
 ---
 
@@ -308,9 +310,6 @@ docs/api/
     │                   ↑
     │      ┌────────────┘
     │      │
-    ├─→[8083 Cart]
-    │      └→[Order Service]
-    │
     ├─→[8087 Order Service]
     │      ├─→[8085 Payment]
     │      │   ├─→[Stripe API]

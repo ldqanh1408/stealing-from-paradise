@@ -246,6 +246,7 @@ public class LoyaltyService {
         log.info("Returned {} points to user {} due to order {} cancellation", returned, userId, orderId);
     }
 
+    @Transactional
     public LoyaltyAccount getOrCreateAccount(Long userId) {
         return loyaltyAccountRepository.findByUserId(userId)
                 .orElseGet(() -> {

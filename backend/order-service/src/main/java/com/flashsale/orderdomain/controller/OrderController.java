@@ -209,4 +209,19 @@ public class OrderController {
                 orderService.getSellerOrders(user.getId(), status, from, to, page, size);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
+
+    // ─── GET /sellers/me/dashboard ──────────────────────────────────────────────
+
+    /**
+     * Dashboard tổng quan cho Seller.
+     * Yêu cầu: SELLER
+     */
+    @GetMapping("/sellers/me/dashboard")
+    @PreAuthorize("hasRole('SELLER')")
+    public ResponseEntity<ApiResponse<SellerDashboardResponse>> getSellerDashboard(
+            @AuthenticationPrincipal UserDetailsImpl user) {
+
+        SellerDashboardResponse response = orderService.getSellerDashboard(user.getId());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

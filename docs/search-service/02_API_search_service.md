@@ -115,5 +115,6 @@ GET /search/products?q=áo thun&category_id=507f1f77bcf86cd799439011&price_min=1
 
 ---
 
-**Phiên bản:** v5.3 RTS Unified  
+**Phiên bản:** v5.4  
+**Cập nhật:** 2026-04-30  
 **Cập nhật:** 2026-04-15

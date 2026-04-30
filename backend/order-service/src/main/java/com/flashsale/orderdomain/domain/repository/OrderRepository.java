@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -70,4 +71,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate")   LocalDateTime toDate,
             Pageable pageable);
+
+    // ─── Dashboard stats ───────────────────────────────────────────────────────
+
+    long countBySellerIdAndCreatedAtAfter(Long sellerId, LocalDateTime after);
+
+    long countBySellerIdAndStatus(Long sellerId, String status);
+
+    @Query("""
+        SELECT COALESCE(SUM(o.finalAmt), 0) FROM Order o
+        WHERE o.sellerId = :sellerId
+          AND o.status <> 'CANCELLED'
+          AND o.createdAt >= :since
+        """)
+    BigDecimal sumRevenueForSellerSince(@Param("sellerId") Long sellerId, @Param("since") LocalDateTime since);
 }

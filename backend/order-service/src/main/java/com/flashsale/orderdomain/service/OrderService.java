@@ -580,6 +580,27 @@ public class OrderService {
     }
 
 
+    // ─── Seller Dashboard ─────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public SellerDashboardResponse getSellerDashboard(Long sellerId) {
+        LocalDateTime todayStart = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+
+        long ordersToday = orderRepository.countBySellerIdAndCreatedAtAfter(sellerId, todayStart);
+        long pendingOrders = orderRepository.countBySellerIdAndStatus(sellerId, "PENDING");
+        BigDecimal revenueMonth = orderRepository.sumRevenueForSellerSince(sellerId, monthStart);
+
+        return SellerDashboardResponse.builder()
+                .totalProducts(0)       // requires product-service integration
+                .ordersToday(ordersToday)
+                .pendingOrders(pendingOrders)
+                .revenueMonth(revenueMonth != null ? revenueMonth : BigDecimal.ZERO)
+                .trustScore(0.0)        // not yet implemented
+                .activeProducts(0)      // requires product-service integration
+                .build();
+    }
+
     // ─── Kafka Producers (internal only) ──────────────────────────────────────
 
     /** order.checkout_completed → cart-service removes purchased items. */

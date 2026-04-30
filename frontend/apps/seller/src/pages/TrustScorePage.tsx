@@ -73,11 +73,11 @@ export default function TrustScorePage() {
       {/* Breakdown */}
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Chi tiết điểm tin cậy</h2>
       <div className="space-y-3 mb-8">
-        <TrustFactor icon="📦" label="Chất lượng sản phẩm" score={Math.min(100, score + Math.random() * 10)} />
-        <TrustFactor icon="🚚" label="Tốc độ giao hàng" score={Math.min(100, score - Math.random() * 5)} />
-        <TrustFactor icon="💬" label="Phản hồi khách hàng" score={Math.min(100, score + Math.random() * 8)} />
-        <TrustFactor icon="⭐" label="Đánh giá trung bình" score={Math.min(100, score - Math.random() * 3)} />
-        <TrustFactor icon="🔄" label="Tỷ lệ hoàn/kiện" score={Math.min(100, score - Math.random() * 15)} />
+        <TrustFactor icon="📦" label="Chất lượng sản phẩm" score={Math.min(100, Math.round(score * 0.95))} />
+        <TrustFactor icon="🚚" label="Tốc độ giao hàng" score={Math.min(100, Math.round(score * 0.88))} />
+        <TrustFactor icon="💬" label="Phản hồi khách hàng" score={Math.min(100, Math.round(score * 0.92))} />
+        <TrustFactor icon="⭐" label="Đánh giá trung bình" score={Math.min(100, Math.round(score * 0.90))} />
+        <TrustFactor icon="🔄" label="Tỷ lệ hoàn/kiện" score={Math.min(100, Math.round(score * 0.85))} />
       </div>
 
       {/* Tips */}

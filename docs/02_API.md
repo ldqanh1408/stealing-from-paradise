@@ -50,11 +50,11 @@ For complete understanding, also read:
 1. [🔐 Identity Service](#-identity-service)
 2. [📦 Product Service](#-product-service)
 3. [🔍 Search Service](#-search-service)
-4. [🛒 Cart Service](#-cart-service)
+4. [🛒 Cart Service (merged → Product Service)](#-cart-service)
 5. [📋 Order Service](#-order-service)
 6. [↩️ Refund API](#-refund-api)
 7. [💳 Payment Service](#-payment-service)
-8. [⭐ Loyalty Service](#-loyalty-service)
+8. [⭐ Loyalty Service (merged → Identity Service)](#-loyalty-service)
 9. [⚡ Flash Sale Service](#-flash-sale-service)
 10. [🔔 Notification Service](#-notification-service)
 11. [🧭 Kafka Topics](#-kafka-topics-catalog)
@@ -944,9 +944,9 @@ For complete understanding, also read:
 
 ---
 
-# 🛒 Cart Service
+# 🛒 Cart Service (merged into Product Service `:8082`)
 
-**Port**: `:8083`
+**Port**: `:8083` (now served by Product Service)
 **Mô tả**: Giỏ hàng đa seller · MongoDB · TTL 30 ngày
 
 ### GET /cart

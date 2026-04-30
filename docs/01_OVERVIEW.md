@@ -1,7 +1,7 @@
 # Flash Sale E-Commerce Platform - Project Overview
 
 **Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)  
-**Date**: 2026-04-12  
+**Date**: 2026-04-30  
 **Status**: Production-Ready  
 
 ---
@@ -101,14 +101,14 @@
          │
     ┌────┴──────┬──────────┬──────────┬──────────┐
     ▼           ▼          ▼          ▼          ▼
-  Auth      Product     Cart      Order    Payment
-  (8085)    (8086)     (8087)    (8088)    (8089)
-    │           │        │          │         │
-  PostgreSQL  MongoDB  Redis    PostgreSQL  PostgreSQL
-                              + Axon Server + Axon Server
+  Auth      Product     Order    Payment   Flash Sale
+  (8085)    (8086)     (8088)    (8089)    (8090)
+    │           │          │         │          │
+  PostgreSQL  MongoDB  PostgreSQL PostgreSQL PostgreSQL
+             (+ Cart)  + Axon    + Axon    + Redis
 ```
 
-### Backend Services (11 microservices)
+### Backend Services (10 microservices)
 
 #### **Infrastructure Services**
 
@@ -139,42 +139,39 @@
    - Limited-time promotions
    - Event sourcing
 
-6. **worker-service** *(Deprecated — v5.0)*
-   - Cronjobs moved to respective services (identity/flashsale/product/order/payment-service)
+6. **worker-service**
+   - Background jobs and cron schedules
+   - Failed event retry management
 
 #### **Traditional Database Services**
 
 7. **identity-service** (Port 8085)
    - User authentication & authorization
    - JWT token management
-   - User profiles
+   - User profiles, addresses
+   - Loyalty points management (merged from Loyalty Service)
    - Database: PostgreSQL + JPA
 
 8. **product-service** (Port 8086)
    - Product catalog
-   - Product details
-   - Seller products
-   - Database: MongoDB
+   - Product details, variants, inventory
+   - Seller products, admin moderation
+   - Shopping cart (merged from Cart Service)
+   - Database: MongoDB + Redis
 
-9. **cart-service** (Port 8087)
-   - Shopping cart management
-   - Cart items
-   - Database: Redis
+9. **search-service** (Port 8091)
+   - Product search
+   - Full-text search
+   - Elasticsearch integration
 
-10. **search-service** (Port 8091)
-    - Product search
-    - Full-text search
-    - Elasticsearch integration
-
-11. **notification-service** (Port 8092)
-    - Email notifications
-    - SMS notifications
+10. **notification-service** (Port 8092)
+    - SSE real-time notifications
     - Order/payment alerts
     - Database: MongoDB
 
 #### **Shared Library**
 
-12. **common-lib**
+11. **common-lib**
     - Shared DTOs
     - Common exceptions
     - Utility functions
@@ -300,8 +297,7 @@ product-service/
 
 ### Traditional Database Services:
 - identity-service (PostgreSQL + JPA)
-- product-service (MongoDB)
-- cart-service (Redis)
+- product-service (MongoDB + Redis for Cart)
 - search-service (Elasticsearch)
 - notification-service (MongoDB)
 - common-lib (Shared code)
@@ -433,7 +429,6 @@ stealing-from-paradise/
 │   ├── product-service/
 │   ├── order-service/
 │   ├── payment-service/
-│   ├── cart-service/
 │   ├── flashsale-service/
 │   ├── search-service/
 │   ├── notification-service/
@@ -839,12 +834,13 @@ GET  /orders                # List user orders
 GET  /orders/{id}           # Get order details
 ```
 
-### Cart
+### Cart (via Product Service)
 ```bash
 GET  /cart                  # Get cart items
 POST /cart/items            # Add item
 PUT  /cart/items/{itemId}   # Update item quantity
 DELETE /cart/items/{itemId} # Remove item
+DELETE /cart                # Clear cart
 ```
 
 ### See Swagger UI

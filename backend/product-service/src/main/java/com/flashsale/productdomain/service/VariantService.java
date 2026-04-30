@@ -29,7 +29,12 @@ public class VariantService {
     public List<VariantResponse> listVariants(String productId, Long sellerId) {
         validateProductOwnership(productId, sellerId);
         return variantRepository.findByProductId(productId)
-                .stream().map(VariantResponse::from).toList();
+                .stream().map(v -> {
+                    Integer stock = inventoryRepository.findBySkuCode(v.getSkuCode())
+                            .map(inv -> inv.getStockAvailable())
+                            .orElse(0);
+                    return VariantResponse.from(v, stock);
+                }).toList();
     }
 
     public VariantResponse createVariant(String productId, Long sellerId, CreateVariantRequest req) {
@@ -61,7 +66,7 @@ public class VariantService {
             inventoryRepository.save(inventory);
         }
 
-        return VariantResponse.from(variant);
+        return VariantResponse.from(variant, 0);
     }
 
     public VariantResponse updateVariant(String variantId, Long sellerId, UpdateVariantRequest req) {
@@ -74,7 +79,9 @@ public class VariantService {
         if (req.getTierName() != null) variant.setTierName(req.getTierName());
         if (req.getPrice() != null)    variant.setPrice(req.getPrice());
 
-        return VariantResponse.from(variantRepository.save(variant));
+        Integer stock = inventoryRepository.findBySkuCode(variant.getSkuCode())
+                .map(Inventory::getStockAvailable).orElse(0);
+        return VariantResponse.from(variantRepository.save(variant), stock);
     }
 
     public void deleteVariant(String variantId, Long sellerId) {

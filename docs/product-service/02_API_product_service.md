@@ -614,8 +614,10 @@
 
 | Endpoint | Method | Auth |
 |----------|--------|------|
+| /products | GET | Public |
 | /products | POST | JWT (SELLER) |
 | /products/{id} | GET | Public |
+| /products/{id} | PUT | JWT (SELLER) |
 | /products/{id}/presigned-url | GET | JWT (SELLER) |
 | /sellers/me/products | GET | JWT (SELLER) |
 | /seller/products/{id}/variants | GET | JWT (SELLER) |
@@ -627,13 +629,15 @@
 | /seller/products/{id}/unpublish | POST | JWT (SELLER) |
 | /seller/products/{id} | DELETE | JWT (SELLER) |
 | /seller/inventory/adjust | POST | JWT (SELLER) |
-| /seller/inventory/{sku}/logs | GET | JWT (SELLER) |
 | /inventory/{sku} | GET | JWT |
 | /inventory/{sku}/restock | PUT | JWT (SELLER) |
 | /categories | GET | Public |
 | /admin/categories | POST | JWT (ADMIN) |
 | /admin/categories/{id} | PUT | JWT (ADMIN) |
 | /admin/categories/{id} | DELETE | JWT (ADMIN) |
+| /admin/products/pending | GET | JWT (ADMIN) |
+| /admin/products/{id}/approve | POST | JWT (ADMIN) |
+| /admin/products/{id}/reject | POST | JWT (ADMIN) |
 | /cart | GET | JWT |
 | /cart | DELETE | JWT |
 | /cart/items | POST | JWT |
@@ -642,5 +646,5 @@
 
 ---
 
-**Phiên bản:** v5.3 RTS Unified  
-**Cập nhật:** 2026-04-15
+**Phiên bản:** v5.4  
+**Cập nhật:** 2026-04-30

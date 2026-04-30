@@ -254,8 +254,13 @@ export default function SellerPaymentsPage() {
 
           {dashError && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-              {dashError}
-              <button onClick={() => setDashError(null)} className="ml-2 underline font-medium">Đóng</button>
+              <p className="mb-2">{dashError}</p>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setDashError(null)} className="underline font-medium">Đóng</button>
+                <a href="/stripe-onboarding" className="underline font-medium text-red-700 hover:text-red-800">
+                  Đi tới trang kết nối Stripe →
+                </a>
+              </div>
             </div>
           )}
 

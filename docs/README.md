@@ -1,8 +1,8 @@
 # 📚 Stealing From Paradise - API Documentation
 
 **Project**: E-commerce Marketplace  
-**Version**: v5.3 RTS  
-**Last Updated**: 2026-04-28
+**Version**: v5.4  
+**Last Updated**: 2026-04-30
 
 ---
 
@@ -18,17 +18,18 @@
 
 | Service | Port | Endpoints | File |
 |---------|------|-----------|------|
-| Identity + Loyalty | 8081 | 21 | [api/identity-service.md](api/identity-service.md) |
-| Product | 8082 | 16 | [api/product-service.md](api/product-service.md) |
-| Search | 8089 | 2 | [api/search-service.md](api/search-service.md) |
-| Cart | 8083 | 5 | [api/cart-service.md](api/cart-service.md) |
-| Order | 8087 | 8 | [api/order-service.md](api/order-service.md) |
-| Payment + Refund | 8085 | 13 | [api/payment-service.md](api/payment-service.md) |
-| Flash Sale | 8086 | 11 | [api/flash-sale-service.md](api/flash-sale-service.md) |
-| Notification | 8088 | 5 | [api/notification-service.md](api/notification-service.md) |
-| Admin | - | 14 | [api/admin-service.md](api/admin-service.md) |
+| Identity + Loyalty | 8081 | 31 | [identity-service/02_API_identity_service.md](identity-service/02_API_identity_service.md) |
+| Product + Cart | 8082 | 29 | [product-service/02_API_product_service.md](product-service/02_API_product_service.md) |
+| Search | 8089 | 1* | [search-service/02_API_search_service.md](search-service/02_API_search_service.md) |
+| Order | 8087 | 16 | [order-service/02_API_order_service.md](order-service/02_API_order_service.md) |
+| Payment + Refund | 8085 | 12 | [payment-service/02_API_payment_service.md](payment-service/02_API_payment_service.md) |
+| Flash Sale | 8086 | 0* | [flashsale-service/02_API_flash_sale_service.md](flashsale-service/02_API_flash_sale_service.md) |
+| Notification | 8088 | 0* | [notification-service/02_API_notification_service.md](notification-service/02_API_notification_service.md) |
+| Admin | - | 14 | [admin-service/02_API_admin.md](admin-service/02_API_admin.md) |
 
-**Total**: 95+ endpoints across 9 consolidated services
+> *Search, Flash Sale, and Notification services have gateway routes configured but controllers are still under development.
+
+**Total**: 100+ endpoints across 8 services (Cart merged into Product, Loyalty merged into Identity)
 
 ### 🧭 Kafka Topics
 - **[KAFKA_EVENTS.md](KAFKA_EVENTS.md)** - All 35+ topics with event payloads and consumer patterns
@@ -59,24 +60,28 @@ backend/
 ├── api-gateway/          (Spring Cloud Gateway)
 ├── discovery-service/    (Eureka)
 ├── identity-service/     (Auth + User Management + Loyalty)
-├── product-service/      (Products, Variants, Inventory)
+├── product-service/      (Products, Variants, Inventory + Cart)
 ├── search-service/       (Elasticsearch)
-├── order-service/        (Orders, Checkout, RTS)
+├── order-service/        (Orders, Checkout, RTS, Refunds)
 ├── payment-service/      (Stripe, Payments, Refunds)
 ├── flashsale-service/    (Flash Sales, High Concurrency)
 ├── notification-service/ (Real-time SSE)
 ├── worker-service/       (Background Jobs)
-└── common-lib/           (Shared Libraries)
-
-frontend/
-├── apps/                 (Client Applications)
-└── shared/               (Shared UI Components)
+└── common-lib/           (Shared DTOs, Security, Events)
 
 docs/
-├── api/                  (Service API Documentation)
+├── identity-service/     (Identity + Loyalty API)
+├── product-service/      (Product + Cart API)
+├── order-service/        (Order API)
+├── payment-service/      (Payment + Refund API)
+├── flashsale-service/    (Flash Sale API)
+├── search-service/       (Search API)
+├── notification-service/ (Notification API)
+├── admin-service/        (Admin API)
+├── api/                  (API index)
 ├── ARCHITECTURE.md       (System Design)
 ├── KAFKA_EVENTS.md       (Event Documentation)
-├── RUNNING.md            (How to Run)
+├── 09_RUNNING.md         (How to Run)
 └── README.md             (This File)
 ```
 
@@ -138,8 +143,8 @@ Authorization: Bearer <jwt_token>
 
 | Metric | Value |
 |--------|-------|
-| **Total Services** | 9 |
-| **Total Endpoints** | 95+ |
+| **Total Services** | 8 (+ worker) |
+| **Total Endpoints** | 97+ |
 | **Kafka Topics** | 35+ |
 | **Authentication** | JWT (RS256) |
 | **Response Format** | JSON |
@@ -155,13 +160,14 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## ✨ v5.3 Features
+## ✨ v5.4 Features
 
 ✅ Trust Score Tier system (6 levels)  
 ✅ Multi-vendor order split  
 ✅ Real-time SSE notifications  
 ✅ Return To Sender (RTS) workflow  
-✅ Consolidated Loyalty Service  
+✅ Cart merged into Product Service  
+✅ Loyalty merged into Identity Service  
 ✅ Consolidated Refund Management  
 ✅ 35+ Kafka topics for event-driven architecture  
 ✅ High-concurrency Flash Sale (50k+ req/s)  
@@ -171,14 +177,14 @@ Authorization: Bearer <jwt_token>
 ## 📞 Support
 
 For API documentation details, see:
-- **Quick Reference**: Service files in `api/` folder
-- **Detailed Reference**: Full endpoint specs with examples
+- **Service APIs**: Individual service docs in `identity-service/`, `product-service/`, etc.
+- **API Index**: [api/README.md](api/README.md) for complete API overview
 - **Event Architecture**: [KAFKA_EVENTS.md](KAFKA_EVENTS.md)
 - **System Design**: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 
-**Version**: v5.3 RTS  
+**Version**: v5.4  
 **Status**: Production Ready  
-**Last Updated**: 2026-04-28
+**Last Updated**: 2026-04-30
 

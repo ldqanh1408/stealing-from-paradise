@@ -65,7 +65,7 @@ Visual guide to service interactions and Kafka event flow.
        ├─3─→ [GET /products/{id}]          → Product Service ✅
        │      └─ Get product details
        │
-       ├─4─→ [POST /cart/items]            → Cart Service ✅
+       ├─4─→ [POST /cart/items]            → Cart (Product Service) ✅
        │      ├─ Validate JWT
        │      ├─ Check inventory real-time (Product Service)
        │      └─ Store in MongoDB (TTL 30 days)

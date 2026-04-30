@@ -515,6 +515,69 @@ PENDING → CANCELLED
 PAID/SHIPPING/DELIVERED → PARTIALLY_REFUNDED / REFUNDED
 ```
 
+### GET /sellers/me/dashboard
+**Dashboard tổng quan cho Seller**
+
+**Quyền truy cập**: JWT Required (SELLER)
+
+**Response 200**: Tổng quan đơn hàng, doanh thu, sản phẩm đang bán.
+
+---
+
+## ↩️ Refund Endpoints (Buyer)
+
+### POST /orders/{orderId}/refunds
+**Tạo refund một phần (1 sub-order)**
+
+**Quyền truy cập**: JWT Required (BUYER)
+
+---
+
+### POST /orders/parent/{parentOrderId}/refund
+**Tạo refund toàn bộ (tất cả sub-orders)**
+
+**Quyền truy cập**: JWT Required (BUYER)
+
+---
+
+### POST /orders/parent/{parentOrderId}/refunds/partial
+**Tạo refund một phần nhiều seller**
+
+**Quyền truy cập**: JWT Required (BUYER)
+
+---
+
+### GET /orders/{orderId}/refunds
+**Lịch sử refund của sub-order**
+
+**Quyền truy cập**: JWT Required (BUYER\|SELLER\|ADMIN)
+
+---
+
+### GET /orders/refunds
+**Tất cả refund của Buyer**
+
+**Quyền truy cập**: JWT Required (BUYER)
+
+---
+
+### GET /orders/parent/{parentOrderId}/refund
+**Trạng thái refund toàn bộ của parent order**
+
+**Quyền truy cập**: JWT Required (BUYER\|ADMIN)
+
+---
+
+## 📊 Order Status Flow
+
+```
+PENDING → PAID → SHIPPING → DELIVERED
+                    ↓
+                 RETURNED (RTS)
+PENDING → CANCELLED
+PAID/SHIPPING/DELIVERED → PARTIALLY_REFUNDED / REFUNDED
+```
+
 ## 📊 Summary
 
 | Endpoint | Method | Auth |
@@ -528,8 +591,15 @@ PAID/SHIPPING/DELIVERED → PARTIALLY_REFUNDED / REFUNDED
 | /orders/{id}/tracking | PUT | JWT (SELLER) |
 | /orders/{id}/return-to-sender | POST | JWT (SELLER) |
 | /sellers/me/orders | GET | JWT (SELLER) |
+| /sellers/me/dashboard | GET | JWT (SELLER) |
+| /orders/{id}/refunds | POST | JWT (BUYER) |
+| /orders/{id}/refunds | GET | JWT (BUYER\|SELLER\|ADMIN) |
+| /orders/refunds | GET | JWT (BUYER) |
+| /orders/parent/{id}/refund | POST | JWT (BUYER) |
+| /orders/parent/{id}/refund | GET | JWT (BUYER\|ADMIN) |
+| /orders/parent/{id}/refunds/partial | POST | JWT (BUYER) |
 
 ---
 
-**Phiên bản:** v5.3 RTS Unified  
-**Cập nhật:** 2026-04-15
+**Phiên bản:** v5.4  
+**Cập nhật:** 2026-04-30
