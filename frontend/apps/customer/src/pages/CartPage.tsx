@@ -22,8 +22,8 @@ export default function CartPage() {
     let total = 0;
     cart.sellers.forEach(seller => {
       seller.items.forEach(item => {
-        if (selectedItems.has(item.cart_item_id)) {
-          total += item.unit_price * item.quantity;
+        if (selectedItems.has(item.cartItemId)) {
+          total += item.unitPrice * item.quantity;
         }
       });
     });
@@ -50,7 +50,7 @@ export default function CartPage() {
       const all = new Set<number>();
       cart.sellers.forEach(seller => {
         seller.items.forEach(item => {
-          all.add(item.cart_item_id);
+          all.add(item.cartItemId);
         });
       });
       setSelectedItems(all);
@@ -114,24 +114,24 @@ export default function CartPage() {
 
           {/* Sellers groups */}
           {cart?.sellers.map((seller) => (
-            <div key={seller.seller_id} className="bg-white rounded-2xl border border-gray-100 p-4">
+            <div key={seller.sellerId} className="bg-white rounded-2xl border border-gray-100 p-4">
               <p className="text-sm font-semibold text-gray-900 mb-4 pb-4 border-b">
-                {seller.seller_name}
+                {seller.sellerName}
               </p>
               <div className="space-y-3">
                 {seller.items.map((item) => {
-                    const isExpired = item.is_flash && isFlashExpired(item.flash_expires_at);
-                    const overLimit = item.max_quantity_per_user && item.quantity > item.max_quantity_per_user;
-                    const overStock = item.quantity > item.stock_available;
+                    const isExpired = item.isFlash && isFlashExpired(item.flashExpiresAt);
+                    const overLimit = item.maxQuantityPerUser && item.quantity > item.maxQuantityPerUser;
+                    const overStock = item.quantity > item.stockAvailable;
 
                     return (
-                      <div key={item.cart_item_id} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
-                        isExpired ? 'border-red-200 bg-red-50/30' : item.is_flash ? 'border-orange-200 bg-orange-50/20' : 'border-gray-100'
+                      <div key={item.cartItemId} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
+                        isExpired ? 'border-red-200 bg-red-50/30' : item.isFlash ? 'border-orange-200 bg-orange-50/20' : 'border-gray-100'
                       }`}>
                         <input
                           type="checkbox"
-                          checked={selectedItems.has(item.cart_item_id)}
-                          onChange={() => toggleItemSelection(item.cart_item_id)}
+                          checked={selectedItems.has(item.cartItemId)}
+                          onChange={() => toggleItemSelection(item.cartItemId)}
                           className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
                         />
                         <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0 overflow-hidden">
@@ -139,8 +139,8 @@ export default function CartPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-gray-400">{item.variant_name}</p>
-                            {item.is_flash && (
+                            <p className="text-xs text-gray-400">{item.variantName}</p>
+                            {item.isFlash && (
                               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isExpired ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'}`}>
                                 🔥 Flash Sale
                               </span>
@@ -149,37 +149,37 @@ export default function CartPage() {
                               <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Đã hết hạn</span>
                             )}
                           </div>
-                          <h3 className="font-medium text-gray-900 truncate">{item.product_name}</h3>
-                          {item.is_flash && item.flash_price ? (
+                          <h3 className="font-medium text-gray-900 truncate">{item.productName}</h3>
+                          {item.isFlash && item.flashPrice ? (
                             <div className="flex items-center gap-2 mt-0.5">
-                              <p className="text-red-600 font-bold">{fmt(item.flash_price)}</p>
-                              {item.unit_price !== item.flash_price && (
-                                <p className="text-xs text-gray-400 line-through">{fmt(item.unit_price)}</p>
+                              <p className="text-red-600 font-bold">{fmt(item.flashPrice)}</p>
+                              {item.unitPrice !== item.flashPrice && (
+                                <p className="text-xs text-gray-400 line-through">{fmt(item.unitPrice)}</p>
                               )}
                             </div>
                           ) : (
-                            <p className="text-red-600 font-bold mt-1">{fmt(item.unit_price)}</p>
+                            <p className="text-red-600 font-bold mt-1">{fmt(item.unitPrice)}</p>
                           )}
                           <p className="text-xs text-gray-500 mt-0.5">
-                            Kho: <span className={`font-semibold ${overStock ? 'text-red-600' : 'text-green-600'}`}>{item.stock_available}</span>
-                            {item.max_quantity_per_user && (
-                              <span className="ml-2 text-orange-500">· Mua tối đa: {item.max_quantity_per_user}</span>
+                            Kho: <span className={`font-semibold ${overStock ? 'text-red-600' : 'text-green-600'}`}>{item.stockAvailable}</span>
+                            {item.maxQuantityPerUser && (
+                              <span className="ml-2 text-orange-500">· Mua tối đa: {item.maxQuantityPerUser}</span>
                             )}
                           </p>
                           {overLimit && (
                             <p className="text-xs text-red-500 mt-0.5">
-                              ⚠️ Số lượng vượt quá giới hạn mua ({item.max_quantity_per_user})
+                              ⚠️ Số lượng vượt quá giới hạn mua ({item.maxQuantityPerUser})
                             </p>
                           )}
                           {overStock && !overLimit && (
                             <p className="text-xs text-red-500 mt-0.5">
-                              ⚠️ Số lượng vượt quá tồn kho ({item.stock_available})
+                              ⚠️ Số lượng vượt quá tồn kho ({item.stockAvailable})
                             </p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button
-                            onClick={() => updateQuantity(item.cart_item_id, Math.max(1, item.quantity - 1))}
+                            onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
                             className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
                           >
                             −
@@ -187,10 +187,10 @@ export default function CartPage() {
                           <span className={`w-8 text-center text-sm font-medium ${overLimit || overStock ? 'text-red-600' : 'text-gray-900'}`}>{item.quantity}</span>
                           <button
                             onClick={() => {
-                              const max = item.max_quantity_per_user
-                                ? Math.min(item.max_quantity_per_user, item.stock_available)
-                                : item.stock_available;
-                              updateQuantity(item.cart_item_id, item.quantity + 1 > max ? item.quantity : item.quantity + 1);
+                              const max = item.maxQuantityPerUser
+                                ? Math.min(item.maxQuantityPerUser, item.stockAvailable)
+                                : item.stockAvailable;
+                              updateQuantity(item.cartItemId, item.quantity + 1 > max ? item.quantity : item.quantity + 1);
                             }}
                             className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
                           >
@@ -198,7 +198,7 @@ export default function CartPage() {
                           </button>
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.cart_item_id)}
+                          onClick={() => removeFromCart(item.cartItemId)}
                           className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

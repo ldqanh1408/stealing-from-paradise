@@ -39,8 +39,8 @@ public class OrderDevDataLoader implements CommandLineRunner {
     //  Payment:   transactions 1-50, refunds 1-20
     // ------------------------------------------------------------------ //
 
-    private static final long[] USER_IDS   = {1L, 2L, 3L, 4L, 5L};
-    private static final long[] SELLER_IDS = {1L, 2L, 3L};
+    private static final long[] USER_IDS   = {1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L};
+    private static final long[] SELLER_IDS = {1L, 2L, 3L, 4L, 5L};
 
     private static final String[] SELLER_NAMES = {"TechWorld Store", "Fashion Hub", "Gadget Pro"};
 
@@ -123,7 +123,41 @@ public class OrderDevDataLoader implements CommandLineRunner {
         orderRepository.save(o6);
         createOrderItems(o6, "CANCELLED", "BUYER");
 
-        log.info("[OrderDevDataLoader] Seeded {} parent_orders + sub_orders", 6);
+        // Order 7: PAID, SHIPPING — User 6, Home & Living
+        ParentOrder po7 = createParentOrder(6L, new BigDecimal("6800000.00"),
+                LocalDateTime.now().minusDays(4), LocalDateTime.now().minusDays(3));
+        Order o7 = createSubOrder(po7.getId(), SELLER_IDS[3], "SELLER_4",
+                "ORD-7", new BigDecimal("6800000.00"), new BigDecimal("6800000.00"),
+                "SHIPPING", SHIPPING_ADDRESS_1, "GHTK112233");
+        createOrderItems(o7, "SHIPPING", null);
+
+        // Order 8: PAID, CONFIRMED — User 7, Sport & Outdoor
+        ParentOrder po8 = createParentOrder(7L, new BigDecimal("1200000.00"),
+                LocalDateTime.now().minusDays(2), LocalDateTime.now().minusDays(1));
+        Order o8 = createSubOrder(po8.getId(), SELLER_IDS[4], "SELLER_5",
+                "ORD-8", new BigDecimal("1200000.00"), new BigDecimal("1200000.00"),
+                "CONFIRMED", SHIPPING_ADDRESS_2, null);
+        createOrderItems(o8, "CONFIRMED", null);
+
+        // Order 9: PAID, DELIVERED — User 8, TechWorld
+        ParentOrder po9 = createParentOrder(8L, new BigDecimal("4200000.00"),
+                LocalDateTime.now().minusDays(8), LocalDateTime.now().minusDays(7));
+        Order o9 = createSubOrder(po9.getId(), SELLER_IDS[0], "SELLER_1",
+                "ORD-9", new BigDecimal("4200000.00"), new BigDecimal("4200000.00"),
+                "DELIVERED", SHIPPING_ADDRESS_1, "VNPOST778899");
+        o9.setDeliveredAt(LocalDateTime.now().minusDays(1));
+        orderRepository.save(o9);
+        createOrderItems(o9, "DELIVERED", null);
+
+        // Order 10: PENDING — User 9, Gadget Pro
+        ParentOrder po10 = createParentOrder(9L, new BigDecimal("8500000.00"),
+                LocalDateTime.now().minusHours(2), null);
+        Order o10 = createSubOrder(po10.getId(), SELLER_IDS[2], "SELLER_3",
+                "ORD-10", new BigDecimal("8500000.00"), new BigDecimal("8500000.00"),
+                "PENDING", SHIPPING_ADDRESS_2, null);
+        createOrderItems(o10, "PENDING", null);
+
+        log.info("[OrderDevDataLoader] Seeded {} parent_orders + sub_orders", 10);
     }
 
     private ParentOrder createParentOrder(Long userId, BigDecimal totalAmt,
@@ -196,6 +230,30 @@ public class OrderDevDataLoader implements CommandLineRunner {
             case 6 -> {
                 items.add(createItem(order, "SKU-SAMSUNG-BUDS2", null, "Samsung Galaxy Buds2", "Lavender",
                         new BigDecimal("1299000.00"), 1));
+            }
+            case 7 -> {
+                items.add(createItem(order, "SKU-AIRFRY-55", null, "Nồi chiên không dầu 5.5L", "5.5L / Đen",
+                        new BigDecimal("3200000.00"), 1));
+                items.add(createItem(order, "SKU-KETTLE-LNL", null, "Bình đun siêu tốc LocknLock", "1.8L / Đen",
+                        new BigDecimal("550000.00"), 2));
+            }
+            case 8 -> {
+                items.add(createItem(order, "SKU-NIKE-PEG40-42", null, "Giày chạy Nike Air Zoom Pegasus 40", "Size 42 / Trắng",
+                        new BigDecimal("4200000.00"), 1));
+                items.add(createItem(order, "SKU-YOGAMAT-6MM", null, "Thảm yoga cao cấp 6mm", "6mm / Tím",
+                        new BigDecimal("280000.00"), 1));
+            }
+            case 9 -> {
+                items.add(createItem(order, "SKU-JBL-FLIP6-BLK", null, "Loa Bluetooth JBL Flip 6", "Đen",
+                        new BigDecimal("3800000.00"), 1));
+                items.add(createItem(order, "SKU-BACKPACK-TOM", null, "Balo laptop Tomtoc 15.6 inch", "15.6 inch / Xám",
+                        new BigDecimal("1200000.00"), 1));
+            }
+            case 10 -> {
+                items.add(createItem(order, "SKU-AKKO-3098B-R", null, "Bàn phím cơ Akko 3098B", "Akko CS Rose Red",
+                        new BigDecimal("2100000.00"), 1));
+                items.add(createItem(order, "SKU-ANKER-20000", null, "Pin dự phòng Anker 20000mAh", "20K mAh / Đen",
+                        new BigDecimal("890000.00"), 1));
             }
             default -> {
             }

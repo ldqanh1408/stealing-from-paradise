@@ -4,30 +4,35 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { orderApi, type CheckoutResponse } from '@shared/api/order.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
+import { userApi } from '@shared/api/user.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
+// ─── Address Form Modal (create / edit) ───────────────────────────────────────
 function AddressFormModal({
+  address,
   onClose,
   onSuccess,
 }: {
+  address?: UserAddress;
   onClose: () => void;
   onSuccess: (address: UserAddress) => void;
 }) {
   const queryClient = useQueryClient();
-  const [addressText, setAddressText] = useState('');
-  const [provinceId, setProvinceId] = useState(1);
-  const [districtId, setDistrictId] = useState(1);
-  const [setAsDefault, setSetAsDefault] = useState(true);
+  const isEdit = !!address;
+  const [addressText, setAddressText] = useState(address?.fullAddress ?? '');
+  const [provinceId, setProvinceId] = useState(address?.provinceId ?? 1);
+  const [districtId, setDistrictId] = useState(address?.districtId ?? 1);
+  const [setAsDefault, setSetAsDefault] = useState(address?.isDefault ?? true);
   const [error, setError] = useState('');
 
   const createMutation = useMutation({
     mutationFn: () =>
       addressApi.create({
-        full_address: addressText,
-        province_id: provinceId,
-        district_id: districtId,
-        is_default: setAsDefault,
+        provinceId,
+        districtId,
+        fullAddress: addressText,
+        isDefault: setAsDefault,
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['addresses'] });
@@ -38,6 +43,26 @@ function AddressFormModal({
       setError(err?.response?.data?.message || 'Tạo địa chỉ thất bại');
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      addressApi.update(address!.addressId, {
+        provinceId,
+        districtId,
+        fullAddress: addressText,
+        isDefault: setAsDefault,
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      onSuccess(res.data.data!);
+      onClose();
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || 'Cập nhật địa chỉ thất bại');
+    },
+  });
+
+  const mutate = isEdit ? updateMutation : createMutation;
 
   const provinces = [
     { id: 1, name: 'TP. Hồ Chí Minh' },
@@ -51,42 +76,28 @@ function AddressFormModal({
 
   const districts: Record<number, { id: number; name: string }[]> = {
     1: [
-      { id: 1, name: 'Quận 1' },
-      { id: 2, name: 'Quận 3' },
-      { id: 3, name: 'Quận 5' },
-      { id: 4, name: 'Quận 7' },
-      { id: 5, name: 'Quận Bình Thạnh' },
-      { id: 6, name: 'Thủ Đức' },
-      { id: 7, name: 'Gò Vấp' },
-      { id: 8, name: 'Tân Bình' },
+      { id: 1, name: 'Quận 1' }, { id: 2, name: 'Quận 3' }, { id: 3, name: 'Quận 5' },
+      { id: 4, name: 'Quận 7' }, { id: 5, name: 'Quận Bình Thạnh' },
+      { id: 6, name: 'Thủ Đức' }, { id: 7, name: 'Gò Vấp' }, { id: 8, name: 'Tân Bình' },
     ],
     2: [
-      { id: 11, name: 'Hoàn Kiếm' },
-      { id: 12, name: 'Ba Đình' },
-      { id: 13, name: 'Đống Đa' },
-      { id: 14, name: 'Hai Bà Trưng' },
-      { id: 15, name: 'Thanh Xuân' },
+      { id: 11, name: 'Hoàn Kiếm' }, { id: 12, name: 'Ba Đình' },
+      { id: 13, name: 'Đống Đa' }, { id: 14, name: 'Hai Bà Trưng' }, { id: 15, name: 'Thanh Xuân' },
     ],
     3: [
-      { id: 21, name: 'Hải Châu' },
-      { id: 22, name: 'Thanh Khê' },
-      { id: 23, name: 'Sơn Trà' },
+      { id: 21, name: 'Hải Châu' }, { id: 22, name: 'Thanh Khê' }, { id: 23, name: 'Sơn Trà' },
     ],
     4: [
-      { id: 31, name: 'Hồng Bàng' },
-      { id: 32, name: 'Ngô Quyền' },
+      { id: 31, name: 'Hồng Bàng' }, { id: 32, name: 'Ngô Quyền' },
     ],
     5: [
-      { id: 41, name: 'Ninh Kiều' },
-      { id: 42, name: 'Bình Thủy' },
+      { id: 41, name: 'Ninh Kiều' }, { id: 42, name: 'Bình Thủy' },
     ],
     6: [
-      { id: 51, name: 'Dĩ An' },
-      { id: 52, name: 'Thuận An' },
+      { id: 51, name: 'Dĩ An' }, { id: 52, name: 'Thuận An' },
     ],
     7: [
-      { id: 61, name: 'Biên Hòa' },
-      { id: 62, name: 'Long Thành' },
+      { id: 61, name: 'Biên Hòa' }, { id: 62, name: 'Long Thành' },
     ],
   };
 
@@ -96,7 +107,7 @@ function AddressFormModal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">Thêm địa chỉ mới</h3>
+          <h3 className="text-lg font-bold text-gray-900">{isEdit ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới'}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
         {error && (
@@ -161,11 +172,68 @@ function AddressFormModal({
             Huỷ
           </button>
           <button
-            onClick={() => createMutation.mutate()}
-            disabled={!addressText.trim() || createMutation.isPending}
+            onClick={() => mutate.mutate()}
+            disabled={!addressText.trim() || mutate.isPending}
             className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            {createMutation.isPending ? 'Đang lưu...' : 'Lưu địa chỉ'}
+            {mutate.isPending ? 'Đang lưu...' : isEdit ? 'Lưu thay đổi' : 'Lưu địa chỉ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Delete Address Modal ───────────────────────────────────────────────────────
+function DeleteAddressModal({
+  address,
+  onClose,
+  onSuccess,
+}: {
+  address: UserAddress;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState('');
+
+  const deleteMutation = useMutation({
+    mutationFn: () => addressApi.remove(address.addressId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      onSuccess();
+      onClose();
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message || 'Xoá địa chỉ thất bại');
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
+        <div className="text-5xl mb-4">🗑️</div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Xoá địa chỉ?</h3>
+        <p className="text-sm text-gray-500 mb-1">{address.fullAddress}</p>
+        <p className="text-xs text-gray-400 mb-6">Hành động này không thể hoàn tác.</p>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4 text-left">
+            {error}
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50"
+          >
+            Huỷ
+          </button>
+          <button
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+            className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+          >
+            {deleteMutation.isPending ? 'Đang xoá...' : 'Xoá địa chỉ'}
           </button>
         </div>
       </div>
@@ -185,9 +253,56 @@ export default function OrderReviewPage() {
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'cod'>('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<UserAddress | undefined>(undefined);
+  const [deletingAddress, setDeletingAddress] = useState<UserAddress | null>(null);
+  const [showNoDefaultDialog, setShowNoDefaultDialog] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Loyalty points state
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
+  const [pointsToUse, setPointsToUse] = useState(0);
+
   const selectedItemIds = (location.state?.selectedItemIds || []) as number[];
+
+  const getSelectedItemsData = () => {
+    if (!cart || selectedItemIds.length === 0) return [];
+    const items: any[] = [];
+    cart.sellers.forEach(seller => {
+      seller.items.forEach(item => {
+        if (selectedItemIds.includes(item.cartItemId)) {
+          items.push({ ...item, sellerName: seller.sellerName });
+        }
+      });
+    });
+    return items;
+  };
+
+  const selectedItems = getSelectedItemsData();
+  const subtotal = selectedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+
+  // Fetch loyalty balance
+  const { data: loyaltyBalance } = useQuery({
+    queryKey: ['loyalty-balance'],
+    queryFn: () => userApi.getLoyaltyBalance().then(r => r.data.data),
+    retry: 1,
+  });
+
+  // Estimate loyalty discount when on review step
+  const { data: loyaltyEstimate } = useQuery({
+    queryKey: ['loyalty-estimate', subtotal],
+    queryFn: () => userApi.estimateLoyaltyPoints(subtotal).then(r => r.data.data),
+    enabled: subtotal > 0,
+    retry: 1,
+  });
+
+  // Auto-set default points when loyalty is toggled
+  useEffect(() => {
+    if (useLoyaltyPoints && loyaltyEstimate?.maxPointsUsable) {
+      setPointsToUse(loyaltyEstimate.maxPointsUsable);
+    } else if (!useLoyaltyPoints) {
+      setPointsToUse(0);
+    }
+  }, [useLoyaltyPoints, loyaltyEstimate?.maxPointsUsable]);
 
   const { data: addresses = [], isLoading: addrsLoading, refetch: refetchAddresses } = useQuery({
     queryKey: ['addresses'],
@@ -198,23 +313,35 @@ export default function OrderReviewPage() {
 
   useEffect(() => {
     if (addresses.length > 0 && !selectedAddressId) {
-      const def = addresses.find(a => a.is_default);
-      setSelectedAddressId(def?.address_id ?? addresses[0].address_id);
+      const def = addresses.find(a => a.isDefault);
+      setSelectedAddressId(def?.addressId ?? addresses[0].addressId);
+    }
+    if (addresses.length > 0) {
+      const hasDefault = addresses.some(a => a.isDefault);
+      if (!hasDefault) {
+        setShowNoDefaultDialog(true);
+      }
     }
   }, [addresses, selectedAddressId]);
 
   const handleAddressCreated = (newAddr: UserAddress) => {
-    setSelectedAddressId(newAddr.address_id);
+    setSelectedAddressId(newAddr.addressId);
   };
 
   const handleCreateOrder = async () => {
     if (!selectedAddressId || selectedItemIds.length === 0) return;
+    if (addresses.length === 0) {
+      setShowNoDefaultDialog(true);
+      return;
+    }
     setIsProcessing(true);
     setApiError(null);
     try {
       const { data } = await orderApi.checkout({
-        address_id: selectedAddressId,
-        item_ids: selectedItemIds,
+        addressId: selectedAddressId,
+        itemIds: selectedItemIds.map(String),
+        useLoyaltyPoints,
+        loyaltyPointsToUse: useLoyaltyPoints ? pointsToUse : 0,
       });
       if (data.data) {
         setOrderData(data.data);
@@ -232,13 +359,21 @@ export default function OrderReviewPage() {
     setIsProcessing(true);
     setApiError(null);
     try {
+      // Persist checkout data to sessionStorage so CheckoutPage can recover
+      sessionStorage.setItem('pending_checkout', JSON.stringify({
+        ...orderData,
+        _useLoyaltyPoints: useLoyaltyPoints,
+        _loyaltyPointsToUse: useLoyaltyPoints ? pointsToUse : 0,
+        _paymentMethod: paymentMethod,
+      }));
+
       if (paymentMethod === 'cod') {
         navigate('/checkout/result?status=success', {
-          state: { parentOrderId: orderData.parent_order_id, method: 'COD' },
+          state: { parentOrderId: orderData.parentOrderId, method: 'COD' },
         });
       } else {
         navigate('/checkout/payment', {
-          state: { orderData, parentOrderId: orderData.parent_order_id },
+          state: { orderData, parentOrderId: orderData.parentOrderId },
         });
       }
     } catch {
@@ -248,22 +383,7 @@ export default function OrderReviewPage() {
     }
   };
 
-  const getSelectedItemsData = () => {
-    if (!cart || selectedItemIds.length === 0) return [];
-    const items: any[] = [];
-    cart.sellers.forEach(seller => {
-      seller.items.forEach(item => {
-        if (selectedItemIds.includes(item.cart_item_id)) {
-          items.push({ ...item, seller_name: seller.seller_name });
-        }
-      });
-    });
-    return items;
-  };
-
-  const selectedItems = getSelectedItemsData();
-  const subtotal = selectedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-  const selectedAddress = addresses.find(a => a.address_id === selectedAddressId);
+  const selectedAddress = addresses.find(a => a.addressId === selectedAddressId);
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">
@@ -310,7 +430,7 @@ export default function OrderReviewPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Chọn địa chỉ giao hàng</h2>
               <button
-                onClick={() => setShowAddressForm(true)}
+                onClick={() => { setEditingAddress(undefined); setShowAddressForm(true); }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center gap-1"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -342,10 +462,10 @@ export default function OrderReviewPage() {
             {!addrsLoading && addresses.length > 0 && (
               <div className="space-y-3 mb-8">
                 {addresses.map(addr => (
-                  <label
-                    key={addr.address_id}
-                    className={`flex items-start p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      addr.address_id === selectedAddressId
+                  <div
+                    key={addr.addressId}
+                    className={`flex items-start p-4 border-2 rounded-xl transition-all ${
+                      addr.addressId === selectedAddressId
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-blue-300'
                     }`}
@@ -353,19 +473,42 @@ export default function OrderReviewPage() {
                     <input
                       type="radio"
                       name="address"
-                      checked={selectedAddressId === addr.address_id}
-                      onChange={() => setSelectedAddressId(addr.address_id)}
+                      checked={selectedAddressId === addr.addressId}
+                      onChange={() => setSelectedAddressId(addr.addressId)}
                       className="w-5 h-5 mt-1 accent-blue-600 shrink-0"
                     />
                     <div className="ml-4 flex-1">
-                      <p className="font-semibold text-gray-900">{addr.full_address}</p>
-                      {addr.is_default && (
+                      <p className="font-semibold text-gray-900">{addr.fullAddress}</p>
+                      {addr.isDefault && (
                         <span className="inline-block mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
                           Địa chỉ mặc định
                         </span>
                       )}
                     </div>
-                  </label>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingAddress(addr);
+                          setShowAddressForm(true);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Sửa"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setDeletingAddress(addr)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Xoá"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -376,13 +519,13 @@ export default function OrderReviewPage() {
                 <h3 className="font-bold text-gray-900 mb-4">Sản phẩm cần giao ({selectedItems.length} sản phẩm)</h3>
                 <div className="space-y-3">
                   {selectedItems.map(item => (
-                    <div key={item.cart_item_id} className="flex items-center justify-between pb-3 border-b last:border-b-0 last:pb-0">
+                    <div key={item.cartItemId} className="flex items-center justify-between pb-3 border-b last:border-b-0 last:pb-0">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
-                        <p className="text-xs text-gray-500">{item.variant_name} × {item.quantity}</p>
-                        <p className="text-xs text-gray-500">{item.seller_name}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
+                        <p className="text-xs text-gray-500">{item.variantName} × {item.quantity}</p>
+                        <p className="text-xs text-gray-500">{item.sellerName}</p>
                       </div>
-                      <p className="font-semibold text-gray-900 ml-4">{fmt(item.unit_price * item.quantity)}</p>
+                      <p className="font-semibold text-gray-900 ml-4">{fmt(item.unitPrice * item.quantity)}</p>
                     </div>
                   ))}
                 </div>
@@ -391,13 +534,75 @@ export default function OrderReviewPage() {
                     <span>Tạm tính</span>
                     <span>{fmt(subtotal)}</span>
                   </div>
+                  {loyaltyEstimate && loyaltyEstimate.maxPointsUsable > 0 && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-gray-600">Điểm tích luỹ</span>
+                        <p className="text-xs text-gray-400">
+                          Có {loyaltyBalance?.availablePoints?.toLocaleString() ?? 0} điểm ·{' '}
+                          {loyaltyEstimate.maxPointsUsable.toLocaleString()} điểm khả dụng cho đơn này
+                        </p>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={useLoyaltyPoints}
+                          onChange={e => setUseLoyaltyPoints(e.target.checked)}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                        <span className="text-sm font-medium text-blue-600">
+                          {useLoyaltyPoints ? `-${fmt(loyaltyEstimate.pointsRequested ? loyaltyEstimate.pointsRequested / (loyaltyEstimate.conversionRate || 100) * 1000 : 0)}` : 'Dùng điểm'}
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                  {useLoyaltyPoints && loyaltyEstimate && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-gray-600">Số điểm sử dụng:</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setPointsToUse(p => Math.max(100, p - 100))}
+                          disabled={pointsToUse <= 100}
+                          className="w-7 h-7 rounded border text-xs font-bold hover:bg-gray-100 disabled:opacity-30"
+                        >
+                          −
+                        </button>
+                        <span className="w-20 text-center font-medium text-sm">
+                          {pointsToUse.toLocaleString()} điểm
+                        </span>
+                        <button
+                          onClick={() => setPointsToUse(p => Math.min(loyaltyEstimate.maxPointsUsable, p + 100))}
+                          disabled={pointsToUse >= loyaltyEstimate.maxPointsUsable}
+                          className="w-7 h-7 rounded border text-xs font-bold hover:bg-gray-100 disabled:opacity-30"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {useLoyaltyPoints && loyaltyEstimate && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Giảm từ điểm thưởng</span>
+                      <span className="font-medium">
+                        -{fmt(loyaltyEstimate.pointsRequested ? Math.floor(loyaltyEstimate.pointsRequested / (loyaltyEstimate.conversionRate || 100) * 1000) : 0)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-gray-600">
                     <span>Phí vận chuyển</span>
                     <span className="text-green-600 font-medium">Miễn phí</span>
                   </div>
+                  <div className="h-px bg-gray-100" />
                   <div className="flex justify-between font-bold text-base">
                     <span>Tổng cộng</span>
-                    <span className="text-red-600">{fmt(subtotal)}</span>
+                    <span className="text-red-600">
+                      {fmt(
+                        subtotal -
+                        (useLoyaltyPoints && loyaltyEstimate?.pointsRequested
+                          ? Math.floor(loyaltyEstimate.pointsRequested / (loyaltyEstimate.conversionRate || 100) * 1000)
+                          : 0)
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -438,7 +643,7 @@ export default function OrderReviewPage() {
             {selectedAddress && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
                 <h3 className="font-bold text-gray-900 mb-2">📍 Địa chỉ giao hàng</h3>
-                <p className="text-gray-700">{selectedAddress.full_address}</p>
+                <p className="text-gray-700">{selectedAddress.fullAddress}</p>
                 <button
                   onClick={() => setStep('address')}
                   className="text-sm text-blue-600 hover:underline mt-2"
@@ -450,16 +655,16 @@ export default function OrderReviewPage() {
 
             <div className="space-y-6 mb-6">
               {orderData.orders.map(order => (
-                <div key={order.order_id} className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div key={order.orderId} className="bg-white rounded-2xl border border-gray-100 p-6">
                   <div className="flex items-center justify-between mb-4 pb-4 border-b">
                     <div>
-                      <p className="font-bold text-gray-900">{order.seller_name}</p>
-                      <p className="text-xs text-gray-500 font-mono">{order.order_code}</p>
+                      <p className="font-bold text-gray-900">{order.sellerName}</p>
+                      <p className="text-xs text-gray-500 font-mono">{order.orderCode}</p>
                     </div>
-                    <p className="font-bold text-lg">{fmt(order.final_amt)}</p>
+                    <p className="font-bold text-lg">{fmt(order.finalAmt)}</p>
                   </div>
                   <p className="text-sm text-gray-700">
-                    <span className="font-semibold text-yellow-600">Chờ xác nhận</span> · {order.item_count} sản phẩm
+                    <span className="font-semibold text-yellow-600">Chờ xác nhận</span> · {order.itemCount} sản phẩm
                   </p>
                 </div>
               ))}
@@ -469,12 +674,12 @@ export default function OrderReviewPage() {
               <div className="space-y-3 text-sm mb-4">
                 <div className="flex justify-between text-gray-600">
                   <span>Tạm tính</span>
-                  <span>{fmt(orderData.total_amount)}</span>
+                  <span>{fmt(orderData.totalAmount)}</span>
                 </div>
-                {orderData.loyalty_discount ? (
+                {orderData.loyaltyDiscount ? (
                   <div className="flex justify-between text-gray-600">
                     <span>Giảm từ điểm thưởng</span>
-                    <span className="text-green-600 font-medium">-{fmt(orderData.loyalty_discount)}</span>
+                    <span className="text-green-600 font-medium">-{fmt(orderData.loyaltyDiscount)}</span>
                   </div>
                 ) : null}
                 <div className="flex justify-between text-gray-600">
@@ -484,7 +689,7 @@ export default function OrderReviewPage() {
                 <div className="h-px bg-gray-100" />
                 <div className="flex justify-between font-bold text-base">
                   <span>Tổng thanh toán</span>
-                  <span className="text-red-600 text-lg">{fmt(orderData.final_amount)}</span>
+                  <span className="text-red-600 text-lg">{fmt(orderData.finalAmount)}</span>
                 </div>
               </div>
             </div>
@@ -536,17 +741,61 @@ export default function OrderReviewPage() {
               ) : (
                 paymentMethod === 'cod'
                   ? `Xác nhận đặt hàng (COD)`
-                  : `Thanh toán ${fmt(orderData.final_amount)}`
+                  : `Thanh toán ${fmt(orderData.finalAmount)}`
               )}
             </button>
           </div>
         )}
       </div>
 
+      {showNoDefaultDialog && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center">
+            <div className="text-5xl mb-4">📍</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Bạn chưa có địa chỉ giao hàng</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Vui lòng thêm địa chỉ giao hàng trước khi tiếp tục thanh toán.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowNoDefaultDialog(false)}
+                className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50"
+              >
+                Đóng
+              </button>
+              <button
+                onClick={() => {
+                  setShowNoDefaultDialog(false);
+                  setEditingAddress(undefined);
+                  setShowAddressForm(true);
+                }}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium"
+              >
+                Thêm địa chỉ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAddressForm && (
         <AddressFormModal
-          onClose={() => setShowAddressForm(false)}
+          address={editingAddress}
+          onClose={() => { setShowAddressForm(false); setEditingAddress(undefined); }}
           onSuccess={handleAddressCreated}
+        />
+      )}
+
+      {deletingAddress && (
+        <DeleteAddressModal
+          address={deletingAddress}
+          onClose={() => setDeletingAddress(null)}
+          onSuccess={() => {
+            // If we deleted the selected address, clear selection
+            if (deletingAddress.addressId === selectedAddressId) {
+              setSelectedAddressId(null);
+            }
+          }}
         />
       )}
     </div>

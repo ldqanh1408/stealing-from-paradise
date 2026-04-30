@@ -45,11 +45,11 @@ function ApproveModal({ refund, onClose, onSuccess }: { refund: RefundResponse; 
   const [done, setDone] = useState(false);
 
   const mut = useMutation({
-    mutationFn: () => adminRefundApi.approve(refund.refund_id, {
-      admin_note: adminNote,
-      adjust_amount: adjustAmount ? parseFloat(adjustAmount) : undefined,
-      caused_by: causedBy,
-      tracking_number: trackingNumber || undefined,
+    mutationFn: () => adminRefundApi.approve(refund.refundId, {
+      adminNote: adminNote,
+      adjustAmount: adjustAmount ? parseFloat(adjustAmount) : undefined,
+      causedBy: causedBy,
+      trackingNumber: trackingNumber || undefined,
     }),
     onSuccess: () => { setDone(true); setTimeout(() => { onSuccess(); onClose(); }, 1500); },
     onError: (err: any) => { setError(err?.response?.data?.message || 'Duyệt hoàn tiền thất bại'); },
@@ -72,11 +72,11 @@ function ApproveModal({ refund, onClose, onSuccess }: { refund: RefundResponse; 
       <div className="bg-white rounded-2xl p-6 max-w-md w-full my-4">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Duyệt hoàn tiền</h3>
         <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1 text-sm">
-          <p><span className="text-gray-500">Mã hoàn:</span> <span className="font-mono font-medium">#{refund.refund_id}</span></p>
+          <p><span className="text-gray-500">Mã hoàn:</span> <span className="font-mono font-medium">#{refund.refundId}</span></p>
           <p><span className="text-gray-500">Loại:</span> <span className="font-medium">{refund.type === 'FULL' ? 'Hoàn toàn bộ' : 'Hoàn một phần'}</span></p>
           <p><span className="text-gray-500">Số tiền:</span> <span className="font-bold text-red-600">{fmt(refund.amount)}</span></p>
           <p><span className="text-gray-500">Lý do:</span> <span className="font-medium">{refund.reason}</span></p>
-          <p><span className="text-gray-500">Người yêu cầu:</span> <span className="font-medium">{refund.initiated_by === 'BUYER' ? 'Khách hàng' : 'Người bán'}</span></p>
+          <p><span className="text-gray-500">Người yêu cầu:</span> <span className="font-medium">{refund.initiatedBy === 'BUYER' ? 'Khách hàng' : 'Người bán'}</span></p>
         </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
         <div className="space-y-4 mb-6">
@@ -148,9 +148,9 @@ function RejectModal({ refund, onClose, onSuccess }: { refund: RefundResponse; o
   const [done, setDone] = useState(false);
 
   const mut = useMutation({
-    mutationFn: () => adminRefundApi.reject(refund.refund_id, {
-      reject_reason: reason,
-      fraud_evidence: fraudEvidence,
+    mutationFn: () => adminRefundApi.reject(refund.refundId, {
+      rejectReason: reason,
+      fraudEvidence: fraudEvidence,
     }),
     onSuccess: () => { setDone(true); setTimeout(() => { onSuccess(); onClose(); }, 1500); },
     onError: (err: any) => { setError(err?.response?.data?.message || 'Từ chối thất bại'); },
@@ -173,7 +173,7 @@ function RejectModal({ refund, onClose, onSuccess }: { refund: RefundResponse; o
       <div className="bg-white rounded-2xl p-6 max-w-md w-full">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Từ chối hoàn tiền</h3>
         <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1 text-sm">
-          <p><span className="text-gray-500">Mã hoàn:</span> <span className="font-mono font-medium">#{refund.refund_id}</span></p>
+          <p><span className="text-gray-500">Mã hoàn:</span> <span className="font-mono font-medium">#{refund.refundId}</span></p>
           <p><span className="text-gray-500">Số tiền:</span> <span className="font-bold text-red-600">{fmt(refund.amount)}</span></p>
           <p><span className="text-gray-500">Lý do khách:</span> <span className="font-medium">{refund.reason}</span></p>
         </div>
@@ -236,11 +236,11 @@ function DetailDrawer({ refund, onClose }: { refund: RefundResponse; onClose: ()
           <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Mã hoàn</span>
-              <span className="font-mono font-medium">#{refund.refund_id}</span>
+              <span className="font-mono font-medium">#{refund.refundId}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Mã đơn</span>
-              <span className="font-mono font-medium">#{refund.order_id}</span>
+              <span className="font-mono font-medium">#{refund.orderId}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Loại</span>
@@ -256,15 +256,15 @@ function DetailDrawer({ refund, onClose }: { refund: RefundResponse; onClose: ()
               <span className="text-gray-500">Số tiền</span>
               <span className="font-bold text-red-600">{fmt(refund.amount)}</span>
             </div>
-            {refund.adjust_amount && (
+            {refund.adjustAmount && (
               <div className="flex justify-between">
                 <span className="text-gray-500">Đã điều chỉnh</span>
-                <span className="font-medium text-blue-600">{fmt(refund.adjust_amount)}</span>
+                <span className="font-medium text-blue-600">{fmt(refund.adjustAmount)}</span>
               </div>
             )}
             <div className="flex justify-between">
               <span className="text-gray-500">Người yêu cầu</span>
-              <span className="font-medium">{refund.initiated_by === 'BUYER' ? 'Khách hàng' : 'Người bán'}</span>
+              <span className="font-medium">{refund.initiatedBy === 'BUYER' ? 'Khách hàng' : 'Người bán'}</span>
             </div>
           </div>
 
@@ -273,30 +273,30 @@ function DetailDrawer({ refund, onClose }: { refund: RefundResponse; onClose: ()
             <p className="text-sm text-gray-700 bg-gray-50 rounded-xl p-3">{refund.reason}</p>
           </div>
 
-          {refund.admin_note && (
+          {refund.adminNote && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Ghi chú Admin</h4>
-              <p className="text-sm text-gray-700 bg-blue-50 rounded-xl p-3">{refund.admin_note}</p>
+              <p className="text-sm text-gray-700 bg-blue-50 rounded-xl p-3">{refund.adminNote}</p>
             </div>
           )}
 
-          {refund.reject_reason && (
+          {refund.rejectReason && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Lý do từ chối</h4>
-              <p className="text-sm text-red-700 bg-red-50 rounded-xl p-3">{refund.reject_reason}</p>
+              <p className="text-sm text-red-700 bg-red-50 rounded-xl p-3">{refund.rejectReason}</p>
             </div>
           )}
 
-          {refund.stripe_refund_id && (
+          {refund.stripeRefundId && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Stripe Refund ID</h4>
-              <p className="text-xs font-mono text-gray-600 bg-gray-100 rounded-xl p-3 break-all">{refund.stripe_refund_id}</p>
+              <p className="text-xs font-mono text-gray-600 bg-gray-100 rounded-xl p-3 break-all">{refund.stripeRefundId}</p>
             </div>
           )}
 
           <div className="space-y-2 text-xs text-gray-400">
-            <p>Tạo: {formatDate(refund.created_at)}</p>
-            {refund.reviewed_at && <p>Duyệt lúc: {formatDate(refund.reviewed_at)}</p>}
+            <p>Tạo: {formatDate(refund.createdAt)}</p>
+            {refund.reviewedAt && <p>Duyệt lúc: {formatDate(refund.reviewedAt)}</p>}
           </div>
         </div>
       </div>
@@ -327,8 +327,8 @@ export default function RefundsPage() {
   });
 
   const refunds: RefundResponse[] = data?.content ?? [];
-  const totalPages = data?.total_pages ?? 0;
-  const totalElements = data?.total_elements ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+  const totalElements = data?.totalElements ?? 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -416,9 +416,9 @@ export default function RefundsPage() {
                   {refunds.map(r => {
                     const st = STATUS_STYLE[r.status] ?? { bg: 'bg-gray-100', color: 'text-gray-600', label: r.status };
                     return (
-                      <tr key={r.refund_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-4 font-mono text-gray-900">#{r.refund_id}</td>
-                        <td className="px-4 py-4 font-mono text-gray-500">#{r.order_id}</td>
+                      <tr key={r.refundId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-4 font-mono text-gray-900">#{r.refundId}</td>
+                        <td className="px-4 py-4 font-mono text-gray-500">#{r.orderId}</td>
                         <td className="px-4 py-4">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                             r.type === 'FULL' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
@@ -429,16 +429,16 @@ export default function RefundsPage() {
                         <td className="px-4 py-4 font-semibold text-gray-900">{fmt(r.amount)}</td>
                         <td className="px-4 py-4 text-gray-700">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            r.initiated_by === 'BUYER' ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'
+                            r.initiatedBy === 'BUYER' ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'
                           }`}>
-                            {r.initiated_by === 'BUYER' ? 'Khách' : 'Người bán'}
+                            {r.initiatedBy === 'BUYER' ? 'Khách' : 'Người bán'}
                           </span>
                         </td>
                         <td className="px-4 py-4 text-gray-500 max-w-[200px] truncate" title={r.reason}>{r.reason}</td>
                         <td className="px-4 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.bg} ${st.color}`}>{st.label}</span>
                         </td>
-                        <td className="px-4 py-4 text-gray-400 whitespace-nowrap text-xs">{formatDate(r.created_at)}</td>
+                        <td className="px-4 py-4 text-gray-400 whitespace-nowrap text-xs">{formatDate(r.createdAt)}</td>
                         <td className="px-4 py-4">
                           <div className="flex gap-2 flex-wrap">
                             <button

@@ -37,8 +37,8 @@ public class ProductDevDataLoader implements CommandLineRunner {
     //  Order:     parent_orders 1-50, orders 1-100
     // ------------------------------------------------------------------ //
 
-    private static final long[] SELLER_IDS = {1L, 2L, 3L};
-    private static final long[] USER_IDS   = {1L, 2L, 3L, 4L, 5L};
+    private static final long[] SELLER_IDS = {1L, 2L, 3L, 4L, 5L};
+    private static final long[] USER_IDS   = {1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L};
 
     @Override
     public void run(String... args) {
@@ -206,6 +206,117 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 Arrays.asList("https://picsum.photos/seed/iphone14r1/800/800"),
                 false, "PENDING", 10));
 
+        // Seller 4: Home & Living
+        products.add(createProduct("PROD-014", SELLER_IDS[3],
+                catMap.get("nha-cua").getId(),
+                "Nồi chiên không dầu 5.5L", "Nồi chiên không dầu Electrolux 5.5L, nhiệt độ điều chỉnh 80-200°C.",
+                Arrays.asList(
+                        "https://picsum.photos/seed/airfry1/800/800",
+                        "https://picsum.photos/seed/airfry2/800/800"),
+                false, "PUBLISHED", 30));
+
+        products.add(createProduct("PROD-015", SELLER_IDS[3],
+                catMap.get("nha-cua").getId(),
+                "Máy lọc không khí Xiaomi Smart", "Máy lọc không khí Xiaomi, HEPA H13, diện tích 45m², OLED display.",
+                Arrays.asList("https://picsum.photos/seed/airpurifier1/800/800"),
+                false, "PUBLISHED", 20));
+
+        products.add(createProduct("PROD-016", SELLER_IDS[3],
+                catMap.get("nha-cua").getId(),
+                "Bình đun siêu tốc LocknLock 1.8L", "Bình đun nước LocknLock 1.8L, ruột Inox 304, tự ngắt khi sôi.",
+                Arrays.asList("https://picsum.photos/seed/kettle1/800/800"),
+                true, "PUBLISHED", 50));
+
+        products.add(createProduct("PROD-017", SELLER_IDS[3],
+                catMap.get("nha-cua").getId(),
+                "Robot hút bụi Roborock E5", "Robot hút bụi Roborock E5, pin 5200mAh, lau nhà tự động.",
+                Arrays.asList("https://picsum.photos/seed/robovac1/800/800"),
+                false, "PUBLISHED", 15));
+
+        products.add(createProduct("PROD-018", SELLER_IDS[3],
+                catMap.get("nha-cua").getId(),
+                "Quạt đứng Kangaroo 5 cánh", "Quạt đứng Kangaroo KG852, 5 cánh, 3 tốc độ, tiết kiệm điện.",
+                Arrays.asList("https://picsum.photos/seed/fan1/800/800"),
+                false, "PUBLISHED", 40));
+
+        products.add(createProduct("PROD-019", SELLER_IDS[3],
+                catMap.get("nha-cua").getId(),
+                "Đèn ngủ LED cảm ứng Xiaomi", "Đèn ngủ Xiaomi Mijia, cảm ứng chạm, điều chỉnh độ sáng, USB-C.",
+                Arrays.asList("https://picsum.photos/seed/ledlight1/800/800"),
+                true, "PUBLISHED", 80));
+
+        // Seller 5: Sport & Outdoor
+        products.add(createProduct("PROD-020", SELLER_IDS[4],
+                catMap.get("nam").getId(),
+                "Giày chạy bộ Nike Air Zoom Pegasus 40", "Giày chạy bộ Nike Pegasus 40, Zoom Air, thoáng khí, đế EVA foam.",
+                Arrays.asList(
+                        "https://picsum.photos/seed/nikepegasus1/800/800",
+                        "https://picsum.photos/seed/nikepegasus2/800/800"),
+                true, "PUBLISHED", 25));
+
+        products.add(createProduct("PROD-021", SELLER_IDS[4],
+                catMap.get("nam").getId(),
+                "Balo laptop chống nước 15.6 inch", "Balo laptop Tomtoc 15.6 inch, chống sốc, chống nước, nhiều ngăn.",
+                Arrays.asList("https://picsum.photos/seed/backpack1/800/800"),
+                false, "PUBLISHED", 60));
+
+        products.add(createProduct("PROD-022", SELLER_IDS[4],
+                catMap.get("nam").getId(),
+                "Thảm yoga cao cấp 6mm", "Thảm yoga 6mm TPE, chống trượt, không mùi, kích thước 183x61cm.",
+                Arrays.asList("https://picsum.photos/seed/yogamat1/800/800"),
+                false, "PUBLISHED", 100));
+
+        products.add(createProduct("PROD-023", SELLER_IDS[4],
+                catMap.get("nam").getId(),
+                "Dây nhảy thông minh Xiaomi", "Dây nhảy Xiaomi Mi Smart Jump Rope, đếm số vòng, Bluetooth.",
+                Arrays.asList("https://picsum.photos/seed/jumprope1/800/800"),
+                true, "PUBLISHED", 120));
+
+        products.add(createProduct("PROD-024", SELLER_IDS[4],
+                catMap.get("nam").getId(),
+                "Túi đựng giày chạy bộ", "Túi đựng giày Decathlon, thoáng khí, chống ẩm, dây đeo vai.",
+                Arrays.asList("https://picsum.photos/seed/shoebag1/800/800"),
+                false, "PUBLISHED", 45));
+
+        // More products for sellers 1-3
+        products.add(createProduct("PROD-025", SELLER_IDS[0],
+                catMap.get("am-thanh").getId(),
+                "Loa Bluetooth JBL Flip 6", "Loa JBL Flip 6, chống nước IPX7, pin 12h, bass mạnh.",
+                Arrays.asList(
+                        "https://picsum.photos/seed/jblflip6/800/800",
+                        "https://picsum.photos/seed/jblflip6b/800/800"),
+                true, "PUBLISHED", 35));
+
+        products.add(createProduct("PROD-026", SELLER_IDS[0],
+                catMap.get("laptop").getId(),
+                "Dell XPS 15 9530 15.6 inch", "Dell XPS 15 Intel i7-13700H, 16GB RAM, 512GB SSD, OLED 3.5K.",
+                Arrays.asList("https://picsum.photos/seed/dellxps15/800/800"),
+                false, "PUBLISHED", 12));
+
+        products.add(createProduct("PROD-027", SELLER_IDS[1],
+                catMap.get("nu").getId(),
+                "Túi xách nữ da PU cao cấp", "Túi xách nữ, da PU, nhiều ngăn, dây đeo vai, phong cách Hàn Quốc.",
+                Arrays.asList("https://picsum.photos/seed/handbag1/800/800"),
+                false, "PUBLISHED", 55));
+
+        products.add(createProduct("PROD-028", SELLER_IDS[1],
+                catMap.get("nam").getId(),
+                "Kính mát nam Titanum AV-205", "Kính mát Titanum, TR90 frame, UV400, nhẹ 18g, polarised lens.",
+                Arrays.asList("https://picsum.photos/seed/sunglasses1/800/800"),
+                true, "PUBLISHED", 70));
+
+        products.add(createProduct("PROD-029", SELLER_IDS[2],
+                catMap.get("phu-kien").getId(),
+                "Pin dự phòng Anker 20000mAh", "Pin sạc dự phòng Anker 20000mAh, 65W PD, USB-C, sạc nhanh.",
+                Arrays.asList("https://picsum.photos/seed/anker20000/800/800"),
+                false, "PUBLISHED", 40));
+
+        products.add(createProduct("PROD-030", SELLER_IDS[2],
+                catMap.get("phu-kien").getId(),
+                "Bàn phím cơ Akko 3098B", "Bàn phím cơ Akko 3098B, switch Akko CS Rose Red, hot-swap, RGB.",
+                Arrays.asList("https://picsum.photos/seed/akkokb1/800/800"),
+                true, "PUBLISHED", 22));
+
         return productRepository.saveAll(products);
     }
 
@@ -282,6 +393,69 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 case "PROD-013" -> {
                     variants.add(createVariant(product.getId(), "SKU-DAO-5MOC", "5 món cao cấp", new BigDecimal("850000")));
                 }
+                case "PROD-014" -> {
+                    variants.add(createVariant(product.getId(), "SKU-AIRFRY-55", "5.5L / Đen", new BigDecimal("3200000")));
+                    variants.add(createVariant(product.getId(), "SKU-AIRFRY-55W", "5.5L / Trắng", new BigDecimal("3200000")));
+                }
+                case "PROD-015" -> {
+                    variants.add(createVariant(product.getId(), "SKU-AIRPUR-XIA", "Default (Trắng)", new BigDecimal("4500000")));
+                }
+                case "PROD-016" -> {
+                    variants.add(createVariant(product.getId(), "SKU-KETTLE-LNL", "1.8L / Đen", new BigDecimal("550000")));
+                    variants.add(createVariant(product.getId(), "SKU-KETTLE-LNLW", "1.8L / Trắng", new BigDecimal("550000")));
+                }
+                case "PROD-017" -> {
+                    variants.add(createVariant(product.getId(), "SKU-ROBOROCK-E5", "Default (Đen)", new BigDecimal("8500000")));
+                }
+                case "PROD-018" -> {
+                    variants.add(createVariant(product.getId(), "SKU-FAN-KG852", "Default (Trắng)", new BigDecimal("1200000")));
+                }
+                case "PROD-019" -> {
+                    variants.add(createVariant(product.getId(), "SKU-LED-XIA", "Default (Trắng ấm)", new BigDecimal("280000")));
+                    variants.add(createVariant(product.getId(), "SKU-LED-XIA-RGB", "RGB (16 triệu màu)", new BigDecimal("380000")));
+                }
+                case "PROD-020" -> {
+                    variants.add(createVariant(product.getId(), "SKU-NIKE-PEG40-42", "Size 42 / Trắng", new BigDecimal("4200000")));
+                    variants.add(createVariant(product.getId(), "SKU-NIKE-PEG40-43", "Size 43 / Đen", new BigDecimal("4200000")));
+                }
+                case "PROD-021" -> {
+                    variants.add(createVariant(product.getId(), "SKU-BACKPACK-TOM", "15.6 inch / Xám", new BigDecimal("1200000")));
+                    variants.add(createVariant(product.getId(), "SKU-BACKPACK-TOM-B", "15.6 inch / Đen", new BigDecimal("1200000")));
+                }
+                case "PROD-022" -> {
+                    variants.add(createVariant(product.getId(), "SKU-YOGAMAT-6MM", "6mm / Tím", new BigDecimal("280000")));
+                    variants.add(createVariant(product.getId(), "SKU-YOGAMAT-8MM", "8mm / Xanh lá", new BigDecimal("350000")));
+                }
+                case "PROD-023" -> {
+                    variants.add(createVariant(product.getId(), "SKU-JUMPROPE-XIA", "Default (Đen)", new BigDecimal("350000")));
+                }
+                case "PROD-024" -> {
+                    variants.add(createVariant(product.getId(), "SKU-SHOEBAG-DEC", "Default (Xám)", new BigDecimal("180000")));
+                }
+                case "PROD-025" -> {
+                    variants.add(createVariant(product.getId(), "SKU-JBL-FLIP6-BLK", "Đen", new BigDecimal("3800000")));
+                    variants.add(createVariant(product.getId(), "SKU-JBL-FLIP6-RED", "Đỏ", new BigDecimal("3800000")));
+                    variants.add(createVariant(product.getId(), "SKU-JBL-FLIP6-BLU", "Xanh dương", new BigDecimal("3800000")));
+                }
+                case "PROD-026" -> {
+                    variants.add(createVariant(product.getId(), "SKU-DELL-XPS15-I7", "i7/16GB/512GB/OLED", new BigDecimal("32000000")));
+                }
+                case "PROD-027" -> {
+                    variants.add(createVariant(product.getId(), "SKU-HANDBAG-PU-N", "Nâu", new BigDecimal("650000")));
+                    variants.add(createVariant(product.getId(), "SKU-HANDBAG-PU-B", "Đen", new BigDecimal("650000")));
+                }
+                case "PROD-028" -> {
+                    variants.add(createVariant(product.getId(), "SKU-SUNGLASS-TIT", "Titanum / Đen", new BigDecimal("580000")));
+                    variants.add(createVariant(product.getId(), "SKU-SUNGLASS-TIT-G", "Titanum / Xám", new BigDecimal("580000")));
+                }
+                case "PROD-029" -> {
+                    variants.add(createVariant(product.getId(), "SKU-ANKER-20000", "20K mAh / Đen", new BigDecimal("890000")));
+                    variants.add(createVariant(product.getId(), "SKU-ANKER-20000-W", "20K mAh / Trắng", new BigDecimal("890000")));
+                }
+                case "PROD-030" -> {
+                    variants.add(createVariant(product.getId(), "SKU-AKKO-3098B-R", "Akko CS Rose Red", new BigDecimal("2100000")));
+                    variants.add(createVariant(product.getId(), "SKU-AKKO-3098B-T", "Akko CS Lavender Purple", new BigDecimal("2100000")));
+                }
                 default -> {
                     variants.add(createVariant(product.getId(), "SKU-" + product.getId().replace("-", "") + "-DEF", "Default",
                             new BigDecimal("500000")));
@@ -341,8 +515,24 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 items.add(createCartItem(cart.getId(), userId, "SKU-MAGSAFE", null, new BigDecimal("1350000"), 1));
             } else if (userId == 4L) {
                 items.add(createCartItem(cart.getId(), userId, "SKU-POLO-NAM-M", null, new BigDecimal("450000"), 2));
+                items.add(createCartItem(cart.getId(), userId, "SKU-JEANS-29", null, new BigDecimal("650000"), 1));
             } else if (userId == 5L) {
                 items.add(createCartItem(cart.getId(), userId, "SKU-SAMSUNG-BUDS2", null, new BigDecimal("2900000"), 1));
+            } else if (userId == 6L) {
+                items.add(createCartItem(cart.getId(), userId, "SKU-AIRFRY-55", null, new BigDecimal("3200000"), 1));
+                items.add(createCartItem(cart.getId(), userId, "SKU-KETTLE-LNL", null, new BigDecimal("550000"), 1));
+            } else if (userId == 7L) {
+                items.add(createCartItem(cart.getId(), userId, "SKU-NIKE-PEG40-42", null, new BigDecimal("4200000"), 1));
+                items.add(createCartItem(cart.getId(), userId, "SKU-YOGAMAT-6MM", null, new BigDecimal("280000"), 2));
+            } else if (userId == 8L) {
+                items.add(createCartItem(cart.getId(), userId, "SKU-JBL-FLIP6-BLK", null, new BigDecimal("3800000"), 1));
+                items.add(createCartItem(cart.getId(), userId, "SKU-BACKPACK-TOM", null, new BigDecimal("1200000"), 1));
+            } else if (userId == 9L) {
+                items.add(createCartItem(cart.getId(), userId, "SKU-HANDBAG-PU-N", null, new BigDecimal("650000"), 1));
+                items.add(createCartItem(cart.getId(), userId, "SKU-SUNGLASS-TIT", null, new BigDecimal("580000"), 1));
+            } else if (userId == 10L) {
+                items.add(createCartItem(cart.getId(), userId, "SKU-ANKER-20000", null, new BigDecimal("890000"), 1));
+                items.add(createCartItem(cart.getId(), userId, "SKU-AKKO-3098B-R", null, new BigDecimal("2100000"), 1));
             }
 
             if (!items.isEmpty()) {

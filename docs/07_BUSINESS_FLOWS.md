@@ -117,39 +117,41 @@ graph LR
 
 ## 2. Luồng Xác Thực & Tài Khoản
 
-### 2.1 Đăng Ký — Đăng Nhập
+### 2.1 Đăng Ký & Đăng Nhập
+
+Khi người dùng mới tham gia sàn:
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant FE as Frontend
-    participant GW as API Gateway
-    participant IDT as identity-service
-    participant RED as Redis
+    participant FE as Ứng dụng
+    participant System as Hệ thống
 
-    Note over User,IDT: ĐĂNG KÝ
-    User->>FE: Điền form đăng ký
-    FE->>GW: POST /api/v1/auth/register
-    GW->>IDT: RegisterRequest
-    IDT->>IDT: Tạo USERS record<br>status=ACTIVE<br>trust_score=80
-    IDT->>IDT: Tạo LOYALTY_ACCOUNTS<br>available_points=0
-    IDT->>IDT: Tạo ROLES<br>role=BUYER
-    IDT-->>GW: UserResponse (userId, role)
-    GW-->>FE: JWT tokens
-    FE-->>User: Redirect to login
+    Note over User,System: ĐĂNG KÝ TÀI KHOẢN
+    User->>FE: Điền thông tin đăng ký
+    FE->>System: Gửi yêu cầu đăng ký
+    System->>System: Tạo tài khoản mới<br>Trạng thái: Hoạt động<br>Điểm tin nhiệm: 80
+    System->>System: Tạo tài khoản Loyalty<br>Điểm khả dụng: 0
+    System->>System: Gán vai trò: Người mua
+    System-->>FE: Tài khoản tạo thành công
+    FE-->>User: Chuyển hướng đến đăng nhập
 
-    Note over User,IDT: ĐĂNG NHẬP
-    User->>FE: Đăng nhập
-    FE->>GW: POST /api/v1/auth/login
-    GW->>IDT: LoginRequest
-    IDT->>IDT: Verify password (BCrypt)
-    IDT->>IDT: Check USERS.status != LOCKED
-    IDT->>IDT: Generate JWT<br>AccessToken (15 min)<br>RefreshToken (7 days)
-    IDT->>RED: SET refresh_token:{jti}
-    IDT-->>GW: AuthResponse<br>(accessToken, userId, role)
-    GW-->>FE: AuthResponse
-    FE-->>User: Authenticated session
+    Note over User,System: ĐĂNG NHẬP
+    User->>FE: Nhập email và mật khẩu
+    FE->>System: Gửi yêu cầu đăng nhập
+    System->>System: Xác minh mật khẩu
+    System->>System: Kiểm tra trạng thái tài khoản
+    System->>System: Tạo phiên hoạt động
+    System-->>FE: Đăng nhập thành công
+    FE-->>User: Vào trang chủ
 ```
+
+**Quy trình:**
+- Người dùng mới bắt đầu với điểm tin nhiệm 80 (mức Bạc)
+- Điểm Loyalty ban đầu là 0
+- Tài khoản hoạt động ngay lập tức
+- Phiên làm việc được bảo vệ và có thể gia hạn
+
 
 ### 2.2 Khóa / Mở Khóa Tài Khoản
 

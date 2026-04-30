@@ -38,6 +38,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -65,11 +66,16 @@ public class OrderService {
 
     @Transactional
     public CheckoutResponse checkout(Long userId, CheckoutRequest req) {
-        // 1. Validate địa chỉ giao hàng (Kafka request-reply → identity-service)
-        AddressInfo address = fetchAddress(req.getAddressId(), userId);
+        // 1. Validate địa chỉ giao hàng và lấy cart items song song (Kafka request-reply)
+        // Hai Kafka request này độc lập nên chạy song song để giảm latency từ 10s → 5s
+        CompletableFuture<AddressInfo> addressFuture = CompletableFuture.supplyAsync(
+                () -> fetchAddress(req.getAddressId(), userId));
+        CompletableFuture<List<CartItemInfo>> cartItemsFuture = CompletableFuture.supplyAsync(
+                () -> fetchCartItems(userId, req.getItemIds()));
+        CompletableFuture.allOf(addressFuture, cartItemsFuture).join();
 
-        // 2. Lấy cart items từ Cart Service (Kafka request-reply → cart-service)
-        List<CartItemInfo> cartItems = fetchCartItems(userId, req.getItemIds());
+        AddressInfo address = addressFuture.join();
+        List<CartItemInfo> cartItems = cartItemsFuture.join();
         if (cartItems.isEmpty()) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "Không có item hợp lệ trong giỏ hàng");
         }
@@ -579,6 +585,27 @@ public class OrderService {
         return PageResponse.of(mapped);
     }
 
+
+    // ─── Seller Dashboard ─────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public SellerDashboardResponse getSellerDashboard(Long sellerId) {
+        LocalDateTime todayStart = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+
+        long ordersToday = orderRepository.countBySellerIdAndCreatedAtAfter(sellerId, todayStart);
+        long pendingOrders = orderRepository.countBySellerIdAndStatus(sellerId, "PENDING");
+        BigDecimal revenueMonth = orderRepository.sumRevenueForSellerSince(sellerId, monthStart);
+
+        return SellerDashboardResponse.builder()
+                .totalProducts(0)       // requires product-service integration
+                .ordersToday(ordersToday)
+                .pendingOrders(pendingOrders)
+                .revenueMonth(revenueMonth != null ? revenueMonth : BigDecimal.ZERO)
+                .trustScore(0.0)        // not yet implemented
+                .activeProducts(0)      // requires product-service integration
+                .build();
+    }
 
     // ─── Kafka Producers (internal only) ──────────────────────────────────────
 

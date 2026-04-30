@@ -36,7 +36,7 @@ export default function SellerPaymentsPage() {
   const dashMut = useMutation({
     mutationFn: () => sellerApi.getStripeDashboardLink(),
     onSuccess: (res) => {
-      const url = res.data.data?.dashboard_url;
+      const url = res.data.data?.dashboardUrl;
       if (url) window.open(url, '_blank', 'noopener,noreferrer');
     },
     onError: (err: any) => {
@@ -46,11 +46,11 @@ export default function SellerPaymentsPage() {
 
   const st = data
     ? {
-        total: data.total_earnings / 100,
-        available: data.available_balance / 100,
-        pending: data.pending_balance / 100,
-        fee: data.platform_fee_percentage,
-        count: data.total_orders,
+        total: data.totalEarnings / 100,
+        available: data.availableBalance / 100,
+        pending: data.pendingBalance / 100,
+        fee: data.platformFeePercentage,
+        count: data.totalOrders,
       }
     : null;
 
@@ -205,17 +205,17 @@ export default function SellerPaymentsPage() {
                       <tr key={t.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-4">
                           <span className="font-mono text-gray-900">
-                            {t.order_id ? `#${t.order_id}` : '—'}
+                            {t.orderId ? `#${t.orderId}` : '—'}
                           </span>
                         </td>
                         <td className="px-4 py-4 text-right text-gray-600">
-                          {fmt(t.transfer_amount)}
+                          {fmt(t.transferAmount)}
                         </td>
                         <td className="px-4 py-4 text-right text-red-500">
-                          {t.fee_amount > 0 ? `-${fmt(t.fee_amount)}` : fmt(t.fee_amount)}
+                          {t.feeAmount > 0 ? `-${fmt(t.feeAmount)}` : fmt(t.feeAmount)}
                         </td>
                         <td className="px-4 py-4 text-right font-bold text-gray-900">
-                          {fmt(t.net_amount)}
+                          {fmt(t.netAmount)}
                         </td>
                         <td className="px-4 py-4 text-center">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
@@ -224,7 +224,7 @@ export default function SellerPaymentsPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
-                          {formatDate(t.created_at)}
+                          {formatDate(t.createdAt)}
                         </td>
                       </tr>
                     );
@@ -254,8 +254,13 @@ export default function SellerPaymentsPage() {
 
           {dashError && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-              {dashError}
-              <button onClick={() => setDashError(null)} className="ml-2 underline font-medium">Đóng</button>
+              <p className="mb-2">{dashError}</p>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setDashError(null)} className="underline font-medium">Đóng</button>
+                <a href="/stripe-onboarding" className="underline font-medium text-red-700 hover:text-red-800">
+                  Đi tới trang kết nối Stripe →
+                </a>
+              </div>
             </div>
           )}
 

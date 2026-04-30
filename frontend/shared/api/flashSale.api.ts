@@ -4,16 +4,16 @@ import type { ApiResponse, PageResponse } from '../types/api';
 /** Flash sale item — one SKU on sale within a session */
 export interface FlashSaleItem {
   id: number;
-  session_id: number;
-  sku_code: string;
-  product_name: string;
-  product_description?: string;
-  image_url?: string;
-  flash_price: number;
-  original_price: number;
-  flash_stock: number;
-  sold_qty: number;
-  limit_per_user: number;
+  sessionId: number;
+  skuCode: string;
+  productName: string;
+  productDescription?: string;
+  imageUrl?: string;
+  flashPrice: number;
+  originalPrice: number;
+  flashStock: number;
+  soldQty: number;
+  limitPerUser: number;
   status: 'PENDING' | 'ACTIVE' | 'SOLD_OUT' | 'ENDED';
 }
 
@@ -21,8 +21,8 @@ export interface FlashSaleItem {
 export interface FlashSaleSession {
   id: number;
   name: string;
-  start_time: string;
-  end_time: string;
+  startTime: string;
+  endTime: string;
   status: 'UPCOMING' | 'ACTIVE' | 'ENDED';
   items?: FlashSaleItem[];
 }
@@ -38,12 +38,12 @@ export const flashSaleApi = {
 
   /** Buy a flash sale item */
   buy: (sessionId: number, skuCode: string, quantity: number) =>
-    apiClient.post<ApiResponse<{ order_id: number; order_code: string; amount: number }>>(
+    apiClient.post<ApiResponse<{ orderId: number; orderCode: string; amount: number }>>(
       `/flash-sales/${sessionId}/buy`,
-      { sku_code: skuCode, quantity }
+      { skuCode, quantity }
     ),
 
   /** Create a flash sale session (admin) */
-  createSession: (data: { name: string; start_time: string; end_time: string; description?: string }) =>
-    apiClient.post<ApiResponse<{ session_id: number; status: string }>>('/flash-sales', data),
+  createSession: (data: { name: string; startTime: string; endTime: string; description?: string }) =>
+    apiClient.post<ApiResponse<{ sessionId: number; status: string }>>('/flash-sales', data),
 };

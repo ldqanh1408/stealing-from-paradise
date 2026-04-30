@@ -22,7 +22,7 @@ const fmtDate = (iso: string) =>
 function BanModal({ user, onClose, onSuccess }: { user: AdminUser; onClose: () => void; onSuccess: () => void }) {
   const queryClient = useQueryClient();
   const mut = useMutation({
-    mutationFn: () => adminApi.updateUserStatus(user.user_id, user.status === 'BANNED' ? 'ACTIVE' : 'BANNED'),
+    mutationFn: () => adminApi.updateUserStatus(user.userId, user.status === 'BANNED' ? 'ACTIVE' : 'BANNED'),
     onSuccess: () => { onSuccess(); onClose(); },
     onError: () => {},
   });
@@ -169,8 +169,8 @@ export default function UserManagementPage() {
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.user_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-5 py-4 text-gray-400 font-mono text-xs">{u.user_id}</td>
+                    <tr key={u.userId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4 text-gray-400 font-mono text-xs">{u.userId}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold uppercase shrink-0">
@@ -190,14 +190,14 @@ export default function UserManagementPage() {
                         <div className="flex items-center gap-2">
                           <div className="w-20 shrink-0 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full ${u.trust_score >= 80 ? 'bg-green-500' : u.trust_score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                              style={{ width: `${u.trust_score}%` }}
+                              className={`h-full rounded-full ${u.trustScore >= 80 ? 'bg-green-500' : u.trustScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                              style={{ width: `${u.trustScore}%` }}
                             />
                           </div>
-                          <span className="text-xs font-medium text-gray-700">{u.trust_score}</span>
+                          <span className="text-xs font-medium text-gray-700">{u.trustScore}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-gray-400 whitespace-nowrap text-xs">{fmtDate(u.created_at)}</td>
+                      <td className="px-5 py-4 text-gray-400 whitespace-nowrap text-xs">{fmtDate(u.createdAt)}</td>
                       <td className="px-5 py-4">
                         {u.role !== 'ADMIN' && (
                           <div className="flex gap-2">

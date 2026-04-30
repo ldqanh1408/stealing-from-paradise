@@ -4,22 +4,22 @@ import type { ApiResponse } from '../types/api';
 // ─── Payment Endpoints (payment-service) ───────────────────────────────────
 
 export interface PaymentDetail {
-  transaction_id: number;
-  parent_order_id: number;
+  transactionId: number;
+  parentOrderId: number;
   amount: number;
   method: string;
   status: string;
-  stripe_pi_id: string;
-  application_fee: number;
-  trans_ref: string;
-  paid_at: string | null;
-  remaining_seconds: number | null;
+  stripePiId: string;
+  applicationFee: number;
+  transRef: string;
+  paidAt: string | null;
+  remainingSeconds: number | null;
 }
 
 export interface ClientSecretResponse {
-  parent_order_id: number;
-  transaction_id: number;
-  client_secret: string;
+  parentOrderId: number;
+  transactionId: number;
+  clientSecret: string;
   status: string;
 }
 

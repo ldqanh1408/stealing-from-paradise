@@ -590,6 +590,11 @@ function Invoke-NpmInstall {
         }
     } else {
         # Install for all: shared first, then each app
+        $appDirMap = @{
+            "customer" = "apps/customer"
+            "seller"  = "apps/seller"
+            "admin"   = "apps/admin"
+        }
         $sharedPath = Join-Path (Join-Path $ProjectRoot "frontend") "shared"
         Write-Host "[flashsale-build] npm install for: shared"
         Push-Location $sharedPath
@@ -636,7 +641,6 @@ function Invoke-NpmBuild {
         Write-Host "[flashsale-build] Building frontend app: $App"
         Push-Location $targetPath
         try {
-            npm install
             npm run build
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "[flashsale-build] npm build FAILED for '$App'."
@@ -662,7 +666,6 @@ function Invoke-NpmBuild {
             Write-Host "[flashsale-build] Building frontend app: $app"
             Push-Location $targetPath
             try {
-                npm install
                 npm run build
                 if ($LASTEXITCODE -ne 0) {
                     Write-Error "[flashsale-build] npm build FAILED for '$app'."

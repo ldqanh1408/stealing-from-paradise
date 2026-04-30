@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { paymentApi } from '@shared/api/payment.api';
+import { orderApi } from '@shared/api/order.api';
 import type { CheckoutResponse } from '@shared/api/order.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -80,7 +81,7 @@ function PaymentForm({
               Đang xử lý thanh toán...
             </>
           ) : (
-            `Thanh toán ${fmt(orderData.final_amount)}`
+            `Thanh toán ${fmt(orderData.finalAmount)}`
           )}
         </button>
       </div>
@@ -111,7 +112,15 @@ export default function CheckoutPage() {
     }
   }, [orderData, navigate]);
 
-  const parentOrderId = orderData?.parent_order_id;
+  const parentOrderId = orderData?.parentOrderId;
+
+  // Fetch parent order to get shipping address
+  const { data: parentOrder } = useQuery({
+    queryKey: ['parent-order', parentOrderId],
+    queryFn: () => orderApi.getParentOrder(parentOrderId!).then(r => r.data.data),
+    enabled: !!parentOrderId,
+    retry: 1,
+  });
 
   const { data: clientSecretData, isLoading: secretLoading } = useQuery({
     queryKey: ['client-secret', parentOrderId],
@@ -121,19 +130,19 @@ export default function CheckoutPage() {
   });
 
   useEffect(() => {
-    if (!orderData?.timeout_at) return;
-    const target = new Date(orderData.timeout_at).getTime();
+    if (!orderData?.timeoutAt) return;
+    const target = new Date(orderData.timeoutAt).getTime();
     const tick = () => {
       const remaining = Math.max(0, Math.floor((target - Date.now()) / 1000));
       setCountdown(remaining);
       if (remaining === 0) {
-        navigate('/checkout/result?status=failed', { state: { error: 'Hết thời gian thanh toán', parentOrderId: orderData.parent_order_id } });
+        navigate('/checkout/result?status=failed', { state: { error: 'Hết thời gian thanh toán', parentOrderId: orderData.parentOrderId } });
       }
     };
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [orderData?.timeout_at, navigate]);
+  }, [orderData?.timeoutAt, navigate]);
 
   const handleStripeSuccess = (paymentIntentId: string) => {
     navigate('/checkout/result?status=success', {
@@ -155,7 +164,7 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận thanh toán</h1>
-      <p className="text-sm text-gray-500 mb-6">Mã đơn: <span className="font-mono font-medium">{orderData.order_code}</span></p>
+      <p className="text-sm text-gray-500 mb-6">Mã đơn: <span className="font-mono font-medium">{orderData.orderCode}</span></p>
 
       {countdown !== null && countdown > 0 && (
         <div className="mb-6 flex items-center gap-2">
@@ -169,6 +178,28 @@ export default function CheckoutPage() {
         </div>
       )}
 
+      {/* Shipping address */}
+      {(parentOrder?.shippingAddress || orderData.orders[0]?.shippingAddress) && (
+        <div className="mb-6 bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                <span>📍</span> Địa chỉ giao hàng
+              </h2>
+              <p className="text-sm text-gray-700 mt-1">
+                {(parentOrder?.shippingAddress ?? orderData.orders[0]?.shippingAddress)?.fullAddress}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/checkout')}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Thay đổi
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3">
           {secretLoading && (
@@ -176,13 +207,13 @@ export default function CheckoutPage() {
               <div className="h-48 bg-gray-100 rounded-2xl" />
             </div>
           )}
-          {!secretLoading && clientSecretData?.client_secret && (
+          {!secretLoading && clientSecretData?.clientSecret && (
             <PaymentForm
               orderData={orderData}
               onSuccess={handleStripeSuccess}
             />
           )}
-          {!secretLoading && !clientSecretData?.client_secret && (
+          {!secretLoading && !clientSecretData?.clientSecret && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
               <p className="text-gray-500">Không thể kết nối với cổng thanh toán. Vui lòng thử lại.</p>
             </div>
@@ -194,22 +225,22 @@ export default function CheckoutPage() {
             <h2 className="font-bold text-gray-900 mb-4">📋 Đơn hàng</h2>
             <div className="space-y-3 mb-4 pb-4 border-b border-gray-100">
               {orderData.orders.map(order => (
-                <div key={order.order_id} className="text-sm">
-                  <p className="font-medium text-gray-900">{order.seller_name}</p>
-                  <p className="text-xs text-gray-500 font-mono">{order.order_code}</p>
-                  <p className="font-bold text-red-600 mt-1">{fmt(order.final_amt)}</p>
+                <div key={order.orderId} className="text-sm">
+                  <p className="font-medium text-gray-900">{order.sellerName}</p>
+                  <p className="text-xs text-gray-500 font-mono">{order.orderCode}</p>
+                  <p className="font-bold text-red-600 mt-1">{fmt(order.finalAmt)}</p>
                 </div>
               ))}
             </div>
             <div className="space-y-2 text-sm mb-5">
               <div className="flex justify-between text-gray-600">
                 <span>Tạm tính</span>
-                <span>{fmt(orderData.total_amount)}</span>
+                <span>{fmt(orderData.totalAmount)}</span>
               </div>
-              {orderData.loyalty_discount ? (
+              {orderData.loyaltyDiscount ? (
                 <div className="flex justify-between text-gray-600">
                   <span>Giảm điểm</span>
-                  <span className="text-green-600">-{fmt(orderData.loyalty_discount)}</span>
+                  <span className="text-green-600">-{fmt(orderData.loyaltyDiscount)}</span>
                 </div>
               ) : null}
               <div className="flex justify-between text-gray-600">
@@ -219,7 +250,7 @@ export default function CheckoutPage() {
               <div className="h-px bg-gray-100" />
               <div className="flex justify-between font-bold text-gray-900 text-base">
                 <span>Tổng</span>
-                <span className="text-red-600">{fmt(orderData.final_amount)}</span>
+                <span className="text-red-600">{fmt(orderData.finalAmount)}</span>
               </div>
             </div>
             <div className="p-3 bg-blue-50 rounded-xl text-xs text-blue-700">

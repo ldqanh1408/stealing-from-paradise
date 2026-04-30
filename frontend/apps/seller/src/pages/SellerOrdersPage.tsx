@@ -41,7 +41,7 @@ function TrackingModal({ order, onClose, onSuccess }: { order: SellerOrderSummar
   const [error, setError] = useState('');
 
   const mut = useMutation({
-    mutationFn: () => orderApi.updateTracking(order.order_id, { tracking_number: trackingNumber, carrier, note }),
+    mutationFn: () => orderApi.updateTracking(order.orderId, { trackingNumber, carrier, note }),
     onSuccess: () => { onSuccess(); onClose(); },
     onError: (err: any) => {
       setError(err?.response?.data?.message || 'Cập nhật vận đơn thất bại');
@@ -55,7 +55,7 @@ function TrackingModal({ order, onClose, onSuccess }: { order: SellerOrderSummar
       <div className="bg-white rounded-2xl p-6 max-w-md w-full">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Cập nhật vận đơn</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Đơn: <strong>{order.order_code}</strong> · Khách: {order.buyer_name || order.buyer_username || `User #${order.buyer_id}`}
+          Đơn: <strong>{order.orderCode}</strong> · Khách: {order.buyerName || order.buyerUsername || `User #${order.buyerId}`}
         </p>
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
         <div className="space-y-4 mb-6">
@@ -118,7 +118,7 @@ function RTSModal({ order, onClose, onSuccess }: { order: SellerOrderSummary; on
       if (files) Array.from(files).forEach(f => fd.append('evidence_images', f));
       if (returnTracking) fd.append('return_tracking_number', returnTracking);
       if (note) fd.append('note', note);
-      return orderApi.returnToSender(order.order_id, fd);
+      return orderApi.returnToSender(order.orderId, fd);
     },
     onSuccess: () => { onSuccess(); onClose(); },
     onError: (err: any) => {
@@ -131,7 +131,7 @@ function RTSModal({ order, onClose, onSuccess }: { order: SellerOrderSummary; on
       <div className="bg-white rounded-2xl p-6 max-w-md w-full my-4">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Xác nhận hoàn hàng (RTS)</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Đơn <strong>{order.order_code}</strong> đã được hoàn về. Xác nhận để kích hoạt hoàn tiền tự động cho khách.
+          Đơn <strong>{order.orderCode}</strong> đã được hoàn về. Xác nhận để kích hoạt hoàn tiền tự động cho khách.
         </p>
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
         <div className="space-y-4 mb-6">
@@ -195,23 +195,23 @@ function OrderDrawer({ order, onClose }: { order: SellerOrderSummary; onClose: (
         onClick={e => e.stopPropagation()}
       >
         <div className="sticky top-0 bg-white border-b p-5 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900">Chi tiết đơn #{order.order_code}</h3>
+          <h3 className="font-bold text-gray-900">Chi tiết đơn #{order.orderCode}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
         </div>
         <div className="p-5 space-y-5">
           <div>
             <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Thông tin khách hàng</h4>
             <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
-              <p><span className="text-gray-500">Tên:</span> <span className="font-medium">{order.buyer_name || `User #${order.buyer_id}`}</span></p>
-              {order.buyer_username && <p><span className="text-gray-500">Username:</span> <span className="font-medium">@{order.buyer_username}</span></p>}
-              <p><span className="text-gray-500">Địa chỉ:</span> <span className="font-medium">{order.shipping_address?.full_address || '—'}</span></p>
+              <p><span className="text-gray-500">Tên:</span> <span className="font-medium">{order.buyerName || `User #${order.buyerId}`}</span></p>
+              {order.buyerUsername && <p><span className="text-gray-500">Username:</span> <span className="font-medium">@{order.buyerUsername}</span></p>}
+              <p><span className="text-gray-500">Địa chỉ:</span> <span className="font-medium">{order.shippingAddress?.fullAddress || '—'}</span></p>
             </div>
           </div>
 
           <div>
             <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Thông tin vận chuyển</h4>
             <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
-              <p><span className="text-gray-500">Mã vận đơn:</span> <span className="font-medium font-mono">{order.tracking_number || '—'}</span></p>
+              <p><span className="text-gray-500">Mã vận đơn:</span> <span className="font-medium font-mono">{order.trackingNumber || '—'}</span></p>
               <p><span className="text-gray-500">Đơn vị:</span> <span className="font-medium">{order.carrier || '—'}</span></p>
             </div>
           </div>
@@ -219,14 +219,14 @@ function OrderDrawer({ order, onClose }: { order: SellerOrderSummary; onClose: (
           <div>
             <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Thông tin thanh toán</h4>
             <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
-              <p><span className="text-gray-500">Tổng tiền:</span> <span className="font-bold text-red-600">{fmt(order.total_amt)}</span></p>
-              <p><span className="text-gray-500">Thanh toán:</span> <span className="font-medium">{fmt(order.final_amt)}</span></p>
+              <p><span className="text-gray-500">Tổng tiền:</span> <span className="font-bold text-red-600">{fmt(order.totalAmt)}</span></p>
+              <p><span className="text-gray-500">Thanh toán:</span> <span className="font-medium">{fmt(order.finalAmt)}</span></p>
             </div>
           </div>
 
           <div className="flex gap-3">
             <button
-              onClick={() => { onClose(); navigate(`/orders/${order.order_id}`); }}
+              onClick={() => { onClose(); navigate(`/orders/${order.orderId}`); }}
               className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50"
             >
               Xem chi tiết đầy đủ
@@ -337,27 +337,40 @@ export default function SellerOrdersPage() {
                     const st = STATUS_STYLE[order.status] ?? { bg: 'bg-gray-100', color: 'text-gray-700' };
                     const stLabel = STATUS_FILTERS.find(f => f.value === order.status)?.label ?? order.status;
                     return (
-                      <tr key={order.order_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <tr key={order.orderId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="px-5 py-4">
                           <button
                             onClick={() => setDrawerOrder(order)}
                             className="font-mono font-medium text-gray-900 hover:text-blue-600"
                           >
-                            {order.order_code}
+                            {order.orderCode}
                           </button>
                         </td>
                         <td className="px-5 py-4 text-gray-700">
-                          <p className="font-medium">{order.buyer_name || `User #${order.buyer_id}`}</p>
-                          {order.buyer_username && <p className="text-xs text-gray-400">@{order.buyer_username}</p>}
+                          <p className="font-medium">{order.buyerName || `User #${order.buyerId}`}</p>
+                          {order.buyerUsername && <p className="text-xs text-gray-400">@{order.buyerUsername}</p>}
                         </td>
-                        <td className="px-5 py-4 text-gray-500">{order.item_count} sản phẩm</td>
-                        <td className="px-5 py-4 font-semibold text-gray-900">{fmt(order.final_amt)}</td>
+                        <td className="px-5 py-4 text-gray-500">{order.itemCount} sản phẩm</td>
+                        <td className="px-5 py-4 font-semibold text-gray-900">{fmt(order.finalAmt)}</td>
                         <td className="px-5 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.bg} ${st.color}`}>{stLabel}</span>
                         </td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDate(order.created_at)}</td>
+                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDate(order.createdAt)}</td>
                         <td className="px-5 py-4">
                           <div className="flex gap-2 flex-wrap">
+                            {order.status === 'PENDING' && (
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Hủy đơn ${order.orderCode}? Hành động này không thể hoàn tác.`)) {
+                                    orderApi.cancelOrder(order.orderId, { reason: 'Người bán hủy đơn' })
+                                      .then(() => queryClient.invalidateQueries({ queryKey: ['seller-orders'] }));
+                                  }
+                                }}
+                                className="text-xs text-red-500 hover:text-red-600 font-medium whitespace-nowrap"
+                              >
+                                Huỷ đơn
+                              </button>
+                            )}
                             {order.status === 'PAID' && (
                               <button
                                 onClick={() => setTrackingOrder(order)}

@@ -1,6 +1,5 @@
 package com.flashsale.orderdomain.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.flashsale.orderdomain.domain.model.Order;
 import lombok.Builder;
 import lombok.Data;
@@ -13,39 +12,17 @@ import java.time.ZoneOffset;
 @Builder
 public class OrderSummaryResponse {
 
-    @JsonProperty("order_id")
     private Long orderId;
-
-    @JsonProperty("parent_order_id")
     private Long parentOrderId;
-
-    @JsonProperty("order_code")
     private String orderCode;
-
-    @JsonProperty("seller_id")
     private Long sellerId;
-
-    @JsonProperty("seller_name")
     private String sellerName;
-
     private String status;
-
-    @JsonProperty("total_amt")
     private BigDecimal totalAmt;
-
-    @JsonProperty("final_amt")
     private BigDecimal finalAmt;
-
-    @JsonProperty("is_flash_sale")
     private Boolean isFlashSale;
-
-    @JsonProperty("item_count")
     private Integer itemCount;
-
-    @JsonProperty("created_at")
     private Instant createdAt;
-
-    @JsonProperty("updated_at")
     private Instant updatedAt;
 
     public static OrderSummaryResponse from(Order order) {

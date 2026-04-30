@@ -49,7 +49,7 @@ function CancelModal({ order, queryClient, parentOrderId, onClose, onSuccess }: 
   const [error, setError] = useState('');
 
   const mut = useMutation({
-    mutationFn: () => orderApi.cancelOrder(order.order_id, { reason, note }),
+    mutationFn: () => orderApi.cancelOrder(order.orderId, { reason, note }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['parent-order', parentOrderId] });
       onSuccess();
@@ -65,7 +65,7 @@ function CancelModal({ order, queryClient, parentOrderId, onClose, onSuccess }: 
       <div className="bg-white rounded-2xl p-6 max-w-md w-full">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Hủy đơn hàng</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Bạn đang hủy đơn <strong>{order.order_code}</strong>. Hành động này không thể hoàn tác.
+          Bạn đang hủy đơn <strong>{order.orderCode}</strong>. Hành động này không thể hoàn tác.
         </p>
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
         <div className="mb-4">
@@ -123,7 +123,7 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
         quantity: v.qty,
         item_reason: v.itemReason,
       }));
-      return refundApi.requestPartialRefund(order.order_id, { reason, items });
+      return refundApi.requestPartialRefund(order.orderId, { reason, items });
     },
     onSuccess: () => {
       setSuccess(true);
@@ -136,11 +136,11 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
 
   const toggleItem = (item: OrderItem) => {
     const next = new Map(selectedItems);
-    if (next.has(item.order_item_id)) {
-      next.delete(item.order_item_id);
+    if (next.has(item.orderItemId)) {
+      next.delete(item.orderItemId);
     } else {
-      next.set(item.order_item_id, {
-        qty: item.quantity - item.refunded_quantity,
+      next.set(item.orderItemId, {
+        qty: item.quantity - item.refundedQuantity,
         itemReason: '',
       });
     }
@@ -157,12 +157,12 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
   const refundTotal = () => {
     if (!order.items) return 0;
     return Array.from(selectedItems.entries()).reduce((sum, [itemId, v]) => {
-      const item = order.items?.find(i => i.order_item_id === itemId);
-      return sum + (item ? item.price_snapshot * v.qty : 0);
+      const item = order.items?.find(i => i.orderItemId === itemId);
+      return sum + (item ? item.priceSnapshot * v.qty : 0);
     }, 0);
   };
 
-  const remaining = (item: OrderItem) => item.quantity - item.refunded_quantity;
+  const remaining = (item: OrderItem) => item.quantity - item.refundedQuantity;
 
   if (success) {
     return (
@@ -181,7 +181,7 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
       <div className="bg-white rounded-2xl p-6 max-w-lg w-full my-4">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Yêu cầu hoàn tiền một phần</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Hoàn tiền cho đơn <strong>{order.order_code}</strong> ({order.seller_name})
+          Hoàn tiền cho đơn <strong>{order.orderCode}</strong> ({order.sellerName})
         </p>
         {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
 
@@ -189,28 +189,28 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
         <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
           {order.items?.map(item => {
             const avail = remaining(item);
-            const sel = selectedItems.get(item.order_item_id);
+            const sel = selectedItems.get(item.orderItemId);
             if (avail <= 0) return null;
             return (
-              <div key={item.order_item_id} className={`border rounded-xl p-3 cursor-pointer transition-all ${sel ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+              <div key={item.orderItemId} className={`border rounded-xl p-3 cursor-pointer transition-all ${sel ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
                 onClick={() => toggleItem(item)}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
-                    <p className="text-xs text-gray-500">{item.variant_name} · Còn hoàn: {avail}/{item.quantity}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
+                    <p className="text-xs text-gray-500">{item.variantName} · Còn hoàn: {avail}/{item.quantity}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-gray-900">{fmt(item.price_snapshot * avail)}</p>
-                    <p className="text-xs text-gray-400">{fmt(item.price_snapshot)}/sp</p>
+                    <p className="text-sm font-bold text-gray-900">{fmt(item.priceSnapshot * avail)}</p>
+                    <p className="text-xs text-gray-400">{fmt(item.priceSnapshot)}/sp</p>
                   </div>
                 </div>
                 {sel && avail > 1 && (
                   <div className="mt-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
                     <span className="text-xs text-gray-500">SL:</span>
-                    <button onClick={() => updateQty(item.order_item_id, sel.qty - 1)} className="w-6 h-6 rounded border text-xs font-bold hover:bg-gray-100">−</button>
+                    <button onClick={() => updateQty(item.orderItemId, sel.qty - 1)} className="w-6 h-6 rounded border text-xs font-bold hover:bg-gray-100">−</button>
                     <span className="text-xs font-medium w-4 text-center">{sel.qty}</span>
-                    <button onClick={() => updateQty(item.order_item_id, sel.qty + 1)} disabled={sel.qty >= avail} className="w-6 h-6 rounded border text-xs font-bold hover:bg-gray-100 disabled:opacity-30">+</button>
+                    <button onClick={() => updateQty(item.orderItemId, sel.qty + 1)} disabled={sel.qty >= avail} className="w-6 h-6 rounded border text-xs font-bold hover:bg-gray-100 disabled:opacity-30">+</button>
                   </div>
                 )}
                 {sel && (
@@ -220,7 +220,7 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
                       value={sel.itemReason}
                       onChange={e => {
                         const next = new Map(selectedItems);
-                        next.set(item.order_item_id, { ...next.get(item.order_item_id)!, itemReason: e.target.value });
+                        next.set(item.orderItemId, { ...next.get(item.orderItemId)!, itemReason: e.target.value });
                         setSelectedItems(next);
                       }}
                       className="w-full px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -302,12 +302,12 @@ function FullRefundModal({ parentOrderId, onClose, onSuccess }: { parentOrderId:
           <div className="text-5xl mb-4">✅</div>
           <h3 className="text-lg font-bold text-gray-900 mb-2">Yêu cầu hoàn tiền đã gửi!</h3>
           <p className="text-sm text-gray-500 mb-2">
-            Tổng cộng: <strong className="text-red-600">{fmt(result.total_amount)}</strong>
+            Tổng cộng: <strong className="text-red-600">{fmt(result.totalAmount)}</strong>
           </p>
           <p className="text-xs text-gray-400">
             {result.refunds.length} yêu cầu hoàn tiền cho {result.refunds.length} người bán
           </p>
-          <p className="text-xs text-gray-400 mt-1">Ước tính hoàn: {result.estimated_days} ngày</p>
+          <p className="text-xs text-gray-400 mt-1">Ước tính hoàn: {result.estimatedDays} ngày</p>
         </div>
       </div>
     );
@@ -353,7 +353,7 @@ function FullRefundModal({ parentOrderId, onClose, onSuccess }: { parentOrderId:
 // ─── Confirm Received Modal ───────────────────────────────────────────────────
 function ConfirmReceivedModal({ order, onClose, onSuccess }: { order: Order; onClose: () => void; onSuccess: () => void }) {
   const mut = useMutation({
-    mutationFn: () => orderApi.confirmReceived(order.order_id),
+    mutationFn: () => orderApi.confirmReceived(order.orderId),
     onSuccess: () => { onSuccess(); onClose(); },
     onError: () => {},
   });
@@ -364,7 +364,7 @@ function ConfirmReceivedModal({ order, onClose, onSuccess }: { order: Order; onC
         <div className="text-5xl mb-4">📦</div>
         <h3 className="text-lg font-bold text-gray-900 mb-2">Xác nhận đã nhận hàng?</h3>
         <p className="text-sm text-gray-500 mb-6">
-          Xác nhận bạn đã nhận được đơn hàng <strong>{order.order_code}</strong> từ {order.seller_name}.
+          Xác nhận bạn đã nhận được đơn hàng <strong>{order.orderCode}</strong> từ {order.sellerName}.
           <br />Bạn sẽ nhận được điểm thưởng từ đơn hàng này.
         </p>
         <div className="flex gap-3">
@@ -446,7 +446,7 @@ export default function OrderDetailPage() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Chi tiết đơn hàng</h1>
-          <p className="text-sm text-gray-500">{parent.order_code}</p>
+          <p className="text-sm text-gray-500">{parent.orderCode}</p>
         </div>
       </div>
 
@@ -476,10 +476,10 @@ export default function OrderDetailPage() {
                  paymentData.status === 'PENDING' ? 'Đang chờ' : 'Thất bại'}
               </span>
             </div>
-            {paymentData.paid_at && (
+            {paymentData.paidAt && (
               <div>
                 <p className="text-gray-500 text-xs">Thanh toán lúc</p>
-                <p className="font-medium text-gray-700">{formatDate(paymentData.paid_at)}</p>
+                <p className="font-medium text-gray-700">{formatDate(paymentData.paidAt)}</p>
               </div>
             )}
           </div>
@@ -487,10 +487,10 @@ export default function OrderDetailPage() {
       )}
 
       {/* Shipping address */}
-      {parent.shipping_address && (
+      {parent.shippingAddress && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
           <h2 className="font-bold text-gray-900 mb-2">📍 Địa chỉ giao hàng</h2>
-          <p className="text-sm text-gray-700">{parent.shipping_address.full_address}</p>
+          <p className="text-sm text-gray-700">{parent.shippingAddress.fullAddress}</p>
         </div>
       )}
 
@@ -499,55 +499,55 @@ export default function OrderDetailPage() {
         {parent.orders.map(subOrder => {
           const st = STATUS_STYLE[subOrder.status] ?? { bg: 'bg-gray-100', color: 'text-gray-700', label: subOrder.status };
           return (
-            <div key={subOrder.order_id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div key={subOrder.orderId} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               {/* Sub-order header */}
               <div className="px-5 py-4 border-b border-gray-50 flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-gray-900">{subOrder.order_code}</span>
+                    <span className="font-bold text-gray-900">{subOrder.orderCode}</span>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${st.bg} ${st.color}`}>{st.label}</span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-0.5">{subOrder.seller_name}</p>
-                  {subOrder.tracking_number && (
+                  <p className="text-sm text-gray-500 mt-0.5">{subOrder.sellerName}</p>
+                  {subOrder.trackingNumber && (
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Mã vận đơn: {subOrder.tracking_number}
+                      Mã vận đơn: {subOrder.trackingNumber}
                       {subOrder.carrier ? ` (${subOrder.carrier})` : ''}
                     </p>
                   )}
-                  {subOrder.cancelled_by && (
+                  {subOrder.cancelledBy && (
                     <p className="text-xs text-red-500 mt-0.5">
-                      Đã hủy bởi {subOrder.cancelled_by}: {subOrder.cancel_reason}
+                      Đã hủy bởi {subOrder.cancelledBy}: {subOrder.cancelReason}
                     </p>
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-gray-900">{fmt(subOrder.final_amt)}</p>
-                  <p className="text-xs text-gray-400">{formatDate(subOrder.created_at)}</p>
+                  <p className="font-bold text-gray-900">{fmt(subOrder.finalAmt)}</p>
+                  <p className="text-xs text-gray-400">{formatDate(subOrder.createdAt)}</p>
                 </div>
               </div>
 
               {/* Order items */}
               <div className="px-5 py-4">
                 {subOrder.items?.map(item => (
-                  <div key={item.order_item_id} className="flex items-center gap-3 mb-3 last:mb-0">
+                  <div key={item.orderItemId} className="flex items-center gap-3 mb-3 last:mb-0">
                     <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center text-2xl shrink-0">
-                      {item.image_snapshot ? (
-                        <img src={item.image_snapshot} alt="" className="w-full h-full object-cover rounded-lg" />
+                      {item.imageSnapshot ? (
+                        <img src={item.imageSnapshot} alt="" className="w-full h-full object-cover rounded-lg" />
                       ) : '📦'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
-                      <p className="text-xs text-gray-500">{item.variant_name}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
+                      <p className="text-xs text-gray-500">{item.variantName}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs text-gray-400">x{item.quantity}</span>
-                        {item.refunded_quantity > 0 && (
-                          <span className="text-xs text-blue-600">Đã hoàn: {item.refunded_quantity}</span>
+                        {item.refundedQuantity > 0 && (
+                          <span className="text-xs text-blue-600">Đã hoàn: {item.refundedQuantity}</span>
                         )}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold text-gray-900">{fmt(item.price_snapshot * item.quantity)}</p>
-                      <p className="text-xs text-gray-400">{fmt(item.price_snapshot)}/sp</p>
+                      <p className="text-sm font-semibold text-gray-900">{fmt(item.priceSnapshot * item.quantity)}</p>
+                      <p className="text-xs text-gray-400">{fmt(item.priceSnapshot)}/sp</p>
                     </div>
                   </div>
                 ))}
@@ -599,7 +599,7 @@ export default function OrderDetailPage() {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>Tổng tiền hàng</span>
-            <span>{fmt(parent.total_amt)}</span>
+            <span>{fmt(parent.totalAmt)}</span>
           </div>
           {orderData.orders[0]?.items && (
             <div className="flex justify-between text-gray-600">
@@ -610,7 +610,7 @@ export default function OrderDetailPage() {
           <div className="h-px bg-gray-100" />
           <div className="flex justify-between font-bold text-base">
             <span>Thanh toán</span>
-            <span className="text-red-600 text-lg">{fmt(parent.final_amt)}</span>
+            <span className="text-red-600 text-lg">{fmt(parent.finalAmt)}</span>
           </div>
         </div>
       </div>

@@ -27,12 +27,12 @@ public class PaymentController {
      * - remaining_seconds chỉ có khi status = PENDING
      */
     @GetMapping("/payments/parent-order/{parentOrderId}")
-    @PreAuthorize("hasRole('BUYER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('BUYER') or hasRole('SELLER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<TransactionDetailResponse>> getTransactionByParentOrder(
             @PathVariable Long parentOrderId,
             @AuthenticationPrincipal UserDetailsImpl user) {
 
-        log.info("Get transaction for parentOrderId={} by userId={}", parentOrderId, user.getId());
+        log.info("Get transaction for parentOrderId={} by userId={} role={}", parentOrderId, user.getId(), user.getRole());
         TransactionDetailResponse response = paymentService.getTransactionByParentOrder(parentOrderId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }

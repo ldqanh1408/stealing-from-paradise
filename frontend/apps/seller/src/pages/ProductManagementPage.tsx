@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@shared/lib/axios';
-import { sellerApi, type SellerProduct, type SellerVariant } from '@shared/api/seller.api';
+import { sellerApi, type SellerProduct, type SellerVariant, type InventoryLogEntry } from '@shared/api/seller.api';
 import type { ApiResponse, PageResponse } from '@shared/types/api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -31,21 +31,23 @@ function VariantModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [sku, setSku] = useState(initial?.sku_code ?? '');
-  const [name, setName] = useState(initial?.variant_name ?? '');
+  const [sku, setSku] = useState(initial?.skuCode ?? '');
+  const [name, setName] = useState(initial?.variantName ?? '');
   const [price, setPrice] = useState(initial?.price?.toString() ?? '');
   const [stock, setStock] = useState(initial?.stock?.toString() ?? '1');
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const mut = useMutation({
     mutationFn: () => {
-      const data = { sku_code: sku.trim(), variant_name: name.trim(), price: Number(price), stock: Number(stock) };
+      const data = { skuCode: sku.trim(), variantName: name.trim(), price: Number(price), stock: Number(stock) };
       return initial
-        ? sellerApi.updateVariant(initial.sku_code, data)
+        ? sellerApi.updateVariant(initial.variantId, data)
         : sellerApi.createVariant(productId, data);
     },
-    onSuccess: () => { setDone(true); setTimeout(() => { onSuccess(); onClose(); }, 1200); },
+    onSuccess: () => { setDone(true); timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200); },
     onError: (err: any) => setError(err?.response?.data?.message || 'Lưu biến thể thất bại'),
   });
 
@@ -123,9 +125,9 @@ function ImageUploader({ productId, images, onChange }: { productId: string; ima
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
         const { data: resp } = await sellerApi.getPresignedUrl(productId, file.name, file.type);
-        const presignedUrl = (resp as { data: { url: string } }).data.url;
-        await fetch(presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-        newImages.push(presignedUrl.split('?')[0]);
+        const result = resp.data;
+        await fetch(result.presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+        newImages.push(result.objectUrl);
       }
       onChange([...images, ...newImages]);
     } catch (e: any) {
@@ -165,6 +167,198 @@ function ImageUploader({ productId, images, onChange }: { productId: string; ima
   );
 }
 
+// ─── Inventory Panel ──────────────────────────────────────────────────────
+function InventoryPanel({ productId, variants }: { productId: string; variants: SellerVariant[] }) {
+  const queryClient = useQueryClient();
+  const [adjustSku, setAdjustSku] = useState<string | null>(null);
+  const [adjustDelta, setAdjustDelta] = useState(0);
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustError, setAdjustError] = useState('');
+  const [restockQty, setRestockQty] = useState<number>(0);
+  const [logSku, setLogSku] = useState<string | null>(null);
+
+  const adjustMut = useMutation({
+    mutationFn: (data: { skuCode: string; delta: number; reason: string }) =>
+      sellerApi.adjustInventory(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-variants', productId] });
+      setAdjustSku(null);
+      setAdjustDelta(0);
+      setAdjustReason('');
+    },
+    onError: (err: any) => setAdjustError(err?.response?.data?.message || 'Điều chỉnh thất bại'),
+  });
+
+  const restockMut = useMutation({
+    mutationFn: (data: { skuCode: string; quantity: number; reason: string }) =>
+      sellerApi.restockInventory(data.skuCode, { quantity: data.quantity, reason: data.reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-variants', productId] });
+    },
+    onError: (err: any) => setAdjustError(err?.response?.data?.message || 'Nhập hàng thất bại'),
+  });
+
+  const { data: logs = [], isLoading: logsLoading, error: logsQueryError } = useQuery({
+    queryKey: ['inventory-logs', logSku],
+    queryFn: () => sellerApi.getInventoryLogs(logSku!).then(r => r.data.data ?? []),
+    enabled: !!logSku,
+    retry: 1,
+  });
+  const logsError = !!logsQueryError;
+
+  if (variants.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-400 text-sm">
+        Chưa có biến thể nào. Tạo biến thể trước để quản lý tồn kho.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {adjustError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-2">
+          {adjustError}
+          <button onClick={() => setAdjustError('')} className="ml-2 underline">Đóng</button>
+        </div>
+      )}
+
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {variants.map(v => (
+          <div key={v.skuCode} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl bg-white">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{v.variantName}</p>
+              <p className="text-xs text-gray-400">SKU: {v.skuCode} · Kho: <span className={`font-semibold ${v.stock > 0 ? 'text-green-700' : 'text-red-600'}`}>{v.stock}</span> · {fmt(v.price)}</p>
+            </div>
+
+            {/* Quick adjust buttons */}
+            <div className="flex gap-1 shrink-0">
+              <button
+                onClick={() => { setAdjustSku(v.skuCode); setAdjustDelta(-1); setAdjustReason(''); }}
+                className="px-2 py-1 text-xs bg-red-50 text-red-600 rounded-lg hover:bg-red-100"
+              >-1</button>
+              <button
+                onClick={() => { setAdjustSku(v.skuCode); setAdjustDelta(1); setAdjustReason(''); }}
+                className="px-2 py-1 text-xs bg-green-50 text-green-600 rounded-lg hover:bg-green-100"
+              >+1</button>
+              <button
+                onClick={() => { setAdjustSku(v.skuCode); setAdjustDelta(0); setAdjustReason(''); }}
+                className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+              >±</button>
+              <button
+                onClick={() => setLogSku(logSku === v.skuCode ? null : v.skuCode)}
+                className={`px-2 py-1 text-xs rounded-lg ${logSku === v.skuCode ? 'bg-gray-200 text-gray-700' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+              >
+                Log
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Adjust modal */}
+      {adjustSku && (
+        <div className="border border-blue-200 bg-blue-50/30 rounded-xl p-4 mt-3">
+          <h4 className="font-semibold text-gray-900 text-sm mb-3">
+            Điều chỉnh tồn kho: <span className="font-mono text-blue-700">{adjustSku}</span>
+          </h4>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={adjustDelta}
+                onChange={e => setAdjustDelta(Number(e.target.value))}
+                placeholder="Số lượng (+/-)"
+                className="flex-1 px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="number"
+                value={restockQty || ''}
+                onChange={e => setRestockQty(Number(e.target.value))}
+                placeholder="SL nhập"
+                min="1"
+                className="w-20 px-2 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                onClick={() => {
+                  if (restockQty > 0) {
+                    restockMut.mutate({ skuCode: adjustSku, quantity: restockQty, reason: adjustReason || 'Nhập hàng' });
+                  }
+                }}
+                disabled={restockMut.isPending || restockQty <= 0}
+                className="px-3 py-2 bg-green-600 text-white text-xs font-medium rounded-xl hover:bg-green-700 disabled:opacity-50"
+              >
+                {restockMut.isPending ? '...' : 'Nhập hàng'}
+              </button>
+            </div>
+            <input
+              type="text"
+              value={adjustReason}
+              onChange={e => setAdjustReason(e.target.value)}
+              placeholder="Lý do (vd: Hàng hỏng, kiểm kê...)"
+              className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setAdjustSku(null); setAdjustError(''); }}
+                className="px-4 py-2 border rounded-xl text-sm hover:bg-gray-50">Huỷ</button>
+              <button
+                onClick={() => {
+                  if (adjustDelta === 0) { setAdjustError('Vui lòng nhập số lượng điều chỉnh.'); return; }
+                  adjustMut.mutate({ skuCode: adjustSku, delta: adjustDelta, reason: adjustReason || 'Điều chỉnh tồn kho' });
+                }}
+                disabled={adjustMut.isPending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {adjustMut.isPending ? 'Đang xử lý...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logs panel */}
+      {logSku && (
+        <div className="border border-gray-200 rounded-xl p-4 mt-3">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-semibold text-gray-900 text-sm">
+              Lịch sử tồn kho: <span className="font-mono text-blue-700">{logSku}</span>
+            </h4>
+            <button onClick={() => setLogSku(null)} className="text-gray-400 hover:text-gray-600">×</button>
+          </div>
+          {logsLoading ? (
+            <p className="text-sm text-gray-400">Đang tải...</p>
+          ) : logsError ? (
+            <div className="text-center py-4 text-gray-400 text-sm">
+              <p>Tính năng nhật ký tồn kho đang được phát triển.</p>
+              <p className="text-xs mt-1">Vui lòng quay lại sau.</p>
+            </div>
+          ) : logs.length === 0 ? (
+            <p className="text-sm text-gray-400">Chưa có lịch sử điều chỉnh.</p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto space-y-2">
+              {logs.map((log: InventoryLogEntry) => (
+                <div key={log.logId} className="flex items-start gap-2 text-sm py-1.5 border-b border-gray-50 last:border-0">
+                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${log.delta >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {log.delta >= 0 ? '+' : ''}{log.delta}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-gray-700 text-xs truncate">{log.reason || '—'}</p>
+                    <p className="text-gray-400 text-xs">
+                      {log.stockBefore} → {log.stockAfter} · {log.changedBy} · {new Date(log.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Product Form Modal ─────────────────────────────────────────────────────
 function ProductFormModal({
   product,
@@ -181,35 +375,37 @@ function ProductFormModal({
   const [category, setCategory] = useState(product?.category ?? 'electronics');
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [price, setPrice] = useState(product?.price?.toString() ?? '');
-  const [stock, setStock] = useState(product?.stock_available?.toString() ?? '1');
+  const [stock, setStock] = useState(product?.stockAvailable?.toString() ?? '1');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'images' | 'variants'>('info');
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  const [activeTab, setActiveTab] = useState<'info' | 'images' | 'variants' | 'inventory'>('info');
 
   // Variants
   const { data: variants = [] } = useQuery({
-    queryKey: ['seller-variants', product?.product_id],
-    queryFn: () => sellerApi.getVariants(product!.product_id).then(r => r.data.data ?? []),
-    enabled: !!product?.product_id,
+    queryKey: ['seller-variants', product?.productId],
+    queryFn: () => sellerApi.getVariants(product!.productId).then(r => r.data.data ?? []),
+    enabled: !!product?.productId,
   });
   const [showVariant, setShowVariant] = useState<SellerVariant | undefined>(undefined);
   const [showVariantForm, setShowVariantForm] = useState(false);
 
   const mut = useMutation({
-    mutationFn: (data: { name: string; description: string; category_id: string; images?: string[] }) =>
+    mutationFn: (data: { name: string; description: string; categoryId: string; images?: string[] }) =>
       product
-        ? apiClient.put<ApiResponse<SellerProduct>>(`/products/${product.product_id}`, data)
-        : apiClient.post<ApiResponse<SellerProduct>>('/products', { ...data, price: Number(price), stock: Number(stock) }),
+        ? sellerApi.updateProduct(product.productId, data)
+        : sellerApi.createProduct({ ...data, price: Number(price), stock: Number(stock) }),
     onSuccess: (res) => {
       if (!product && res.data.data) {
         // New product — navigate to edit for variants
         queryClient.invalidateQueries({ queryKey: ['seller-products'] });
         setDone(true);
-        setTimeout(() => { onSuccess(); onClose(); }, 1200);
+        timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200);
       } else {
         queryClient.invalidateQueries({ queryKey: ['seller-products'] });
         setDone(true);
-        setTimeout(() => { onSuccess(); onClose(); }, 1200);
+        timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200);
       }
     },
     onError: (err: any) => setError(err?.response?.data?.message || 'Lưu sản phẩm thất bại'),
@@ -218,7 +414,7 @@ function ProductFormModal({
   const handleSaveInfo = () => {
     if (!name.trim() || !price) { setError('Vui lòng điền tên và giá sản phẩm.'); return; }
     setError(null);
-    mut.mutate({ name: name.trim(), description, category_id: category, images });
+    mut.mutate({ name: name.trim(), description, categoryId: category, images });
   };
 
   if (done) {
@@ -249,12 +445,12 @@ function ProductFormModal({
 
         {/* Tabs */}
         <div className="flex border-b border-gray-100 mb-4">
-          {(['info', 'images', 'variants'] as const).map(tab => (
+          {(['info', 'images', 'variants', 'inventory'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}>
-              {tab === 'info' ? 'Thông tin' : tab === 'images' ? 'Hình ảnh' : 'Biến thể'}
+              {tab === 'info' ? 'Thông tin' : tab === 'images' ? 'Hình ảnh' : tab === 'variants' ? 'Biến thể' : 'Tồn kho'}
             </button>
           ))}
         </div>
@@ -306,7 +502,7 @@ function ProductFormModal({
         )}
 
         {activeTab === 'images' && (
-          <ImageUploader productId={product?.product_id ?? 'new'} images={images} onChange={setImages} />
+          <ImageUploader productId={product?.productId ?? 'new'} images={images} onChange={setImages} />
         )}
 
         {activeTab === 'variants' && (
@@ -322,18 +518,20 @@ function ProductFormModal({
                     <p className="text-sm text-gray-400 text-center py-4">Chưa có biến thể nào.</p>
                   )}
                   {variants.map(v => (
-                    <div key={v.sku_code} className="flex items-center gap-3 p-2 border border-gray-100 rounded-lg">
+                    <div key={v.skuCode} className="flex items-center gap-3 p-2 border border-gray-100 rounded-lg">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{v.variant_name}</p>
-                        <p className="text-xs text-gray-400">SKU: {v.sku_code} · {fmt(v.price)} · Kho: {v.stock}</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{v.variantName}</p>
+                        <p className="text-xs text-gray-400">SKU: {v.skuCode} · {fmt(v.price)} · Kho: {v.stock}</p>
                       </div>
                       <button onClick={() => { setShowVariant(v); setShowVariantForm(true); }}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0">Sửa</button>
-                      <button onClick={() => {
-                        if (confirm(`Xóa biến thể "${v.variant_name}"?`)) {
-                          sellerApi.deleteVariant(v.sku_code).then(() => {
-                            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.product_id] });
-                          });
+                      <button onClick={async () => {
+                        if (!confirm(`Xóa biến thể "${v.variantName}"?`)) return;
+                        try {
+                          await sellerApi.deleteVariant(v.variantId);
+                          queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
+                        } catch (err: any) {
+                          alert(err?.response?.data?.message || 'Xóa biến thể thất bại');
                         }
                       }} className="text-xs text-red-500 hover:text-red-600 font-medium shrink-0">Xoá</button>
                     </div>
@@ -344,6 +542,18 @@ function ProductFormModal({
                   + Thêm biến thể
                 </button>
               </>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'inventory' && (
+          <div>
+            {!product ? (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                Lưu sản phẩm trước để quản lý tồn kho.
+              </div>
+            ) : (
+              <InventoryPanel productId={product.productId} variants={variants} />
             )}
           </div>
         )}
@@ -361,11 +571,11 @@ function ProductFormModal({
 
       {showVariantForm && product && (
         <VariantModal
-          productId={product.product_id}
+          productId={product.productId}
           initial={showVariant}
           onClose={() => { setShowVariantForm(false); setShowVariant(undefined); }}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.product_id] });
+            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
             queryClient.invalidateQueries({ queryKey: ['seller-products'] });
           }}
         />
@@ -391,12 +601,18 @@ export default function ProductManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<SellerProduct | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['seller-products', statusFilter, page, searchQuery],
+    queryKey: ['seller-products', statusFilter, page, debouncedSearch],
     queryFn: () =>
       apiClient.get<ApiResponse<PageResponse<SellerProduct>>>('/sellers/me/products', {
-        params: { status: statusFilter || undefined, page, size: 20, search: searchQuery || undefined },
+        params: { status: statusFilter || undefined, page, size: 20, search: debouncedSearch || undefined },
       }).then(r => r.data.data),
     retry: 1,
   });
@@ -409,6 +625,7 @@ export default function ProductManagementPage() {
   const submitMut = useMutation({ mutationFn: sellerApi.submitForReview, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller-products'] }) });
   const publishMut = useMutation({ mutationFn: sellerApi.publishProduct, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller-products'] }) });
   const unpublishMut = useMutation({ mutationFn: sellerApi.unpublishProduct, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller-products'] }) });
+  const deleteMut = useMutation({ mutationFn: sellerApi.deleteProduct, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller-products'] }) });
 
   const handleEdit = (product: SellerProduct) => {
     setEditProduct(product);
@@ -510,7 +727,7 @@ export default function ProductManagementPage() {
                 </thead>
                 <tbody>
                   {products.map(p => (
-                    <tr key={p.product_id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <tr key={p.productId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-xl shrink-0 overflow-hidden">
@@ -520,8 +737,8 @@ export default function ProductManagementPage() {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900 line-clamp-1 max-w-[200px]">{p.name}</p>
-                            {p.variants_count > 0 && (
-                              <p className="text-xs text-gray-400">{p.variants_count} biến thể</p>
+                            {p.variantsCount > 0 && (
+                              <p className="text-xs text-gray-400">{p.variantsCount} biến thể</p>
                             )}
                           </div>
                         </div>
@@ -531,13 +748,13 @@ export default function ProductManagementPage() {
                         {p.price ? fmt(p.price) : '—'}
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`font-medium ${p.stock_available > 0 ? 'text-green-700' : 'text-red-600'}`}>
-                          {p.stock_available}
+                        <span className={`font-medium ${p.stockAvailable > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                          {p.stockAvailable}
                         </span>
                       </td>
                       <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
                       <td className="px-5 py-4 text-gray-400 whitespace-nowrap text-xs">
-                        {p.created_at ? new Date(p.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex gap-2 flex-wrap">
@@ -548,7 +765,7 @@ export default function ProductManagementPage() {
 
                           {/* DRAFT → Submit for review */}
                           {p.status === 'DRAFT' && (
-                            <button onClick={() => submitMut.mutate(p.product_id)}
+                            <button onClick={() => submitMut.mutate(p.productId)}
                               disabled={submitMut.isPending}
                               className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
                               {submitMut.isPending ? '...' : 'Gửi duyệt'}
@@ -557,7 +774,7 @@ export default function ProductManagementPage() {
 
                           {/* APPROVED → Publish */}
                           {(p.status === 'APPROVED' || p.status === 'UNPUBLISHED') && (
-                            <button onClick={() => publishMut.mutate(p.product_id)}
+                            <button onClick={() => publishMut.mutate(p.productId)}
                               disabled={publishMut.isPending}
                               className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
                               {publishMut.isPending ? '...' : 'Hiển thị'}
@@ -566,10 +783,23 @@ export default function ProductManagementPage() {
 
                           {/* PUBLISHED → Unpublish */}
                           {p.status === 'PUBLISHED' && (
-                            <button onClick={() => unpublishMut.mutate(p.product_id)}
+                            <button onClick={() => unpublishMut.mutate(p.productId)}
                               disabled={unpublishMut.isPending}
                               className="text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50">
                               {unpublishMut.isPending ? '...' : 'Ẩn'}
+                            </button>
+                          )}
+
+                          {/* Delete (DRAFT or REJECTED only) */}
+                          {(p.status === 'DRAFT' || p.status === 'REJECTED') && (
+                            <button onClick={() => {
+                              if (confirm(`Xóa sản phẩm "${p.name}"? Hành động này không thể hoàn tác.`)) {
+                                deleteMut.mutate(p.productId);
+                              }
+                            }}
+                              disabled={deleteMut.isPending}
+                              className="text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-50">
+                              {deleteMut.isPending ? '...' : 'Xóa'}
                             </button>
                           )}
                         </div>

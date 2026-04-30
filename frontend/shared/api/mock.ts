@@ -8,352 +8,352 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 const MOCK_ADDRESSES = [
   {
-    address_id: 1,
-    province_id: 1,
-    district_id: 1,
-    full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-    is_default: true,
+    addressId: 1,
+    provinceId: 1,
+    districtId: 1,
+    fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+    isDefault: true,
   },
   {
-    address_id: 2,
-    province_id: 2,
-    district_id: 5,
-    full_address: '45 Đường Lê Lợi, Quận Hải Châu, TP. Đà Nẵng',
-    is_default: false,
+    addressId: 2,
+    provinceId: 2,
+    districtId: 5,
+    fullAddress: '45 Đường Lê Lợi, Quận Hải Châu, TP. Đà Nẵng',
+    isDefault: false,
   },
 ];
 
 const MOCK_CART = {
   sellers: [
     {
-      seller_id: 1,
-      seller_name: 'Shop Sony',
-      seller_trust_score: 4.8,
+      sellerId: 1,
+      sellerName: 'Shop Sony',
+      sellerTrustScore: 4.8,
       items: [
         {
-          cart_item_id: 1,
-          sku_code: 'SONY-WH-1000XM5-BK',
-          product_id: '1',
-          product_name: 'Tai nghe Sony WH-1000XM5',
-          variant_name: 'Đen / Chính hãng',
-          unit_price: 6_490_000,
+          cartItemId: 1,
+          skuCode: 'SONY-WH-1000XM5-BK',
+          productId: '1',
+          productName: 'Tai nghe Sony WH-1000XM5',
+          variantName: 'Đen / Chính hãng',
+          unitPrice: 6_490_000,
           quantity: 1,
-          stock_available: 15,
-          is_flash: false,
+          stockAvailable: 15,
+          isFlash: false,
           subtotal: 6_490_000,
         },
         {
-          cart_item_id: 2,
-          sku_code: 'KEY-K2-WHITE',
-          product_id: '2',
-          product_name: 'Bàn phím cơ Keychron K2',
-          variant_name: 'Trắng / Hot-swap',
-          unit_price: 2_190_000,
+          cartItemId: 2,
+          skuCode: 'KEY-K2-WHITE',
+          productId: '2',
+          productName: 'Bàn phím cơ Keychron K2',
+          variantName: 'Trắng / Hot-swap',
+          unitPrice: 2_190_000,
           quantity: 2,
-          stock_available: 8,
-          is_flash: false,
+          stockAvailable: 8,
+          isFlash: false,
           subtotal: 4_380_000,
         },
       ],
-      seller_subtotal: 10_870_000,
+      sellerSubtotal: 10_870_000,
     },
     {
-      seller_id: 2,
-      seller_name: 'Uniqlo Vietnam',
-      seller_trust_score: 4.5,
+      sellerId: 2,
+      sellerName: 'Uniqlo Vietnam',
+      sellerTrustScore: 4.5,
       items: [
         {
-          cart_item_id: 3,
-          sku_code: 'UQ-TSHIRT-M',
-          product_id: '3',
-          product_name: 'Áo thun Uniqlo DRY-EX',
-          variant_name: 'Xanh dương / Size M',
-          unit_price: 299_000,
+          cartItemId: 3,
+          skuCode: 'UQ-TSHIRT-M',
+          productId: '3',
+          productName: 'Áo thun Uniqlo DRY-EX',
+          variantName: 'Xanh dương / Size M',
+          unitPrice: 299_000,
           quantity: 1,
-          stock_available: 20,
-          is_flash: false,
+          stockAvailable: 20,
+          isFlash: false,
           subtotal: 299_000,
         },
       ],
-      seller_subtotal: 299_000,
+      sellerSubtotal: 299_000,
     },
   ],
-  total_items: 4,
+  totalItems: 4,
   subtotal: 11_169_000,
 };
 
 const MOCK_PRODUCTS = [
   {
-    product_id: '1',
-    seller_id: 1,
-    seller_name: 'Shop Sony',
-    product_name: 'Tai nghe Sony WH-1000XM5',
+    productId: '1',
+    sellerId: 1,
+    sellerName: 'Shop Sony',
+    productName: 'Tai nghe Sony WH-1000XM5',
     description: 'Tai nghe chống ồn tốt nhất thế giới, pin 30h.',
     price: 6_490_000,
-    original_price: 7_990_000,
+    originalPrice: 7_990_000,
     category: 'Thiết bị âm thanh',
     variants: [
-      { sku_code: 'SONY-WH-1000XM5-BK', variant_name: 'Đen / Chính hãng', stock: 15 },
-      { sku_code: 'SONY-WH-1000XM5-WH', variant_name: 'Trắng / Chính hãng', stock: 8 },
+      { skuCode: 'SONY-WH-1000XM5-BK', variantName: 'Đen / Chính hãng', stock: 15 },
+      { skuCode: 'SONY-WH-1000XM5-WH', variantName: 'Trắng / Chính hãng', stock: 8 },
     ],
     images: ['https://placehold.co/400x400/1a1a2e/FFF?text=Sony+XM5'],
     stock: 23,
     rating: 4.9,
-    reviews_count: 2341,
-    created_at: '2024-01-01T00:00:00Z',
+    reviewsCount: 2341,
+    createdAt: '2024-01-01T00:00:00Z',
   },
   {
-    product_id: '2',
-    seller_id: 1,
-    seller_name: 'Shop Sony',
-    product_name: 'Bàn phím cơ Keychron K2',
+    productId: '2',
+    sellerId: 1,
+    sellerName: 'Shop Sony',
+    productName: 'Bàn phím cơ Keychron K2',
     description: 'Bàn phím cơ không dây 75%, switch Gateron.',
     price: 2_190_000,
-    original_price: 2_490_000,
+    originalPrice: 2_490_000,
     category: 'Bàn phím',
     variants: [
-      { sku_code: 'KEY-K2-WHITE', variant_name: 'Trắng / Hot-swap', stock: 8 },
-      { sku_code: 'KEY-K2-BLACK', variant_name: 'Đen / Hot-swap', stock: 12 },
+      { skuCode: 'KEY-K2-WHITE', variantName: 'Trắng / Hot-swap', stock: 8 },
+      { skuCode: 'KEY-K2-BLACK', variantName: 'Đen / Hot-swap', stock: 12 },
     ],
     images: ['https://placehold.co/400x400/2d2d44/FFF?text=Keychron+K2'],
     stock: 20,
     rating: 4.7,
-    reviews_count: 876,
-    created_at: '2024-01-05T00:00:00Z',
+    reviewsCount: 876,
+    createdAt: '2024-01-05T00:00:00Z',
   },
   {
-    product_id: '3',
-    seller_id: 2,
-    seller_name: 'Uniqlo Vietnam',
-    product_name: 'Áo thun Uniqlo DRY-EX',
+    productId: '3',
+    sellerId: 2,
+    sellerName: 'Uniqlo Vietnam',
+    productName: 'Áo thun Uniqlo DRY-EX',
     description: 'Áo thun thể thao nam, vải nhanh khô.',
     price: 299_000,
-    original_price: 399_000,
+    originalPrice: 399_000,
     category: 'Thời trang nam',
     variants: [
-      { sku_code: 'UQ-TSHIRT-M', variant_name: 'Xanh dương / Size M', stock: 20 },
-      { sku_code: 'UQ-TSHIRT-L', variant_name: 'Đỏ / Size L', stock: 15 },
+      { skuCode: 'UQ-TSHIRT-M', variantName: 'Xanh dương / Size M', stock: 20 },
+      { skuCode: 'UQ-TSHIRT-L', variantName: 'Đỏ / Size L', stock: 15 },
     ],
     images: ['https://placehold.co/400x400/e63946/FFF?text=Uniqlo'],
     stock: 35,
     rating: 4.5,
-    reviews_count: 421,
-    created_at: '2024-01-10T00:00:00Z',
+    reviewsCount: 421,
+    createdAt: '2024-01-10T00:00:00Z',
   },
   {
-    product_id: '4',
-    seller_id: 3,
-    seller_name: 'Apple Store VN',
-    product_name: 'AirPods Pro 2',
+    productId: '4',
+    sellerId: 3,
+    sellerName: 'Apple Store VN',
+    productName: 'AirPods Pro 2',
     description: 'Tai nghe không dây chống ồn chủ động.',
     price: 5_990_000,
-    original_price: 6_990_000,
+    originalPrice: 6_990_000,
     category: 'Thiết bị âm thanh',
     variants: [
-      { sku_code: 'APP-AIRPODS-PRO2', variant_name: 'Trắng / Chính hãng', stock: 30 },
+      { skuCode: 'APP-AIRPODS-PRO2', variantName: 'Trắng / Chính hãng', stock: 30 },
     ],
     images: ['https://placehold.co/400x400/f8f9fa/333?text=AirPods'],
     stock: 30,
     rating: 4.8,
-    reviews_count: 3421,
-    created_at: '2024-01-15T00:00:00Z',
+    reviewsCount: 3421,
+    createdAt: '2024-01-15T00:00:00Z',
   },
 ];
 
 const MOCK_ORDERS = [
   {
-    order_id: 1,
-    parent_order_id: 1,
-    order_code: 'FS-20240115-0001',
-    seller_id: 1,
-    seller_name: 'Shop Sony',
-    buyer_id: 1,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 1,
+    parentOrderId: 1,
+    orderCode: 'FS-20240115-0001',
+    sellerId: 1,
+    sellerName: 'Shop Sony',
+    buyerId: 1,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'DELIVERED',
-    total_amt: 6_490_000,
-    final_amt: 6_490_000,
-    item_count: 1,
-    is_flash_sale: false,
-    created_at: '2024-01-15T10:30:00Z',
-    updated_at: '2024-01-17T14:00:00Z',
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 6_490_000,
+    finalAmt: 6_490_000,
+    itemCount: 1,
+    isFlashSale: false,
+    createdAt: '2024-01-15T10:30:00Z',
+    updatedAt: '2024-01-17T14:00:00Z',
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
-    tracking_number: 'VT123456789',
+    trackingNumber: 'VT123456789',
     carrier: 'ViettelPost',
     items: [
       {
-        order_item_id: 101,
-        sku_code: 'SONY-WH-1000XM5-BK',
-        product_name: 'Tai nghe Sony WH-1000XM5',
-        variant_name: 'Đen / Chính hãng',
-        image_snapshot: 'https://placehold.co/80x80/1a1a2e/FFF?text=Sony',
-        price_snapshot: 6_490_000,
+        orderItemId: 101,
+        skuCode: 'SONY-WH-1000XM5-BK',
+        productName: 'Tai nghe Sony WH-1000XM5',
+        variantName: 'Đen / Chính hãng',
+        imageSnapshot: 'https://placehold.co/80x80/1a1a2e/FFF?text=Sony',
+        priceSnapshot: 6_490_000,
         quantity: 1,
-        refunded_quantity: 0,
+        refundedQuantity: 0,
       },
     ],
   },
   {
-    order_id: 2,
-    parent_order_id: 2,
-    order_code: 'FS-20240120-0002',
-    seller_id: 2,
-    seller_name: 'Uniqlo Vietnam',
-    buyer_id: 1,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 2,
+    parentOrderId: 2,
+    orderCode: 'FS-20240120-0002',
+    sellerId: 2,
+    sellerName: 'Uniqlo Vietnam',
+    buyerId: 1,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'SHIPPING',
-    total_amt: 299_000,
-    final_amt: 299_000,
-    item_count: 1,
-    is_flash_sale: false,
-    created_at: '2024-01-20T09:15:00Z',
-    updated_at: '2024-01-21T08:00:00Z',
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 299_000,
+    finalAmt: 299_000,
+    itemCount: 1,
+    isFlashSale: false,
+    createdAt: '2024-01-20T09:15:00Z',
+    updatedAt: '2024-01-21T08:00:00Z',
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
-    tracking_number: 'GHN987654321',
+    trackingNumber: 'GHN987654321',
     carrier: 'GHN',
     items: [
       {
-        order_item_id: 201,
-        sku_code: 'UQ-TSHIRT-M',
-        product_name: 'Áo thun Uniqlo DRY-EX',
-        variant_name: 'Xanh dương / Size M',
-        image_snapshot: 'https://placehold.co/80x80/e63946/FFF?text=Uniqlo',
-        price_snapshot: 299_000,
+        orderItemId: 201,
+        skuCode: 'UQ-TSHIRT-M',
+        productName: 'Áo thun Uniqlo DRY-EX',
+        variantName: 'Xanh dương / Size M',
+        imageSnapshot: 'https://placehold.co/80x80/e63946/FFF?text=Uniqlo',
+        priceSnapshot: 299_000,
         quantity: 1,
-        refunded_quantity: 0,
+        refundedQuantity: 0,
       },
     ],
   },
   {
-    order_id: 3,
-    parent_order_id: 3,
-    order_code: 'FS-20240122-0003',
-    seller_id: 1,
-    seller_name: 'Shop Sony',
-    buyer_id: 1,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 3,
+    parentOrderId: 3,
+    orderCode: 'FS-20240122-0003',
+    sellerId: 1,
+    sellerName: 'Shop Sony',
+    buyerId: 1,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'PENDING',
-    total_amt: 2_190_000,
-    final_amt: 2_190_000,
-    is_flash_sale: true,
-    item_count: 1,
-    created_at: '2024-01-22T16:45:00Z',
-    updated_at: '2024-01-22T16:45:00Z',
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 2_190_000,
+    finalAmt: 2_190_000,
+    isFlashSale: true,
+    itemCount: 1,
+    createdAt: '2024-01-22T16:45:00Z',
+    updatedAt: '2024-01-22T16:45:00Z',
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     items: [
       {
-        order_item_id: 301,
-        sku_code: 'KEY-K2-WHITE',
-        product_name: 'Bàn phím cơ Keychron K2',
-        variant_name: 'Trắng / Hot-swap',
-        image_snapshot: 'https://placehold.co/80x80/2d2d44/FFF?text=Keychron',
-        price_snapshot: 2_190_000,
+        orderItemId: 301,
+        skuCode: 'KEY-K2-WHITE',
+        productName: 'Bàn phím cơ Keychron K2',
+        variantName: 'Trắng / Hot-swap',
+        imageSnapshot: 'https://placehold.co/80x80/2d2d44/FFF?text=Keychron',
+        priceSnapshot: 2_190_000,
         quantity: 1,
-        refunded_quantity: 0,
+        refundedQuantity: 0,
       },
     ],
   },
   {
-    order_id: 4,
-    parent_order_id: 4,
-    order_code: 'FS-20240123-0004',
-    seller_id: 3,
-    seller_name: 'Apple Store VN',
-    buyer_id: 1,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 4,
+    parentOrderId: 4,
+    orderCode: 'FS-20240123-0004',
+    sellerId: 3,
+    sellerName: 'Apple Store VN',
+    buyerId: 1,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'PAID',
-    total_amt: 5_990_000,
-    final_amt: 5_990_000,
-    item_count: 1,
-    is_flash_sale: false,
-    created_at: '2024-01-23T11:00:00Z',
-    updated_at: '2024-01-23T11:05:00Z',
-    shipping_address: {
-      full_address: '45 Đường Lê Lợi, Quận Hải Châu, TP. Đà Nẵng',
-      province_id: 2,
-      district_id: 5,
+    totalAmt: 5_990_000,
+    finalAmt: 5_990_000,
+    itemCount: 1,
+    isFlashSale: false,
+    createdAt: '2024-01-23T11:00:00Z',
+    updatedAt: '2024-01-23T11:05:00Z',
+    shippingAddress: {
+      fullAddress: '45 Đường Lê Lợi, Quận Hải Châu, TP. Đà Nẵng',
+      provinceId: 2,
+      districtId: 5,
     },
     items: [
       {
-        order_item_id: 401,
-        sku_code: 'APP-AIRPODS-PRO2',
-        product_name: 'AirPods Pro 2',
-        variant_name: 'Trắng / Chính hãng',
-        image_snapshot: 'https://placehold.co/80x80/f8f9fa/333?text=AirPods',
-        price_snapshot: 5_990_000,
+        orderItemId: 401,
+        skuCode: 'APP-AIRPODS-PRO2',
+        productName: 'AirPods Pro 2',
+        variantName: 'Trắng / Chính hãng',
+        imageSnapshot: 'https://placehold.co/80x80/f8f9fa/333?text=AirPods',
+        priceSnapshot: 5_990_000,
         quantity: 1,
-        refunded_quantity: 0,
+        refundedQuantity: 0,
       },
     ],
   },
   {
-    order_id: 5,
-    parent_order_id: 5,
-    order_code: 'FS-20240110-0005',
-    seller_id: 1,
-    seller_name: 'Shop Sony',
-    buyer_id: 1,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 5,
+    parentOrderId: 5,
+    orderCode: 'FS-20240110-0005',
+    sellerId: 1,
+    sellerName: 'Shop Sony',
+    buyerId: 1,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'CANCELLED',
-    total_amt: 3_000_000,
-    final_amt: 3_000_000,
-    item_count: 1,
-    cancelled_by: 'BUYER',
-    cancel_reason: 'Thay đổi ý định',
-    created_at: '2024-01-10T08:00:00Z',
-    updated_at: '2024-01-10T09:00:00Z',
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 3_000_000,
+    finalAmt: 3_000_000,
+    itemCount: 1,
+    cancelledBy: 'BUYER',
+    cancelReason: 'Thay đổi ý định',
+    createdAt: '2024-01-10T08:00:00Z',
+    updatedAt: '2024-01-10T09:00:00Z',
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     items: [],
   },
   {
-    order_id: 6,
-    parent_order_id: 6,
-    order_code: 'FS-20240108-0006',
-    seller_id: 2,
-    seller_name: 'Uniqlo Vietnam',
-    buyer_id: 1,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 6,
+    parentOrderId: 6,
+    orderCode: 'FS-20240108-0006',
+    sellerId: 2,
+    sellerName: 'Uniqlo Vietnam',
+    buyerId: 1,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'PARTIALLY_REFUNDED',
-    total_amt: 598_000,
-    final_amt: 299_000,
-    item_count: 2,
-    created_at: '2024-01-08T14:00:00Z',
-    updated_at: '2024-01-12T10:00:00Z',
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 598_000,
+    finalAmt: 299_000,
+    itemCount: 2,
+    createdAt: '2024-01-08T14:00:00Z',
+    updatedAt: '2024-01-12T10:00:00Z',
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     items: [
       {
-        order_item_id: 601,
-        sku_code: 'UQ-TSHIRT-M',
-        product_name: 'Áo thun Uniqlo DRY-EX',
-        variant_name: 'Xanh dương / Size M',
-        price_snapshot: 299_000,
+        orderItemId: 601,
+        skuCode: 'UQ-TSHIRT-M',
+        productName: 'Áo thun Uniqlo DRY-EX',
+        variantName: 'Xanh dương / Size M',
+        priceSnapshot: 299_000,
         quantity: 2,
-        refunded_quantity: 1,
+        refundedQuantity: 1,
       },
     ],
   },
@@ -361,435 +361,435 @@ const MOCK_ORDERS = [
 
 const MOCK_PARENT_ORDERS = [
   {
-    parent_order_id: 1,
-    order_code: 'PO-20240115-0001',
+    parentOrderId: 1,
+    orderCode: 'PO-20240115-0001',
     status: 'DELIVERED',
-    total_amt: 6_490_000,
-    final_amt: 6_490_000,
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 6_490_000,
+    finalAmt: 6_490_000,
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     orders: [MOCK_ORDERS[0]],
-    created_at: '2024-01-15T10:30:00Z',
-    updated_at: '2024-01-17T14:00:00Z',
+    createdAt: '2024-01-15T10:30:00Z',
+    updatedAt: '2024-01-17T14:00:00Z',
   },
   {
-    parent_order_id: 2,
-    order_code: 'PO-20240120-0002',
+    parentOrderId: 2,
+    orderCode: 'PO-20240120-0002',
     status: 'SHIPPING',
-    total_amt: 299_000,
-    final_amt: 299_000,
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 299_000,
+    finalAmt: 299_000,
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     orders: [MOCK_ORDERS[1]],
-    created_at: '2024-01-20T09:15:00Z',
-    updated_at: '2024-01-21T08:00:00Z',
+    createdAt: '2024-01-20T09:15:00Z',
+    updatedAt: '2024-01-21T08:00:00Z',
   },
   {
-    parent_order_id: 3,
-    order_code: 'PO-20240122-0003',
+    parentOrderId: 3,
+    orderCode: 'PO-20240122-0003',
     status: 'PENDING',
-    total_amt: 2_190_000,
-    final_amt: 2_190_000,
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 2_190_000,
+    finalAmt: 2_190_000,
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     orders: [MOCK_ORDERS[2]],
-    created_at: '2024-01-22T16:45:00Z',
-    updated_at: '2024-01-22T16:45:00Z',
+    createdAt: '2024-01-22T16:45:00Z',
+    updatedAt: '2024-01-22T16:45:00Z',
   },
   {
-    parent_order_id: 4,
-    order_code: 'PO-20240123-0004',
+    parentOrderId: 4,
+    orderCode: 'PO-20240123-0004',
     status: 'PAID',
-    total_amt: 5_990_000,
-    final_amt: 5_990_000,
-    shipping_address: {
-      full_address: '45 Đường Lê Lợi, Quận Hải Châu, TP. Đà Nẵng',
-      province_id: 2,
-      district_id: 5,
+    totalAmt: 5_990_000,
+    finalAmt: 5_990_000,
+    shippingAddress: {
+      fullAddress: '45 Đường Lê Lợi, Quận Hải Châu, TP. Đà Nẵng',
+      provinceId: 2,
+      districtId: 5,
     },
     orders: [MOCK_ORDERS[3]],
-    created_at: '2024-01-23T11:00:00Z',
-    updated_at: '2024-01-23T11:05:00Z',
+    createdAt: '2024-01-23T11:00:00Z',
+    updatedAt: '2024-01-23T11:05:00Z',
   },
   {
-    parent_order_id: 5,
-    order_code: 'PO-20240110-0005',
+    parentOrderId: 5,
+    orderCode: 'PO-20240110-0005',
     status: 'CANCELLED',
-    total_amt: 3_000_000,
-    final_amt: 3_000_000,
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 3_000_000,
+    finalAmt: 3_000_000,
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     orders: [MOCK_ORDERS[4]],
-    created_at: '2024-01-10T08:00:00Z',
-    updated_at: '2024-01-10T09:00:00Z',
+    createdAt: '2024-01-10T08:00:00Z',
+    updatedAt: '2024-01-10T09:00:00Z',
   },
   {
-    parent_order_id: 6,
-    order_code: 'PO-20240108-0006',
+    parentOrderId: 6,
+    orderCode: 'PO-20240108-0006',
     status: 'PARTIALLY_REFUNDED',
-    total_amt: 598_000,
-    final_amt: 299_000,
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 598_000,
+    finalAmt: 299_000,
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
     orders: [MOCK_ORDERS[5]],
-    created_at: '2024-01-08T14:00:00Z',
-    updated_at: '2024-01-12T10:00:00Z',
+    createdAt: '2024-01-08T14:00:00Z',
+    updatedAt: '2024-01-12T10:00:00Z',
   },
 ];
 
 const MOCK_PAYMENTS = [
   {
-    transaction_id: 1,
-    parent_order_id: 1,
+    transactionId: 1,
+    parentOrderId: 1,
     amount: 6_490_000,
     method: 'stripe',
     status: 'SUCCESS',
-    stripe_pi_id: 'pi_mock_1_aabbcc',
-    application_fee: 194_700,
-    trans_ref: 'TXN-20240115-001',
-    paid_at: '2024-01-15T10:32:00Z',
-    remaining_seconds: null,
+    stripePiId: 'pi_mock_1_aabbcc',
+    applicationFee: 194_700,
+    transRef: 'TXN-20240115-001',
+    paidAt: '2024-01-15T10:32:00Z',
+    remainingSeconds: null,
   },
   {
-    transaction_id: 2,
-    parent_order_id: 2,
+    transactionId: 2,
+    parentOrderId: 2,
     amount: 299_000,
     method: 'stripe',
     status: 'SUCCESS',
-    stripe_pi_id: 'pi_mock_2_ddeeff',
-    application_fee: 8_970,
-    trans_ref: 'TXN-20240120-002',
-    paid_at: '2024-01-20T09:18:00Z',
-    remaining_seconds: null,
+    stripePiId: 'pi_mock_2_ddeeff',
+    applicationFee: 8_970,
+    transRef: 'TXN-20240120-002',
+    paidAt: '2024-01-20T09:18:00Z',
+    remainingSeconds: null,
   },
   {
-    transaction_id: 3,
-    parent_order_id: 3,
+    transactionId: 3,
+    parentOrderId: 3,
     amount: 2_190_000,
     method: 'stripe',
     status: 'PENDING',
-    stripe_pi_id: 'pi_mock_3_112233',
-    application_fee: 65_700,
-    trans_ref: 'TXN-20240122-003',
-    paid_at: null,
-    remaining_seconds: 542,
+    stripePiId: 'pi_mock_3_112233',
+    applicationFee: 65_700,
+    transRef: 'TXN-20240122-003',
+    paidAt: null,
+    remainingSeconds: 542,
   },
   {
-    transaction_id: 4,
-    parent_order_id: 4,
+    transactionId: 4,
+    parentOrderId: 4,
     amount: 5_990_000,
     method: 'stripe',
     status: 'SUCCESS',
-    stripe_pi_id: 'pi_mock_4_556677',
-    application_fee: 179_700,
-    trans_ref: 'TXN-20240123-004',
-    paid_at: '2024-01-23T11:05:00Z',
-    remaining_seconds: null,
+    stripePiId: 'pi_mock_4_556677',
+    applicationFee: 179_700,
+    transRef: 'TXN-20240123-004',
+    paidAt: '2024-01-23T11:05:00Z',
+    remainingSeconds: null,
   },
   {
-    transaction_id: 5,
-    parent_order_id: 5,
+    transactionId: 5,
+    parentOrderId: 5,
     amount: 3_000_000,
     method: 'stripe',
     status: 'SUCCESS',
-    stripe_pi_id: 'pi_mock_5_889900',
-    application_fee: 90_000,
-    trans_ref: 'TXN-20240110-005',
-    paid_at: '2024-01-10T08:05:00Z',
-    remaining_seconds: null,
+    stripePiId: 'pi_mock_5_889900',
+    applicationFee: 90_000,
+    transRef: 'TXN-20240110-005',
+    paidAt: '2024-01-10T08:05:00Z',
+    remainingSeconds: null,
   },
   {
-    transaction_id: 6,
-    parent_order_id: 6,
+    transactionId: 6,
+    parentOrderId: 6,
     amount: 598_000,
     method: 'stripe',
     status: 'SUCCESS',
-    stripe_pi_id: 'pi_mock_6_aabbdd',
-    application_fee: 17_940,
-    trans_ref: 'TXN-20240108-006',
-    paid_at: '2024-01-08T14:05:00Z',
-    remaining_seconds: null,
+    stripePiId: 'pi_mock_6_aabbdd',
+    applicationFee: 17_940,
+    transRef: 'TXN-20240108-006',
+    paidAt: '2024-01-08T14:05:00Z',
+    remainingSeconds: null,
   },
 ];
 
 const MOCK_REFUNDS = [
   {
-    refund_id: 1,
-    order_id: 6,
-    group_ref: 'GRP-20240112-001',
+    refundId: 1,
+    orderId: 6,
+    groupRef: 'GRP-20240112-001',
     type: 'PARTIAL',
     status: 'SUCCESS',
     amount: 299_000,
     reason: 'Sản phẩm lỗi',
-    initiated_by: 'BUYER',
-    admin_note: 'Đã duyệt hoàn tiền do lỗi vải.',
-    adjust_amount: undefined,
-    reviewed_by: 100,
-    reviewed_at: '2024-01-12T10:30:00Z',
-    stripe_refund_id: 're_mock_1_abc123',
+    initiatedBy: 'BUYER',
+    adminNote: 'Đã duyệt hoàn tiền do lỗi vải.',
+    adjustAmount: undefined,
+    reviewedBy: 100,
+    reviewedAt: '2024-01-12T10:30:00Z',
+    stripe_refundId: 're_mock_1_abc123',
     items: [
       {
-        order_item_id: 601,
+        orderItemId: 601,
         quantity: 1,
-        refund_amount: 299_000,
-        item_reason: 'Vải bị rách',
+        refundAmount: 299_000,
+        itemReason: 'Vải bị rách',
         status: 'SUCCESS',
       },
     ],
-    created_at: '2024-01-11T10:00:00Z',
-    updated_at: '2024-01-12T10:30:00Z',
+    createdAt: '2024-01-11T10:00:00Z',
+    updatedAt: '2024-01-12T10:30:00Z',
   },
   {
-    refund_id: 2,
-    order_id: 6,
-    group_ref: 'GRP-20240118-002',
+    refundId: 2,
+    orderId: 6,
+    groupRef: 'GRP-20240118-002',
     type: 'PARTIAL',
     status: 'PENDING',
     amount: 150_000,
     reason: 'Giao thiếu sản phẩm',
-    initiated_by: 'BUYER',
-    admin_note: undefined,
-    adjust_amount: undefined,
-    reviewed_by: undefined,
-    reviewed_at: undefined,
-    stripe_refund_id: undefined,
+    initiatedBy: 'BUYER',
+    adminNote: undefined,
+    adjustAmount: undefined,
+    reviewedBy: undefined,
+    reviewedAt: undefined,
+    stripe_refundId: undefined,
     items: [
       {
-        order_item_id: 601,
+        orderItemId: 601,
         quantity: 1,
-        refund_amount: 150_000,
-        item_reason: 'Thiếu 1 sản phẩm',
+        refundAmount: 150_000,
+        itemReason: 'Thiếu 1 sản phẩm',
         status: 'PENDING',
       },
     ],
-    created_at: '2024-01-18T14:00:00Z',
-    updated_at: '2024-01-18T14:00:00Z',
+    createdAt: '2024-01-18T14:00:00Z',
+    updatedAt: '2024-01-18T14:00:00Z',
   },
   {
-    refund_id: 3,
-    order_id: 5,
-    group_ref: 'GRP-20240110-003',
+    refundId: 3,
+    orderId: 5,
+    groupRef: 'GRP-20240110-003',
     type: 'FULL',
     status: 'REJECTED',
     amount: 3_000_000,
     reason: 'Đã quá thời hạn hoàn tiền',
-    initiated_by: 'BUYER',
-    admin_note: undefined,
-    reject_reason: 'Đã quá thời hạn hoàn tiền 7 ngày',
-    fraud_evidence: false,
-    adjust_amount: undefined,
-    reviewed_by: 100,
-    reviewed_at: '2024-01-11T09:00:00Z',
-    stripe_refund_id: undefined,
+    initiatedBy: 'BUYER',
+    adminNote: undefined,
+    rejectReason: 'Đã quá thời hạn hoàn tiền 7 ngày',
+    fraudEvidence: false,
+    adjustAmount: undefined,
+    reviewedBy: 100,
+    reviewedAt: '2024-01-11T09:00:00Z',
+    stripe_refundId: undefined,
     items: undefined,
-    created_at: '2024-01-10T12:00:00Z',
-    updated_at: '2024-01-11T09:00:00Z',
+    createdAt: '2024-01-10T12:00:00Z',
+    updatedAt: '2024-01-11T09:00:00Z',
   },
   {
-    refund_id: 4,
-    order_id: 1,
-    group_ref: 'GRP-20240117-004',
+    refundId: 4,
+    orderId: 1,
+    groupRef: 'GRP-20240117-004',
     type: 'PARTIAL',
     status: 'PENDING',
     amount: 500_000,
     reason: 'Sản phẩm hư hỏng trong vận chuyển',
-    initiated_by: 'BUYER',
-    admin_note: undefined,
-    adjust_amount: undefined,
-    reviewed_by: undefined,
-    reviewed_at: undefined,
-    stripe_refund_id: undefined,
+    initiatedBy: 'BUYER',
+    adminNote: undefined,
+    adjustAmount: undefined,
+    reviewedBy: undefined,
+    reviewedAt: undefined,
+    stripe_refundId: undefined,
     items: [
       {
-        order_item_id: 101,
+        orderItemId: 101,
         quantity: 1,
-        refund_amount: 500_000,
-        item_reason: 'Hộp bị móp, sản phẩm trầy',
+        refundAmount: 500_000,
+        itemReason: 'Hộp bị móp, sản phẩm trầy',
         status: 'PENDING',
       },
     ],
-    created_at: '2024-01-17T16:00:00Z',
-    updated_at: '2024-01-17T16:00:00Z',
+    createdAt: '2024-01-17T16:00:00Z',
+    updatedAt: '2024-01-17T16:00:00Z',
   },
   {
-    refund_id: 5,
-    order_id: 4,
-    group_ref: 'GRP-20240125-005',
+    refundId: 5,
+    orderId: 4,
+    groupRef: 'GRP-20240125-005',
     type: 'FULL',
     status: 'PENDING',
     amount: 5_990_000,
     reason: 'Thay đổi ý định',
-    initiated_by: 'BUYER',
-    admin_note: undefined,
-    adjust_amount: undefined,
-    reviewed_by: undefined,
-    reviewed_at: undefined,
-    stripe_refund_id: undefined,
+    initiatedBy: 'BUYER',
+    adminNote: undefined,
+    adjustAmount: undefined,
+    reviewedBy: undefined,
+    reviewedAt: undefined,
+    stripe_refundId: undefined,
     items: undefined,
-    created_at: '2024-01-25T10:00:00Z',
-    updated_at: '2024-01-25T10:00:00Z',
+    createdAt: '2024-01-25T10:00:00Z',
+    updatedAt: '2024-01-25T10:00:00Z',
   },
 ];
 
 const MOCK_SELLER_ORDERS = [
   {
-    order_id: 1,
-    parent_order_id: 1,
-    order_code: 'FS-20240115-0001',
-    buyer_id: 10,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 1,
+    parentOrderId: 1,
+    orderCode: 'FS-20240115-0001',
+    buyerId: 10,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'DELIVERED',
-    total_amt: 6_490_000,
-    final_amt: 6_490_000,
-    is_flash_sale: false,
-    item_count: 1,
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 6_490_000,
+    finalAmt: 6_490_000,
+    isFlashSale: false,
+    itemCount: 1,
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
-    tracking_number: 'VT123456789',
+    trackingNumber: 'VT123456789',
     carrier: 'ViettelPost',
-    created_at: '2024-01-15T10:30:00Z',
-    updated_at: '2024-01-17T14:00:00Z',
+    createdAt: '2024-01-15T10:30:00Z',
+    updatedAt: '2024-01-17T14:00:00Z',
   },
   {
-    order_id: 3,
-    parent_order_id: 3,
-    order_code: 'FS-20240122-0003',
-    buyer_id: 10,
-    buyer_name: 'Nguyễn Văn A',
-    buyer_username: 'nguyenvana',
+    orderId: 3,
+    parentOrderId: 3,
+    orderCode: 'FS-20240122-0003',
+    buyerId: 10,
+    buyerName: 'Nguyễn Văn A',
+    buyerUsername: 'nguyenvana',
     status: 'PENDING',
-    total_amt: 2_190_000,
-    final_amt: 2_190_000,
-    is_flash_sale: true,
-    item_count: 1,
-    shipping_address: {
-      full_address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 1,
+    totalAmt: 2_190_000,
+    finalAmt: 2_190_000,
+    isFlashSale: true,
+    itemCount: 1,
+    shippingAddress: {
+      fullAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 1,
     },
-    tracking_number: null,
+    trackingNumber: null,
     carrier: null,
-    created_at: '2024-01-22T16:45:00Z',
-    updated_at: '2024-01-22T16:45:00Z',
+    createdAt: '2024-01-22T16:45:00Z',
+    updatedAt: '2024-01-22T16:45:00Z',
   },
   {
-    order_id: 7,
-    parent_order_id: 7,
-    order_code: 'FS-20240124-0007',
-    buyer_id: 11,
-    buyer_name: 'Trần Thị B',
-    buyer_username: 'tranthib',
+    orderId: 7,
+    parentOrderId: 7,
+    orderCode: 'FS-20240124-0007',
+    buyerId: 11,
+    buyerName: 'Trần Thị B',
+    buyerUsername: 'tranthib',
     status: 'PAID',
-    total_amt: 12_980_000,
-    final_amt: 12_980_000,
-    is_flash_sale: false,
-    item_count: 2,
-    shipping_address: {
-      full_address: '78 Đường Hai Bà Trưng, Quận 3, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 3,
+    totalAmt: 12_980_000,
+    finalAmt: 12_980_000,
+    isFlashSale: false,
+    itemCount: 2,
+    shippingAddress: {
+      fullAddress: '78 Đường Hai Bà Trưng, Quận 3, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 3,
     },
-    tracking_number: null,
+    trackingNumber: null,
     carrier: null,
-    created_at: '2024-01-24T08:00:00Z',
-    updated_at: '2024-01-24T08:05:00Z',
+    createdAt: '2024-01-24T08:00:00Z',
+    updatedAt: '2024-01-24T08:05:00Z',
   },
   {
-    order_id: 8,
-    parent_order_id: 8,
-    order_code: 'FS-20240121-0008',
-    buyer_id: 12,
-    buyer_name: 'Lê Minh C',
-    buyer_username: 'leminhc',
+    orderId: 8,
+    parentOrderId: 8,
+    orderCode: 'FS-20240121-0008',
+    buyerId: 12,
+    buyerName: 'Lê Minh C',
+    buyerUsername: 'leminhc',
     status: 'SHIPPING',
-    total_amt: 3_200_000,
-    final_amt: 3_200_000,
-    is_flash_sale: false,
-    item_count: 1,
-    shipping_address: {
-      full_address: '15 Đường Cái Khế, Quận Ninh Kiều, TP. Cần Thơ',
-      province_id: 3,
-      district_id: 10,
+    totalAmt: 3_200_000,
+    finalAmt: 3_200_000,
+    isFlashSale: false,
+    itemCount: 1,
+    shippingAddress: {
+      fullAddress: '15 Đường Cái Khế, Quận Ninh Kiều, TP. Cần Thơ',
+      provinceId: 3,
+      districtId: 10,
     },
-    tracking_number: 'GHTK555666777',
+    trackingNumber: 'GHTK555666777',
     carrier: 'GHTK',
-    created_at: '2024-01-21T13:00:00Z',
-    updated_at: '2024-01-22T10:00:00Z',
+    createdAt: '2024-01-21T13:00:00Z',
+    updatedAt: '2024-01-22T10:00:00Z',
   },
   {
-    order_id: 9,
-    parent_order_id: 9,
-    order_code: 'FS-20240118-0009',
-    buyer_id: 13,
-    buyer_name: 'Phạm Hoàng D',
-    buyer_username: 'phamhoangd',
+    orderId: 9,
+    parentOrderId: 9,
+    orderCode: 'FS-20240118-0009',
+    buyerId: 13,
+    buyerName: 'Phạm Hoàng D',
+    buyerUsername: 'phamhoangd',
     status: 'CANCELLED',
-    total_amt: 1_500_000,
-    final_amt: 1_500_000,
-    item_count: 1,
-    shipping_address: {
-      full_address: '88 Đường Lý Thường Kiệt, Quận 5, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 5,
+    totalAmt: 1_500_000,
+    finalAmt: 1_500_000,
+    itemCount: 1,
+    shippingAddress: {
+      fullAddress: '88 Đường Lý Thường Kiệt, Quận 5, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 5,
     },
-    tracking_number: null,
+    trackingNumber: null,
     carrier: null,
-    created_at: '2024-01-18T09:00:00Z',
-    updated_at: '2024-01-18T10:30:00Z',
+    createdAt: '2024-01-18T09:00:00Z',
+    updatedAt: '2024-01-18T10:30:00Z',
   },
   {
-    order_id: 10,
-    parent_order_id: 10,
-    order_code: 'FS-20240105-0010',
-    buyer_id: 14,
-    buyer_name: 'Võ Đình E',
-    buyer_username: 'vodinhe',
+    orderId: 10,
+    parentOrderId: 10,
+    orderCode: 'FS-20240105-0010',
+    buyerId: 14,
+    buyerName: 'Võ Đình E',
+    buyerUsername: 'vodinhe',
     status: 'REFUNDED',
-    total_amt: 4_000_000,
-    final_amt: 4_000_000,
-    item_count: 1,
-    shipping_address: {
-      full_address: '200 Đường 3/2, Quận 10, TP. Hồ Chí Minh',
-      province_id: 1,
-      district_id: 10,
+    totalAmt: 4_000_000,
+    finalAmt: 4_000_000,
+    itemCount: 1,
+    shippingAddress: {
+      fullAddress: '200 Đường 3/2, Quận 10, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 10,
     },
-    tracking_number: null,
+    trackingNumber: null,
     carrier: null,
-    created_at: '2024-01-05T11:00:00Z',
-    updated_at: '2024-01-12T15:00:00Z',
+    createdAt: '2024-01-05T11:00:00Z',
+    updatedAt: '2024-01-12T15:00:00Z',
   },
 ];
 
 // ─── Checkout state ──────────────────────────────────────────────────────────
 
 let checkoutOrderData: Record<number, {
-  parent_order_id: number;
-  order_code: string;
+  parentOrderId: number;
+  orderCode: string;
   orders: any[];
-  total_amount: number;
-  final_amount: number;
-  items_count: number;
-  timeout_at: string;
-  created_at: string;
+  totalAmount: number;
+  finalAmount: number;
+  itemsCount: number;
+  timeoutAt: string;
+  createdAt: string;
 }> = {};
 
 // ─── Mock handlers ───────────────────────────────────────────────────────────
@@ -809,11 +809,11 @@ const mockHandlers: MockHandler[] = [
     }
     if (url?.startsWith('/cart/items') && method === 'post') {
       await sleep(200 + Math.random() * 100);
-      return { success: true, data: { cart_item_id: Date.now(), sku_code: 'MOCK-SKU', product_name: 'Sản phẩm mới', variant_name: 'Mặc định', unit_price: 999_000, quantity: 1, stock_available: 50, is_flash: false }, timestamp: Date.now() };
+      return { success: true, data: { cartItemId: Date.now(), skuCode: 'MOCK-SKU', productName: 'Sản phẩm mới', variantName: 'Mặc định', unitPrice: 999_000, quantity: 1, stockAvailable: 50, isFlash: false }, timestamp: Date.now() };
     }
     if (url?.match(/^\/cart\/items\/\d+$/) && method === 'put') {
       await sleep(200 + Math.random() * 100);
-      return { success: true, data: { cart_item_id: parseInt(url!.split('/').pop()!), sku_code: 'MOCK-SKU', product_name: 'Sản phẩm', variant_name: 'Mặc định', unit_price: 999_000, quantity: 1, stock_available: 50, is_flash: false }, timestamp: Date.now() };
+      return { success: true, data: { cartItemId: parseInt(url!.split('/').pop()!), skuCode: 'MOCK-SKU', productName: 'Sản phẩm', variantName: 'Mặc định', unitPrice: 999_000, quantity: 1, stockAvailable: 50, isFlash: false }, timestamp: Date.now() };
     }
     if (url?.match(/^\/cart\/items\/\d+$/) && method === 'delete') {
       await sleep(200 + Math.random() * 100);
@@ -831,26 +831,26 @@ const mockHandlers: MockHandler[] = [
       const now = new Date().toISOString();
       const orderId = poId - 1;
       const orderData = {
-        parent_order_id: poId,
-        order_code: `PO-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(poId).slice(-4)}`,
+        parentOrderId: poId,
+        orderCode: `PO-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(poId).slice(-4)}`,
         orders: [
           {
-            order_id: orderId,
-            order_code: `FS-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(orderId).slice(-4)}`,
-            seller_id: 1,
-            seller_name: 'Shop Sony',
-            total_amt: 6_490_000,
-            final_amt: 6_490_000,
+            orderId: orderId,
+            orderCode: `FS-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(orderId).slice(-4)}`,
+            sellerId: 1,
+            sellerName: 'Shop Sony',
+            totalAmt: 6_490_000,
+            finalAmt: 6_490_000,
             status: 'PENDING',
-            item_count: body.item_ids?.length || 1,
-            created_at: now,
+            itemCount: body.itemIds?.length || 1,
+            createdAt: now,
           },
         ],
-        total_amount: 6_490_000,
-        final_amount: 6_490_000,
-        items_count: body.item_ids?.length || 1,
-        timeout_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        created_at: now,
+        totalAmount: 6_490_000,
+        finalAmount: 6_490_000,
+        itemsCount: body.itemIds?.length || 1,
+        timeoutAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        createdAt: now,
       };
       checkoutOrderData[poId] = orderData;
       return { success: true, data: orderData, timestamp: Date.now() };
@@ -882,7 +882,7 @@ const mockHandlers: MockHandler[] = [
     if (getOrderByIdMatch && method === 'get') {
       await sleep(300 + Math.random() * 100);
       const orderId = parseInt(getOrderByIdMatch[1]);
-      const order = MOCK_ORDERS.find(o => o.order_id === orderId);
+      const order = MOCK_ORDERS.find(o => o.orderId === orderId);
       if (!order) throw { response: { status: 404, data: { message: 'Order not found' } } };
       return { success: true, data: order, timestamp: Date.now() };
     }
@@ -897,37 +897,37 @@ const mockHandlers: MockHandler[] = [
         return {
           success: true,
           data: {
-            parent_order_id: parentId,
-            order_code: cd.order_code,
+            parentOrderId: parentId,
+            orderCode: cd.orderCode,
             status: 'PENDING',
-            total_amt: cd.total_amount,
-            final_amt: cd.final_amount,
-            shipping_address: MOCK_ADDRESSES[0],
+            totalAmt: cd.totalAmount,
+            finalAmt: cd.finalAmount,
+            shippingAddress: MOCK_ADDRESSES[0],
             orders: cd.orders.map(o => ({
               ...o,
-              seller_id: 1,
-              seller_name: 'Shop Sony',
-              buyer_id: 1,
-              buyer_name: 'Nguyễn Văn A',
-              shipping_address: MOCK_ADDRESSES[0],
-              created_at: cd.created_at,
+              sellerId: 1,
+              sellerName: 'Shop Sony',
+              buyerId: 1,
+              buyerName: 'Nguyễn Văn A',
+              shippingAddress: MOCK_ADDRESSES[0],
+              createdAt: cd.createdAt,
               items: [{
-                order_item_id: 1,
-                sku_code: 'KEY-K2-WHITE',
-                product_name: 'Bàn phím cơ Keychron K2',
-                variant_name: 'Trắng / Hot-swap',
-                price_snapshot: 2_190_000,
+                orderItemId: 1,
+                skuCode: 'KEY-K2-WHITE',
+                productName: 'Bàn phím cơ Keychron K2',
+                variantName: 'Trắng / Hot-swap',
+                priceSnapshot: 2_190_000,
                 quantity: 1,
-                refunded_quantity: 0,
+                refundedQuantity: 0,
               }],
             })),
-            created_at: cd.created_at,
-            updated_at: cd.created_at,
+            createdAt: cd.createdAt,
+            updatedAt: cd.createdAt,
           },
           timestamp: Date.now(),
         };
       }
-      const po = MOCK_PARENT_ORDERS.find(p => p.parent_order_id === parentId);
+      const po = MOCK_PARENT_ORDERS.find(p => p.parentOrderId === parentId);
       if (!po) throw { response: { status: 404, data: { message: 'Parent order not found' } } };
       return { success: true, data: po, timestamp: Date.now() };
     }
@@ -938,7 +938,7 @@ const mockHandlers: MockHandler[] = [
       const orderId = parseInt(cancelMatch[1]);
       return {
         success: true,
-        data: { order_id: orderId, order_code: `FS-MOCK-${orderId}`, status: 'CANCELLED', cancelled_by: 'BUYER', cancelled_at: new Date().toISOString() },
+        data: { orderId: orderId, orderCode: `FS-MOCK-${orderId}`, status: 'CANCELLED', cancelledBy: 'BUYER', cancelledAt: new Date().toISOString() },
         timestamp: Date.now(),
       };
     }
@@ -951,12 +951,12 @@ const mockHandlers: MockHandler[] = [
       return {
         success: true,
         data: {
-          order_id: orderId,
-          order_code: `FS-MOCK-${orderId}`,
+          orderId: orderId,
+          orderCode: `FS-MOCK-${orderId}`,
           status: 'SHIPPING',
-          tracking_number: body.tracking_number,
+          trackingNumber: body.trackingNumber,
           carrier: body.carrier || 'ViettelPost',
-          shipping_deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          shippingDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         },
         timestamp: Date.now(),
       };
@@ -966,7 +966,7 @@ const mockHandlers: MockHandler[] = [
     if (confirmMatch && method === 'post') {
       await sleep(400 + Math.random() * 200);
       const orderId = parseInt(confirmMatch[1]);
-      return { success: true, data: { order_id: orderId, status: 'DELIVERED' }, timestamp: Date.now() };
+      return { success: true, data: { orderId: orderId, status: 'DELIVERED' }, timestamp: Date.now() };
     }
 
     const rtsMatch = url?.match(/^\/orders\/(\d+)\/return-to-sender$/);
@@ -976,12 +976,12 @@ const mockHandlers: MockHandler[] = [
       return {
         success: true,
         data: {
-          order_id: orderId,
-          order_code: `FS-MOCK-${orderId}`,
-          order_status: 'RETURNED',
-          refund_id: Date.now(),
-          refund_status: 'PENDING',
-          refund_amount: 1_000_000,
+          orderId: orderId,
+          orderCode: `FS-MOCK-${orderId}`,
+          orderStatus: 'RETURNED',
+          refundId: Date.now(),
+          refundStatus: 'PENDING',
+          refundAmount: 1_000_000,
         },
         timestamp: Date.now(),
       };
@@ -1019,22 +1019,22 @@ const mockHandlers: MockHandler[] = [
       return {
         success: true,
         data: {
-          refund_id: Date.now(),
-          order_id: orderId,
-          group_ref: `GRP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
+          refundId: Date.now(),
+          orderId: orderId,
+          groupRef: `GRP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
           type: 'PARTIAL',
           status: 'PENDING',
           amount: body.items?.reduce((s: number, it: any) => s + (it.quantity * 2_190_000), 0) || 299_000,
           reason: body.reason || 'Sản phẩm lỗi',
-          initiated_by: 'BUYER',
+          initiatedBy: 'BUYER',
           items: body.items?.map((it: any) => ({
-            order_item_id: it.order_item_id,
+            orderItemId: it.orderItemId,
             quantity: it.quantity,
-            refund_amount: it.quantity * 2_190_000,
-            item_reason: it.item_reason,
+            refundAmount: it.quantity * 2_190_000,
+            itemReason: it.itemReason,
             status: 'PENDING',
           })),
-          created_at: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         },
         timestamp: Date.now(),
       };
@@ -1043,7 +1043,7 @@ const mockHandlers: MockHandler[] = [
     if (orderRefundMatch && method === 'get') {
       await sleep(300 + Math.random() * 100);
       const orderId = parseInt(orderRefundMatch[1]);
-      const orderRefunds = MOCK_REFUNDS.filter(r => r.order_id === orderId);
+      const orderRefunds = MOCK_REFUNDS.filter(r => r.orderId === orderId);
       return { success: true, data: orderRefunds, timestamp: Date.now() };
     }
 
@@ -1054,13 +1054,13 @@ const mockHandlers: MockHandler[] = [
       return {
         success: true,
         data: {
-          group_ref: `GRP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
+          groupRef: `GRP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
           type: 'FULL',
-          total_amount: 2_190_000,
+          totalAmount: 2_190_000,
           status: 'PENDING',
-          refunds: [{ refund_id: Date.now(), order_id: parentId * 10, seller_id: 1, amount: 2_190_000, item_count: 1 }],
+          refunds: [{ refundId: Date.now(), orderId: parentId * 10, sellerId: 1, amount: 2_190_000, itemCount: 1 }],
           loyalty_points_to_return: 219,
-          estimated_days: 3,
+          estimatedDays: 3,
         },
         timestamp: Date.now(),
       };
@@ -1071,11 +1071,11 @@ const mockHandlers: MockHandler[] = [
       return {
         success: true,
         data: {
-          group_ref: `GRP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-0001`,
+          groupRef: `GRP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-0001`,
           type: 'FULL',
-          overall_status: 'SUCCESS',
-          total_amount: 2_190_000,
-          refunds: [{ refund_id: 1, order_id: 3, status: 'SUCCESS', refund_ref: 're_mock_full_1' }],
+          overallStatus: 'SUCCESS',
+          totalAmount: 2_190_000,
+          refunds: [{ refundId: 1, orderId: 3, status: 'SUCCESS', refundRef: 're_mock_full_1' }],
         },
         timestamp: Date.now(),
       };
@@ -1089,7 +1089,7 @@ const mockHandlers: MockHandler[] = [
       const content = MOCK_REFUNDS.slice(start, start + size);
       return {
         success: true,
-        data: { content, total_elements: MOCK_REFUNDS.length, total_pages: Math.ceil(MOCK_REFUNDS.length / size) },
+        data: { content, totalElements: MOCK_REFUNDS.length, totalPages: Math.ceil(MOCK_REFUNDS.length / size) },
         timestamp: Date.now(),
       };
     }
@@ -1108,21 +1108,21 @@ const mockHandlers: MockHandler[] = [
         return {
           success: true,
           data: {
-            transaction_id: parentId,
-            parent_order_id: parentId,
-            amount: checkoutOrderData[parentId].final_amount,
+            transactionId: parentId,
+            parentOrderId: parentId,
+            amount: checkoutOrderData[parentId].finalAmount,
             method: 'stripe',
             status: 'PENDING',
-            stripe_pi_id: `pi_mock_${parentId}`,
-            application_fee: Math.round(checkoutOrderData[parentId].final_amount * 0.03),
-            trans_ref: `TXN-MOCK-${parentId}`,
-            paid_at: null,
-            remaining_seconds: 542,
+            stripePiId: `pi_mock_${parentId}`,
+            applicationFee: Math.round(checkoutOrderData[parentId].finalAmount * 0.03),
+            transRef: `TXN-MOCK-${parentId}`,
+            paidAt: null,
+            remainingSeconds: 542,
           },
           timestamp: Date.now(),
         };
       }
-      const payment = MOCK_PAYMENTS.find(p => p.parent_order_id === parentId);
+      const payment = MOCK_PAYMENTS.find(p => p.parentOrderId === parentId);
       if (!payment) throw { response: { status: 404, data: { message: 'Payment not found' } } };
       return { success: true, data: payment, timestamp: Date.now() };
     }
@@ -1134,9 +1134,9 @@ const mockHandlers: MockHandler[] = [
       return {
         success: true,
         data: {
-          parent_order_id: parentId,
-          transaction_id: parentId,
-          client_secret: `pi_mock_secret_${parentId}_${Date.now()}_test_mock_secret`,
+          parentOrderId: parentId,
+          transactionId: parentId,
+          clientSecret: `pi_mock_secret_${parentId}_${Date.now()}_test_mock_secret`,
           status: 'requires_payment_method',
         },
         timestamp: Date.now(),
@@ -1157,7 +1157,7 @@ const mockHandlers: MockHandler[] = [
       const body = JSON.parse(data || '{}');
       return {
         success: true,
-        data: { address_id: Date.now(), ...body, is_default: body.is_default ?? false },
+        data: { addressId: Date.now(), ...body, isDefault: body.isDefault ?? false },
         timestamp: Date.now(),
       };
     }
@@ -1166,7 +1166,7 @@ const mockHandlers: MockHandler[] = [
       await sleep(300 + Math.random() * 100);
       const addressId = parseInt(addrUpdateMatch[1]);
       const body = JSON.parse(data || '{}');
-      return { success: true, data: { ...MOCK_ADDRESSES[0], address_id: addressId, ...body }, timestamp: Date.now() };
+      return { success: true, data: { ...MOCK_ADDRESSES[0], addressId: addressId, ...body }, timestamp: Date.now() };
     }
     if (addrUpdateMatch && method === 'delete') {
       await sleep(300 + Math.random() * 100);
@@ -1182,7 +1182,7 @@ const mockHandlers: MockHandler[] = [
       const search = params?.q || params?.search || '';
       const category = params?.category;
       let filtered = MOCK_PRODUCTS;
-      if (search) filtered = filtered.filter(p => p.product_name.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase()));
+      if (search) filtered = filtered.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase()));
       if (category) filtered = filtered.filter(p => p.category === category);
       return {
         success: true,
@@ -1193,7 +1193,7 @@ const mockHandlers: MockHandler[] = [
     const productMatch = url?.match(/^\/products\/([^/]+)$/);
     if (productMatch && method === 'get') {
       await sleep(200 + Math.random() * 100);
-      const product = MOCK_PRODUCTS.find(p => p.product_id === productMatch[1]);
+      const product = MOCK_PRODUCTS.find(p => p.productId === productMatch[1]);
       if (!product) throw { response: { status: 404, data: { message: 'Product not found' } } };
       return { success: true, data: product, timestamp: Date.now() };
     }
@@ -1209,27 +1209,46 @@ const mockHandlers: MockHandler[] = [
         data: {
           accessToken: 'mock_access_token_' + Date.now(),
           refreshToken: 'mock_refresh_token_' + Date.now(),
+          tokenType: 'Bearer',
+          expiresIn: 3600,
+          refreshExpiresIn: 604800,
           userId: 1,
           username: 'nguyenvana',
           email: 'nguyenvana@example.com',
-          role: 'CUSTOMER',
-          expiresIn: 3600,
+          phone: '0901234567',
+          fullName: 'Nguyễn Văn A',
+          role: 'BUYER',
+          roles: ['BUYER'],
+          status: 'ACTIVE',
+          trustScore: 85,
+          trustTier: 'Gold',
+          avatarUrl: undefined,
         },
         timestamp: Date.now(),
       };
     }
     if (url === '/auth/register' && method === 'post') {
       await sleep(600 + Math.random() * 300);
+      const body = JSON.parse(data || '{}');
       return {
         success: true,
         data: {
           accessToken: 'mock_access_token_' + Date.now(),
           refreshToken: 'mock_refresh_token_' + Date.now(),
-          userId: Date.now(),
-          username: JSON.parse(data || '{}').username || 'newuser',
-          email: JSON.parse(data || '{}').email || 'new@example.com',
-          role: 'CUSTOMER',
+          tokenType: 'Bearer',
           expiresIn: 3600,
+          refreshExpiresIn: 604800,
+          userId: Date.now(),
+          username: body.username || 'newuser',
+          email: body.email || 'new@example.com',
+          phone: body.phone,
+          fullName: body.fullName,
+          role: 'BUYER',
+          roles: ['BUYER'],
+          status: 'ACTIVE',
+          trustScore: 80,
+          trustTier: 'Bronze',
+          avatarUrl: undefined,
         },
         timestamp: Date.now(),
       };
@@ -1238,10 +1257,29 @@ const mockHandlers: MockHandler[] = [
       await sleep(200);
       return {
         success: true,
-        data: { accessToken: 'mock_access_token_' + Date.now(), expiresIn: 3600 },
+        data: {
+          accessToken: 'mock_access_token_' + Date.now(),
+          refreshToken: 'mock_refresh_token_' + Date.now(),
+          tokenType: 'Bearer',
+          expiresIn: 3600,
+          refreshExpiresIn: 604800,
+          userId: 1,
+          username: 'nguyenvana',
+          email: 'nguyenvana@example.com',
+          role: 'BUYER',
+          roles: ['BUYER'],
+          status: 'ACTIVE',
+          trustScore: 85,
+        },
         timestamp: Date.now(),
       };
     }
+    return null;
+  },
+
+  // ─── User Identity ───────────────────────────────────────────────────────────
+  async ({ method, url, params, data }) => {
+    // GET /users/me
     if (url === '/users/me' && method === 'get') {
       await sleep(200 + Math.random() * 100);
       return {
@@ -1250,13 +1288,252 @@ const mockHandlers: MockHandler[] = [
           userId: 1,
           username: 'nguyenvana',
           email: 'nguyenvana@example.com',
-          role: 'CUSTOMER',
-          name: 'Nguyễn Văn A',
-          trust_score: 4.8,
+          phone: '0901234567',
+          fullName: 'Nguyễn Văn A',
+          avatarUrl: undefined,
+          roles: ['BUYER'],
+          status: 'ACTIVE',
+          trustScore: 85,
+          trustTier: 'Gold',
+          appealCount: 0,
+          productPostingSuspended: false,
+          lockReason: undefined,
+          lockedUntil: undefined,
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-15T12:00:00Z',
         },
         timestamp: Date.now(),
       };
     }
+
+    // PUT /users/me
+    if (url === '/users/me' && method === 'put') {
+      await sleep(300 + Math.random() * 100);
+      const body = JSON.parse(data || '{}');
+      return {
+        success: true,
+        data: {
+          userId: 1,
+          username: 'nguyenvana',
+          email: 'nguyenvana@example.com',
+          phone: body.phone ?? '0901234567',
+          fullName: body.fullName ?? 'Nguyễn Văn A',
+          avatarUrl: body.avatarUrl,
+          roles: ['BUYER'],
+          status: 'ACTIVE',
+          trustScore: 85,
+          trustTier: 'Gold',
+          appealCount: 0,
+          productPostingSuspended: false,
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: new Date().toISOString(),
+        },
+        timestamp: Date.now(),
+      };
+    }
+
+    // POST /users/me/change-password
+    if (url === '/users/me/change-password' && method === 'post') {
+      await sleep(400 + Math.random() * 200);
+      const body = JSON.parse(data || '{}');
+      if (!body.currentPassword) {
+        throw { response: { status: 400, data: { message: 'Mật khẩu hiện tại không được để trống' } } };
+      }
+      if (body.newPassword && body.newPassword.length < 6) {
+        throw { response: { status: 400, data: { message: 'Mật khẩu mới phải có ít nhất 6 ký tự' } } };
+      }
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+
+    // GET /users/me/avatar/presigned-url
+    const avatarPresignedMatch = url?.match(/^\/users\/me\/avatar\/presigned-url/);
+    if (avatarPresignedMatch && method === 'get') {
+      await sleep(200 + Math.random() * 100);
+      const objectKey = `user-avatars/user_${1}_${Date.now()}.jpg`;
+      return {
+        success: true,
+        data: {
+          uploadUrl: `https://minio.internal/${objectKey}`,
+          objectKey,
+          cdnUrl: `https://cdn.flashsale.com/${objectKey}`,
+          expiresIn: 300,
+        },
+        timestamp: Date.now(),
+      };
+    }
+
+    // GET /users/me/addresses
+    if (url === '/users/me/addresses' && method === 'get') {
+      await sleep(300 + Math.random() * 100);
+      return { success: true, data: MOCK_ADDRESSES, timestamp: Date.now() };
+    }
+
+    // POST /users/me/addresses
+    if (url === '/users/me/addresses' && method === 'post') {
+      await sleep(400 + Math.random() * 200);
+      const body = JSON.parse(data || '{}');
+      return {
+        success: true,
+        data: { addressId: Date.now(), ...body, isDefault: body.isDefault ?? false },
+        timestamp: Date.now(),
+      };
+    }
+
+    const addrMatch = url?.match(/^\/users\/me\/addresses\/(\d+)$/);
+    if (addrMatch && method === 'put') {
+      await sleep(300 + Math.random() * 100);
+      const body = JSON.parse(data || '{}');
+      return { success: true, data: { addressId: parseInt(addrMatch[1]), ...body }, timestamp: Date.now() };
+    }
+    if (addrMatch && method === 'delete') {
+      await sleep(300 + Math.random() * 100);
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+
+    // GET /users/me/trust-score/logs
+    const trustScoreMatch = url?.match(/^\/users\/me\/trust-score\/logs/);
+    if (trustScoreMatch && method === 'get') {
+      await sleep(300 + Math.random() * 100);
+      const logs = [
+        { logId: 3, eventCode: 'ORDER_COMPLETED', delta: 2, scoreAfter: 85, changedBy: 'SYSTEM', reason: 'Hoàn thành đơn hàng', createdAt: '2024-01-20T10:00:00Z' },
+        { logId: 2, eventCode: 'ORDER_COMPLETED', delta: 2, scoreAfter: 83, changedBy: 'SYSTEM', reason: 'Hoàn thành đơn hàng', createdAt: '2024-01-15T14:00:00Z' },
+        { logId: 1, eventCode: 'ACCOUNT_CREATED', delta: 80, scoreAfter: 81, changedBy: 'SYSTEM', reason: 'Tạo tài khoản', createdAt: '2024-01-01T00:00:00Z' },
+      ];
+      return {
+        success: true,
+        data: { content: logs, totalElements: logs.length, totalPages: 1, last: true },
+        timestamp: Date.now(),
+      };
+    }
+
+    // GET /loyalty/balance
+    if (url === '/loyalty/balance' && method === 'get') {
+      await sleep(300 + Math.random() * 100);
+      return {
+        success: true,
+        data: {
+          userId: 1,
+          loyaltyAccountId: 1,
+          availablePoints: 2500,
+          pendingPoints: 200,
+          expiredPoints: 50,
+          totalEarned: 5000,
+          totalUsed: 2450,
+          conversionRate: 100,
+          note: '100 điểm = 1.000đ',
+          maxUsablePerOrder: 50000,
+          maxUsablePercentage: 20,
+          expiryPolicy: {
+            expiryDays: 365,
+            nextExpiryDate: '2025-01-01T00:00:00Z',
+            pointsExpiringSoon: 50,
+          },
+          tierBenefits: {
+            tier: 'GOLD',
+            trustScore: 85,
+            earningRate: '1.5%/đơn',
+            maxDiscountRate: '10%/đơn',
+          },
+          recentTransactions: [
+            { transactionId: 5, type: 'EARN', delta: 300, status: 'COMPLETED', orderId: 4, orderCode: 'PO-20240123-0004', createdAt: '2024-01-23T11:05:00Z', expiresAt: '2025-01-01T00:00:00Z' },
+            { transactionId: 4, type: 'REDEEM', delta: -1000, status: 'COMPLETED', orderId: 3, orderCode: 'PO-20240122-0003', balanceAfter: 2300, createdAt: '2024-01-22T16:50:00Z' },
+            { transactionId: 3, type: 'EARN', delta: 500, status: 'COMPLETED', orderId: 2, orderCode: 'PO-20240120-0002', createdAt: '2024-01-20T09:20:00Z', expiresAt: '2025-01-01T00:00:00Z' },
+          ],
+        },
+        timestamp: Date.now(),
+      };
+    }
+
+    // GET /loyalty/transactions
+    const loyaltyTxMatch = url?.match(/^\/loyalty\/transactions/);
+    if (loyaltyTxMatch && method === 'get') {
+      await sleep(300 + Math.random() * 100);
+      const txs = [
+        { transactionId: 5, type: 'EARN', delta: 300, status: 'COMPLETED', orderId: 4, orderCode: 'PO-20240123-0004', balanceAfter: 2500, createdAt: '2024-01-23T11:05:00Z', expiresAt: '2025-01-01T00:00:00Z' },
+        { transactionId: 4, type: 'REDEEM', delta: -1000, status: 'COMPLETED', orderId: 3, orderCode: 'PO-20240122-0003', balanceAfter: 2300, createdAt: '2024-01-22T16:50:00Z' },
+        { transactionId: 3, type: 'EARN', delta: 500, status: 'COMPLETED', orderId: 2, orderCode: 'PO-20240120-0002', balanceAfter: 3300, createdAt: '2024-01-20T09:20:00Z', expiresAt: '2025-01-01T00:00:00Z' },
+        { transactionId: 2, type: 'EARN', delta: 200, status: 'PENDING', orderId: 1, orderCode: 'PO-20240115-0001', balanceAfter: 2800, createdAt: '2024-01-15T10:35:00Z' },
+        { transactionId: 1, type: 'EARN', delta: 80, status: 'COMPLETED', orderId: undefined, orderCode: undefined, balanceAfter: 2600, note: 'Tạo tài khoản', createdAt: '2024-01-01T00:00:00Z' },
+      ];
+      const page = params?.page ?? 0;
+      const size = params?.size ?? 20;
+      const start = page * size;
+      return {
+        success: true,
+        data: { content: txs.slice(start, start + size), totalElements: txs.length, totalPages: Math.ceil(txs.length / size), last: true },
+        timestamp: Date.now(),
+      };
+    }
+
+    // GET /loyalty/estimate
+    const loyaltyEstMatch = url?.match(/^\/loyalty\/estimate/);
+    if (loyaltyEstMatch && method === 'get') {
+      await sleep(200 + Math.random() * 100);
+      const orderAmount = params?.orderAmount ?? 100000;
+      return {
+        success: true,
+        data: {
+          orderAmount,
+          pointsToEarn: Math.floor(orderAmount / 100000 * 1.5),
+          pointsToEarnFormula: 'Số tiền × 1.5%',
+          availablePoints: 2500,
+          maxPointsUsable: Math.min(2500, Math.floor(orderAmount * 0.2 / 1000) * 1000),
+          maxPointsUsableFormula: 'min(số dư, 20% giá trị đơn)',
+          conversionRate: 100,
+          pointsRequested: undefined,
+          discountIfUse50: 5000,
+          capPercent: 20,
+        },
+        timestamp: Date.now(),
+      };
+    }
+
+    // GET /support/trust-score-appeal/presigned-url
+    const appealPresignedMatch = url?.match(/^\/support\/trust-score-appeal\/presigned-url/);
+    if (appealPresignedMatch && method === 'get') {
+      await sleep(200 + Math.random() * 100);
+      const objectKey = `appeal-evidence/appeal_${Date.now()}.jpg`;
+      return {
+        success: true,
+        data: {
+          presignedUrl: `https://minio.internal/${objectKey}`,
+          objectUrl: `https://cdn.flashsale.com/${objectKey}`,
+          expiresIn: 300,
+        },
+        timestamp: Date.now(),
+      };
+    }
+
+    // GET /support/trust-score-appeal
+    if (url === '/support/trust-score-appeal' && method === 'get') {
+      await sleep(300 + Math.random() * 100);
+      return { success: true, data: [], timestamp: Date.now() };
+    }
+
+    // POST /support/trust-score-appeal
+    if (url === '/support/trust-score-appeal' && method === 'post') {
+      await sleep(500 + Math.random() * 200);
+      const body = JSON.parse(data || '{}');
+      return {
+        success: true,
+        data: {
+          appealId: Date.now(),
+          logId: body.logId,
+          status: 'PENDING',
+          reason: body.reason,
+          evidenceUrls: body.evidenceUrls ?? [],
+          createdAt: new Date().toISOString(),
+        },
+        timestamp: Date.now(),
+      };
+    }
+
+    // POST /users/me/roles/seller
+    if (url === '/users/me/roles/seller' && method === 'post') {
+      await sleep(500 + Math.random() * 200);
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+
     return null;
   },
 
@@ -1277,8 +1554,8 @@ const mockHandlers: MockHandler[] = [
         success: true,
         data: {
           content,
-          total_elements: filtered.length,
-          total_pages: Math.ceil(filtered.length / size),
+          totalElements: filtered.length,
+          totalPages: Math.ceil(filtered.length / size),
           last: start + size >= filtered.length,
         },
         timestamp: Date.now(),
@@ -1289,7 +1566,7 @@ const mockHandlers: MockHandler[] = [
     if (adminRefundMatch && method === 'get') {
       await sleep(300 + Math.random() * 100);
       const refundId = parseInt(adminRefundMatch[1]);
-      const refund = MOCK_REFUNDS.find(r => r.refund_id === refundId);
+      const refund = MOCK_REFUNDS.find(r => r.refundId === refundId);
       if (!refund) throw { response: { status: 404, data: { message: 'Refund not found' } } };
       return { success: true, data: refund, timestamp: Date.now() };
     }
@@ -1302,12 +1579,12 @@ const mockHandlers: MockHandler[] = [
       return {
         success: true,
         data: {
-          refund_id: refundId,
+          refundId: refundId,
           status: 'SUCCESS',
           amount: 299_000,
-          tracking_number: body.tracking_number,
-          reviewed_by: 'Admin Mock',
-          reviewed_at: new Date().toISOString(),
+          trackingNumber: body.trackingNumber,
+          reviewedBy: 'Admin Mock',
+          reviewedAt: new Date().toISOString(),
         },
         timestamp: Date.now(),
       };
@@ -1319,7 +1596,7 @@ const mockHandlers: MockHandler[] = [
       const refundId = parseInt(rejectMatch[1]);
       return {
         success: true,
-        data: { refund_id: refundId, status: 'REJECTED' },
+        data: { refundId: refundId, status: 'REJECTED' },
         timestamp: Date.now(),
       };
     }

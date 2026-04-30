@@ -180,8 +180,8 @@ export default function FlashSaleConfigPage() {
                 {sessions.map(s => (
                   <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="px-5 py-4 font-medium text-gray-900">{s.name}</td>
-                    <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDateTime(s.start_time)}</td>
-                    <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDateTime(s.end_time)}</td>
+                    <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDateTime(s.startTime)}</td>
+                    <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDateTime(s.endTime)}</td>
                     <td className="px-5 py-4 text-gray-700">{s.items?.length ?? 0} sản phẩm</td>
                     <td className="px-5 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[s.status] ?? 'bg-gray-100 text-gray-600'}`}>

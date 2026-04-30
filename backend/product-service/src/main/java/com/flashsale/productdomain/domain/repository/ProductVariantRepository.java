@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface ProductVariantRepository extends MongoRepository<ProductVariant, String> {
     Optional<ProductVariant> findBySkuCode(String skuCode);
 
+    List<ProductVariant> findBySkuCodeIn(List<String> skuCodes);
+
     List<ProductVariant> findByProductId(String productId);
 
     boolean existsBySkuCode(String skuCode);

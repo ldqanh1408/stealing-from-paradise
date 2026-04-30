@@ -15,7 +15,9 @@ public class VariantResponse {
     private String productId;
     private String skuCode;
     private String tierName;
+    private String variantName;  // alias for tierName (frontend compatibility)
     private BigDecimal price;
+    private Integer stock;       // from inventory lookup
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -25,7 +27,23 @@ public class VariantResponse {
                 .productId(v.getProductId())
                 .skuCode(v.getSkuCode())
                 .tierName(v.getTierName())
+                .variantName(v.getTierName())  // alias
                 .price(v.getPrice())
+                .createdAt(v.getCreatedAt())
+                .updatedAt(v.getUpdatedAt())
+                .build();
+    }
+
+    /** Factory that also populates stock from inventory */
+    public static VariantResponse from(ProductVariant v, Integer stock) {
+        return VariantResponse.builder()
+                .variantId(v.getId())
+                .productId(v.getProductId())
+                .skuCode(v.getSkuCode())
+                .tierName(v.getTierName())
+                .variantName(v.getTierName())
+                .price(v.getPrice())
+                .stock(stock)
                 .createdAt(v.getCreatedAt())
                 .updatedAt(v.getUpdatedAt())
                 .build();

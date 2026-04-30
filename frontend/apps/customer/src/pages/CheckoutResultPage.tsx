@@ -57,9 +57,9 @@ export default function CheckoutResultPage() {
 
     // Try sessionStorage recovery (e.g., page was refreshed after checkout)
     const stored = recoverStoredOrderData();
-    if (stored?.parent_order_id) {
+    if (stored?.parentOrderId) {
       setRecoveredData({
-        parentOrderId: stored.parent_order_id,
+        parentOrderId: stored.parentOrderId,
         paymentIntentId: paymentIntentId ?? '',
         // COD info stored alongside orderData; fall back to 'stripe'
         method: (stored as any)._paymentMethod ?? 'stripe',
@@ -163,7 +163,7 @@ export default function CheckoutResultPage() {
           {state.method === 'COD' && polledOrder && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left text-sm text-yellow-800 text-left">
               <strong>Thanh toán khi nhận hàng (COD)</strong>
-              <p className="mt-1">Bạn sẽ thanh toán {fmt(polledOrder.final_amt)} khi nhận được hàng.</p>
+              <p className="mt-1">Bạn sẽ thanh toán {fmt(polledOrder.finalAmt)} khi nhận được hàng.</p>
               {polledOrder.status === 'PENDING' && (
                 <p className="mt-1 text-yellow-700">Trạng thái: <strong>Chờ thanh toán</strong></p>
               )}
@@ -178,7 +178,7 @@ export default function CheckoutResultPage() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-500 text-xs">Mã giao dịch</p>
-                  <p className="font-medium text-gray-700 font-mono text-xs">{paymentData.trans_ref}</p>
+                  <p className="font-medium text-gray-700 font-mono text-xs">{paymentData.transRef}</p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs">Số tiền</p>
@@ -199,11 +199,11 @@ export default function CheckoutResultPage() {
                      paymentData.status === 'PENDING' ? 'Đang xử lý' : 'Thất bại'}
                   </span>
                 </div>
-                {paymentData.paid_at && (
+                {paymentData.paidAt && (
                   <div>
                     <p className="text-gray-500 text-xs">Thanh toán lúc</p>
                     <p className="font-medium text-gray-700 text-xs">
-                      {new Date(paymentData.paid_at).toLocaleString('vi-VN')}
+                      {new Date(paymentData.paidAt).toLocaleString('vi-VN')}
                     </p>
                   </div>
                 )}

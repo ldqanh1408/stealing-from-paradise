@@ -39,12 +39,27 @@ export default function TrustScorePage() {
     retry: 1,
   });
 
-  const score = stats?.trust_score ?? 0;
+  const score = stats?.trustScore ?? 0;
   const tier =
     score >= 90 ? { label: 'Diamond', emoji: '💎', color: 'text-blue-600 bg-blue-50 border-blue-200' } :
     score >= 80 ? { label: 'Gold', emoji: '🥇', color: 'text-amber-600 bg-amber-50 border-amber-200' } :
     score >= 70 ? { label: 'Silver', emoji: '🥈', color: 'text-gray-600 bg-gray-50 border-gray-200' } :
                  { label: 'Bronze', emoji: '🥉', color: 'text-orange-600 bg-orange-50 border-orange-200' };
+
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Điểm tin cậy</h1>
+          <p className="text-gray-500 mt-1">Điểm tin cậy của bạn ảnh hưởng đến thứ hạng sản phẩm và niềm tin khách hàng</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+          <p className="text-red-700 font-medium">Không thể tải điểm tin cậy.</p>
+          <p className="text-red-500 text-sm mt-1">Vui lòng thử lại sau.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
@@ -55,29 +70,53 @@ export default function TrustScorePage() {
 
       {/* Main score card */}
       <div className="bg-white rounded-2xl border border-gray-100 p-8 mb-6 text-center">
-        <div className="text-6xl mb-3">{tier.emoji}</div>
-        <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-bold border mb-4 ${tier.color}`}>
-          Hạng {tier.label}
-        </span>
         {isLoading ? (
-          <div className="h-16 w-16 rounded-full bg-gray-100 animate-pulse mx-auto mb-4" />
+          <>
+            <div className="w-16 h-16 rounded-full bg-gray-100 animate-pulse mx-auto mb-3" />
+            <div className="h-7 w-24 bg-gray-100 animate-pulse rounded-full mx-auto mb-4" />
+            <div className="h-16 w-16 rounded-full bg-gray-100 animate-pulse mx-auto mb-2" />
+            <p className="text-gray-300 text-sm">trên 100 điểm</p>
+            <div className="mt-4 max-w-xs mx-auto">
+              <div className="h-3 bg-gray-100 rounded-full" />
+            </div>
+          </>
         ) : (
-          <div className="text-5xl font-black text-gray-900 mb-2">{score.toFixed(1)}</div>
+          <>
+            <div className="text-6xl mb-3">{tier.emoji}</div>
+            <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-bold border mb-4 ${tier.color}`}>
+              Hạng {tier.label}
+            </span>
+            <div className="text-5xl font-black text-gray-900 mb-2">{score.toFixed(1)}</div>
+            <p className="text-gray-500 text-sm">trên 100 điểm</p>
+            <div className="mt-4 max-w-xs mx-auto">
+              <ScoreBar score={score} />
+            </div>
+          </>
         )}
-        <p className="text-gray-500 text-sm">trên 100 điểm</p>
-        <div className="mt-4 max-w-xs mx-auto">
-          <ScoreBar score={score} />
-        </div>
       </div>
 
       {/* Breakdown */}
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Chi tiết điểm tin cậy</h2>
       <div className="space-y-3 mb-8">
-        <TrustFactor icon="📦" label="Chất lượng sản phẩm" score={Math.min(100, score + Math.random() * 10)} />
-        <TrustFactor icon="🚚" label="Tốc độ giao hàng" score={Math.min(100, score - Math.random() * 5)} />
-        <TrustFactor icon="💬" label="Phản hồi khách hàng" score={Math.min(100, score + Math.random() * 8)} />
-        <TrustFactor icon="⭐" label="Đánh giá trung bình" score={Math.min(100, score - Math.random() * 3)} />
-        <TrustFactor icon="🔄" label="Tỷ lệ hoàn/kiện" score={Math.min(100, score - Math.random() * 15)} />
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-100 animate-pulse">
+              <div className="w-10 h-10 bg-gray-100 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-100 rounded w-1/3" />
+                <div className="h-3 bg-gray-100 rounded-full" />
+              </div>
+            </div>
+          ))
+        ) : (
+          <>
+            <TrustFactor icon="📦" label="Chất lượng sản phẩm" score={Math.min(100, Math.round(score * 0.95))} />
+            <TrustFactor icon="🚚" label="Tốc độ giao hàng" score={Math.min(100, Math.round(score * 0.88))} />
+            <TrustFactor icon="💬" label="Phản hồi khách hàng" score={Math.min(100, Math.round(score * 0.92))} />
+            <TrustFactor icon="⭐" label="Đánh giá trung bình" score={Math.min(100, Math.round(score * 0.90))} />
+            <TrustFactor icon="🔄" label="Tỷ lệ hoàn/kiện" score={Math.min(100, Math.round(score * 0.85))} />
+          </>
+        )}
       </div>
 
       {/* Tips */}

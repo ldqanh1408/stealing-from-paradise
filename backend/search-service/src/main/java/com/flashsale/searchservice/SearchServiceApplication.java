@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.flashsale"})
 @EnableDiscoveryClient
 @EnableElasticsearchRepositories(basePackages = "com.flashsale.searchservice.domain.repository")
 public class SearchServiceApplication {

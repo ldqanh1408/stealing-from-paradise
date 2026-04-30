@@ -5,6 +5,7 @@ import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.identitydomain.dto.request.AddressCreateRequest;
 import com.flashsale.identitydomain.dto.request.AddressUpdateRequest;
+import com.flashsale.identitydomain.dto.request.ChangePasswordRequest;
 import com.flashsale.identitydomain.dto.request.UserProfileUpdateRequest;
 import com.flashsale.identitydomain.dto.response.AddressResponse;
 import com.flashsale.identitydomain.dto.response.PresignedUrlResponse;
@@ -92,12 +93,21 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(null, "Address deleted"));
     }
 
+
+    @PostMapping("/me/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal UserDetailsImpl user,
+            @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(user.getId(), request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully"));
+    }
+
     @PostMapping("/me/roles/seller")
     public ResponseEntity<ApiResponse<Void>> registerAsSeller(
-            @AuthenticationPrincipal UserDetailsImpl user) {
-        userService.registerAsSeller(user.getId());
-        return ResponseEntity.ok(ApiResponse.success(null, "Registered as seller"));
-    }
+                @AuthenticationPrincipal UserDetailsImpl user) {
+            userService.registerAsSeller(user.getId());
+            return ResponseEntity.ok(ApiResponse.success(null, "Registered as seller"));
+        }
 
     @GetMapping("/me/trust-score/logs")
     public ResponseEntity<ApiResponse<PageResponse<TrustScoreLogResponse>>> getTrustScoreLogs(

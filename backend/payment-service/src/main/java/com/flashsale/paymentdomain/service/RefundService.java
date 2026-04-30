@@ -93,9 +93,9 @@ public class RefundService {
         List<String> evidenceImages = refund.getEvidenceImages();
 
         // Build return evidence from RefundItems that have tracking
-        List<AdminRefundApproveResponse.ReturnEvidence> returnEvidence = items.stream()
+        List<RefundDetailResponse.ReturnEvidence> returnEvidence = items.stream()
                 .filter(ri -> ri.getReturnTrackingNumber() != null)
-                .map(ri -> AdminRefundApproveResponse.ReturnEvidence.builder()
+                .map(ri -> RefundDetailResponse.ReturnEvidence.builder()
                         .type("tracking")
                         .trackingNumber(ri.getReturnTrackingNumber())
                         .recordedAt(ri.getReturnedAt() != null

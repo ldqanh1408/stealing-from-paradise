@@ -2,36 +2,36 @@ import apiClient from '../lib/axios';
 import type { ApiResponse } from '../types/api';
 
 export interface CartItem {
-  cart_item_id: number;
-  sku_code: string;
-  product_id?: string;
-  product_name: string;
-  variant_name: string;
-  unit_price: number;
+  cartItemId: number;
+  skuCode: string;
+  productId?: string;
+  productName: string;
+  variantName: string;
+  unitPrice: number;
   quantity: number;
-  stock_available: number;
-  is_flash: boolean;
-  fs_item_id?: number | null;
-  flash_price?: number | null;
-  flash_expires_at?: string | null;
-  max_quantity_per_user?: number | null; // flash sale per-user limit
+  stockAvailable: number;
+  isFlash: boolean;
+  fsItemId?: number | null;
+  flashPrice?: number | null;
+  flashExpiresAt?: string | null;
+  maxQuantityPerUser?: number | null;
   subtotal?: number;
-  added_at?: string;
+  addedAt?: string;
 }
 
 export interface CartSeller {
-  seller_id: number;
-  seller_name: string;
-  seller_trust_score?: number;
+  sellerId: number;
+  sellerName: string;
+  sellerTrustScore?: number;
   items: CartItem[];
-  seller_subtotal?: number;
+  sellerSubtotal?: number;
 }
 
 export interface Cart {
-  cart_id?: string;
-  user_id?: number;
+  cartId?: string;
+  userId?: number;
   sellers: CartSeller[];
-  total_items: number;
+  totalItems: number;
   subtotal: number;
 }
 
@@ -43,9 +43,9 @@ export const cartApi = {
   // Add item to cart
   addItem: (skuCode: string, quantity: number, fsItemId?: number) =>
     apiClient.post<ApiResponse<CartItem>>('/cart/items', {
-      sku_code: skuCode,
+      skuCode,
       quantity,
-      fs_item_id: fsItemId,
+      fsItemId,
     }),
 
   // Update item quantity

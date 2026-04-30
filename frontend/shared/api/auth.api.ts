@@ -9,18 +9,29 @@ export interface LoginRequest {
 export interface RegisterRequest {
   username: string;
   email: string;
+  phone?: string;
   password: string;
+  fullName?: string;
 }
 
 /** Matches backend AuthResponse DTO */
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+  refreshExpiresIn: number;
   userId: number;
   username: string;
   email: string;
+  phone?: string;
+  fullName?: string;
   role: string;
-  expiresIn: number;
+  roles: string[];
+  status: string;
+  trustScore: number;
+  trustTier?: string;
+  avatarUrl?: string;
 }
 
 export const authApi = {

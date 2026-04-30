@@ -81,7 +81,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await cartApi.clearCart();
-      set({ cart: { sellers: [], total_items: 0, subtotal: 0 }, isLoading: false });
+      set({ cart: { sellers: [], totalItems: 0, subtotal: 0 }, isLoading: false });
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Failed to clear cart',
@@ -92,7 +92,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   getTotalItems: () => {
     const state = get();
-    return state.cart?.total_items || 0;
+    return state.cart?.totalItems || 0;
   },
 
   getTotalAmount: () => {

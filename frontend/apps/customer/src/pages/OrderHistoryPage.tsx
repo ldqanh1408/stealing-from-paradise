@@ -152,35 +152,35 @@ export default function OrderHistoryPage() {
               const actionLabel = getActionLabel(order.status);
               return (
                 <div
-                  key={order.order_id}
+                  key={order.orderId}
                   className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-all cursor-pointer"
-                  onClick={() => navigate(`/orders/${order.parent_order_id}`)}
+                  onClick={() => navigate(`/orders/${order.parentOrderId}`)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-bold text-gray-900">{order.order_code}</span>
+                        <span className="font-bold text-gray-900">{order.orderCode}</span>
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${st.bg} ${st.color}`}>
                           {STATUS_FILTERS.find(f => f.value === order.status)?.label ?? order.status}
                         </span>
-                        {order.is_flash_sale && (
+                        {order.isFlashSale && (
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
                             ⚡ Flash Sale
                           </span>
                         )}
                       </div>
                       <p className="text-sm text-gray-500">
-                        {order.seller_name} · {order.item_count} sản phẩm
+                        {order.sellerName} · {order.itemCount} sản phẩm
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">{formatDate(order.created_at)}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{formatDate(order.createdAt)}</p>
                       {actionLabel && (
                         <p className="text-xs text-blue-600 mt-1 font-medium">{actionLabel}</p>
                       )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-bold text-gray-900">{fmt(order.final_amt)}</p>
+                      <p className="font-bold text-gray-900">{fmt(order.finalAmt)}</p>
                       <button
-                        onClick={e => { e.stopPropagation(); navigate(`/orders/${order.parent_order_id}`); }}
+                        onClick={e => { e.stopPropagation(); navigate(`/orders/${order.parentOrderId}`); }}
                         className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-1 flex items-center gap-1"
                       >
                         Chi tiết

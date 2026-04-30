@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +30,14 @@ public class VariantService {
 
     public List<VariantResponse> listVariants(String productId, Long sellerId) {
         validateProductOwnership(productId, sellerId);
+
+        // Batch-load inventory by productId (1 query instead of N)
+        Map<String, Integer> stockBySku = inventoryRepository.findByProductId(productId).stream()
+                .collect(HashMap::new, (m, inv) -> m.put(inv.getSkuCode(), inv.getStockAvailable()), HashMap::putAll);
+
         return variantRepository.findByProductId(productId)
-                .stream().map(VariantResponse::from).toList();
+                .stream().map(v -> VariantResponse.from(v, stockBySku.getOrDefault(v.getSkuCode(), 0)))
+                .toList();
     }
 
     public VariantResponse createVariant(String productId, Long sellerId, CreateVariantRequest req) {
@@ -61,7 +69,7 @@ public class VariantService {
             inventoryRepository.save(inventory);
         }
 
-        return VariantResponse.from(variant);
+        return VariantResponse.from(variant, 0);
     }
 
     public VariantResponse updateVariant(String variantId, Long sellerId, UpdateVariantRequest req) {
@@ -74,7 +82,9 @@ public class VariantService {
         if (req.getTierName() != null) variant.setTierName(req.getTierName());
         if (req.getPrice() != null)    variant.setPrice(req.getPrice());
 
-        return VariantResponse.from(variantRepository.save(variant));
+        Integer stock = inventoryRepository.findBySkuCode(variant.getSkuCode())
+                .map(Inventory::getStockAvailable).orElse(0);
+        return VariantResponse.from(variantRepository.save(variant), stock);
     }
 
     public void deleteVariant(String variantId, Long sellerId) {

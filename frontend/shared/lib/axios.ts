@@ -6,12 +6,13 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
 
 console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
 console.log('All env:', import.meta.env);
+
 // ─── Singleton Axios instance ─────────────────────────────────────
 export const apiClient: AxiosInstance = axios.create({
   baseURL: `${BASE_URL}`,
   timeout: 15_000,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,          // gửi cookie (refresh token HttpOnly)
+  withCredentials: true,
 });
 
 // ─── Install mock interceptor ─────────────────────────────────────
@@ -20,7 +21,6 @@ installMockInterceptor(apiClient);
 // ─── Request interceptor: gắn Access Token ───────────────────────
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Skip auth header in mock mode
     if (isMockMode()) return config;
     const token = Cookies.get('accessToken');
     if (token && config.headers) {
@@ -40,17 +40,24 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
   failedQueue = [];
 };
 
+// Axios instance for refresh token calls — uses raw axios so it bypasses this interceptor entirely
+const rawAxios = axios.create();
+
+const REFRESH_ERROR_CODES = new Set(['AUTH_003', 'AUTH_002']);
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    // Network error or mock response — pass through without token refresh
     if (isNetworkError(error) || (error as any)?.isMockResponse) {
       return Promise.reject(error);
     }
 
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const status = error.response?.status;
+    const errorCode = (error.response?.data as any)?.errorCode;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 401 → attempt token refresh
+    if (status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -64,29 +71,57 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Gọi refresh-token — Gateway route /auth/refresh, gửi refreshToken qua HttpOnly cookie
-        const { data } = await axios.post<{ data: { accessToken: string } }>(
+        const refreshToken = Cookies.get('refreshToken');
+        if (!refreshToken) {
+          throw new Error('No refresh token');
+        }
+
+        const { data } = await rawAxios.post<{ data: { accessToken: string } }>(
           `${BASE_URL}/auth/refresh`,
           {},
-          { withCredentials: true }
+          {
+            headers: { Authorization: `Bearer ${refreshToken}` },
+            withCredentials: true,
+          }
         );
         const newToken = data.data.accessToken;
-        Cookies.set('accessToken', newToken, { secure: true, sameSite: 'strict' });
+        Cookies.set('accessToken', newToken, { secure: true, sameSite: 'lax' });
         processQueue(null, newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as AxiosError, null);
         Cookies.remove('accessToken');
-        window.location.href = '/login';   // Vite SPA — luôn chạy trên browser
+        Cookies.remove('refreshToken');
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
 
+    // 401 from refresh endpoint itself → token truly invalid, logout
+    if (status === 401 && originalRequest._retry && REFRESH_ERROR_CODES.has(errorCode)) {
+      Cookies.remove('accessToken');
+      Cookies.remove('refreshToken');
+      window.location.href = '/login';
+    }
+
     return Promise.reject(error);
   }
 );
+
+// ─── Logout: bypass interceptor to avoid 401→refresh→loop ───────
+export async function logoutApi(): Promise<void> {
+  const accessToken = Cookies.get('accessToken');
+  await rawAxios.post(
+    `${BASE_URL}/auth/logout`,
+    {},
+    {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      withCredentials: true,
+    }
+  );
+}
 
 export default apiClient;

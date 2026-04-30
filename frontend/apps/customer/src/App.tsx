@@ -14,6 +14,12 @@ const CheckoutResultPage = lazy(() => import('@/pages/CheckoutResultPage'));
 const FlashSalePage      = lazy(() => import('@/pages/FlashSalePage'));
 const OrderHistoryPage   = lazy(() => import('@/pages/OrderHistoryPage'));
 const OrderDetailPage    = lazy(() => import('@/pages/OrderDetailPage'));
+const ProfilePage        = lazy(() => import('@/pages/ProfilePage'));
+const AddressPage        = lazy(() => import('@/pages/AddressPage'));
+const LoyaltyPage        = lazy(() => import('@/pages/LoyaltyPage'));
+const TrustScorePage     = lazy(() => import('@/pages/TrustScorePage'));
+const AccountSettingsPage = lazy(() => import('@/pages/AccountSettingsPage'));
+const RefundHistoryPage = lazy(() => import('@/pages/RefundHistoryPage'));
 
 const NAV_LINKS = [
   { label: 'Sản phẩm', to: '/products' },
@@ -23,6 +29,12 @@ const NAV_LINKS = [
 const AUTH_LINKS = [
   { label: 'Giỏ hàng', to: '/cart' },
   { label: 'Đơn hàng', to: '/orders' },
+  { label: 'Hoàn tiền', to: '/refunds' },
+  { label: 'Hồ sơ', to: '/profile' },
+  { label: 'Địa chỉ', to: '/addresses' },
+  { label: 'Điểm tích luỹ', to: '/loyalty' },
+  { label: 'Điểm tin cậy', to: '/trust-score' },
+  { label: 'Cài đặt', to: '/account-settings' },
 ];
 
 export default function App() {
@@ -49,6 +61,13 @@ export default function App() {
                 <Route path="/checkout/payment" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
                 <Route path="/orders"   element={<PrivateRoute><OrderHistoryPage /></PrivateRoute>} />
                 <Route path="/orders/:parentOrderId" element={<PrivateRoute><OrderDetailPage /></PrivateRoute>} />
+                <Route path="/refunds" element={<PrivateRoute><RefundHistoryPage /></PrivateRoute>} />
+
+                <Route path="/profile"          element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+                <Route path="/addresses"        element={<PrivateRoute><AddressPage /></PrivateRoute>} />
+                <Route path="/loyalty"          element={<PrivateRoute><LoyaltyPage /></PrivateRoute>} />
+                <Route path="/trust-score"      element={<PrivateRoute><TrustScorePage /></PrivateRoute>} />
+                <Route path="/account-settings" element={<PrivateRoute><AccountSettingsPage /></PrivateRoute>} />
 
                 <Route path="/"  element={<Navigate to="/products" replace />} />
                 <Route path="*"  element={<Navigate to="/" replace />} />
