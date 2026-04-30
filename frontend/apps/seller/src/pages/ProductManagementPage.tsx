@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@shared/lib/axios';
 import { sellerApi, type SellerProduct, type SellerVariant, type InventoryLogEntry } from '@shared/api/seller.api';
@@ -37,6 +37,8 @@ function VariantModal({
   const [stock, setStock] = useState(initial?.stock?.toString() ?? '1');
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const mut = useMutation({
     mutationFn: () => {
@@ -45,7 +47,7 @@ function VariantModal({
         ? sellerApi.updateVariant(initial.variantId, data)
         : sellerApi.createVariant(productId, data);
     },
-    onSuccess: () => { setDone(true); setTimeout(() => { onSuccess(); onClose(); }, 1200); },
+    onSuccess: () => { setDone(true); timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200); },
     onError: (err: any) => setError(err?.response?.data?.message || 'Lưu biến thể thất bại'),
   });
 
@@ -123,9 +125,9 @@ function ImageUploader({ productId, images, onChange }: { productId: string; ima
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) continue;
         const { data: resp } = await sellerApi.getPresignedUrl(productId, file.name, file.type);
-        const presignedUrl = (resp as { data: { url: string } }).data.url;
-        await fetch(presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-        newImages.push(presignedUrl.split('?')[0]);
+        const result = resp.data;
+        await fetch(result.presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+        newImages.push(result.objectUrl);
       }
       onChange([...images, ...newImages]);
     } catch (e: any) {
@@ -376,6 +378,8 @@ function ProductFormModal({
   const [stock, setStock] = useState(product?.stockAvailable?.toString() ?? '1');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
   const [activeTab, setActiveTab] = useState<'info' | 'images' | 'variants' | 'inventory'>('info');
 
   // Variants
@@ -391,17 +395,17 @@ function ProductFormModal({
     mutationFn: (data: { name: string; description: string; categoryId: string; images?: string[] }) =>
       product
         ? sellerApi.updateProduct(product.productId, data)
-        : apiClient.post<ApiResponse<SellerProduct>>('/products', { ...data, price: Number(price), stock: Number(stock) }),
+        : sellerApi.createProduct({ ...data, price: Number(price), stock: Number(stock) }),
     onSuccess: (res) => {
       if (!product && res.data.data) {
         // New product — navigate to edit for variants
         queryClient.invalidateQueries({ queryKey: ['seller-products'] });
         setDone(true);
-        setTimeout(() => { onSuccess(); onClose(); }, 1200);
+        timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200);
       } else {
         queryClient.invalidateQueries({ queryKey: ['seller-products'] });
         setDone(true);
-        setTimeout(() => { onSuccess(); onClose(); }, 1200);
+        timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200);
       }
     },
     onError: (err: any) => setError(err?.response?.data?.message || 'Lưu sản phẩm thất bại'),
@@ -521,11 +525,13 @@ function ProductFormModal({
                       </div>
                       <button onClick={() => { setShowVariant(v); setShowVariantForm(true); }}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0">Sửa</button>
-                      <button onClick={() => {
-                        if (confirm(`Xóa biến thể "${v.variantName}"?`)) {
-                          sellerApi.deleteVariant(v.variantId).then(() => {
-                            queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
-                          });
+                      <button onClick={async () => {
+                        if (!confirm(`Xóa biến thể "${v.variantName}"?`)) return;
+                        try {
+                          await sellerApi.deleteVariant(v.variantId);
+                          queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
+                        } catch (err: any) {
+                          alert(err?.response?.data?.message || 'Xóa biến thể thất bại');
                         }
                       }} className="text-xs text-red-500 hover:text-red-600 font-medium shrink-0">Xoá</button>
                     </div>
@@ -595,12 +601,18 @@ export default function ProductManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<SellerProduct | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['seller-products', statusFilter, page, searchQuery],
+    queryKey: ['seller-products', statusFilter, page, debouncedSearch],
     queryFn: () =>
       apiClient.get<ApiResponse<PageResponse<SellerProduct>>>('/sellers/me/products', {
-        params: { status: statusFilter || undefined, page, size: 20, search: searchQuery || undefined },
+        params: { status: statusFilter || undefined, page, size: 20, search: debouncedSearch || undefined },
       }).then(r => r.data.data),
     retry: 1,
   });

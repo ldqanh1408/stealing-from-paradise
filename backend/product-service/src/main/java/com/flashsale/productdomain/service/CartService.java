@@ -59,6 +59,13 @@ public class CartService {
 
             if (correlationIdObj == null || userIdObj == null || itemIdsObj == null) {
                 log.warn("Invalid cart items request: missing required fields");
+                if (correlationIdObj != null) {
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("correlation_id", correlationIdObj.toString());
+                    errorResponse.put("error", true);
+                    kafkaTemplate.send(KafkaTopics.ORDER_CART_ITEMS_RESPONSE,
+                            correlationIdObj.toString(), toJson(errorResponse));
+                }
                 return;
             }
 
@@ -66,14 +73,35 @@ public class CartService {
             Long userId = ((Number) userIdObj).longValue();
             List<String> itemIds = objectMapper.convertValue(itemIdsObj, new TypeReference<>() {});
 
-            List<CartItem> items = cartItemRepository.findByUserId(userId);
+            List<CartItem> items = cartItemRepository.findByUserId(userId).stream()
+                    .filter(item -> itemIds.contains(item.getId()))
+                    .toList();
+
+            // Batch-load variants by skuCode (1 query instead of N)
+            List<String> skuCodes = items.stream()
+                    .map(CartItem::getSkuCode)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            Map<String, ProductVariant> variantBySku = skuCodes.isEmpty()
+                    ? Map.of()
+                    : productVariantRepository.findBySkuCodeIn(skuCodes).stream()
+                            .collect(HashMap::new, (m, v) -> m.put(v.getSkuCode(), v), HashMap::putAll);
+
+            // Batch-load products by productId (1 query instead of N)
+            List<String> productIds = variantBySku.values().stream()
+                    .map(ProductVariant::getProductId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            Map<String, Product> productById = productIds.isEmpty()
+                    ? Map.of()
+                    : productRepository.findAllById(productIds).stream()
+                            .collect(HashMap::new, (m, p) -> m.put(p.getId(), p), HashMap::putAll);
+
             List<Map<String, Object>> enrichedItems = new ArrayList<>();
 
             for (CartItem item : items) {
-                if (!itemIds.contains(item.getId())) {
-                    continue;
-                }
-
                 Map<String, Object> enriched = new HashMap<>();
                 enriched.put("cartItemId", item.getId());
                 enriched.put("skuCode", item.getSkuCode());
@@ -82,23 +110,17 @@ public class CartService {
                 enriched.put("quantity", item.getQuantity());
                 enriched.put("fsItemId", item.getFsItemId());
 
-                // Enrich from ProductVariant (by skuCode) and Product
-                if (item.getSkuCode() != null) {
-                    Optional<ProductVariant> variantOpt =
-                            productVariantRepository.findBySkuCode(item.getSkuCode());
-                    if (variantOpt.isPresent()) {
-                        ProductVariant variant = variantOpt.get();
-                        enriched.put("variantName", variant.getTierName());
-                        enriched.put("productId", variant.getProductId());
+                ProductVariant variant = variantBySku.get(item.getSkuCode());
+                if (variant != null) {
+                    enriched.put("variantName", variant.getTierName());
+                    enriched.put("productId", variant.getProductId());
 
-                        if (variant.getProductId() != null) {
-                            productRepository.findById(variant.getProductId()).ifPresent(product -> {
-                                enriched.put("productName", product.getName());
-                                enriched.put("sellerId", product.getSellerId());
-                                if (product.getImages() != null && !product.getImages().isEmpty()) {
-                                    enriched.put("imageUrl", product.getImages().get(0));
-                                }
-                            });
+                    Product product = productById.get(variant.getProductId());
+                    if (product != null) {
+                        enriched.put("productName", product.getName());
+                        enriched.put("sellerId", product.getSellerId());
+                        if (product.getImages() != null && !product.getImages().isEmpty()) {
+                            enriched.put("imageUrl", product.getImages().get(0));
                         }
                     }
                 }
@@ -116,6 +138,19 @@ public class CartService {
 
         } catch (Exception e) {
             log.error("Failed to process cart items request: {}", e.getMessage(), e);
+            try {
+                Map<String, Object> request = objectMapper.readValue(message, new TypeReference<>() {});
+                Object correlationIdObj = request.get("correlation_id");
+                if (correlationIdObj != null) {
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("correlation_id", correlationIdObj.toString());
+                    errorResponse.put("error", true);
+                    kafkaTemplate.send(KafkaTopics.ORDER_CART_ITEMS_RESPONSE,
+                            correlationIdObj.toString(), toJson(errorResponse));
+                }
+            } catch (Exception ex) {
+                log.error("Failed to send error response for cart items request", ex);
+            }
         }
     }
 
@@ -141,9 +176,7 @@ public class CartService {
             Long userId = ((Number) userIdObj).longValue();
             List<String> itemIds = objectMapper.convertValue(itemIdsObj, new TypeReference<>() {});
 
-            for (String itemId : itemIds) {
-                cartItemRepository.deleteById(itemId);
-            }
+            cartItemRepository.deleteAllById(itemIds);
 
             log.info("Cart items removed after checkout: userId={}, itemCount={}", userId, itemIds.size());
 

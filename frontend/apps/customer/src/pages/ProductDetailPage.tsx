@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
@@ -20,6 +20,8 @@ export default function ProductDetailPage() {
   const [isBuyNow, setIsBuyNow] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current); }, []);
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', productId],
@@ -47,7 +49,7 @@ export default function ProductDetailPage() {
       const variant = product.variants[selectedVariant];
       await addToCart(variant.skuCode, quantity, (product as any).fsItemId);
       setSuccessMsg('Đã thêm vào giỏ hàng!');
-      setTimeout(() => navigate('/cart'), 1200);
+      navTimerRef.current = setTimeout(() => navigate('/cart'), 1200);
     } catch (err: any) {
       setAddError(err?.response?.data?.message || err?.response?.data?.error || 'Không thể thêm vào giỏ hàng.');
     } finally {
@@ -61,37 +63,41 @@ export default function ProductDetailPage() {
     setAddError(null);
     setSuccessMsg(null);
     try {
-      // Ensure user has an address
-      let addr = addresses.find((a: any) => a.isDefault) ?? addresses[0];
+      const addr = addresses.find((a: any) => a.isDefault) ?? addresses[0];
       if (!addr) {
-        const { data: newAddr } = await addressApi.create({
-          provinceId: 1,
-          districtId: 1,
-          fullAddress: '123 Đường Test, Phường Test, Quận Test, TP. Hồ Chí Minh',
-          isDefault: true,
-        });
-        addr = newAddr.data;
+        setAddError('Vui lòng thêm địa chỉ giao hàng trước khi mua hàng.');
+        setIsBuyNow(false);
+        return;
       }
 
       const variant = product.variants[selectedVariant];
+      if (variant.stock <= 0) {
+        setAddError('Sản phẩm đã hết hàng.');
+        setIsBuyNow(false);
+        return;
+      }
+
       const fsItemId = (product as any).fsItemId;
 
       // Add item to cart and immediately fetch updated cart
       await cartApi.addItem(variant.skuCode, quantity, fsItemId);
       const { data: cartRes } = await cartApi.getCart();
-      const cartData = cartRes.data;
+      const cartData = cartRes?.data;
 
       // Find the item we just added by matching sku and most recent addedAt
-      const newestItem = cartData?.sellers
-        ?.flatMap((s: any) => s.items)
-        .filter((item: any) => item.skuCode === variant.skuCode)
+      const sellers = cartData?.sellers ?? [];
+      const newestItem = sellers
+        .flatMap((s: any) => s?.items ?? [])
+        .filter((item: any) => item?.skuCode === variant.skuCode)
         .sort((a: any, b: any) => {
-          const ta = a.addedAt ? new Date(a.addedAt).getTime() : 0;
-          const tb = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+          const ta = a?.addedAt ? new Date(a.addedAt).getTime() : 0;
+          const tb = b?.addedAt ? new Date(b.addedAt).getTime() : 0;
           return tb - ta;
         })[0];
 
-      if (!newestItem) throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
+      if (!newestItem?.cartItemId) {
+        throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
+      }
 
       // Checkout
       const { data: checkoutRes } = await orderApi.checkout({
@@ -99,12 +105,8 @@ export default function ProductDetailPage() {
         itemIds: [String(newestItem.cartItemId)],
       });
 
-      if (checkoutRes.data) {
+      if (checkoutRes?.data) {
         const orderData = checkoutRes.data;
-        sessionStorage.setItem('pending_checkout', JSON.stringify({
-          ...orderData,
-          _paymentMethod: 'stripe',
-        }));
         navigate('/checkout/payment', {
           state: { orderData, parentOrderId: orderData.parentOrderId },
         });
@@ -155,6 +157,8 @@ export default function ProductDetailPage() {
 
   const price = product.price ?? 0;
   const original = product.originalPrice ?? price;
+  const selectedVariantData = product.variants?.[selectedVariant];
+  const maxQty = selectedVariantData?.stock ?? 0;
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">
@@ -272,20 +276,20 @@ export default function ProductDetailPage() {
                   </button>
                   <span className="w-14 text-center font-semibold text-lg">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(q => Math.min(product.stockAvailable, q + 1))}
+                    onClick={() => setQuantity(q => Math.min(maxQty, q + 1))}
                     className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 font-bold text-lg"
                   >
                     +
                   </button>
                 </div>
                 <span className="text-sm text-gray-500">
-                  (tối đa {product.stockAvailable})
+                  (tối đa {maxQty})
                 </span>
               </div>
 
               <button
                 onClick={handleAddToCart}
-                disabled={isAdding || isBuyNow || product.stockAvailable <= 0}
+                disabled={isAdding || isBuyNow || maxQty <= 0}
                 className="flex-1 py-4 bg-white border-2 border-blue-600 hover:bg-blue-50 disabled:from-gray-400 disabled:to-gray-400 disabled:border-gray-300 text-blue-600 font-bold text-lg rounded-xl transition-all"
               >
                 {isAdding ? '⏳ Đang thêm...' : '🛒 Thêm vào giỏ hàng'}
@@ -293,7 +297,7 @@ export default function ProductDetailPage() {
 
               <button
                 onClick={handleBuyNow}
-                disabled={isAdding || isBuyNow || product.stockAvailable <= 0}
+                disabled={isAdding || isBuyNow || maxQty <= 0}
                 className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold text-lg rounded-xl transition-all"
               >
                 {isBuyNow ? '⏳ Đang xử lý...' : '⚡ Mua ngay'}

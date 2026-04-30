@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -28,13 +30,14 @@ public class VariantService {
 
     public List<VariantResponse> listVariants(String productId, Long sellerId) {
         validateProductOwnership(productId, sellerId);
+
+        // Batch-load inventory by productId (1 query instead of N)
+        Map<String, Integer> stockBySku = inventoryRepository.findByProductId(productId).stream()
+                .collect(HashMap::new, (m, inv) -> m.put(inv.getSkuCode(), inv.getStockAvailable()), HashMap::putAll);
+
         return variantRepository.findByProductId(productId)
-                .stream().map(v -> {
-                    Integer stock = inventoryRepository.findBySkuCode(v.getSkuCode())
-                            .map(inv -> inv.getStockAvailable())
-                            .orElse(0);
-                    return VariantResponse.from(v, stock);
-                }).toList();
+                .stream().map(v -> VariantResponse.from(v, stockBySku.getOrDefault(v.getSkuCode(), 0)))
+                .toList();
     }
 
     public VariantResponse createVariant(String productId, Long sellerId, CreateVariantRequest req) {

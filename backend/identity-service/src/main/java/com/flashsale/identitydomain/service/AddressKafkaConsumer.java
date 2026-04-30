@@ -1,5 +1,6 @@
 package com.flashsale.identitydomain.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
@@ -23,7 +24,7 @@ import java.util.*;
 public class AddressKafkaConsumer {
 
     private final AddressRepository addressRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
@@ -39,6 +40,13 @@ public class AddressKafkaConsumer {
 
             if (correlationIdObj == null || addressIdObj == null || userIdObj == null) {
                 log.warn("Invalid address request: missing required fields");
+                if (correlationIdObj != null) {
+                    Map<String, Object> errorResponse = new LinkedHashMap<>();
+                    errorResponse.put("correlation_id", correlationIdObj.toString());
+                    errorResponse.put("error", true);
+                    kafkaTemplate.send(KafkaTopics.ORDER_ADDRESS_RESPONSE,
+                            correlationIdObj.toString(), toJson(errorResponse));
+                }
                 return;
             }
 
@@ -48,7 +56,7 @@ public class AddressKafkaConsumer {
 
             Optional<Address> addressOpt = addressRepository.findByIdAndUserId(addressId, userId);
 
-            Map<String, Object> response = new HashMap<>();
+            Map<String, Object> response = new LinkedHashMap<>();
             response.put("correlation_id", correlationId);
 
             if (addressOpt.isPresent()) {
@@ -65,10 +73,32 @@ public class AddressKafkaConsumer {
                 log.debug("Address not found: addressId={}, userId={}", addressId, userId);
             }
 
-            kafkaTemplate.send(KafkaTopics.ORDER_ADDRESS_RESPONSE, correlationId, response);
+            kafkaTemplate.send(KafkaTopics.ORDER_ADDRESS_RESPONSE, correlationId, toJson(response));
 
         } catch (Exception e) {
             log.error("Failed to process address request: {}", e.getMessage(), e);
+            try {
+                Map<String, Object> request = objectMapper.readValue(message, new TypeReference<>() {});
+                Object correlationIdObj = request.get("correlation_id");
+                if (correlationIdObj != null) {
+                    Map<String, Object> errorResponse = new LinkedHashMap<>();
+                    errorResponse.put("correlation_id", correlationIdObj.toString());
+                    errorResponse.put("error", true);
+                    kafkaTemplate.send(KafkaTopics.ORDER_ADDRESS_RESPONSE,
+                            correlationIdObj.toString(), toJson(errorResponse));
+                }
+            } catch (Exception ex) {
+                log.error("Failed to send error response for address request", ex);
+            }
+        }
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize response: {}", e.getMessage());
+            return "{}";
         }
     }
 }

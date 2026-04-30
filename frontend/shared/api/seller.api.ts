@@ -126,7 +126,7 @@ export const sellerApi = {
 
   /** Get presigned URL for image upload */
   getPresignedUrl: (productId: string, fileName: string, contentType: string) =>
-    apiClient.get<ApiResponse<{ url: string; key: string }>>(`/products/${productId}/presigned-url`, {
+    apiClient.get<ApiResponse<PresignedUrlResponse>>(`/products/${productId}/presigned-url`, {
       params: { fileName, contentType },
     }),
 
@@ -137,6 +137,10 @@ export const sellerApi = {
   /** Get Stripe Dashboard single-use login link (valid 30 min) */
   getStripeDashboardLink: () =>
     apiClient.get<ApiResponse<StripeDashboardLink>>('/seller/payments/stripe-dashboard'),
+
+  /** Create a new product */
+  createProduct: (data: { name: string; description: string; categoryId: string; price: number; stock: number; images?: string[] }) =>
+    apiClient.post<ApiResponse<SellerProduct>>('/products', data),
 
   /** Delete a product (seller owner) */
   deleteProduct: (productId: string) =>
@@ -172,4 +176,11 @@ export interface InventoryLogEntry {
   note?: string;
   changedBy: string;
   createdAt: string;
+}
+
+/** Presigned URL response from MinIO */
+export interface PresignedUrlResponse {
+  presignedUrl: string;
+  objectUrl: string;
+  expiresIn: number;
 }

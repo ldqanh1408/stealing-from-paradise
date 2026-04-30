@@ -1,5 +1,6 @@
 package com.flashsale.notificationservice.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.event.payload.OrderDeliveredPayload;
 import com.flashsale.commonlib.event.payload.SellerStripeRequirementPayload;
@@ -13,10 +14,17 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class NotificationService {
 
+    private final ObjectMapper objectMapper;
+
     @KafkaListener(topics = KafkaTopics.ORDER_DELIVERED, groupId = "notification-service-group")
-    public void onOrderDelivered(OrderDeliveredPayload payload) {
-        log.info("Order delivered notification: orderId={}", payload.getOrderId());
-        // TODO: Send SSE to buyer
+    public void onOrderDelivered(String message) {
+        try {
+            OrderDeliveredPayload payload = objectMapper.readValue(message, OrderDeliveredPayload.class);
+            log.info("Order delivered notification: orderId={}", payload.getOrderId());
+            // TODO: Send SSE to buyer
+        } catch (Exception e) {
+            log.error("Failed to process order.delivered event: {}", e.getMessage(), e);
+        }
     }
 
     /**
@@ -24,10 +32,15 @@ public class NotificationService {
      * Gửi notification cho seller kèm link để hoàn tất.
      */
     @KafkaListener(topics = KafkaTopics.SELLER_STRIPE_REQUIREMENT, groupId = "notification-service-group")
-    public void onSellerStripeRequirement(SellerStripeRequirementPayload payload) {
-        log.info("Seller Stripe requirement notification: sellerId={}, type={}, reason={}",
-                payload.getSellerId(), payload.getRequirementType(), payload.getRequirementReason());
-        // TODO: Send SSE / email / push notification to seller
+    public void onSellerStripeRequirement(String message) {
+        try {
+            SellerStripeRequirementPayload payload = objectMapper.readValue(message, SellerStripeRequirementPayload.class);
+            log.info("Seller Stripe requirement notification: sellerId={}, type={}, reason={}",
+                    payload.getSellerId(), payload.getRequirementType(), payload.getRequirementReason());
+            // TODO: Send SSE / email / push notification to seller
+        } catch (Exception e) {
+            log.error("Failed to process seller.stripe.requirement event: {}", e.getMessage(), e);
+        }
     }
 
     public void sendNotification(String userId, String message) {
