@@ -1,7 +1,20 @@
 # Kafka Request-Reply Pattern
 
-**Version**: v5.4 | **Last Updated**: 2026-05-02  
+**Version**: v5.4 | **Last Updated**: 2026-05-04  
 **Defined in**: `common-lib` → `KafkaTopics.java`
+
+---
+
+## 🔗 Per-Service Documentation
+
+Mỗi service có tài liệu Kafka riêng với chi tiết request-reply cycle:
+
+| Service | Kafka Doc | Request-Reply Role |
+|---------|-----------|-------------------|
+| Identity Service (8081) | 🔗 [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) | Responder: `order.address` |
+| Product Service (8090) | 🔗 [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) | Responder: `cart.product_info`, `order.stock_check`, `order.cart_items` |
+| Order Service (8087) | 🔗 [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) | Requester: 5 pairs |
+| Payment Service (8085) | 🔗 [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) | Responder: `order.payment_status`, `order.refunds` |
 
 ---
 
@@ -41,6 +54,8 @@ Service A (Requester)                    Service B (Responder)
 
 ### 1. Cart ↔ Product Service
 
+🔗 **Product Service Kafka**: [product-service/KAFKA_EVENTS.md → Request-Reply #1](product-service/KAFKA_EVENTS.md#1-cartproduct_info--cart--product-catalog)
+
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
 | `cart.product_info.request` | Cart → Product | Lấy thông tin sản phẩm (tên, giá, ảnh) để hiển thị trong giỏ hàng |
@@ -71,6 +86,9 @@ Service A (Requester)                    Service B (Responder)
 ---
 
 ### 2. Order ↔ Product Service (Stock Check)
+
+🔗 **Order Service Kafka**: [order-service/KAFKA_EVENTS.md → Request-Reply #1](order-service/KAFKA_EVENTS.md#1-orderstock_check--order--product-inventory)  
+🔗 **Product Service Kafka**: [product-service/KAFKA_EVENTS.md → Request-Reply #2](product-service/KAFKA_EVENTS.md#2-orderstock_check--order--product-inventory)
 
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
@@ -105,6 +123,9 @@ Service A (Requester)                    Service B (Responder)
 
 ### 3. Order ↔ Payment Service (Payment Status)
 
+🔗 **Order Service Kafka**: [order-service/KAFKA_EVENTS.md → Request-Reply #2](order-service/KAFKA_EVENTS.md#2-orderpayment_status--order--payment)  
+🔗 **Payment Service Kafka**: [payment-service/KAFKA_EVENTS.md → Request-Reply #1](payment-service/KAFKA_EVENTS.md#1-orderpayment_status--order--payment)
+
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
 | `order.payment_status.request` | Order → Payment | Kiểm tra trạng thái thanh toán của một order |
@@ -134,6 +155,9 @@ Service A (Requester)                    Service B (Responder)
 ---
 
 ### 4. Order ↔ Product Service (Cart Items)
+
+🔗 **Order Service Kafka**: [order-service/KAFKA_EVENTS.md → Request-Reply #3](order-service/KAFKA_EVENTS.md#3-ordercart_items--order--product-cart)  
+🔗 **Product Service Kafka**: [product-service/KAFKA_EVENTS.md → Request-Reply #3](product-service/KAFKA_EVENTS.md#3-ordercart_items--order--product-cart)
 
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
@@ -174,6 +198,9 @@ Service A (Requester)                    Service B (Responder)
 
 ### 5. Order ↔ Identity Service (Address)
 
+🔗 **Order Service Kafka**: [order-service/KAFKA_EVENTS.md → Request-Reply #4](order-service/KAFKA_EVENTS.md#4-orderaddress--order--identity)  
+🔗 **Identity Service Kafka**: [identity-service/KAFKA_EVENTS.md → Request-Reply](identity-service/KAFKA_EVENTS.md#-request-reply)
+
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
 | `order.address.request` | Order → Identity | Lấy địa chỉ giao hàng của user |
@@ -207,6 +234,9 @@ Service A (Requester)                    Service B (Responder)
 ---
 
 ### 6. Order ↔ Payment Service (Refunds)
+
+🔗 **Order Service Kafka**: [order-service/KAFKA_EVENTS.md → Request-Reply #5](order-service/KAFKA_EVENTS.md#5-orderrefunds--order--payment)  
+🔗 **Payment Service Kafka**: [payment-service/KAFKA_EVENTS.md → Request-Reply #2](payment-service/KAFKA_EVENTS.md#2-orderrefunds--order--payment)
 
 | Topic | Direction | Purpose |
 |-------|-----------|---------|
@@ -243,14 +273,14 @@ Service A (Requester)                    Service B (Responder)
 
 ## Tóm Tắt Tất Cả Topics
 
-| Request Topic | Response Topic | Requester | Responder |
-|--------------|----------------|-----------|-----------|
-| `cart.product_info.request` | `cart.product_info.response` | Cart (product-svc) | Product catalog |
-| `order.stock_check.request` | `order.stock_check.response` | Order-service | Product inventory |
-| `order.payment_status.request` | `order.payment_status.response` | Order-service | Payment-service |
-| `order.cart_items.request` | `order.cart_items.response` | Order-service | Product cart |
-| `order.address.request` | `order.address.response` | Order-service | Identity-service |
-| `order.refunds.request` | `order.refunds.response` | Order-service | Payment-service |
+| Request Topic | Response Topic | Requester | Responder | Full Cycle Doc |
+|--------------|----------------|-----------|-----------|----------------|
+| `cart.product_info.request` | `cart.product_info.response` | Cart (product-svc) | Product catalog | 🔗 [Product → #1](product-service/KAFKA_EVENTS.md#1-cartproduct_info--cart--product-catalog) |
+| `order.stock_check.request` | `order.stock_check.response` | 🔗 [Order](order-service/KAFKA_EVENTS.md) | 🔗 [Product](product-service/KAFKA_EVENTS.md) | 🔗 [Order → #1](order-service/KAFKA_EVENTS.md#1-orderstock_check--order--product-inventory) |
+| `order.payment_status.request` | `order.payment_status.response` | 🔗 [Order](order-service/KAFKA_EVENTS.md) | 🔗 [Payment](payment-service/KAFKA_EVENTS.md) | 🔗 [Order → #2](order-service/KAFKA_EVENTS.md#2-orderpayment_status--order--payment) |
+| `order.cart_items.request` | `order.cart_items.response` | 🔗 [Order](order-service/KAFKA_EVENTS.md) | 🔗 [Product](product-service/KAFKA_EVENTS.md) | 🔗 [Order → #3](order-service/KAFKA_EVENTS.md#3-ordercart_items--order--product-cart) |
+| `order.address.request` | `order.address.response` | 🔗 [Order](order-service/KAFKA_EVENTS.md) | 🔗 [Identity](identity-service/KAFKA_EVENTS.md) | 🔗 [Order → #4](order-service/KAFKA_EVENTS.md#4-orderaddress--order--identity) |
+| `order.refunds.request` | `order.refunds.response` | 🔗 [Order](order-service/KAFKA_EVENTS.md) | 🔗 [Payment](payment-service/KAFKA_EVENTS.md) | 🔗 [Order → #5](order-service/KAFKA_EVENTS.md#5-orderrefunds--order--payment) |
 
 ---
 
@@ -272,4 +302,16 @@ Thay thế từng cặp request-reply bằng gRPC service definition. Xóa các 
 
 ---
 
-*Last Updated: 2026-05-02 · v5.4*
+## 🔗 Related Documents
+
+| Document | Link |
+|----------|------|
+| Main Kafka Index Catalog | 🔗 [KAFKA_EVENTS.md](KAFKA_EVENTS.md) |
+| Identity Service Kafka | 🔗 [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) |
+| Product Service Kafka | 🔗 [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) |
+| Order Service Kafka | 🔗 [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) |
+| Payment Service Kafka | 🔗 [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) |
+
+---
+
+*Last Updated: 2026-05-04 · v5.4*
