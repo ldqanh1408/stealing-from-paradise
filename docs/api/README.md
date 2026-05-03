@@ -26,15 +26,15 @@ docs/
 ├── identity-service/02_API_identity_service.md   # 🔐 Auth, Users, Loyalty (31 endpoints)
 ├── product-service/02_API_product_service.md     # 📦 Products, Variants, Inventory, Cart (24 endpoints)
 ├── search-service/02_API_search_service.md       # 🔍 Search (routes configured, controllers WIP)
-├── order-service/02_API_order_service.md         # 📋 Orders, Checkout, RTS, Refunds (16 endpoints)
-├── payment-service/02_API_payment_service.md     # 💳 Payment, Stripe, Refunds (12 endpoints)
+├── order-service/02_API_order_service.md         # 📋 Orders, Checkout, RTS, Refunds (18 endpoints)
+├── payment-service/02_API_payment_service.md     # 💳 Payment, Stripe, Refunds, Transfers (15 endpoints)
 ├── flashsale-service/02_API_flash_sale_service.md # ⚡ Flash Sales (routes configured, controllers WIP)
 ├── notification-service/02_API_notification_service.md # 🔔 SSE Notifications (routes configured)
 ├── admin-service/02_API_admin.md                 # 🛡️ Admin, Moderation (14 endpoints)
 └── api/README.md                                 # 📋 This index file
 ```
 
-**Total**: 97+ endpoints across 8 services (Cart merged into Product, Loyalty merged into Identity)
+**Total**: 102+ endpoints across 8 services (Cart merged into Product, Loyalty merged into Identity)
 
 ---
 
@@ -55,8 +55,8 @@ docs/
 | 1 | **Identity** | 8081 | [Identity doc](../identity-service/02_API_identity_service.md) | 31 | Implemented |
 | 2 | **Product (+ Cart)** | 8082 | [Product doc](../product-service/02_API_product_service.md) | 24 | Implemented |
 | 3 | **Search** | 8089 | [Search doc](../search-service/02_API_search_service.md) | 0* | Routes configured |
-| 4 | **Order** | 8087 | [Order doc](../order-service/02_API_order_service.md) | 16 | Implemented |
-| 5 | **Payment (+ Refund)** | 8085 | [Payment doc](../payment-service/02_API_payment_service.md) | 12 | Implemented |
+| 4 | **Order** | 8087 | [Order doc](../order-service/02_API_order_service.md) | 18 | Implemented |
+| 5 | **Payment (+ Refund)** | 8085 | [Payment doc](../payment-service/02_API_payment_service.md) | 15 | Implemented |
 | 6 | **Flash Sale** | 8086 | [Flash Sale doc](../flashsale-service/02_API_flash_sale_service.md) | 0* | Routes configured |
 | 7 | **Notification** | 8088 | [Notification doc](../notification-service/02_API_notification_service.md) | 0* | Routes configured |
 | 8 | **Admin** | - | [Admin doc](../admin-service/02_API_admin.md) | 14 | Implemented |
@@ -226,13 +226,13 @@ docs/
 |---------|-----------|
 | Identity (+ Loyalty) | 31 |
 | Product (+ Cart) | 24 |
-| Order | 16 |
-| Payment (+ Refund) | 12 |
+| Order | 18 |
+| Payment (+ Refund) | 15 |
 | Admin | 14 |
 | Flash Sale | 0* |
 | Notification | 0* |
 | Search | 0* |
-| **Total** | **97+** |
+| **Total** | **102+** |
 
 > *Controllers WIP; gateway routes configured
 
@@ -246,7 +246,7 @@ docs/
 ### 2️⃣ Find Your Service
 → Look up your service in the table above
 
-### 3️⃣ Review Endpoints
+### 3️⃣ API Endpoints
 → See all HTTP methods, request/response format
 
 ### 4️⃣ Understand Kafka Integration
@@ -351,7 +351,7 @@ docs/
 - **[04_POLICIES.md](../04_POLICIES.md)** - System rules, configuration
 - **[05_OPERATIONS.md](../05_OPERATIONS.md)** - Data retention, 23 cronjobs
 - **[07_BUSINESS_FLOWS.md](../07_BUSINESS_FLOWS.md)** - Mermaid diagrams
-- **[erd.mermaid](../erd.mermaid)** - Entity-Relationship Diagram
+- **[ERD_FULL_SYSTEM.md](../ERD_FULL_SYSTEM.md)** - Entity-Relationship Diagram
 
 ---
 
@@ -399,6 +399,6 @@ A: See `00-index.md` for complete Kafka topics catalog (35+ topics)
 **Created**: 2026-04-28  
 **Consolidated from**: [02_API.md](../02_API.md) (5,220 lines)  
 **Services**: 9 consolidated files  
-**Total Endpoints**: 95+  
+**Total Endpoints**: 102+  
 **Status**: v5.3 RTS Production Ready
 

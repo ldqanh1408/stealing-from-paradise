@@ -527,56 +527,170 @@ PAID/SHIPPING/DELIVERED → PARTIALLY_REFUNDED / REFUNDED
 ## ↩️ Refund Endpoints (Buyer)
 
 ### POST /orders/{orderId}/refunds
-**Tạo refund một phần (1 sub-order)**
+**Yêu cầu hoàn tiền một phần (1 sub-order)**
 
 **Quyền truy cập**: JWT Required (BUYER)
+
+**Tags**: Kafka → refund.requested
+
+**Request Body**:
+```json
+{
+  "reason": "Sản phẩm bị lỗi, không đúng mô tả",
+  "items": [
+    {
+      "order_item_id": 501,
+      "quantity": 1,
+      "item_reason": "Áo bị rách đường may"
+    }
+  ],
+  "evidence_images": ["https://cdn.marketplace.vn/refund-evidence/orders/100/uuid-abc.jpg"]
+}
+```
+
+**Validation Rules**:
+| Field | Type | Rules |
+|-------|------|-------|
+| reason | string | Required; 1–1000 ký tự |
+| items | array | Required; min 1, max 50 |
+| order_item_id | long | Phải thuộc order |
+| quantity | integer | ≤ order_item.quantity - refunded_quantity |
+| item_reason | string | Required; 1–500 ký tự |
+| evidence_images | array | Optional; tối đa 5 URLs từ MinIO |
+
+**Response 201**:
+```json
+{
+  "success": true,
+  "data": {
+    "group_ref": "uuid",
+    "order_id": 101,
+    "type": "PARTIAL",
+    "status": "PENDING",
+    "total_amount": 500000,
+    "refund_amount": 250000,
+    "item_count": 1,
+    "estimated_days": 3,
+    "message": "Yêu cầu hoàn tiền đã được ghi nhận"
+  }
+}
+```
 
 ---
 
 ### POST /orders/parent/{parentOrderId}/refund
-**Tạo refund toàn bộ (tất cả sub-orders)**
+**Yêu cầu hoàn tiền toàn bộ (Full Refund)**
 
 **Quyền truy cập**: JWT Required (BUYER)
+
+**Tags**: Kafka → refund.full_requested
+
+**Request Body**:
+```json
+{
+  "reason": "Đơn hàng không đúng, tất cả sản phẩm đều bị lỗi",
+  "evidence_images": ["https://cdn.marketplace.vn/refund-evidence/orders/100/uuid-abc.jpg"]
+}
+```
+
+**Response 201**: Full refund request submitted
 
 ---
 
 ### POST /orders/parent/{parentOrderId}/refunds/partial
-**Tạo refund một phần nhiều seller**
-
-**Quyền truy cập**: JWT Required (BUYER)
-
----
-
-### GET /orders/{orderId}/refunds
-**Lịch sử refund của sub-order**
-
-**Quyền truy cập**: JWT Required (BUYER\|SELLER\|ADMIN)
-
----
-
-### GET /orders/refunds
-**Tất cả refund của Buyer**
+**Yêu cầu hoàn tiền một phần (multi-seller)**
 
 **Quyền truy cập**: JWT Required (BUYER)
 
 ---
 
 ### GET /orders/parent/{parentOrderId}/refund
-**Trạng thái refund toàn bộ của parent order**
+**Trạng thái Full Refund**
 
-**Quyền truy cập**: JWT Required (BUYER\|ADMIN)
+**Quyền truy cập**: JWT Required (BUYER | ADMIN)
 
 ---
 
-## 📊 Order Status Flow
+### GET /orders/{orderId}/refunds
+**Lịch sử hoàn tiền của 1 sub-order**
 
+**Quyền truy cập**: JWT Required (BUYER | SELLER | ADMIN)
+
+---
+
+### GET /orders/{orderId}/refunds/{refundId}
+**Chi tiết 1 yêu cầu hoàn tiền**
+
+**Quyền truy cập**: JWT Required (BUYER | ADMIN)
+
+**Response 200**:
+```json
+{
+  "success": true,
+  "data": {
+    "refund_id": 88,
+    "transaction_id": 200,
+    "order_id": 101,
+    "type": "PARTIAL",
+    "amount": 250000,
+    "status": "SUCCESS",
+    "items": [
+      {
+        "order_item_id": 501,
+        "quantity": 1,
+        "refund_amount": 250000
+      }
+    ],
+    "admin_note": null,
+    "reviewed_by": null,
+    "created_at": "2025-11-01T08:00:00Z"
+  }
+}
 ```
-PENDING → PAID → SHIPPING → DELIVERED
-                    ↓
-                 RETURNED (RTS)
-PENDING → CANCELLED
-PAID/SHIPPING/DELIVERED → PARTIALLY_REFUNDED / REFUNDED
+
+---
+
+### GET /orders/refunds
+**Tất cả yêu cầu hoàn tiền của Buyer**
+
+**Quyền truy cập**: JWT Required (BUYER)
+
+**Query Params**:
+| Param | Type | Mô tả |
+|-------|------|-------|
+| status | string | PENDING | SUCCESS | FAILED | REJECTED |
+| type | string | FULL | PARTIAL |
+| from_date | date | ISO 8601 |
+| to_date | date | ISO 8601 |
+| page | integer | Default 0 |
+| size | integer | Default 20 |
+
+---
+
+### GET /orders/{orderId}/refunds/presigned-url
+**Pre-signed URL upload ảnh bằng chứng hoàn tiền**
+
+**Quyền truy cập**: JWT Required (BUYER)
+
+**Query Params**:
+| Param | Type | Required | Mô tả |
+|-------|------|----------|-------|
+| file_name | string | ✓ | Tên file gốc |
+| content_type | string | ✓ | image/jpeg | image/png | image/webp |
+
+**Response 200**:
+```json
+{
+  "success": true,
+  "data": {
+    "presigned_url": "https://minio.internal/refund-evidence/orders/100/uuid-abc.jpg",
+    "object_url": "https://cdn.marketplace.vn/refund-evidence/orders/100/uuid-abc.jpg",
+    "expires_in": 900
+  }
+}
 ```
+
+**Errors**: 403 (not owner), 422 (invalid content_type)
 
 ## 📊 Summary
 
@@ -597,6 +711,8 @@ PAID/SHIPPING/DELIVERED → PARTIALLY_REFUNDED / REFUNDED
 | /orders/refunds | GET | JWT (BUYER) |
 | /orders/parent/{id}/refund | POST | JWT (BUYER) |
 | /orders/parent/{id}/refund | GET | JWT (BUYER\|ADMIN) |
+| /orders/{id}/refunds/{refundId} | GET | JWT (BUYER\|ADMIN) |
+| /orders/{id}/refunds/presigned-url | GET | JWT (BUYER) |
 | /orders/parent/{id}/refunds/partial | POST | JWT (BUYER) |
 
 ---

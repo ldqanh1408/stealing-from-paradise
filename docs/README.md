@@ -2,7 +2,7 @@
 
 **Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)
 **Version**: v5.4
-**Last Updated**: 2026-05-01
+**Last Updated**: 2026-05-04
 
 ---
 
@@ -22,9 +22,10 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | [01_OVERVIEW.md](01_OVERVIEW.md) | Architecture, services, tech stack, project structure |
 | [09_RUNNING.md](09_RUNNING.md) | How to run, build, and deploy |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Service interactions, Kafka flows, ASCII diagrams |
-| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | 50+ Kafka topics with payloads |
+| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | Kafka index → per-service event docs (41 topics) |
+| [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md) | Kafka request-reply pattern (6 pairs) |
 | [database-entities.md](database-entities.md) | Database schema reference |
-| [erd.mermaid](erd.mermaid) | Entity-Relationship Diagram |
+| [ERD_FULL_SYSTEM.md](ERD_FULL_SYSTEM.md) | Entity-Relationship Diagram |
 
 ### Business & Policy
 
@@ -38,16 +39,15 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 
 | File | Purpose |
 |------|---------|
-| [02_API.md](02_API.md) | Unified API specification (all services, 100+ endpoints) |
+| [api/README.md](api/README.md) | API documentation summary (all services) |
 | [identity-service/02_API_identity_service.md](identity-service/02_API_identity_service.md) | Auth, users, loyalty (31 endpoints) |
 | [product-service/02_API_product_service.md](product-service/02_API_product_service.md) | Products, variants, cart (24 endpoints) |
 | [search-service/02_API_search_service.md](search-service/02_API_search_service.md) | Elasticsearch search |
-| [order-service/02_API_order_service.md](order-service/02_API_order_service.md) | Orders, checkout, RTS (16 endpoints) |
-| [payment-service/02_API_payment_service.md](payment-service/02_API_payment_service.md) | Stripe, payments, refunds (12 endpoints) |
+| [order-service/02_API_order_service.md](order-service/02_API_order_service.md) | Orders, checkout, RTS (18 endpoints) |
+| [payment-service/02_API_payment_service.md](payment-service/02_API_payment_service.md) | Stripe, payments, refunds (15 endpoints) |
 | [flashsale-service/02_API_flash_sale_service.md](flashsale-service/02_API_flash_sale_service.md) | Flash sale sessions |
 | [notification-service/02_API_notification_service.md](notification-service/02_API_notification_service.md) | SSE notifications |
 | [admin-service/02_API_admin.md](admin-service/02_API_admin.md) | Admin APIs (14 endpoints) |
-| [api/README.md](api/README.md) | API documentation summary |
 
 ### Integration Deep Dives
 
@@ -56,6 +56,22 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) | Axon Saga payment orchestration (OrderProcessingSaga, ParentOrderPaymentSaga) |
 | [08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration, Stripe webhooks, multi-vendor transfers |
 | [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) | Visual flows (Mermaid diagrams) |
+
+### Kafka Event Docs (Per-Service)
+
+| File | Purpose |
+|------|---------|
+| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | **Index catalog** — all topics, flow chains, config |
+| [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) | account.*, loyalty.*, seller.* events |
+| [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) | product.*, inventory.*, cart.* events |
+| [search-service/KAFKA_EVENTS.md](search-service/KAFKA_EVENTS.md) | Consumer-only (10 topics from Product, Identity, Order) |
+| [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) | order.*, seller.order_cancelled + 5 request-reply |
+| [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) | payment.*, refund.*, stripe.* events |
+| [flashsale-service/KAFKA_EVENTS.md](flashsale-service/KAFKA_EVENTS.md) | flash_sale.* session & item events |
+| [notification-service/KAFKA_EVENTS.md](notification-service/KAFKA_EVENTS.md) | Consumer-only (20+ topics, SSE output) |
+| [admin-service/KAFKA_EVENTS.md](admin-service/KAFKA_EVENTS.md) | product.approved/rejected/auto_hidden |
+| [worker-service/KAFKA_EVENTS.md](worker-service/KAFKA_EVENTS.md) | flash_sale.reminder, outbox pattern |
+| [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md) | 6 request-reply pairs with full cycle diagrams |
 
 ---
 
@@ -90,10 +106,10 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 |------|-------|
 | **Understand the system** | [00_INDEX.md](00_INDEX.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
 | **Run the project** | [09_RUNNING.md](09_RUNNING.md) |
-| **API reference** | [02_API.md](02_API.md) or service-specific docs above |
+| **API reference** | [api/README.md](api/README.md) or service-specific docs above |
 | **Debug Kafka flows** | [KAFKA_EVENTS.md](KAFKA_EVENTS.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
 | **Understand payment saga** | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) |
-| **Database schema** | [database-entities.md](database-entities.md) → [erd.mermaid](erd.mermaid) |
+| **Database schema** | [database-entities.md](database-entities.md) → [ERD_FULL_SYSTEM.md](ERD_FULL_SYSTEM.md) |
 | **Business logic** | [03_BUSINESS.md](03_BUSINESS.md) → [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) |
 
 ---
@@ -133,9 +149,9 @@ Authorization: Bearer <jwt_token>
 | **Backend Services** | 11 (+ common-lib) |
 | **Frontend Apps** | 3 |
 | **API Endpoints** | 100+ |
-| **Kafka Topics** | 50+ |
+| **Kafka Topics** | 41 (29 event + 12 request-reply) |
 | **Cronjobs** | 23 |
-| **Documentation Files** | 25 |
+| **Documentation Files** | 35 |
 | **Authentication** | JWT (RS256) |
 
 ---
@@ -148,7 +164,7 @@ Authorization: Bearer <jwt_token>
 - Return To Sender (RTS) refund workflow
 - Cart merged into Product Service
 - Loyalty merged into Identity Service
-- 50+ Kafka topics for event-driven architecture
+- 41 Kafka topics for event-driven architecture
 - High-concurrency Flash Sale (50k+ req/s with Redis Lua scripts)
 - Axon Sagas: OrderProcessingSaga + ParentOrderPaymentSaga
 
@@ -183,4 +199,4 @@ docs/                     (25 documentation files)
 
 **Version**: v5.4
 **Status**: Production Ready
-**Last Updated**: 2026-05-01
+**Last Updated**: 2026-05-04

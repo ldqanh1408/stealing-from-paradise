@@ -18,7 +18,7 @@ C4Context
         System(api_gateway, "API Gateway", "Spring Cloud Gateway\nPort: 8080")
         System(identity_svc, "Identity Service", "Auth, Users,\nLoyalty, Trust")
         System(product_svc, "Product Service", "Catalog, Cart,\nInventory")
-        System(order_svc, "Order Service", "Orders, Reviews")
+        System(order_svc, "Order Service", "Orders")
         System(payment_svc, "Payment Service", "Stripe, VNPAY,\nRefunds")
         System(flashsale_svc, "Flash Sale Service", "Flash sessions,\nitems, reminders")
         System(notification_svc, "Notification Service", "Push, in-app\nnotifications")
@@ -67,8 +67,8 @@ C4Container
     }
 
     System_Boundary(order, "Order Service\nPort: 8083") {
-        Container(order_app, "Spring Boot App", "Java 21", "Orders, Reviews")
-        ContainerDb(order_db, "PostgreSQL", "order_db", "Orders, Order Items,\nReviews, Outbox")
+        Container(order_app, "Spring Boot App", "Java 21", "Orders")
+        ContainerDb(order_db, "PostgreSQL", "order_db", "Orders, Order Items, Outbox")
     }
 
     System_Boundary(payment, "Payment Service\nPort: 8084") {
@@ -213,7 +213,6 @@ flowchart LR
     subgraph "Order Domain"
         OS[Order Service]
         OS -->|Orders| PG3[(PostgreSQL)]
-        OS -->|Reviews| PG3
     end
 
     subgraph "Payment Domain"

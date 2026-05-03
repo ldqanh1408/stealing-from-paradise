@@ -162,7 +162,6 @@
    - SKU variants, inventory management
    - Shopping cart (merged from Cart Service)
    - Product images (MinIO)
-   - Reviews and ratings
 
 9. **search-service** (Port 8091)
    - Product search
@@ -1043,7 +1042,7 @@ curl -X POST http://localhost:9200/products/_reindex
 | File | Purpose | Details |
 |------|---------|---------|
 | **docs/01_OVERVIEW.md** | Backend architecture & development | 11 services, Axon vs Traditional, setup |
-| **02_API.md** | API specification | Endpoints, Kafka topics, request/response |
+| **api/README.md** | API specification | Endpoints, Kafka topics, request/response |
 | **06_PAYMENT_SAGA_FLOW.md** | Axon Saga implementation | Payment orchestration, events |
 | **CLAUDE.md** | Build & setup commands | Maven, Docker, Spring Boot config |
 
@@ -1065,8 +1064,8 @@ curl -X POST http://localhost:9200/products/_reindex
 
 | File | Purpose | Details |
 |------|---------|---------|
-| **02_API.md** | Complete API specification (v5.3) | All endpoints, request/response, Kafka topics |
-| **erd.mermaid** | Entity-Relationship Diagram | Database schema visualization |
+| **api/README.md** | Complete API specification (v5.4) | All endpoints, request/response, Kafka topics |
+| **ERD_FULL_SYSTEM.md** | Entity-Relationship Diagram | Database schema visualization |
 
 ### Summary
 
@@ -1129,8 +1128,8 @@ git commit -m "docs(readme): update setup instructions"
 ### Documentation by Role
 
 **New Developer**: README.md → 01_OVERVIEW.md → CLAUDE.md
-**Backend Dev**: 01_OVERVIEW.md → 02_API.md → 03_BUSINESS.md → 04_POLICIES.md
-**Frontend Dev**: 01_OVERVIEW.md → 02_API.md → CLAUDE.md
+**Backend Dev**: 01_OVERVIEW.md → api/README.md → 03_BUSINESS.md → 04_POLICIES.md
+**Frontend Dev**: 01_OVERVIEW.md → api/README.md → CLAUDE.md
 **DevOps/Ops**: CLAUDE.md → RUNNING.md → 05_OPERATIONS.md
 **Product Manager**: 01_OVERVIEW.md → 03_BUSINESS.md → 07_BUSINESS_FLOWS.md
 
@@ -1145,9 +1144,9 @@ git commit -m "docs(readme): update setup instructions"
 - [RUNNING.md](../RUNNING.md) - Deployment procedures
 
 **API & Architecture**:
-- [02_API.md](02_API.md) - Complete API specification v5.3 RTS
-- [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) - Luồng nghiệp vụ tổng hợp (Mermaid)
-- [erd.mermaid](erd.mermaid) - Database schema diagram
+- [api/README.md](api/README.md) - Complete API specification v5.4
+- [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) - Business flows (Mermaid)
+- [ERD_FULL_SYSTEM.md](ERD_FULL_SYSTEM.md) - Database schema diagram
 
 ### Latest Updates (v5.3)
 
@@ -1156,7 +1155,7 @@ git commit -m "docs(readme): update setup instructions"
 - Tracked in REFUND_ITEMS for audit trail
 - Notification includes tracking info for Buyer
 - See: [03_BUSINESS.md](03_BUSINESS.md) (Admin Duyệt Hoàn Tiền section)
-- See: [02_API.md](02_API.md) (POST /admin/refunds/{refundId}/approve)
+- See: [payment-service/02_API_payment_service.md](payment-service/02_API_payment_service.md) (POST /admin/refunds/{refundId}/approve)
 
 ### Complete Documentation List
 
@@ -1166,14 +1165,14 @@ git commit -m "docs(readme): update setup instructions"
 |---|------|---------|
 | 1 | [00_INDEX.md](00_INDEX.md) | **START HERE** - Documentation index |
 | 2 | [01_OVERVIEW.md](01_OVERVIEW.md) | Project architecture & setup |
-| 3 | [02_API.md](02_API.md) | API specification v5.3 RTS |
+| 3 | [api/README.md](api/README.md) | API specification v5.4 |
 | 4 | [03_BUSINESS.md](03_BUSINESS.md) | Business logic & workflows v5.3 |
 | 5 | [04_POLICIES.md](04_POLICIES.md) | System policies v3 |
 | 6 | [05_OPERATIONS.md](05_OPERATIONS.md) | 23 cronjobs & data retention v5.0 (per service) |
 | 7 | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) | Payment flow & Saga |
 | 8 | [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) | Luồng nghiệp vụ tổng hợp (Mermaid) |
 | 9 | [08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration |
-| 10 | [erd.mermaid](erd.mermaid) | Database ERD |
+| 10 | [ERD_FULL_SYSTEM.md](ERD_FULL_SYSTEM.md) | Database ERD |
 
 **Additional documentation in project root:**
 - [README.md](../README.md) - Quick start guide

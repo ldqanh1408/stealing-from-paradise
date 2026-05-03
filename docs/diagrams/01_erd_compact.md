@@ -140,10 +140,6 @@ erDiagram
     PARENT_ORDERS ||--o{ ORDERS : "1:N"
     USERS ||--o{ ORDERS : "seller (1:N)"
     ORDERS ||--o{ ORDER_ITEMS : "1:N"
-    ORDERS ||--o{ REVIEWS : "1:N"
-    ORDER_ITEMS ||--|| REVIEWS : "1:1"
-    REVIEWS ||--o{ REVIEW_MEDIA : "1:N"
-
     PARENT_ORDERS {
         BIGSERIAL id PK
         BIGINT customer_id FK
@@ -171,20 +167,6 @@ erDiagram
         INT refunded_quantity
     }
 
-    REVIEWS {
-        UUID id PK
-        BIGINT order_item_id FK "UNIQUE"
-        BIGINT customer_id FK
-        SMALLINT rating
-        VARCHAR status
-    }
-
-    REVIEW_MEDIA {
-        UUID id PK
-        UUID review_id FK
-        UUID image_id FK
-        VARCHAR media_type "image | video"
-    }
 ```
 
 ---
@@ -341,7 +323,6 @@ erDiagram
 erDiagram
     IMAGES ||--o{ MG_PRODUCT_IMAGES : "1:N"
     MG_PRODUCTS ||--o{ MG_PRODUCT_IMAGES : "1:N"
-    IMAGES ||--o{ REVIEW_MEDIA : "1:N"
     USERS ||--o{ MG_NOTIFICATIONS : "1:N"
 
     IMAGES {

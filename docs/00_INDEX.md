@@ -2,7 +2,7 @@
 
 **Project**: stealing-from-paradise — Flash Sale E-Commerce Platform
 **Version**: v5.4
-**Last Updated**: 2026-05-01
+**Last Updated**: 2026-05-04
 **Status**: Production-Ready
 
 ---
@@ -16,8 +16,8 @@ This is the entry point for all project documentation. Read the documents in the
 | Role | Start With | Then Read |
 |------|-----------|-----------|
 | **New Developer** | README.md (root) | 01_OVERVIEW.md |
-| **Backend Developer** | 01_OVERVIEW.md | 02_API.md | 03_BUSINESS.md | 04_POLICIES.md |
-| **Frontend Developer** | 01_OVERVIEW.md (Frontend section) | 02_API.md |
+| **Backend Developer** | 01_OVERVIEW.md | api/README.md | 03_BUSINESS.md | 04_POLICIES.md |
+| **Frontend Developer** | 01_OVERVIEW.md (Frontend section) | api/README.md |
 | **DevOps/Operations** | 10_ENVIRONMENT_VARIABLES.md | 09_RUNNING.md → 05_OPERATIONS.md |
 | **Product Manager** | 03_BUSINESS.md | 07_BUSINESS_FLOWS.md |
 | **Security/Audit** | 04_POLICIES.md | KAFKA_EVENTS.md |
@@ -34,7 +34,7 @@ This is the entry point for all project documentation. Read the documents in the
 | **Deploy / configure env** | 10_ENVIRONMENT_VARIABLES.md |
 | **Understand Kafka request-reply** | 11_KAFKA_REQUEST_REPLY.md |
 | **Understand business logic** | 03_BUSINESS.md → 07_BUSINESS_FLOWS.md |
-| **Database schema** | database-entities.md → erd.mermaid |
+| **Database schema** | database-entities.md → ERD_FULL_SYSTEM.md |
 
 ---
 
@@ -47,7 +47,6 @@ docs/
 ├── 00_INDEX.md              ← You are here
 ├── ARCHITECTURE_MAP.md      Single-file context primer (AI/LLM optimized)
 ├── 01_OVERVIEW.md           Architecture, services, tech stack, setup
-├── 02_API.md               Complete API specification (unified)
 ├── 03_BUSINESS.md           Business logic, workflows, policies
 ├── 04_POLICIES.md          System rules, trust score, flash sale, loyalty
 ├── 05_OPERATIONS.md         23 cronjobs, data retention, cleanup
@@ -56,12 +55,10 @@ docs/
 ├── 08_PAYMENT_ORDER_INTEGRATION.md Order-Payment integration
 ├── 09_RUNNING.md            How to run, build, deploy
 ├── ARCHITECTURE.md          Service architecture, Kafka flows, diagrams
-├── KAFKA_EVENTS.md          41 Kafka topics, event payloads (updated v5.4)
+├── KAFKA_EVENTS.md          Kafka index catalog → per-service event docs
 ├── database-entities.md     Full database schema documentation
-├── erd.mermaid              Entity-Relationship Diagram (Mermaid)
 ├── 10_ENVIRONMENT_VARIABLES.md  All env vars, .env template, security notes
 ├── 11_KAFKA_REQUEST_REPLY.md    Request-Reply over Kafka pattern (6 pairs)
-├── 07_TESTING_GUIDE.md      Testing strategy and guidelines
 └── README.md                This documentation guide
 ```
 
@@ -78,30 +75,34 @@ docs/
 ├── search-service/
 │   └── 02_API_search_service.md    Search (routes configured, WIP)
 ├── order-service/
-│   └── 02_API_order_service.md    Orders, checkout, RTS (16 endpoints)
+│   └── 02_API_order_service.md    Orders, checkout, RTS (18 endpoints)
 ├── payment-service/
-│   └── 02_API_payment_service.md  Stripe, payments, refunds (12 endpoints)
+│   └── 02_API_payment_service.md  Stripe, payments, refunds (15 endpoints)
 ├── flashsale-service/
 │   └── 02_API_flash_sale_service.md  Flash sale (routes configured, WIP)
 ├── notification-service/
 │   └── 02_API_notification_service.md  SSE notifications (routes configured, WIP)
 └── admin-service/
-    └── 02_API_admin.md            Admin APIs (14 endpoints)
-```
+    ├── 02_API_admin.md            Admin APIs (14 endpoints)
+    └── KAFKA_EVENTS.md            Kafka events for Admin domain
 
-### Product Service Deep Dives
+#### Kafka Event Docs (Per-Service)
 
 ```
 docs/
-├── product/
-│   ├── product-service-database.md   Product database design
-│   ├── product-service-ui-logic.md   Frontend UI logic
-│   └── product-service-flow.md      Service interaction flows
-└── search/
-    └── search-service-document-design.md  Elasticsearch document design
+├── KAFKA_EVENTS.md                Index catalog (41 topics total)
+├── identity-service/KAFKA_EVENTS.md   account.*, loyalty.*, seller.*
+├── product-service/KAFKA_EVENTS.md    product.*, inventory.*, cart.*
+├── search-service/KAFKA_EVENTS.md     consumer-only (10 topics)
+├── order-service/KAFKA_EVENTS.md      order.*, seller.order_cancelled
+├── payment-service/KAFKA_EVENTS.md    payment.*, refund.*, stripe.*
+├── flashsale-service/KAFKA_EVENTS.md  flash_sale.*
+├── notification-service/KAFKA_EVENTS.md  consumer-only (20+ topics)
+├── admin-service/KAFKA_EVENTS.md      product.approved/rejected/auto_hidden
+├── worker-service/KAFKA_EVENTS.md     flash_sale.reminder, outbox pattern
+└── 11_KAFKA_REQUEST_REPLY.md        6 request-reply pairs
 ```
-
----
+```
 
 ## Document Summary
 
@@ -109,8 +110,7 @@ docs/
 |---|------|-------|---------|
 | 1 | 00_INDEX.md | — | Documentation navigation |
 | 2 | 01_OVERVIEW.md | ~1200 | Project architecture, tech stack, setup |
-| 3 | 02_API.md | ~5200 | Complete API specification |
-| 4 | 03_BUSINESS.md | ~700 | Business logic & workflows |
+| 3 | 03_BUSINESS.md | ~700 | Business logic & workflows |
 | 5 | 04_POLICIES.md | ~500 | System policies & rules |
 | 6 | 05_OPERATIONS.md | ~800 | 23 cronjobs, data retention |
 | 7 | 06_PAYMENT_SAGA_FLOW.md | — | Payment Saga pattern |
@@ -118,23 +118,28 @@ docs/
 | 9 | 08_PAYMENT_ORDER_INTEGRATION.md | — | Order-Payment integration |
 | 10 | 09_RUNNING.md | ~600 | Running & deployment guide |
 | 11 | ARCHITECTURE.md | ~600 | Service architecture & Kafka flows |
-| 12 | KAFKA_EVENTS.md | ~1300 | 35+ Kafka topics catalog |
+| 12 | KAFKA_EVENTS.md | ~220 | Kafka index → 9 per-service event docs |
 | 13 | database-entities.md | ~800 | Database schema reference |
-| 14 | erd.mermaid | ~450 | Entity-relationship diagram |
-| 15 | README.md | ~200 | Documentation guide |
+| 14 | README.md | ~200 | Documentation guide |
 | — | api/README.md | ~400 | API overview |
 | — | identity-service/02_API_identity_service.md | ~750 | Identity API |
+| — | identity-service/KAFKA_EVENTS.md | ~170 | Identity Kafka events |
 | — | product-service/02_API_product_service.md | ~650 | Product API |
+| — | product-service/KAFKA_EVENTS.md | ~200 | Product Kafka events |
 | — | search-service/02_API_search_service.md | ~100 | Search API |
+| — | search-service/KAFKA_EVENTS.md | ~95 | Search Kafka events |
 | — | order-service/02_API_order_service.md | ~600 | Order API |
+| — | order-service/KAFKA_EVENTS.md | ~250 | Order Kafka events |
 | — | payment-service/02_API_payment_service.md | ~280 | Payment API |
+| — | payment-service/KAFKA_EVENTS.md | ~220 | Payment Kafka events |
 | — | flashsale-service/02_API_flash_sale_service.md | ~330 | Flash Sale API |
+| — | flashsale-service/KAFKA_EVENTS.md | ~85 | Flash Sale Kafka events |
 | — | notification-service/02_API_notification_service.md | ~170 | Notification API |
+| — | notification-service/KAFKA_EVENTS.md | ~125 | Notification Kafka events |
 | — | admin-service/02_API_admin.md | ~630 | Admin API |
-| — | product/product-service-database.md | ~500 | Product DB design |
-| — | product/product-service-ui-logic.md | ~310 | Product UI logic |
-| — | product/product-service-flow.md | ~370 | Product flows |
-| — | search/search-service-document-design.md | ~560 | Search document design |
+| — | admin-service/KAFKA_EVENTS.md | ~65 | Admin Kafka events |
+| — | worker-service/KAFKA_EVENTS.md | ~75 | Worker Kafka events |
+| — | 11_KAFKA_REQUEST_REPLY.md | ~320 | Kafka request-reply (6 pairs) |
 
 ---
 
@@ -145,9 +150,9 @@ docs/
 | API Gateway | 8080 | — | Entry point, JWT validation, routing |
 | Discovery Service | 8761 | — | Eureka service registry |
 | Identity Service | 8081 | PostgreSQL | Auth, users, loyalty |
-| Payment Service | 8082 | PostgreSQL + Axon | Stripe, payments |
-| Order Service | 8083 | PostgreSQL + Axon | Orders, checkout, RTS |
-| Flashsale Service | 8085 | PostgreSQL + Axon | Flash sales, Redis |
+| Payment Service | 8085 | PostgreSQL + Axon | Stripe, payments |
+| Order Service | 8087 | PostgreSQL + Axon | Orders, checkout, RTS |
+| Flashsale Service | 8086 | PostgreSQL + Axon | Flash sales, Redis |
 | Worker Service | 8086 | PostgreSQL + Axon | Outbox, failed events, DLQ |
 | Product Service | 8090 | MongoDB | Products, cart, variants |
 | Search Service | 8091 | Elasticsearch | Full-text search |
@@ -217,7 +222,7 @@ docs/
 - Full-text search with Elasticsearch
 - Return To Sender (RTS) refund workflow
 - 23 scheduled cronjobs for data retention and cleanup
-- 35+ Kafka topics for event-driven architecture
+- 41 Kafka topics for event-driven architecture
 - Axon Framework for Order, Payment, Flashsale, Worker services
 
 ---
@@ -249,6 +254,6 @@ docs/
 
 ---
 
-**Last Updated**: 2026-05-01
+**Last Updated**: 2026-05-04
 **Documentation Version**: v5.4
 **Total Documents**: 24

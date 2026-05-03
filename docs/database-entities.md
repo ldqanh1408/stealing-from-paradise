@@ -15,17 +15,16 @@
 7. [Flash Sales](#7-flash-sales)
 8. [Orders](#8-orders)
 9. [Payments & Transfers](#9-payments--transfers)
-10. [Reviews](#10-reviews)
-11. [Notifications](#11-notifications)
-12. [Infrastructure & Messaging](#12-infrastructure--messaging)
-13. [Search Index](#13-search-index)
+10. [Notifications](#10-notifications)
+11. [Infrastructure & Messaging](#11-infrastructure--messaging)
+12. [Search Index](#12-search-index)
 
 ---
 
 ## 1. Media & Images
 
 ### IMAGES
-Lưu trữ tập trung cho ảnh sản phẩm, review, bằng chứng hoàn tiền
+Lưu trữ tập trung cho ảnh sản phẩm, bằng chứng hoàn tiền
 
 | Cột | Kiểu | Ghi chú |
 |-----|------|--------|
@@ -556,54 +555,7 @@ Chi tiết hoàn tiền (từng sản phẩm)
 
 ---
 
-## 10. Reviews
-
-### REVIEWS
-Đánh giá sản phẩm
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | UUID | Primary Key |
-| `product_id` | VARCHAR | FK → MG_PRODUCTS.id |
-| `variant_id` | VARCHAR | FK → MG_PRODUCT_VARIANTS.id |
-| `customer_id` | BIGINT | FK → CUSTOMERS.id |
-| `order_item_id` | BIGINT | FK → ORDER_ITEMS.id, UNIQUE |
-| `rating` | SMALLINT | Điểm đánh giá |
-| `title` | VARCHAR | Tiêu đề đánh giá |
-| `content` | TEXT | Nội dung đánh giá |
-| `status` | VARCHAR | Trạng thái hiển thị |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-| `updated_at` | TIMESTAMP | Cập nhật cuối |
-
----
-
-### REVIEW_MEDIA
-Hình ảnh/Video trong đánh giá
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | UUID | Primary Key |
-| `review_id` | UUID | FK → REVIEWS.id |
-| `image_id` | UUID | FK → IMAGES.id |
-| `media_type` | VARCHAR | image \| video |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-
----
-
-### REVIEW_SUMMARY
-Tóm tắt đánh giá theo sản phẩm
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | UUID | Primary Key |
-| `product_id` | VARCHAR | FK → MG_PRODUCTS.id, UNIQUE |
-| `avg_rating` | DECIMAL | Điểm trung bình |
-| `total_count` | INT | Tổng số đánh giá |
-| `updated_at` | TIMESTAMP | Cập nhật cuối |
-
----
-
-## 11. Notifications
+## 10. Notifications
 
 ### MG_NOTIFICATIONS (MongoDB)
 Thông báo cho Buyer, Seller, Admin
@@ -621,7 +573,7 @@ Thông báo cho Buyer, Seller, Admin
 
 ---
 
-## 12. Infrastructure & Messaging
+## 11. Infrastructure & Messaging
 
 ### OUTBOX_EVENTS
 Event Outbox Pattern (cho eventual consistency)
@@ -667,7 +619,7 @@ Distributed Lock cho scheduled jobs (ShedLock)
 
 ---
 
-## 13. Search Index
+## 12. Search Index
 
 ### ES_PRODUCTS_INDEX (Elasticsearch)
 Đánh chỉ mục sản phẩm cho tìm kiếm
@@ -732,12 +684,6 @@ Distributed Lock cho scheduled jobs (ShedLock)
 - **Dynamic Attributes**: Hỗ trợ thuộc tính linh hoạt
 - **Soft Delete**: Sản phẩm xóa không mất dữ liệu
 
-### 7. Reviews & Ratings
-- **1:1 với ORDER_ITEMS**: Mỗi item chỉ có 1 review
-- **Media Support**: Ảnh/video bằng chứng
-- **Review Summary**: Aggregated rating per product
-- **Status Control**: Admin duyệt trước khi hiển thị
-
 ---
 
 ## Ràng Buộc & Relationships
@@ -776,7 +722,7 @@ Distributed Lock cho scheduled jobs (ShedLock)
 
 ---
 
-## 14. AI Chat Support
+## 13. AI Chat Support
 
 ### CHAT_SESSIONS
 Vòng đời một cuộc trò chuyện AI
@@ -886,12 +832,11 @@ Event Outbox Pattern cho Kafka fallback khi publish thất bại
 5. **loyalty** - Điểm & thưởng
 6. **flash_sale** - Flash Sale
 7. **cart** - Giỏ hàng
-8. **reviews** - Đánh giá
-9. **moderation** - Trust & kiểm duyệt
-10. **notifications** - Thông báo
-11. **infrastructure** - Messaging & locks
-12. **search** - Elasticsearch index
-13. **ai_chat** - AI Chat Support
+8. **moderation** - Trust & kiểm duyệt
+9. **notifications** - Thông báo
+10. **infrastructure** - Messaging & locks
+11. **search** - Elasticsearch index
+12. **ai_chat** - AI Chat Support
 
 ---
 
@@ -901,7 +846,7 @@ Event Outbox Pattern cho Kafka fallback khi publish thất bại
 - **Outbox Pattern**: OUTBOX_EVENTS + FAILED_EVENTS cho eventual consistency
 - **ShedLock**: Distributed lock cho scheduled jobs
 - **MongoDB**: Cart, Categories, Products, Variants, Inventories, Notifications
-- **PostgreSQL**: Users, Orders, Payments, Loyalty, Trust, Reviews (metadata)
+- **PostgreSQL**: Users, Orders, Payments, Loyalty, Trust
 - **Elasticsearch**: Full-text search cho sản phẩm
 - **MinIO**: Lưu trữ ảnh (URLs trong IMAGES table)
 

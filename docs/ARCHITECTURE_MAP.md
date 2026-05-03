@@ -27,7 +27,7 @@
 | `order-service` | 8083 | PostgreSQL + Axon | CQRS/ES + Saga | Checkout, order lifecycle, multi-vendor split, RTS |
 | `flashsale-service` | 8085 | PostgreSQL + Axon + Redis | CQRS/ES | Flash sale sessions, Redis Lua atomic buy. **No REST controllers** — Kafka consumer only |
 | `worker-service` | 8086 | PostgreSQL + Axon | CQRS/ES | Outbox relay, DLQ retry, deadline timeouts |
-| `product-service` | 8090 | MongoDB | Traditional | Catalog, SKU variants, cart, reviews, images (MinIO) |
+| `product-service` | 8090 | MongoDB | Traditional | Catalog, SKU variants, cart, images (MinIO) |
 | `search-service` | 8091 | Elasticsearch | Traditional | Full-text product search. **No REST controllers** — Kafka consumer only |
 | `notification-service` | 8092 | MongoDB | Traditional | SSE real-time notifications. **No REST controllers** — Kafka consumer only |
 | `common-lib` | — | — | Shared lib | DTOs, exceptions, utilities |
@@ -147,13 +147,6 @@ product.auto_hidden     → Search Service + Notification
 inventory.adjusted      → Search Service
 ```
 
-**Review** (Producer: Product Service)
-```
-review.created          → Notification + Search
-review.updated          → Search
-review.deleted          → Search
-review.summary_updated  → Search (update reviewCount, avgRating in ES)
-```
 
 **Stripe / Payment Extended** (Producer: Payment Service)
 ```
@@ -290,9 +283,10 @@ Worker DeadlineManager: if order not paid in X minutes
 
 ### Trust Score System (6 Tiers)
 ```
-BRONZE (0-49) → SILVER (50-149) → GOLD (150-299)
-  → PLATINUM (300-499) → DIAMOND (500-799) → ELITE (800+)
+BRONZE (0-39) → SILVER (40-59) → GOLD (60-79)
+  → PLATINUM (80-89) → DIAMOND (90-99) → ELITE (100)
 ```
+- Default trust_score = 80 (PLATINUM) on account creation
 - Seller +5 on delivery confirmed, -5 on admin-approved refund caused by seller
 - Warnings sent at tier boundary thresholds
 
@@ -378,7 +372,7 @@ stealing-from-paradise/
 | **Notification** | notifications (MongoDB) | notification-service |
 | **Search** | products index (Elasticsearch) | search-service |
 
-> See `docs/database-entities.md` for full schema · `docs/erd.mermaid` for ERD diagram
+> See `docs/database-entities.md` for full schema · `docs/ERD_FULL_SYSTEM.md` for ERD diagram
 
 ---
 
@@ -429,7 +423,7 @@ All routes prefixed: `http://localhost:8080/api/v1`
 | `GET /internal/users/{userId}` | Identity | Lấy thông tin user đầy đủ |
 | `GET /internal/users/exists?username=&email=&phone=` | Identity | Kiểm tra user tồn tại |
 
-> Full spec: `docs/02_API.md` · Per-service docs: `docs/{service}/02_API_{service}.md`
+> Full spec: `docs/api/README.md` · Per-service docs: `docs/{service}/02_API_{service}.md`
 
 ---
 
@@ -441,7 +435,7 @@ All routes prefixed: `http://localhost:8080/api/v1`
 | Trace a Kafka event | `docs/KAFKA_EVENTS.md` → `docs/ARCHITECTURE.md` |
 | Understand request-reply Kafka pattern | `docs/11_KAFKA_REQUEST_REPLY.md` |
 | Understand payment/order Saga | `docs/06_PAYMENT_SAGA_FLOW.md` |
-| Database schema | `docs/database-entities.md` + `docs/erd.mermaid` |
+| Database schema | `docs/database-entities.md` + `docs/ERD_FULL_SYSTEM.md` |
 | Business rules (trust, loyalty, flash sale) | `docs/04_POLICIES.md` |
 | Business flows (diagrams) | `docs/07_BUSINESS_FLOWS.md` |
 | Refund/RTS flow | `docs/08_PAYMENT_ORDER_INTEGRATION.md` |

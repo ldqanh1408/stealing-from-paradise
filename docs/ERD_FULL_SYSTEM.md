@@ -221,29 +221,6 @@ erDiagram
         bigint item_id FK
     }
 
-    %% ==================== REVIEW DOMAIN ====================
-    REVIEWS ||--o{ REVIEW_MEDIA : "has media"
-    REVIEWS }o--|| MG_PRODUCTS : "for product"
-    REVIEWS }o--|| ORDER_ITEMS : "for order_item"
-    REVIEWS {
-        uuid id PK
-        string product_id FK
-        bigint customer_id FK
-        bigint order_item_id FK,UK
-    }
-
-    REVIEW_MEDIA {
-        uuid id PK
-        uuid review_id FK
-        uuid image_id FK
-    }
-
-    REVIEW_SUMMARY ||--|| MG_PRODUCTS : "1:1"
-    REVIEW_SUMMARY {
-        uuid id PK
-        string product_id FK,UK
-    }
-
     %% ==================== NOTIFICATION DOMAIN (MongoDB) ====================
     MG_NOTIFICATIONS {
         string id PK "Mongo ObjectId"
@@ -326,7 +303,6 @@ erDiagram
 | Flash Sale | PostgreSQL | flashsale-service |
 | Order | PostgreSQL | order-service |
 | Payment | PostgreSQL | payment-service |
-| Review | PostgreSQL | order-service |
 | Notification | MongoDB | notification-service |
 | AI Chat | PostgreSQL | ai-chat-service |
 | Infrastructure | PostgreSQL | worker-service |
@@ -343,5 +319,4 @@ erDiagram
 | ORDER_ITEMS.variant_id | → Catalog.MG_PRODUCT_VARIANTS.id |
 | ORDER_ITEMS.fs_item_id | → FlashSale.FS_ITEMS.id |
 | POINT_TRANSACTIONS.order_id | → Order.ORDERS.id |
-| REVIEWS.product_id | → Catalog.MG_PRODUCTS.id |
 | MG_NOTIFICATIONS.user_id | → Identity.USERS.id |

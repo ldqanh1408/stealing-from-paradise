@@ -205,6 +205,44 @@
 
 ---
 
+## Seller Transfers
+
+### GET /seller/payments/transfers
+**Lịch sử chuyển tiền (Seller)**
+
+**Quyền truy cập**: JWT Required (SELLER)
+
+**Query Params**:
+| Param | Type | Mô tả |
+|-------|------|-------|
+| status | string | PENDING \| SUCCESS \| FAILED \| REVERSED |
+| from_date | date | ISO 8601 |
+| to_date | date | ISO 8601 |
+| page | integer | Default 0 |
+| size | integer | Default 20 |
+
+---
+
+### GET /seller/payments/balance
+**Số dư khả dụng (Seller)**
+
+**Quyền truy cập**: JWT Required (SELLER)
+
+**Response 200**:
+```json
+{
+  "success": true,
+  "data": {
+    "seller_id": 10,
+    "pending_balance": 1500000,
+    "available_balance": 5000000,
+    "total_earned": 15000000
+  }
+}
+```
+
+---
+
 ## Admin Refund Management
 
 > Các endpoint này nằm trong Payment Service, yêu cầu quyền ADMIN.
@@ -267,6 +305,8 @@
 | /stripe/webhooks | POST | Stripe signature |
 | /seller/payments/earnings | GET | JWT (SELLER) |
 | /seller/payments/stripe-dashboard | GET | JWT (SELLER) |
+| /seller/payments/transfers | GET | JWT (SELLER) |
+| /seller/payments/balance | GET | JWT (SELLER) |
 | /admin/refunds | GET | JWT (ADMIN) |
 | /admin/refunds/{id} | GET | JWT (ADMIN) |
 | /admin/refunds/{id}/approve | POST | JWT (ADMIN) |

@@ -584,4 +584,4 @@ mvn clean install -DskipTests
 - [DEPLOY.md](../DEPLOY.md) — Deployment guide (CD, server setup, GitHub Actions)
 - [docs/00_INDEX.md](../00_INDEX.md) — Documentation index
 - [docs/01_OVERVIEW.md](../01_OVERVIEW.md) — Project architecture
-- [docs/02_API.md](../02_API.md) — API specification
+- [docs/api/README.md](../api/README.md) — API specification

@@ -63,51 +63,6 @@ Chi tiết sản phẩm trong đơn hàng
 
 ---
 
-## REVIEWS
-Đánh giá sản phẩm
-
-| Cột | Kiểu | Ghi chú |
-|-----|------|--------|
-| `id` | UUID | Primary Key |
-| `product_id` | VARCHAR | FK → MG_PRODUCTS.id |
-| `variant_id` | VARCHAR | FK → MG_PRODUCT_VARIANTS.id |
-| `customer_id` | BIGINT | FK → CUSTOMERS.id |
-| `order_item_id` | BIGINT | FK → ORDER_ITEMS.id, UNIQUE |
-| `rating` | SMALLINT | Điểm đánh giá |
-| `title` | VARCHAR | Tiêu đề đánh giá |
-| `content` | TEXT | Nội dung đánh giá |
-| `status` | VARCHAR | Trạng thái hiển thị |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-| `updated_at` | TIMESTAMP | Cập nhật cuối |
-
----
-
-## REVIEW_MEDIA
-Hình ảnh/Video trong đánh giá
-
-| Cột | Kiểu | Ghi chú |
-|-----|------|--------|
-| `id` | UUID | Primary Key |
-| `review_id` | UUID | FK → REVIEWS.id |
-| `image_id` | UUID | FK → IMAGES.id |
-| `media_type` | VARCHAR | image \| video |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-
----
-
-## REVIEW_SUMMARY
-Tóm tắt đánh giá theo sản phẩm
-
-| Cột | Kiểu | Ghi chú |
-|-----|------|--------|
-| `id` | UUID | Primary Key |
-| `product_id` | VARCHAR | FK → MG_PRODUCTS.id, UNIQUE |
-| `avg_rating` | DECIMAL | Điểm trung bình |
-| `total_count` | INT | Tổng số đánh giá |
-| `updated_at` | TIMESTAMP | Cập nhật cuối |
-
----
-
 ## OUTBOX_EVENTS
 Event Outbox Pattern (cho eventual consistency)
 

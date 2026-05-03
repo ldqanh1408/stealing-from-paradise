@@ -5,7 +5,7 @@
 ---
 
 ## IMAGES
-Lưu trữ tập trung cho ảnh sản phẩm, review, bằng chứng hoàn tiền
+Lưu trữ tập trung cho ảnh sản phẩm, bằng chứng hoàn tiền
 
 | Cột | Kiểu | Ghi chú |
 |-----|------|--------|
