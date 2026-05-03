@@ -3,6 +3,7 @@ package com.flashsale.identitydomain.domain.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
@@ -34,7 +35,8 @@ public class LoyaltyAccount {
     private Integer expiredPoints = 0;
 
     @Version
-    private Integer version;
+    @Builder.Default
+    private Integer version = 0;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

@@ -74,16 +74,20 @@ Complete documentation available in `/docs`:
 
 | Document | Purpose |
 |----------|---------|
-| [00_INDEX.md](docs/00_INDEX.md) | **START HERE** - Documentation index |
-| [01_OVERVIEW.md](docs/01_OVERVIEW.md) | Project architecture & setup |
-| [02_API.md](docs/02_API.md) | Complete API specification (v5.3 RTS) |
-| [03_BUSINESS.md](docs/03_BUSINESS.md) | Business logic & workflows (v5.3) |
-| [04_POLICIES.md](docs/04_POLICIES.md) | System policies & configuration (v3.0) |
-| [05_OPERATIONS.md](docs/05_OPERATIONS.md) | 23 Cronjobs & data retention (v4.0) |
-| [06_PAYMENT_SAGA_FLOW.md](docs/06_PAYMENT_SAGA_FLOW.md) | Payment flow & Saga pattern |
-| [07_BUSINESS_FLOWS.md](docs/07_BUSINESS_FLOWS.md) | Luồng nghiệp vụ tổng hợp (Mermaid) |
-| [08_PAYMENT_ORDER_INTEGRATION.md](docs/08_PAYMENT_ORDER_INTEGRATION.md) | Integration details |
-| [erd.mermaid](docs/erd.mermaid) | Database schema |
+| [docs/00_INDEX.md](docs/00_INDEX.md) | **START HERE** - Complete documentation index |
+| [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) | Project architecture & setup |
+| [docs/02_API.md](docs/02_API.md) | Complete API specification (v5.4) |
+| [docs/03_BUSINESS.md](docs/03_BUSINESS.md) | Business logic & workflows (v5.3) |
+| [docs/04_POLICIES.md](docs/04_POLICIES.md) | System policies & configuration (v3.0) |
+| [docs/05_OPERATIONS.md](docs/05_OPERATIONS.md) | 23 Cronjobs & data retention (v5.0) |
+| [docs/06_PAYMENT_SAGA_FLOW.md](docs/06_PAYMENT_SAGA_FLOW.md) | Payment saga & OrderPaymentSaga |
+| [docs/07_BUSINESS_FLOWS.md](docs/07_BUSINESS_FLOWS.md) | Visual flows (Mermaid diagrams) |
+| [docs/08_PAYMENT_ORDER_INTEGRATION.md](docs/08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration details |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Service architecture & Kafka flows |
+| [docs/KAFKA_EVENTS.md](docs/KAFKA_EVENTS.md) | 35 Kafka topics catalog |
+| [docs/database-entities.md](docs/database-entities.md) | Database schema reference |
+| [docs/erd.mermaid](docs/erd.mermaid) | Entity-Relationship Diagram |
+| [docs/README.md](docs/README.md) | Documentation index & navigation |
 
 **[See complete documentation index →](docs/00_INDEX.md)**
 
@@ -149,9 +153,8 @@ cp .env.example .env
 |--------|-------|
 | Backend Services | 11 |
 | Frontend Apps | 3 |
-| Cronjobs | 22 |
-| Documentation Files | 13 |
-| Documentation Lines | 6,000+ |
+| Cronjobs | 23 |
+| Documentation Files | 25 |
 | Code Examples | 150+ |
 | SQL Queries | 100+ |
 
@@ -301,7 +304,7 @@ This is a **production-ready, fully-documented e-commerce platform** with:
 - ✅ Event-driven microservices architecture
 - ✅ 11 backend services + 3 frontend apps
 - ✅ Advanced features (Flash Sales, Stripe, Search, RTS)
-- ✅ Comprehensive documentation (10 files, 9,000+ lines)
+- ✅ Comprehensive documentation (25 files covering all aspects)
 - ✅ 23 automated cronjobs for operations
 - ✅ Docker containerization & deployment ready
 
@@ -309,7 +312,7 @@ This is a **production-ready, fully-documented e-commerce platform** with:
 
 ---
 
-**Last Updated**: 2026-04-20  
-**Status**: ✅ Production-Ready  
-**Documentation Version**: Complete v5.3 RTS Unified
+**Last Updated**: 2026-05-01
+**Status**: ✅ Production-Ready
+**Documentation Version**: Complete v5.4
 

@@ -16,11 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -48,6 +50,7 @@ public class IdentityDevDataLoader implements CommandLineRunner {
     private final PointTransactionRepository pointTransactionRepository;
     private final PasswordEncoder passwordEncoder;
     private final DevDataProperties devDataProperties;
+    private final JdbcTemplate jdbcTemplate;
 
     // All 13 users (IDs 1-10 used by product/order/payment seeders, 11-13 for extra buyers)
 
@@ -74,11 +77,11 @@ public class IdentityDevDataLoader implements CommandLineRunner {
 
         if (devDataProperties.isReset()) {
             log.warn("[IdentityDevDataLoader] RESET=true — wiping all identity data...");
-            pointTransactionRepository.deleteAll();
-            loyaltyAccountRepository.deleteAll();
-            addressRepository.deleteAll();
-            roleRepository.deleteAll();
-            userRepository.deleteAll();
+            pointTransactionRepository.deleteAllInBatch();
+            loyaltyAccountRepository.deleteAllInBatch();
+            addressRepository.deleteAllInBatch();
+            roleRepository.deleteAllInBatch();
+            userRepository.deleteAllInBatch();
             log.info("[IdentityDevDataLoader] All identity data wiped.");
         } else if (userRepository.count() > 0) {
             log.info("[IdentityDevDataLoader] Data already exists, skipping. Set dev-data.reset=true to reload.");
@@ -150,8 +153,23 @@ public class IdentityDevDataLoader implements CommandLineRunner {
             u.setPassword(hashedPw);
             u.setCreatedAt(LocalDateTime.now().minusDays(new Random().nextInt(60) + 1));
             u.setUpdatedAt(u.getCreatedAt());
-            userRepository.save(u);
+
+            jdbcTemplate.update(
+                "INSERT INTO identity.users (id, username, email, phone, password, full_name, avatar_url,"
+                    + " status, trust_score, product_posting_suspended, appeal_count,"
+                    + " reward_10_orders_accumulated, version, created_at, updated_at)"
+                    + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+                    + " ON CONFLICT (id) DO NOTHING",
+                u.getId(), u.getUsername(), u.getEmail(), u.getPhone(), u.getPassword(),
+                u.getFullName(), u.getAvatarUrl(), u.getStatus(), u.getTrustScore(),
+                u.getProductPostingSuspended(), u.getAppealCount(), u.getReward10OrdersAccumulated(),
+                u.getVersion(), Timestamp.valueOf(u.getCreatedAt()), Timestamp.valueOf(u.getUpdatedAt()));
         }
+
+        // Reset sequence to max(id) so future auto-generated IDs don't conflict
+        jdbcTemplate.queryForObject(
+            "SELECT setval('identity.users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM identity.users))",
+            Long.class);
 
         // Assign roles
         String[] roles = {

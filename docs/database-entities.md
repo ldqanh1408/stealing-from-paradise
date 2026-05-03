@@ -1,6 +1,6 @@
 # E-Commerce Database Schema
 
-**Ngày cập nhật:** 2026-04-29
+**Ngày cập nhật:** 2026-05-03
 
 ---
 
@@ -776,6 +776,107 @@ Distributed Lock cho scheduled jobs (ShedLock)
 
 ---
 
+## 14. AI Chat Support
+
+### CHAT_SESSIONS
+Vòng đời một cuộc trò chuyện AI
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|--------|
+| `id` | UUID | Primary Key, gen_random_uuid() |
+| `user_id` | VARCHAR(36) | NOT NULL, chủ sở hữu session |
+| `status` | ENUM | ACTIVE \| CLOSED \| EXPIRED |
+| `context_summary` | TEXT | Tóm tắt nén khi history > 50 messages |
+| `created_at` | TIMESTAMPTZ | Thời điểm tạo |
+| `updated_at` | TIMESTAMPTZ | Cập nhật cuối |
+| `closed_at` | TIMESTAMPTZ | Thời điểm đóng |
+
+---
+
+### CHAT_MESSAGES
+Lịch sử hội thoại đầy đủ (gồm TOOL_CALL và TOOL_RESULT)
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|--------|
+| `id` | UUID | Primary Key, gen_random_uuid() |
+| `session_id` | UUID | FK → CHAT_SESSIONS.id |
+| `role` | ENUM | USER \| ASSISTANT \| TOOL_CALL \| TOOL_RESULT |
+| `content` | TEXT | Nội dung (JSON string với TOOL_CALL/TOOL_RESULT) |
+| `tool_name` | VARCHAR(100) | Chỉ có giá trị khi role = TOOL_CALL/TOOL_RESULT |
+| `sequence_no` | INT | Thứ tự tuyệt đối trong session, UNIQUE (session_id, sequence_no) |
+| `tokens_used` | INT | Chỉ có với ASSISTANT messages |
+| `created_at` | TIMESTAMPTZ | Thời điểm tạo |
+
+---
+
+### PENDING_CONFIRMATIONS
+Human-in-the-loop cho action Mức 3
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|--------|
+| `id` | UUID | Primary Key, chính là confirm token |
+| `session_id` | UUID | FK → CHAT_SESSIONS.id |
+| `message_id` | UUID | FK → CHAT_MESSAGES.id |
+| `user_id` | VARCHAR(36) | NOT NULL |
+| `action_type` | ENUM | CANCEL_ORDER \| UPDATE_PROFILE \| DELETE_ACCOUNT \| CUSTOM |
+| `payload` | JSONB | Dữ liệu để thực thi sau khi confirmed |
+| `status` | ENUM | PENDING \| CONFIRMED \| REJECTED \| EXPIRED |
+| `expires_at` | TIMESTAMPTZ | now + 5 phút |
+| `created_at` | TIMESTAMPTZ | Thời điểm tạo |
+| `resolved_at` | TIMESTAMPTZ | Thời điểm xử lý |
+
+---
+
+### TOOL_CALL_LOGS
+Audit trail bất biến (chỉ INSERT, không UPDATE/DELETE) — Partition by month
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|--------|
+| `id` | UUID | Primary Key, gen_random_uuid() |
+| `session_id` | UUID | FK → CHAT_SESSIONS.id |
+| `message_id` | UUID | FK → CHAT_MESSAGES.id |
+| `user_id` | VARCHAR(36) | NOT NULL |
+| `tool_name` | VARCHAR(100) | Tên tool được gọi |
+| `input_params` | JSONB | Tham số đầu vào |
+| `output` | JSONB | Kết quả trả về |
+| `status` | ENUM | SUCCESS \| FAILED \| BLOCKED \| TIMEOUT |
+| `duration_ms` | INT | Thời gian xử lý |
+| `risk_level` | SMALLINT | 1 / 2 / 3 |
+| `created_at` | TIMESTAMPTZ | Thời điểm tạo |
+
+---
+
+### OUTBOX_EVENTS (AI Chat)
+Event Outbox Pattern cho Kafka fallback khi publish thất bại
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|--------|
+| `id` | UUID | Primary Key, gen_random_uuid() |
+| `event_type` | VARCHAR(100) | Loại event |
+| `payload` | JSONB | Nội dung event |
+| `status` | ENUM | PENDING \| PROCESSING \| DONE \| FAILED |
+| `retry_count` | SMALLINT | Số lần retry, mặc định 0 |
+| `error_message` | TEXT | Lỗi nếu có |
+| `created_at` | TIMESTAMPTZ | Thời điểm tạo |
+| `processed_at` | TIMESTAMPTZ | Thời điểm xử lý |
+
+> Partial index: `WHERE status = 'PENDING'` để query nhanh các event chưa xử lý.
+
+---
+
+### Redis Keys (AI Chat)
+
+| Key | TTL | Mục đích |
+|-----|-----|----------|
+| `rate:{userId}` | 60s | Rate limit counter (20 req/phút) |
+| `tool:rate:{userId}` | 60s | Rate limit riêng cho Tool calls (10/phút) |
+| `ctx:{sessionId}` | 30 phút | Cache 20 messages gần nhất |
+| `pending:{confirmId}` | 5 phút | Fast lookup khi user bấm confirm |
+| `buf:{sessionId}` | 10 phút | Buffer 20 SP từ PageIndex cho "Xem thêm" |
+| `tool:cache:{hash}` | 60s | Cache kết quả Tool đọc (Mức 1) |
+
+---
+
 ## Nhóm Bảng (Table Groups)
 
 1. **identity** - Người dùng & hồ sơ
@@ -790,6 +891,7 @@ Distributed Lock cho scheduled jobs (ShedLock)
 10. **notifications** - Thông báo
 11. **infrastructure** - Messaging & locks
 12. **search** - Elasticsearch index
+13. **ai_chat** - AI Chat Support
 
 ---
 

@@ -1,7 +1,7 @@
 # Flash Sale E-Commerce Platform - Project Overview
 
-**Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)  
-**Date**: 2026-04-30  
+**Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)
+**Date**: 2026-05-01  
 **Status**: Production-Ready  
 
 ---
@@ -90,25 +90,26 @@
 ### Services Overview
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                 API GATEWAY (8080)                  │
-│             Spring Cloud Gateway                    │
-└────────┬────────────────────────────────────────────┘
-         │
-    ┌────┴───────────────────────────────────────────┐
-    │         SERVICE DISCOVERY (8761 - Eureka)      │
-    └────┬───────────────────────────────────────────┘
-         │
-    ┌────┴──────┬──────────┬──────────┬──────────┐
-    ▼           ▼          ▼          ▼          ▼
-  Auth      Product     Order    Payment   Flash Sale
-  (8085)    (8086)     (8088)    (8089)    (8090)
-    │           │          │         │          │
-  PostgreSQL  MongoDB  PostgreSQL PostgreSQL PostgreSQL
-             (+ Cart)  + Axon    + Axon    + Redis
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                      API GATEWAY (8080)                                       │
+│                   Spring Cloud Gateway                                          │
+└─────────────────────────┬──────────────────────────────────────────────────────┘
+                          │
+     ┌────────────────────┴──────────────────────────────────────────────────┐
+     │              SERVICE DISCOVERY (8761 - Eureka)                          │
+     └────────────────────┬───────────────────────────────────────────────────┘
+                          │
+    ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬──────────┐
+    ▼         ▼         ▼         ▼         ▼         ▼         ▼          ▼
+  Identity  Payment   Order    Flashsale Product  Search  Notification Worker
+  (8081)   (8082)   (8083)    (8085)   (8090)  (8091)   (8092)    (8086)
+    │         │         │         │         │         │         │          │
+  PostgreSQL PgSQL+Axon PgSQL+Axon PgSQL+Axon MongoDB  Elastic   MongoDB    PostgreSQL
+                   OrderSaga   OrderSaga  +Redis
+                   PaymentSaga FlashSaleSaga
 ```
 
-### Backend Services (10 microservices)
+### Backend Services (11 microservices + common-lib)
 
 #### **Infrastructure Services**
 
@@ -124,40 +125,44 @@
 
 #### **Axon Framework Services (Event-Driven)**
 
-3. **order-service** (Port 8088)
+3. **order-service** (Port 8083)
    - Order creation and management
-   - Event sourcing: OrderAggregate
-   - Saga: OrderSaga for distributed transactions
+   - Axon Sagas: OrderProcessingSaga + ParentOrderPaymentSaga
+   - Handles checkout, multi-vendor order split, shipping, RTS
 
-4. **payment-service** (Port 8089)
-   - Payment processing
-   - Event sourcing: PaymentAggregate
-   - Integration with Stripe
+4. **payment-service** (Port 8082)
+   - Stripe Connect payment processing
+   - Multi-vendor payment split with automatic transfers
+   - Refund management (manual + auto RTS)
+   - Stripe webhook handling
 
-5. **flashsale-service** (Port 8090)
-   - Flash sale orchestration
-   - Limited-time promotions
-   - Event sourcing
+5. **flashsale-service** (Port 8085)
+   - Flash sale session management
+   - Redis Lua scripts for 50k+ req/s concurrency
+   - Anti-oversell with atomic operations
+   - Reminder notifications
 
-6. **worker-service**
-   - Background jobs and cron schedules
-   - Failed event retry management
+6. **worker-service** (Port 8086)
+   - Outbox pattern: reliable Kafka event publishing
+   - Failed event retry management (DLQ)
+   - Background job infrastructure (Axon DeadlineManager for timeouts)
 
 #### **Traditional Database Services**
 
-7. **identity-service** (Port 8085)
+7. **identity-service** (Port 8081)
    - User authentication & authorization
-   - JWT token management
+   - JWT token management (RS256)
    - User profiles, addresses
    - Loyalty points management (merged from Loyalty Service)
+   - Trust Score and appeals
    - Database: PostgreSQL + JPA
 
-8. **product-service** (Port 8086)
-   - Product catalog
-   - Product details, variants, inventory
-   - Seller products, admin moderation
+8. **product-service** (Port 8090)
+   - Product catalog (MongoDB)
+   - SKU variants, inventory management
    - Shopping cart (merged from Cart Service)
-   - Database: MongoDB + Redis
+   - Product images (MinIO)
+   - Reviews and ratings
 
 9. **search-service** (Port 8091)
    - Product search

@@ -2,7 +2,7 @@
 
 **Project**: stealing-from-paradise Marketplace  
 **Version**: v5.3 RTS  
-**Last Updated**: 2026-04-28
+**Last Updated**: 2026-05-01
 
 Tổng hợp đầy đủ tất cả Kafka topics, events, producers, consumers và data payloads.
 
@@ -12,11 +12,12 @@ Tổng hợp đầy đủ tất cả Kafka topics, events, producers, consumers 
 
 | Metric | Value |
 |--------|-------|
-| **Total Topics** | 35+ |
+| **Total Topics** | 41 (29 event topics + 12 request-reply topics) |
 | **Event Producers** | 8 services |
 | **Event Consumers** | 8 services |
 | **Max Consumers per Topic** | 4+ (Notification Service) |
-| **Retention Policy** | 7 days |
+| **Retention Policy** | 7 days (event topics) |
+| **Request-Reply Topics** | 12 topics (6 pairs) — xem [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md) |
 
 ---
 
@@ -1011,12 +1012,39 @@ Notification Service consumes from many topics and produces no events itself. It
 
 ## 🛡️ Admin & Worker Service Topics
 
-### 29. seller.posting_suspended
+### 29. account.auto_locked
 
-**Producer**: Identity Service  
+**Producer**: identity-service (JOB-17 nightly)
 **Consumers**: Notification Service
 
-**Trigger**: Admin suspends seller posting via endpoint
+**Trigger**: JOB-17 auto-locks accounts when trust score < 10
+
+**Payload**:
+```json
+{
+  "event_id": "evt_20251001_002",
+  "event_type": "account.auto_locked",
+  "timestamp": "2025-10-01T03:00:00Z",
+  "user_id": 42,
+  "username": "nguyen_van_a",
+  "trigger_reason": "LOW_TRUST_SCORE",
+  "trust_score_before": 8,
+  "trust_score_after": 5,
+  "lock_duration_days": 30
+}
+```
+
+**Consumer Actions**:
+- **Notification Service**: Send urgent lock notification
+
+---
+
+### 30. seller.posting_suspended
+
+**Producer**: identity-service
+**Consumers**: Notification Service
+
+**Trigger**: Admin suspends seller posting via `/admin/users/{userId}/suspend-posting`
 
 **Payload**:
 ```json
@@ -1031,7 +1059,120 @@ Notification Service consumes from many topics and produces no events itself. It
 
 ---
 
-### 30. seller.posting_resumed
+### 31. seller.posting_resumed
+
+**Producer**: identity-service
+**Consumers**: Notification Service
+
+**Trigger**: Admin resumes seller posting
+
+**Payload**:
+```json
+{
+  "event_type": "seller.posting_resumed",
+  "user_id": 5,
+  "seller_id": 5,
+  "note": "Seller completed remediation"
+}
+```
+
+---
+
+### 32. product.approved
+
+**Producer**: identity-service (via admin action)
+**Consumers**: Search Service, Notification Service
+
+**Trigger**: Admin approves product via `/admin/products/{productId}/approve`
+
+**Payload**:
+```json
+{
+  "event_id": "evt_20251001_031",
+  "event_type": "product.approved",
+  "timestamp": "2025-10-01T15:00:00Z",
+  "product_id": 101,
+  "seller_id": 5,
+  "status": "APPROVED",
+  "admin_id": 1,
+  "admin_note": "Approved - meets quality standards"
+}
+```
+
+**Consumer Actions**:
+- **Search Service**: Index product in Elasticsearch
+- **Notification Service**: Notify seller
+
+---
+
+### 33. product.rejected
+
+**Producer**: identity-service (via admin action)
+**Consumers**: Search Service, Notification Service
+
+**Trigger**: Admin rejects product via `/admin/products/{productId}/reject`
+
+**Payload**:
+```json
+{
+  "event_id": "evt_20251001_032",
+  "event_type": "product.rejected",
+  "timestamp": "2025-10-01T15:30:00Z",
+  "product_id": 101,
+  "seller_id": 5,
+  "status": "REJECTED",
+  "reject_reason": "Misleading product images",
+  "admin_note": "Images must match actual product"
+}
+```
+
+**Consumer Actions**:
+- **Search Service**: Remove from index
+- **Notification Service**: Notify seller with rejection reason
+
+---
+
+### 34. product.auto_hidden
+
+**Producer**: identity-service (JOB-16)
+**Consumers**: Search Service, Notification Service
+
+**Trigger**: JOB-16 hides rejected products after 90-day retention period
+
+**Payload**:
+```json
+{
+  "event_id": "evt_20251001_033",
+  "event_type": "product.auto_hidden",
+  "timestamp": "2025-10-05T00:00:00Z",
+  "product_id": 101,
+  "seller_id": 5,
+  "reason": "Auto-hidden - rejected 90 days ago"
+}
+```
+
+---
+
+### 35. order.auto_cancelled
+
+**Producer**: order-service (Axon Deadline or JOB-13 safety net)
+**Consumers**: Cart Service, Loyalty Service, Notification Service
+
+**Trigger**: Payment timeout exceeded (Axon Deadline fires, JOB-13 as safety net)
+
+**Payload**:
+```json
+{
+  "event_id": "evt_20251001_034",
+  "event_type": "order.auto_cancelled",
+  "timestamp": "2025-10-01T10:30:00Z",
+  "parent_order_id": 55,
+  "orders": [100, 101],
+  "cancelled_by": "SYSTEM",
+  "cancel_reason": "Payment timeout",
+  "timeout_minutes": 30
+}
+```
 
 **Producer**: Identity Service  
 **Consumers**: Notification Service
@@ -1144,6 +1285,61 @@ Notification Service consumes from many topics and produces no events itself. It
   "timeout_minutes": 30
 }
 ```
+
+---
+
+## ➕ Topics Bổ Sung (từ `KafkaTopics.java` — chưa có trong catalog trên)
+
+### Review Events (Producer: Product Service)
+
+| Topic | Consumer | Trigger |
+|-------|----------|---------|
+| `review.created` | Notification (báo seller), Search (update rating) | Buyer submit review |
+| `review.updated` | Search (re-index rating) | Buyer edit review |
+| `review.deleted` | Search (re-index) | Buyer/Admin xóa review |
+| `review.summary_updated` | Search (update `reviewCount`, `avgRating` trong ES index) | Sau mỗi review CRUD |
+
+### Stripe / Payment Extended Events (Producer: Payment Service)
+
+| Topic | Consumer | Trigger |
+|-------|----------|---------|
+| `stripe.account_suspended` | Notification, Identity | Stripe suspend seller account |
+| `stripe.dispute.created` | Notification, Admin log | Buyer open dispute trên Stripe |
+| `stripe.dispute.closed` | Notification | Dispute resolved |
+| `stripe.transfer.reversed` | Order, Notification | Stripe reverse transfer về platform |
+| `stripe.payout.failed` | Notification | Seller payout thất bại |
+| `seller.stripe_requirement` | Notification | Stripe yêu cầu seller cung cấp thêm thông tin (KYC) |
+| `payment.requested` | Payment Service (internal) | Order tạo payment intent request |
+
+### Refund Extended Events
+
+| Topic | Consumer | Trigger |
+|-------|----------|---------|
+| `refund.full_requested` | Notification, Payment | Buyer request full refund (RTS flow) |
+| `refund.created` | Notification | Refund record đã được tạo (chờ xử lý) |
+| `refund.rts_completed` | Order, Notification | Return To Sender hoàn tất |
+
+### Seller Order Events
+
+| Topic | Consumer | Trigger |
+|-------|----------|---------|
+| `seller.order_cancelled` | Identity (điều chỉnh trust score seller) | Seller hủy đơn chủ động |
+
+---
+
+## 🔄 Request-Reply Topics (12 topics — 6 pairs)
+
+> Các topic này dùng pattern **Kafka Request-Reply** (synchronous-like communication).  
+> Xem tài liệu đầy đủ: **[11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md)**
+
+| Request Topic | Response Topic | Requester → Responder |
+|--------------|----------------|----------------------|
+| `cart.product_info.request` | `cart.product_info.response` | Cart → Product catalog |
+| `order.stock_check.request` | `order.stock_check.response` | Order → Product inventory |
+| `order.payment_status.request` | `order.payment_status.response` | Order → Payment |
+| `order.cart_items.request` | `order.cart_items.response` | Order → Product cart |
+| `order.address.request` | `order.address.response` | Order → Identity |
+| `order.refunds.request` | `order.refunds.response` | Order → Payment |
 
 ---
 
@@ -1324,9 +1520,8 @@ All events follow this base structure:
 
 ---
 
-**Last Updated**: 2026-04-28  
-**Version**: v5.3 RTS  
-**Total Topics**: 35+  
-**Total Event Types**: 34  
+**Last Updated**: 2026-05-02  
+**Version**: v5.4  
+**Total Topics**: 41 (29 event + 12 request-reply)
 **Status**: Production Ready
 

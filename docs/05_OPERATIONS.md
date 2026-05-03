@@ -2,7 +2,7 @@
 
 **Phiên bản:** **v5.0** - Mỗi service tự quản lý jobs của mình
 **Áp dụng cho:** Marketplace Microservices (Java 25 / Spring Boot 4.0.4)
-**Cập nhật:** 2026-04-22
+**Cập nhật:** 2026-05-01
 
 > **Thay đổi so với v4.0:** Mỗi service tự chạy jobs của mình thay vì worker-service trung tâm. ShedLock được cấu hình trong mỗi service. Jobs được gán cho service sở hữu primary data.
 
@@ -29,8 +29,8 @@
 ┌─────────────────────┬──────────────────────────────────────────────────────────────┬─────────┐
 │ Service              │ Jobs                                                            │ DB      │
 ├─────────────────────┼──────────────────────────────────────────────────────────────┼─────────┤
-│ identity-service     │ JOB-03 (loyalty expire)                                       │ Postgres│
-│ (:8085)             │ JOB-11 (trust score log cleanup)                              │         │
+│ identity-service     │ JOB-03 (loyalty expire)                                       │ Postgres │
+│ (:8081)            │ JOB-11 (trust score log cleanup)                              │         │
 │                     │ JOB-14 (orphan loyalty points)                                 │         │
 │                     │ JOB-17 (auto lock/unlock accounts)                             │         │
 │                     │ JOB-18 (buyer excessive cancellation)                           │         │
@@ -46,11 +46,11 @@
 │ (:8090)            │ JOB-10 (soft-deleted products hard cleanup)                     │         │
 │                     │ JOB-16 (rejected products soft-delete)                          │         │
 ├─────────────────────┼──────────────────────────────────────────────────────────────┼─────────┤
-│ order-service       │ JOB-13 (stale PENDING orders auto-cancel)                      │ Postgres│
-│ (:8088)            │ JOB-22 (auto-delivered stale SHIPPING)                         │         │
+│ order-service       │ JOB-13 (stale PENDING orders auto-cancel)                      │ Postgres │
+│ (:8083)            │ JOB-22 (auto-delivered stale SHIPPING)                        │         │
 ├─────────────────────┼──────────────────────────────────────────────────────────────┼─────────┤
-│ payment-service     │ JOB-04 (outbox event publisher)                               │ Postgres│
-│ (:8089)            │ JOB-05 (outbox events cleanup)                                  │         │
+│ payment-service     │ JOB-04 (outbox event publisher)                               │ Postgres │
+│ (:8082)            │ JOB-05 (outbox events cleanup)                                  │         │
 │                     │ JOB-06 (failed events cleanup)                                  │         │
 │                     │ JOB-12 (shedlock stale cleanup)                                │         │
 │                     │ JOB-15 (stripe onboarding URL nullification)                    │         │

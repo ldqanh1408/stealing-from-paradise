@@ -68,7 +68,8 @@ public class User implements UserDetails {
     private Integer reward10OrdersAccumulated = 0;
 
     @Version
-    private Integer version;
+    @Default
+    private Integer version = 0;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

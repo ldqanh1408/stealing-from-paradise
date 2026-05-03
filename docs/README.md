@@ -1,106 +1,100 @@
-# 📚 Stealing From Paradise - API Documentation
+# Stealing From Paradise — Documentation Index
 
-**Project**: E-commerce Marketplace  
-**Version**: v5.4  
-**Last Updated**: 2026-04-30
-
----
-
-## 📖 Documentation Guide
-
-### 🚀 Quick Start
-- **[RUNNING.md](RUNNING.md)** - How to run the project locally
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture & design
-
-### 📡 API Documentation
-
-**Service APIs**: See `api/` folder for each microservice
-
-| Service | Port | Endpoints | File |
-|---------|------|-----------|------|
-| Identity + Loyalty | 8081 | 31 | [identity-service/02_API_identity_service.md](identity-service/02_API_identity_service.md) |
-| Product + Cart | 8082 | 29 | [product-service/02_API_product_service.md](product-service/02_API_product_service.md) |
-| Search | 8089 | 1* | [search-service/02_API_search_service.md](search-service/02_API_search_service.md) |
-| Order | 8087 | 16 | [order-service/02_API_order_service.md](order-service/02_API_order_service.md) |
-| Payment + Refund | 8085 | 12 | [payment-service/02_API_payment_service.md](payment-service/02_API_payment_service.md) |
-| Flash Sale | 8086 | 0* | [flashsale-service/02_API_flash_sale_service.md](flashsale-service/02_API_flash_sale_service.md) |
-| Notification | 8088 | 0* | [notification-service/02_API_notification_service.md](notification-service/02_API_notification_service.md) |
-| Admin | - | 14 | [admin-service/02_API_admin.md](admin-service/02_API_admin.md) |
-
-> *Search, Flash Sale, and Notification services have gateway routes configured but controllers are still under development.
-
-**Total**: 100+ endpoints across 8 services (Cart merged into Product, Loyalty merged into Identity)
-
-### 🧭 Kafka Topics
-- **[KAFKA_EVENTS.md](KAFKA_EVENTS.md)** - All 35+ topics with event payloads and consumer patterns
-
-### 📊 System Design
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Architecture diagrams, request flows, Kafka event flows
+**Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)
+**Version**: v5.4
+**Last Updated**: 2026-05-01
 
 ---
 
-## 🏗️ Technology Stack
+## Start Here
 
-| Component | Version |
-|-----------|---------|
-| Java | 25 |
-| Spring Boot | 4.0.4 |
-| JWT | RS256 |
-| Payment | Stripe Connect |
-| Message Queue | Kafka |
-| Cache | Redis |
-| Databases | PostgreSQL, MongoDB, Elasticsearch |
+The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the complete documentation map with role-based reading paths.
 
 ---
 
-## 📁 Project Structure
+## Documentation Overview
 
-```
-backend/
-├── api-gateway/          (Spring Cloud Gateway)
-├── discovery-service/    (Eureka)
-├── identity-service/     (Auth + User Management + Loyalty)
-├── product-service/      (Products, Variants, Inventory + Cart)
-├── search-service/       (Elasticsearch)
-├── order-service/        (Orders, Checkout, RTS, Refunds)
-├── payment-service/      (Stripe, Payments, Refunds)
-├── flashsale-service/    (Flash Sales, High Concurrency)
-├── notification-service/ (Real-time SSE)
-├── worker-service/       (Background Jobs)
-└── common-lib/           (Shared DTOs, Security, Events)
+### Core Documents
 
-docs/
-├── identity-service/     (Identity + Loyalty API)
-├── product-service/      (Product + Cart API)
-├── order-service/        (Order API)
-├── payment-service/      (Payment + Refund API)
-├── flashsale-service/    (Flash Sale API)
-├── search-service/       (Search API)
-├── notification-service/ (Notification API)
-├── admin-service/        (Admin API)
-├── api/                  (API index)
-├── ARCHITECTURE.md       (System Design)
-├── KAFKA_EVENTS.md       (Event Documentation)
-├── 09_RUNNING.md         (How to Run)
-└── README.md             (This File)
-```
+| File | Purpose |
+|------|---------|
+| [00_INDEX.md](00_INDEX.md) | **START HERE** — Complete index, service ports, navigation |
+| [01_OVERVIEW.md](01_OVERVIEW.md) | Architecture, services, tech stack, project structure |
+| [09_RUNNING.md](09_RUNNING.md) | How to run, build, and deploy |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Service interactions, Kafka flows, ASCII diagrams |
+| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | 50+ Kafka topics with payloads |
+| [database-entities.md](database-entities.md) | Database schema reference |
+| [erd.mermaid](erd.mermaid) | Entity-Relationship Diagram |
+
+### Business & Policy
+
+| File | Purpose |
+|------|---------|
+| [03_BUSINESS.md](03_BUSINESS.md) | Business logic, 9 workflows, trust score, loyalty |
+| [04_POLICIES.md](04_POLICIES.md) | System rules, trust score tiers, flash sale policies |
+| [05_OPERATIONS.md](05_OPERATIONS.md) | 23 cronjobs, data retention, cleanup |
+
+### API Documentation
+
+| File | Purpose |
+|------|---------|
+| [02_API.md](02_API.md) | Unified API specification (all services, 100+ endpoints) |
+| [identity-service/02_API_identity_service.md](identity-service/02_API_identity_service.md) | Auth, users, loyalty (31 endpoints) |
+| [product-service/02_API_product_service.md](product-service/02_API_product_service.md) | Products, variants, cart (24 endpoints) |
+| [search-service/02_API_search_service.md](search-service/02_API_search_service.md) | Elasticsearch search |
+| [order-service/02_API_order_service.md](order-service/02_API_order_service.md) | Orders, checkout, RTS (16 endpoints) |
+| [payment-service/02_API_payment_service.md](payment-service/02_API_payment_service.md) | Stripe, payments, refunds (12 endpoints) |
+| [flashsale-service/02_API_flash_sale_service.md](flashsale-service/02_API_flash_sale_service.md) | Flash sale sessions |
+| [notification-service/02_API_notification_service.md](notification-service/02_API_notification_service.md) | SSE notifications |
+| [admin-service/02_API_admin.md](admin-service/02_API_admin.md) | Admin APIs (14 endpoints) |
+| [api/README.md](api/README.md) | API documentation summary |
+
+### Integration Deep Dives
+
+| File | Purpose |
+|------|---------|
+| [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) | Axon Saga payment orchestration (OrderProcessingSaga, ParentOrderPaymentSaga) |
+| [08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration, Stripe webhooks, multi-vendor transfers |
+| [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) | Visual flows (Mermaid diagrams) |
 
 ---
 
-## 🧭 Quick Navigation
+## Service Ports Reference
 
-### I want to...
+| Service | Port | Database | Notes |
+|---------|------|----------|-------|
+| API Gateway | 8080 | — | Entry point, JWT validation, routing |
+| Discovery (Eureka) | 8761 | — | Service registry |
+| Identity Service | 8081 | PostgreSQL | Auth, users, loyalty |
+| Payment Service | 8082 | PostgreSQL + Axon | Stripe, payments |
+| Order Service | 8083 | PostgreSQL + Axon | Orders, checkout, RTS |
+| Flashsale Service | 8085 | PostgreSQL + Axon | Flash sales, Redis |
+| Worker Service | 8086 | PostgreSQL + Axon | Outbox, failed events |
+| Product Service | 8090 | MongoDB | Products, cart, variants |
+| Search Service | 8091 | Elasticsearch | Full-text search |
+| Notification Service | 8092 | MongoDB | SSE, real-time notifications |
+
+### Frontend Apps
+
+| App | Port |
+|-----|------|
+| Customer App | 3000 |
+| Seller App | 3001 |
+| Admin App | 3002 |
+
+---
+
+## Quick Navigation
 
 | Goal | Go to |
 |------|-------|
-| **Understand the system** | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| **Run the project** | [RUNNING.md](RUNNING.md) |
-| **Implement a feature** | See relevant service in `api/` |
-| **Understand Kafka** | [KAFKA_EVENTS.md](KAFKA_EVENTS.md) |
-| **View Identity API** | [api/identity-service.md](api/identity-service.md) |
-| **View Order API** | [api/order-service.md](api/order-service.md) |
-| **View Payment API** | [api/payment-service.md](api/payment-service.md) |
-| **Debug event flow** | [KAFKA_EVENTS.md](KAFKA_EVENTS.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
+| **Understand the system** | [00_INDEX.md](00_INDEX.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
+| **Run the project** | [09_RUNNING.md](09_RUNNING.md) |
+| **API reference** | [02_API.md](02_API.md) or service-specific docs above |
+| **Debug Kafka flows** | [KAFKA_EVENTS.md](KAFKA_EVENTS.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
+| **Understand payment saga** | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) |
+| **Database schema** | [database-entities.md](database-entities.md) → [erd.mermaid](erd.mermaid) |
+| **Business logic** | [03_BUSINESS.md](03_BUSINESS.md) → [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) |
 
 ---
 
@@ -113,78 +107,80 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Public Endpoints**:
-- `GET /search/products` - Search products
-- `GET /products/{id}` - Product details
-- `GET /categories` - List categories
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - Login
+- `GET /search/products` — Search products
+- `GET /products/{id}` — Product details
+- `GET /categories` — List categories
+- `POST /auth/register` — Register new user
+- `POST /auth/login` — Login
 
 ---
 
 ## 🛠️ Development
 
-### Setup Local Environment
-
-1. Clone repository
-2. Configure `.env` files (see [RUNNING.md](RUNNING.md))
-3. Run Docker Compose: `docker-compose up -d`
-4. Start services
-
 ### Services Communication
-
-- **Synchronous**: REST API (HTTP)
+- **Synchronous**: REST API (HTTP via API Gateway)
 - **Asynchronous**: Kafka Events
 - **Shared Cache**: Redis
 - **Service Discovery**: Eureka
+- **Event Store**: Axon Server (for order, payment, flashsale, worker services)
 
 ---
 
-## 📊 API Statistics
+## 📊 Statistics
 
 | Metric | Value |
 |--------|-------|
-| **Total Services** | 8 (+ worker) |
-| **Total Endpoints** | 97+ |
-| **Kafka Topics** | 35+ |
+| **Backend Services** | 11 (+ common-lib) |
+| **Frontend Apps** | 3 |
+| **API Endpoints** | 100+ |
+| **Kafka Topics** | 50+ |
+| **Cronjobs** | 23 |
+| **Documentation Files** | 25 |
 | **Authentication** | JWT (RS256) |
-| **Response Format** | JSON |
-| **Rate Limiting** | Per user tier |
-
----
-
-## 🔗 Related Documentation
-
-- **[erd.mermaid](erd.mermaid)** - Entity-Relationship Diagram
-- **[09_RUNNING.md](09_RUNNING.md)** - Detailed running instructions
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete architecture
 
 ---
 
 ## ✨ v5.4 Features
 
-✅ Trust Score Tier system (6 levels)  
-✅ Multi-vendor order split  
-✅ Real-time SSE notifications  
-✅ Return To Sender (RTS) workflow  
-✅ Cart merged into Product Service  
-✅ Loyalty merged into Identity Service  
-✅ Consolidated Refund Management  
-✅ 35+ Kafka topics for event-driven architecture  
-✅ High-concurrency Flash Sale (50k+ req/s)  
+- Trust Score Tier system (6 levels: BRONZE → ELITE)
+- Multi-vendor order split with Stripe Connect
+- Real-time SSE notifications
+- Return To Sender (RTS) refund workflow
+- Cart merged into Product Service
+- Loyalty merged into Identity Service
+- 50+ Kafka topics for event-driven architecture
+- High-concurrency Flash Sale (50k+ req/s with Redis Lua scripts)
+- Axon Sagas: OrderProcessingSaga + ParentOrderPaymentSaga
 
 ---
 
-## 📞 Support
+## 📁 Project Structure
 
-For API documentation details, see:
-- **Service APIs**: Individual service docs in `identity-service/`, `product-service/`, etc.
-- **API Index**: [api/README.md](api/README.md) for complete API overview
-- **Event Architecture**: [KAFKA_EVENTS.md](KAFKA_EVENTS.md)
-- **System Design**: [ARCHITECTURE.md](ARCHITECTURE.md)
+```
+backend/
+├── api-gateway/          (Spring Cloud Gateway — 8080)
+├── discovery-service/     (Eureka — 8761)
+├── identity-service/      (Auth, users, loyalty — 8081)
+├── payment-service/       (Stripe Connect — 8082)
+├── order-service/        (Orders, checkout, RTS — 8083)
+├── flashsale-service/    (Flash sales — 8085)
+├── worker-service/        (Outbox, DLQ — 8086)
+├── product-service/       (Products, cart — 8090)
+├── search-service/       (Elasticsearch — 8091)
+├── notification-service/  (SSE — 8092)
+└── common-lib/           (Shared DTOs, Kafka topics, security)
+
+frontend/
+├── apps/customer/         (Port 3000)
+├── apps/seller/           (Port 3001)
+├── apps/admin/            (Port 3002)
+└── shared/                (API clients, stores, components)
+
+docs/                     (25 documentation files)
+```
 
 ---
 
-**Version**: v5.4  
-**Status**: Production Ready  
-**Last Updated**: 2026-04-30
-
+**Version**: v5.4
+**Status**: Production Ready
+**Last Updated**: 2026-05-01
