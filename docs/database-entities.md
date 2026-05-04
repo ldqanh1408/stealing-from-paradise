@@ -19,18 +19,6 @@
 
 ---
 
-## 1. Media & Images
-
-### IMAGES
-Lưu trữ tập trung cho ảnh sản phẩm, bằng chứng hoàn tiền
-
-| Cột | Kiểu | Ghi chú |
-|-----|------|--------|
-| `id` | UUID | Primary Key |
-| `url` | TEXT | Liên kết MinIO |
-| `file_name` | VARCHAR | Tên file |
-| `file_size` | INT | Kích thước (bytes) |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
 
 ---
 
@@ -48,9 +36,6 @@ Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 | `password` | VARCHAR | Mật khẩu Bcrypt |
 | `full_name` | VARCHAR | Tên hiển thị |
 | `status` | VARCHAR | ACTIVE \| LOCKED |
-| `locked_until` | TIMESTAMP | NULL = khóa vĩnh viễn; có giá trị = tự mở sau |
-| `lock_reason` | VARCHAR | Lý do khóa |
-| `version` | INT | Optimistic Locking |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
@@ -65,11 +50,6 @@ Hồ sơ Buyer (1:1 với USERS)
 |-----|------|--------|
 | `id` | BIGSERIAL | Primary Key |
 | `user_id` | BIGINT | FK → USERS.id, UNIQUE |
-| `trust_score` | INT | 0-100, mặc định 80 |
-| `appeal_count` | INT | Số lần appeal/năm (max 3) |
-| `last_warning_at` | TIMESTAMP | Mốc warning gần nhất (debounce 24h) |
-| `last_cancellation_penalty_at` | TIMESTAMP | Mốc trừ điểm hủy đơn gần nhất |
-| `reward_10_orders_accumulated` | INT | Tổng điểm từ sự kiện EVERY_10_ORDERS (không reset, cap +20) |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
@@ -82,11 +62,6 @@ Hồ sơ Seller (1:1 với USERS, bắt buộc KYC Stripe)
 |-----|------|--------|
 | `id` | BIGSERIAL | Primary Key |
 | `user_id` | BIGINT | FK → USERS.id, UNIQUE |
-| `trust_score` | INT | 0-100, mặc định 80 |
-| `appeal_count` | INT | Số lần appeal/năm (max 3) |
-| `last_warning_at` | TIMESTAMP | Mốc warning gần nhất (debounce 24h) |
-| `product_posting_suspended` | BOOLEAN | TRUE = tạm dừng đăng sản phẩm |
-| `last_posting_suspension_at` | TIMESTAMP | Mốc cấm đăng bài gần nhất |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
@@ -292,7 +267,6 @@ Nhắc nhở Flash Sale (dành cho Buyer có trust_score ≥ 30)
 | `id` | BIGSERIAL | Primary Key |
 | `customer_id` | BIGINT | FK → CUSTOMERS.id |
 | `total_amt` | DECIMAL | Tổng tiền trước khuyến mãi |
-| `loyalty_discount` | DECIMAL | Số tiền giảm từ điểm |
 | `final_amt` | DECIMAL | Số tiền thực thu |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
@@ -318,7 +292,6 @@ Nhắc nhở Flash Sale (dành cho Buyer có trust_score ≥ 30)
 | `shipping_address` | JSONB | Snapshot địa chỉ giao hàng |
 | `tracking_number` | VARCHAR | Mã vận đơn |
 | `shipping_deadline` | TIMESTAMP | Hạn cập nhật mã vận đơn (created_at + 3 ngày) |
-| `version` | INT | Optimistic Locking |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
@@ -373,7 +346,6 @@ Giao dịch thanh toán (dùng Stripe hoặc VNPAY)
 | `id` | BIGSERIAL | Primary Key |
 | `parent_order_id` | BIGINT | FK → PARENT_ORDERS.id |
 | `amount` | DECIMAL | Số tiền giao dịch |
-| `method` | VARCHAR | STRIPE \| VNPAY |
 | `trans_ref` | VARCHAR | PaymentIntent ID (pi_xxx) |
 | `stripe_transfer_id` | VARCHAR | Transfer ID tr_xxx (chỉ lưu transfer đầu tiên) |
 | `application_fee_amount` | DECIMAL | Phí sàn |
@@ -420,7 +392,6 @@ Phiếu hoàn tiền
 | `evidence_images` | JSONB | Mảng ảnh bằng chứng (MinIO) |
 | `reject_reason` | VARCHAR | Lý do từ chối |
 | `admin_note` | TEXT | Ghi chú admin |
-| `adjust_amount` | DECIMAL | Số tiền admin điều chỉnh |
 | `reviewed_by` | BIGINT | FK → ADMINS.id |
 | `reviewed_at` | TIMESTAMP | Thời điểm duyệt/từ chối |
 | `refund_ref` | VARCHAR | Stripe refund ID (re_xxx) |
@@ -443,7 +414,6 @@ Chi tiết hoàn tiền (từng sản phẩm)
 | `item_reason` | VARCHAR | Lý do hoàn riêng |
 | `status` | VARCHAR | PENDING \| SUCCESS \| FAILED |
 | `return_tracking_number` | VARCHAR | Mã vận đơn hoàn hàng |
-| `return_evidence_images` | JSONB | Mảng ảnh gói hàng hoàn (MinIO) |
 | `returned_at` | TIMESTAMP | Thời điểm Seller xác nhận nhận lại |
 
 ---
