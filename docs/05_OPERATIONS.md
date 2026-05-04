@@ -15,7 +15,7 @@
 | **Service Ownership** | Mỗi job chạy trong service sở hữu primary data. Không có worker-service trung tâm. |
 | **Distributed Lock** | Mỗi job dùng ShedLock (PostgreSQL provider) để đảm bảo chỉ 1 node chạy tại 1 thời điểm. ShedLock table nằm trong DB của service đó. |
 | **Soft Delete First** | Mỗi dữ liệu cần xóa đều được đánh dấu trước (soft delete), sau grace period mới hard delete. |
-| **Audit Trail** | Các bảng tài chính (`TRANSACTIONS`, `REFUNDS`, `POINT_TRANSACTIONS`) **không bao giờ bị hard delete**. |
+| **Audit Trail** | Các bảng tài chính (`TRANSACTIONS`, `REFUNDS`) **không bao giờ bị hard delete**. |
 | **Idempotent** | Mỗi cleanup job phải idempotent — chạy 2 lần kết quả như chạy 1 lần. |
 | **Off-peak Execution** | Tất cả job nặng chạy ngoài giờ cao điểm: **02:00 — 05:00 UTC+7**. |
 | **Batch Size** | Mỗi lần xử lý tối đa 500—1000 bản ghi để tránh lock table. Dùng `LIMIT` + loop nếu cần. |
@@ -29,13 +29,8 @@
 ┌─────────────────────┬──────────────────────────────────────────────────────────────┬─────────┐
 │ Service              │ Jobs                                                            │ DB      │
 ├─────────────────────┼──────────────────────────────────────────────────────────────┼─────────┤
-│ identity-service     │ JOB-03 (loyalty expire)                                       │ Postgres │
-│ (:8081)            │ JOB-11 (trust score log cleanup)                              │         │
-│                     │ JOB-14 (orphan loyalty points)                                 │         │
-│                     │ JOB-17 (auto lock/unlock accounts)                             │         │
-│                     │ JOB-18 (buyer excessive cancellation)                           │         │
-│                     │ JOB-19 (seller good behavior reward)                            │         │
-│                     │ JOB-20 (annual appeal count reset)                              │         │
+│ identity-service     │ JOB-17 (auto lock/unlock accounts)                             │ Postgres │
+│ (:8081)            │                                                                  │         │
 ├─────────────────────┼──────────────────────────────────────────────────────────────┼─────────┤
 │ flashsale-service   │ JOB-01 (session lifecycle)                                     │ Postgres│
 │ (:8085)            │ JOB-02 (reminder dispatcher)                                    │         │
@@ -66,78 +61,7 @@
 
 ---
 
-### 🏠 identity-service (`:8085`) — Trust Score & Loyalty
-
----
-
-#### JOB-03 — Loyalty Points Expiry
-
-| Thuộc Tính | Giá Trị |
-|------------|---------|
-| **Mô Tả** | Tìm các điểm thưởng hết hạn, trừ khỏi `available_points` và tạo transaction ghi nhận. |
-| **Service** | `identity-service` |
-| **Cron** | `0 0 2 * * *` (02:00 hàng ngày) |
-| **ShedLock** | `loyalty-points-expiry` — lock duration 10 phút |
-| **Bảng tác động** | `POINT_TRANSACTIONS`, `LOYALTY_ACCOUNTS` |
-
-> **Policy:** Điểm `EARNED` hết hạn sau **365 ngày** kể từ `expires_at`. Chỉ expire `remaining_delta` (không phải `delta` gốc) để tránh expire-over khi user đã dùng một phần.
-
-```sql
-SELECT id, user_id, remaining_delta
-FROM POINT_TRANSACTIONS
-WHERE type = 'EARNED'
-  AND status = 'CONFIRMED'
-  AND expires_at <= NOW()
-  AND remaining_delta > 0
-LIMIT 500;
-
--- Với mỗi bản ghi (trong transaction):
--- 1. INSERT POINT_TRANSACTIONS: type='EXPIRED', delta = -remaining_delta
--- 2. UPDATE LOYALTY_ACCOUNTS: available_points -= remaining_delta, expired_points += remaining_delta
--- 3. UPDATE POINT_TRANSACTIONS SET remaining_delta = 0 WHERE id = ?
--- 4. Dùng Optimistic Locking (version) để tránh race condition
-```
-
----
-
-#### JOB-11 — Trust Score Log Cleanup
-
-| Thuộc Tính | Giá Trị |
-|------------|---------|
-| **Mô Tả** | Xóa lịch sử trust score logs cũ hơn 2 năm. |
-| **Service** | `identity-service` |
-| **Cron** | `0 0 4 1 * *` (04:00 ngày 1 hàng tháng) |
-| **ShedLock** | `trust-score-log-cleanup` — lock duration 5 phút |
-
-```sql
-DELETE FROM TRUST_SCORE_LOGS WHERE created_at < NOW() - INTERVAL '2 years' LIMIT 1000;
-```
-
----
-
-#### JOB-14 — Orphaned PENDING Loyalty Points Cleanup
-
-| Thuộc Tính | Giá Trị |
-|------------|---------|
-| **Mô Tả** | Xử lý điểm PENDING của đơn đã ở trạng thái cuối (CANCELLED/REFUNDED) nhưng chưa bị hủy — trường hợp JOB-13 bị sót. |
-| **Service** | `identity-service` |
-| **Cron** | `0 0 3 * * *` (03:00 hàng ngày) |
-| **ShedLock** | `orphaned-pending-points-cleanup` — lock duration 10 phút |
-
-```sql
--- Tìm POINT_TRANSACTIONS PENDING mà đơn gốc đã ở trạng thái cuối
-SELECT pt.id, pt.user_id, pt.delta
-FROM POINT_TRANSACTIONS pt
-JOIN ORDERS o ON pt.order_id = o.id
-WHERE pt.type = 'EARNED'
-  AND pt.status = 'PENDING'
-  AND o.status IN ('CANCELLED', 'REFUNDED')
-LIMIT 500;
-
--- Với mỗi bản ghi:
--- UPDATE POINT_TRANSACTIONS SET status = 'CONFIRMED' WHERE id = ?
--- (void audit: giữ nguyên delta nhưng không cộng vào available_points)
-```
+### 🏠 identity-service (`:8085`) — Trust Score & Account Management
 
 ---
 
@@ -149,7 +73,7 @@ LIMIT 500;
 | **Service** | `identity-service` |
 | **Cron** | `0 0/15 * * * *` (mỗi 15 phút) |
 | **ShedLock** | `auto-lock-by-trust-score` — lock duration 14 phút |
-| **Bảng tác động** | `USERS`, `TRUST_SCORE_LOGS`, `USER_BAN_HISTORY` |
+| **Bảng tác động** | `USERS` |
 
 ```sql
 -- Bước 1: Khóa tài khoản khi trust_score < 10
@@ -162,8 +86,6 @@ WHERE trust_score < 10
 LIMIT 100;
 
 -- Với mỗi user vừa bị khóa:
--- INSERT INTO USER_BAN_HISTORY (user_id, action, reason, performed_by, locked_until)
--- VALUES (?, 'LOCKED', 'Trust score < 10 — auto-locked by JOB-17', 'SYSTEM', NULL);
 -- Phát Kafka event account.auto_locked
 
 -- Bước 2: Tự mở khóa tạm thời khi hết thời hạn
@@ -178,103 +100,8 @@ WHERE status = 'LOCKED'
 LIMIT 100;
 
 -- Với mỗi user vừa được mở khóa:
--- INSERT INTO USER_BAN_HISTORY (user_id, action, reason, performed_by)
--- VALUES (?, 'UNLOCKED', 'locked_until reached — auto-unlocked by JOB-17', 'SYSTEM');
 -- Phát Kafka event account.unlocked → Notification Service thông báo User
 -- Identity Service thêm JTI vào Redis blocklist (xem Redis Token Blocklist bên dưới)
-```
-
----
-
-#### JOB-18 — Buyer Excessive Cancellation Detector
-
-| Thuộc Tính | Giá Trị |
-|------------|---------|
-| **Mô Tả** | Phát hiện Buyer hủy đơn quá nhiều (> 5 lần/30 ngày) và tự động trừ điểm trust score. |
-| **Service** | `identity-service` |
-| **Cron** | `0 0 3 * * *` (03:00 hàng ngày) |
-| **ShedLock** | `buyer-cancellation-detector` — lock duration 10 phút |
-| **Bảng tác động** | `ORDERS`, `USERS`, `TRUST_SCORE_LOGS` |
-
-```sql
--- Tìm buyer có > 5 đơn bị cancel trong 30 ngày gần nhất (rolling window),
--- chưa bị phạt trong rolling window này (last_cancellation_penalty_at)
--- [GAP-PATCH] Bắt buộc thêm điều kiện AND o.cancelled_by = 'BUYER'
--- để tránh trừ điểm Buyer oan khi Seller/SYSTEM là người hủy đơn.
-SELECT o.user_id, COUNT(*) AS cancel_count
-FROM ORDERS o
-JOIN USERS u ON o.user_id = u.id
-WHERE o.status = 'CANCELLED'
-  AND o.cancelled_by = 'BUYER'
-  AND o.updated_at >= NOW() - INTERVAL '30 days'
-  AND o.is_flash_sale = false
-  AND (u.last_cancellation_penalty_at IS NULL
-       OR u.last_cancellation_penalty_at < NOW() - INTERVAL '30 days')
-GROUP BY o.user_id
-HAVING COUNT(*) > 5;
-
--- Với mỗi user_id tìm được:
--- 1. Lấy delta từ TRUST_SCORE_EVENTS_CONFIG WHERE event_code = 'EXCESSIVE_CANCELLATION' AND is_active = TRUE
--- 2. UPDATE USERS SET trust_score = GREATEST(trust_score + delta, 0), last_cancellation_penalty_at = NOW()
--- 3. INSERT TRUST_SCORE_LOGS (user_id, delta, event_code, changed_by='SYSTEM')
--- 4. Phát Kafka event trust_score.warning nếu trust_score sau < 30
-```
-
-> **Idempotency:** `last_cancellation_penalty_at` đảm bảo mỗi user chỉ bị phạt một lần mỗi rolling 30 ngày.
-
----
-
-#### JOB-19 — Seller Good Behavior Reward
-
-| Thuộc Tính | Giá Trị |
-|------------|---------|
-| **Mô Tả** | Tự động cộng điểm trust score cho Seller không có refund trong 30 ngày liên tiếp. |
-| **Service** | `identity-service` |
-| **Cron** | `0 0 4 1 * *` (04:00 ngày 1 hàng tháng) |
-| **ShedLock** | `seller-good-behavior-reward` — lock duration 10 phút |
-| **Bảng tác động** | `USERS`, `TRUST_SCORE_LOGS`, `REFUNDS`, `ORDERS` |
-
-```sql
--- Tìm seller có đơn DELIVERED trong 30 ngày nhưng không có refund PENDING/SUCCESS
-SELECT DISTINCT o.seller_id
-FROM ORDERS o
-WHERE o.status = 'DELIVERED'
-  AND o.updated_at >= NOW() - INTERVAL '30 days'
-  AND o.seller_id NOT IN (
-    SELECT DISTINCT o2.seller_id
-    FROM REFUNDS r
-    JOIN ORDERS o2 ON r.order_id = o2.id
-    WHERE r.status IN ('PENDING', 'SUCCESS')
-      AND r.created_at >= NOW() - INTERVAL '30 days'
-  )
-  AND o.seller_id IN (
-    SELECT user_id FROM ROLES WHERE role_name = 'SELLER'
-  );
-
--- Với mỗi seller_id tìm được:
--- 1. Lấy delta từ TRUST_SCORE_EVENTS_CONFIG WHERE event_code = 'SELLER_NO_REFUND_30D' AND is_active = TRUE
--- 2. UPDATE USERS SET trust_score = LEAST(trust_score + delta, 100), updated_at = NOW()
--- 3. INSERT TRUST_SCORE_LOGS (user_id, delta, event_code='SELLER_NO_REFUND_30D', changed_by='SYSTEM')
-```
-
----
-
-#### JOB-20 — Annual Appeal Count Reset
-
-| Thuộc Tính | Giá Trị |
-|------------|---------|
-| **Mô Tả** | Reset `USERS.appeal_count = 0` đầu năm mới, cho phép user appeal lại trong năm tiếp theo. |
-| **Service** | `identity-service` |
-| **Cron** | `0 0 0 1 1 *` (00:00 ngày 1 tháng 1 hàng năm) |
-| **ShedLock** | `annual-appeal-count-reset` — lock duration 5 phút |
-| **Cảnh báo** | Job quan trọng nhất — không được chạy trùng lặp. |
-
-```sql
-UPDATE USERS
-SET appeal_count = 0,
-    updated_at   = NOW()
-WHERE appeal_count > 0
-LIMIT 5000;
 ```
 
 ---
@@ -476,7 +303,6 @@ db.mg_carts.find({ updated_at: { $lt: new Date(Date.now() - 90*24*60*60*1000) } 
 
 **Side effects:**
 - Phát Kafka `order.auto_cancelled`
-- Void PENDING POINT_TRANSACTIONS (identity-service tự xử lý qua Kafka)
 - Giải phóng `stock_locked` trong `MG_INVENTORIES` (product-service nhận Kafka)
 
 ---
@@ -524,7 +350,6 @@ VALUES ('order.delivered', ?, 'PENDING', NOW());
 
 **Side effects:** Phát Kafka `order.delivered` với flag `autoDelivered: true`:
 - Identity Service: cộng điểm Trust Score cho Seller
-- Identity Service: chuyển điểm Loyalty PENDING → CONFIRMED
 - Payment Service: Stripe Transfer cho Seller
 - Notification Service: thông báo Buyer và Seller
 
@@ -650,17 +475,12 @@ db.mg_notifications.createIndex(
 | `USERS` | Vĩnh viễn | Không | JOB-17 (lock/unlock) | identity-service |
 | `ROLES` | Vĩnh viễn | Không | — | — |
 | `ADDRESSES` | Khi user tự xóa | Có | — | identity-service |
-| `TRUST_SCORE_LOGS` | 2 năm | Có | JOB-11 | identity-service |
-| `TRUST_SCORE_EVENTS_CONFIG` | Vĩnh viễn | Không | — | — |
-| `USER_BAN_HISTORY` | 5 năm | Không | — | identity-service |
 | `ORDERS` | Vĩnh viễn | Không | JOB-22 (auto-delivered) | order-service |
 | `PARENT_ORDERS` | Vĩnh viễn | Không | — | order-service |
 | `ORDER_ITEMS` | Vĩnh viễn | Không | — | order-service |
 | `TRANSACTIONS` | Vĩnh viễn | Không | — | payment-service |
 | `REFUNDS` | Vĩnh viễn | Không | — | payment-service |
 | `REFUND_ITEMS` | Vĩnh viễn | Không | — | payment-service |
-| `POINT_TRANSACTIONS` | Vĩnh viễn | Không | JOB-03/14 (expire/void) | identity-service |
-| `LOYALTY_ACCOUNTS` | Vĩnh viễn | Không | — | identity-service |
 | `OUTBOX_EVENTS` | 7 ngày (PROCESSED) / 3 ngày (FAILED) | Có | JOB-04/05 | payment-service |
 | `FAILED_EVENTS` | 30 ngày (RESOLVED) / 90 ngày (DEAD) | Có | JOB-06 | payment-service |
 | `SHEDLOCK` | 1 giờ qua NOW() | Có | JOB-12 | payment-service |
@@ -726,7 +546,6 @@ db.mg_notifications.createIndex(
 |-----|---------|------|-------------|----------|
 | JOB-01 | flashsale-service | 1 phút | 55s | Không |
 | JOB-02 | flashsale-service | 1 phút | 55s | Không |
-| JOB-03 | identity-service | 02:00 hàng ngày | 10m | Có |
 | JOB-04 | payment-service | 10 giây | 9s | Không |
 | JOB-05 | payment-service | 03:00 hàng ngày | 5m | Có |
 | JOB-06 | payment-service | 03:00 ngày 30 | 10m | Có |
@@ -734,16 +553,11 @@ db.mg_notifications.createIndex(
 | JOB-08 | flashsale-service | 02:00 hàng ngày | 5m | Có |
 | JOB-09 | notification-service | TTL Index | — | — |
 | JOB-10 | product-service | 03:00 Chủ nhật | 30m | Có |
-| JOB-11 | identity-service | 04:00 ngày 1 | 5m | Có |
 | JOB-12 | payment-service | 05:00 hàng ngày | — | Có |
 | JOB-13 | order-service | 5 phút | 4m30s | Không |
-| JOB-14 | identity-service | 03:00 hàng ngày | 10m | Có |
 | JOB-15 | payment-service | 02:00 hàng ngày | 2m | Có |
 | JOB-16 | product-service | 03:00 Chủ nhật | 15m | Có |
 | JOB-17 | identity-service | 15 phút | 14m | Không |
-| JOB-18 | identity-service | 03:00 hàng ngày | 10m | Có |
-| JOB-19 | identity-service | 04:00 ngày 1 | 10m | Có |
-| JOB-20 | identity-service | 00:00 ngày 1/1 | 5m | Không |
 | JOB-21 | flashsale-service | 5 phút (ACTIVE) | 4m30s | Không |
 | JOB-22 | order-service | 02:00 hàng ngày | 55m | Có |
 
@@ -772,7 +586,6 @@ db.mg_notifications.createIndex(
 ### Testing
 
 - [ ] Unit test JOB-17 lock/unlock logic
-- [ ] Unit test JOB-18 rolling window logic
 - [ ] Unit test JOB-21 stock reconciliation
 - [ ] Integration test JOB-22 auto-delivery + Kafka event
 - [ ] Chaos test: Pod crash during JOB-21 DECR + recovery

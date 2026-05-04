@@ -1,14 +1,14 @@
 # 📱 Marketplace Platform
 
-**Tài liệu Nghiệp Vụ thuần túy • Phiên bản v5.3 • Cập nhật: Return To Sender (RTS) • Thanh toán: Stripe • Loyalty gộp vào Identity • 23 Cronjobs (v5.0 — Distributed per Service)**
+**Tài liệu Nghiệp Vụ thuần túy • Phiên bản v5.3 • Cập nhật: Return To Sender (RTS) • Thanh toán: Stripe • 16 Cronjobs (v5.0 — Distributed per Service)**
 
 > **v5.0:** Cronjobs được chạy trong service tương ứng (identity-service, flashsale-service, product-service, order-service, payment-service, notification-service). Không có worker-service trung tâm. Xem chi tiết tại [05_OPERATIONS.md](05_OPERATIONS.md).
 
 ## Thống Kê Tổng Quan
 
-- **9** Luồng nghiệp vụ
-- **6** Chính sách cột lại
-- **23** Cronjobs
+- **7** Luồng nghiệp vụ
+- **4** Chính sách cột lại
+- **16** Cronjobs
 - **3** Vai trò người dùng
 
 ---
@@ -23,8 +23,6 @@ Marketplace Platform là sàn thương mại điện tử đa nhà bán (multi-v
 - Thanh toán Stripe multi-vendor
 - Hoàn tiền (Buyer + RTS từ đơng)
 - Flash Sale concurrency cao
-- Trust Score + Appeal
-- Loyalty Points
 - Product lifecycle
 - 23 Cronjobs
 - Outbox + DLQ
@@ -175,7 +173,6 @@ Buyer checkout → đơn hàng cha (PARENT_ORDER) tạo ra
        (đơn thường: 30 phút • đơn Flash Sale: 10 phút)
      
      Khi hủy: kho được mở khóa, điểm Loyalty PENDING bị hủy theo
-     JOB-18: Buyer hủy > 5 đơn trong 30 ngày → trừ Trust Score
 ```
 
 ---
@@ -372,129 +369,6 @@ JOB-21 (mỗi 5 phút): Đối sánh kho để phát hiện và sửa bất đơ
 
 ---
 
-## 🎁 Luồng: Điểm Tích Lũy (Loyalty Points)
-
-**Loyalty được quản lý bởi Identity Service** (không tách thành service riêng). Mỗi Buyer có 1 tài khoản điểm. Điểm hết hạn sau 365 ngày kể từ ngày kiếm.
-
-### TÍCH ĐIỂM:
-
-```
-Khi đặt hàng thành công (đơn sang PAID):
- → Điểm được ghi nhận ở trạng thái PENDING (chưa dùng được)
-
-Khi Buyer xác nhận nhận hàng (đơn sang DELIVERED):
- → Điểm chuyển sang CONFIRMED → vào tài khoản chính thức
- → Buyer có thể dùng điểm cho đơn tiếp theo
-```
-
-### SỬ DỤNG ĐIỂM:
-
-```
-Buyer áp điểm khi checkout → trừ thông khi tại khoản
-Trình tình trạng trùng lặp: hệ thống kiểm tra và khóa trước khi trừ
-```
-
-### HOÀN ĐIỂM KHI REFUND:
-
-```
-Khi hoàn tiền thành công → hoàn lại số điểm ở dùng cho đơn đó
-Hệ thống tính chính xác phần điểm còn có thể hoàn
-```
-
-### HẾT HẠN ĐIỂM (JOB-03 — 02:00 hàng ngày):
-
-```
-Quét điểm ở tích > 365 ngày → trừ khỏi tài khoản
-Ghi nhận vào lịch sử (type: EXPIRED)
-Xử lý từng lô để trình nh hưởng hệ thống
-```
-
-### TRẠNG THÁI TÀI KHOẢN BỊ KHÓA:
-
-```
-→ Điểm hiện có KHÔNG bị mất
-→ Không được dùng điểm khi tài khoản đang LOCKED
-```
-
----
-
-## 🎯 Luồng: Trust Score & Khiếu Nại
-
-### Điểm tin nhiệm (Trust Score):
-
-```
-- Phạm vi: 0 đến 100 (không âm, không vượt 100)
-- Mức đó định khi tạo tài khoản: 80 điểm
-- Mỗi thay đổi đều được ghi log đầy đủ (ai thay đổi, lý do)
-- Admin có thể chỉnh giá trị delta của từng sự kiện trong cài đặt
-```
-
-### Ngưỡng cảnh báo và hành động tự động:
-
-```
-score < 30  → Cảnh báo ở đơng user + link đến trang khiếu nại
-             (Cooldown 24 giờ: chỉ cảnh báo 1 lần/ngày, không spam)
-score < 10  → JOB-17 (mỗi 15 phút): Khóa tài khoản tự động
-             + Thu hồi tất cả phiên đăng nhập
-             + Ghi vào lịch sử khóa
-locked_until ở qua → JOB-17: Tự động mở khóa
-
-Seller vi phạm:
- 3 lần trừ điểm trong 30 ngày → Tạm dừng đăng bị
- (Tính từ lần vi phạm gần nhất để trình phát vòng lặp)
-```
-
-### Quy Trình Khiếu Nại (Appeal)
-
-```
-User nộp khiếu nại Trust Score:
- → Giới hạn: tối đa 3 lần/năm (reset 00:00 ngày 1/1 — JOB-20)
- → Kèm bằng chứng nh (upload lên hệ thống lưu trữ)
- ↓
-Admin xem xét:
- → DUYỆT: Admin cộng điểm bổ cho user
- → TỪ CHỐI: User nhận lý do từ chối, có thể khiếu nại đơng lại
-```
-
----
-
-## 📋 Chính Sách: Trust Score
-
-### Các sự kiện TRỪ điểm
-
-| Sự kiện | Áp dụng cho | Trigger |
-|--------|-----------|---------|
-| Sản phẩm bị từ chối lần đầu | Seller | Admin từ chối sản phẩm |
-| Sản phẩm bị từ chối lần 2+ (công lý do) | Seller | Admin từ chối tái phạm |
-| Giả bằng chứng hoàn tiền giả | Buyer | Admin phát hiện fraud |
-| Hủy đơn quá nhiều (hơn 5 đơn/30 ngày) | Buyer | JOB-18 tự động (rolling window) |
-| Báo không nhận hàng về cơn có | Buyer | Xác minh thất bại |
-| Giao hàng chậm 3 lần trong 1 tháng | Seller | JOB-13b theo dõi carrier |
-| Tự hủy đơn ở thanh toán | Seller | Seller cancel đơn PAID |
-| Bị xác nhận là nguyên nhân gây hoàn tiền | Seller | Admin duyệt refund (lỗi Seller) |
-| Spam / gian lận | Buyer / Seller | Admin thủ công |
-
-### Các sự kiện CỘNG điểm
-
-| Sự kiện | Áp dụng cho | Giới hạn |
-|--------|-----------|---------|
-| Hoàn thành đơn hàng đầu tiên | Buyer / Seller | 1 lần duy nhất |
-| Có mỗi 10 đơn hoàn thành | Buyer | Tối đa cộng +20 điểm từng lần cộng |
-| Sản phẩm được Admin duyệt | Seller | Mỗi sản phẩm 1 lần |
-| Không có hoàn tiền trong 30 ngày | Seller | JOB-19 chạy ngày 1 hàng tháng |
-| Xác minh danh tính (phone + email) | Buyer / Seller | 1 lần duy nhất |
-
-### Ngưỡng Hành động Tự động
-
-| Ngưỡng | Hành động | Cơ chế |
-|-------|---------|--------|
-| score < 30 | Cảnh báo + link khiếu nại | Debounce 24 giờ (không spam) |
-| score < 10 | Khóa tài khoản + thu hồi phiên | JOB-17 mỗi 15 phút |
-| Seller vi phạm 3 lần / 30 ngày | Tạm dừng đăng sản phẩm | Tracking từ lần vi phạm gần nhất |
-| Buyer hủy > 5 đơn / 30 ngày | Trừ điểm EXCESSIVE_CANCELLATION | JOB-18 rolling window |
-
----
-
 ## 💳 Chính Sách: Hoàn Tiền
 
 ### Điều kiện mở yêu cầu hoàn tiền (Buyer)
@@ -552,27 +426,12 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 
 ---
 
-## 🎁 Chính Sách: Điểm Tích Lũy
-
-| Sự kiện | Loại giao dịch | Khi nào |
-|--------|-------------|--------|
-| Đặt hàng thành công | EARNED • PENDING | Đơn sang trạng thái PAID |
-| Xác nhận nhận hàng | EARNED • CONFIRMED | Đơn sang trạng thái DELIVERED |
-| Dùng điểm khi thanh toán | USED | Lúc checkout |
-| Hoàn tiền thành công | REFUNDED | Yêu cầu hoàn tiền SUCCESS |
-| Điểm hết hạn | EXPIRED | JOB-03 hàng ngày (quá 365 ngày) |
-
-**Lưu ý quan trọng:** Tài khoản bị LOCKED vẫn giữ nguyên điểm, không bị mất. Tuy nhiên không được dùng điểm trong khi tài khoản đang LOCKED. Hệ thống xử lý đơng thời an toàn để trình trừ nhầm hoặc cộng nhầm điểm.
-
----
-
 ## 📊 Chính Sách: Lưu Trữ Dữ Liệu
 
 | Dữ liệu | Thời gian giữ | Job xử lý |
 |--------|-------------|----------|
 | Người dùng, đơn hàng, Giao dịch thanh toán, Hoàn tiền | **Vĩnh viễn** | Không xóa |
 | Nh bằng chứng hoàn tiền / bằng chứng Appeal | **Vĩnh viễn** | Lưu trữ pháp lý |
-| Lịch sử Trust Score | 2 năm | JOB-11 (ngày 1 hàng tháng) |
 | Sự kiện hệ thống ở xử lý | 7 ngày | JOB-05 |
 | Sự kiện hệ thống thất bại | 3 ngày | JOB-05 |
 | Sự kiện ở giải quyết / chết hạn | 30-90 ngày | JOB-06 |
@@ -610,7 +469,7 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 
 ---
 
-## 🤖 Cronjobs — 23 Jobs Tự động (v5.0 — Distributed per Service)
+## 🤖 Cronjobs — 16 Jobs Tự động (v5.0 — Distributed per Service)
 
 > **Mỗi job chạy trong service sở hữu primary data.** Không có worker-service trung tâm. Xem chi tiết tại [05_OPERATIONS.md](05_OPERATIONS.md).
 
@@ -622,21 +481,17 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 | JOB-02 | flashsale-service | Nhắc nhở Buyer 15 phút trước khi bắt đầu |
 | JOB-04 | payment-service | Outbox event publisher (mỗi 10 giây) |
 | JOB-13 | order-service | Auto-cancel đơn quá hạn (30p thường, 10p FS) |
-| JOB-17 | identity-service | Auto-lock/unlock accounts (trust_score <10) |
 | JOB-21 | flashsale-service | Reconciliation tồn kho Redis vs DB |
 
 ### 🌅 Hàng ngày
 
 | Job | Service | Mô Tả |
 |-----|---------|--------|
-| JOB-03 | identity-service | Hết hạn điểm Loyalty (365 ngày) |
 | JOB-07 | product-service | Dọn cart không hoạt động (90 ngày) |
 | JOB-08 | flashsale-service | Dọn dữ liệu Flash Sale theo retention |
 | JOB-12 | payment-service | Dọn ShedLock stale entries |
-| JOB-14 | identity-service | Dọn điểm Loyalty PENDING mồ côi |
 | JOB-15 | payment-service | Nullify Stripe onboarding URL (>24h) |
 | JOB-16 | product-service | Soft-delete sản phẩm REJECTED không sửa (90 ngày) |
-| JOB-18 | identity-service | Buyer hủy đơn quá nhiều (>5/30 ngày) |
 | JOB-22 | order-service | Auto-delivered SHIPPING >7 ngày |
 
 ### 📆 Định kỳ (tuần / tháng / năm)
@@ -647,9 +502,6 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 | JOB-06 | payment-service | Dọn DLQ (RESOLVED >30d, DEAD >90d) |
 | JOB-09 | notification-service | Notification TTL (MongoDB TTL Index) |
 | JOB-10 | product-service | Hard delete sản phẩm đã soft-delete (CN) |
-| JOB-11 | identity-service | Dọn trust score log (>2 năm, ngày 1) |
-| JOB-19 | identity-service | Thưởng Seller không refund 30 ngày (ngày 1) |
-| JOB-20 | identity-service | Reset appeal count (00:00 ngày 1/1) |
 
 ---
 

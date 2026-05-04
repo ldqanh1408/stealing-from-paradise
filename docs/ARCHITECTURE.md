@@ -70,36 +70,31 @@ Visual guide to service interactions and Kafka event flow.
        │      ├─ Check inventory real-time (Product Service)
        │      └─ Store in MongoDB (TTL 30 days)
        │
-       ├─5─→ [GET /loyalty/balance]        → Identity Service ✅
-       │      └─ Check available loyalty points
-       │
-       ├─6─→ [POST /orders/checkout]       → Order Service ✅
+       ├─5─→ [POST /orders/checkout]       → Order Service ✅
        │      ├─ Validate items & stock
        │      ├─ Split by seller (multi-vendor)
        │      ├─ Create Stripe PaymentIntent
        │      ├─ 🔴 Produce: order.created
        │      └─ Return parent_order_id + payment_url
        │
-       ├─7─→ [Stripe Payment Modal]        → Stripe API 🌐
+       ├─6─→ [Stripe Payment Modal]        → Stripe API 🌐
        │      └─ User enters card details
        │
-       ├─8─→ [Stripe Webhook]              → Payment Service ✅
+       ├─7─→ [Stripe Webhook]              → Payment Service ✅
        │      ├─ payment_intent.succeeded
        │      ├─ 🔴 Produce: payment.success
        │      └─ Update TRANSACTIONS table
        │
-       ├─9─→ [GET /orders]                 → Order Service ✅
+       ├─8─→ [GET /orders]                 → Order Service ✅
        │      └─ User sees "PAID" status
        │
-       ├─10→ [GET /notifications/stream]   → Notification Service ✅
+       ├─9─→ [GET /notifications/stream]   → Notification Service ✅
        │      └─ Real-time SSE updates
        │           - "Order shipped"
        │           - "Delivered"
        │
-       └─11→ [POST /orders/{id}/confirm-received] → Order Service ✅
-              ├─ 🔴 Produce: order.delivered
-              ├─ Loyalty points credited
-              └─ Seller trust score +5
+       └─10→ [POST /orders/{id}/confirm-received] → Order Service ✅
+              └─ 🔴 Produce: order.delivered
 ```
 
 ---
@@ -181,7 +176,6 @@ Visual guide to service interactions and Kafka event flow.
        ├─7─→ [POST /admin/refunds/{id}/approve] → Payment Service ✅
        │      ├─ Stripe refund.create()
        │      ├─ 🔴 Produce: refund.admin_approved
-       │      ├─ Update trust score if caused_by=SELLER
        │      └─ Notification → Buyer + Seller
        │
        ├─8─→ [GET /admin/failed-events]    → Admin Service ✅
@@ -245,17 +239,6 @@ ORDER LIFECYCLE
    │
    ├─ 🔴 PRODUCE: order.delivered
    │   │
-   │   ├─→ [Identity Service] CONSUMER
-   │   │   └─ Add trust_score[seller] += 5
-   │   │
-   │   ├─→ [Loyalty Service] CONSUMER
-   │   │   └─ Move points from PENDING → CONFIRMED
-   │   │       ├─ 🔴 PRODUCE: loyalty.points_earned
-   │   │       │   └─→ [Notification Service]
-   │   │       │       └─ Send "Points credited" notification
-   │   │       │
-   │   │       └─ Store transaction in LOYALTY_TRANSACTIONS
-   │   │
    │   └─→ [Notification Service] CONSUMER
    │       └─ Send "Delivered" notification
    │
@@ -277,9 +260,6 @@ ORDER LIFECYCLE
        ├─ Stripe refund.create()
        │
        ├─ 🔴 PRODUCE: refund.admin_approved
-       │   │
-       │   ├─→ [Loyalty Service] CONSUMER
-       │   │   └─ Return refunded loyalty points
        │   │
        │   └─→ [Notification Service] CONSUMER
        │       ├─ Notify buyer: "Refund approved"
@@ -385,18 +365,10 @@ REFUND LIFECYCLE
    │
    ├─ Update REFUNDS.status = SUCCESS
    │
-   ├─ Adjust loyalty if refund amount > loyalty spent
-   │
-   ├─ Adjust trust_score if caused_by=SELLER
-   │
    ├─ 🔴 PRODUCE: refund.admin_approved
-   │   │
-   │   ├─→ [Loyalty Service] CONSUMER
-   │   │   └─ Update LOYALTY_TRANSACTIONS
    │   │
    │   └─→ [Notification Service] CONSUMER
    │       ├─ Notify buyer: "Refund processed"
-   │       ├─ Notify seller: "Trust score -5"
    │       └─ Send amount info
    │
    └─ Stripe Webhook: charge.refunded
@@ -518,15 +490,6 @@ KEY BENEFITS:
 
 ## 📊 Kafka Topics Organized by Domain
 
-### User & Account Events
-```
-account.locked          (Identity → Notification, Search)
-account.auto_locked     (Worker → Notification)
-account.unlocked        (Identity → Notification)
-seller.posting_suspended (Identity → Notification)
-seller.posting_resumed   (Identity → Notification)
-```
-
 ### Product Events
 ```
 product.created         (Product → Search)
@@ -542,9 +505,9 @@ inventory.adjusted      (Product → Search)
 ### Order Events
 ```
 order.created           (Order → Inventory, Search)
-order.cancelled         (Order → Cart, Loyalty, Notification)
+order.cancelled         (Order → Cart, Notification)
 order.shipped           (Order → Notification)
-order.delivered         (Order → Identity, Loyalty, Notification)
+order.delivered         (Order → Notification)
 order.returned          (Order → Refund, Inventory, Notification)
 order.checkout_completed (Order → Cart)
 order.auto_cancelled    (Worker → Notification)
@@ -555,9 +518,9 @@ order.auto_cancelled    (Worker → Notification)
 payment.success         (Payment → Order, Notification)
 payment.failed          (Payment → Order, Notification)
 refund.requested        (Refund → Notification)
-refund.admin_approved   (Refund → Loyalty, Notification)
+refund.admin_approved   (Refund → Notification)
 refund.rejected         (Refund → Notification)
-refund.stripe_auto      (Payment → Order, Loyalty)
+refund.stripe_auto      (Payment → Order)
 ```
 
 ### Flash Sale Events
@@ -570,19 +533,7 @@ flash_sale.item_sold         (Flash Sale → Inventory)
 flash_sale.reminder          (Worker → Notification)
 ```
 
-### Loyalty Events
-```
-loyalty.points_earned   (Identity → Notification)
-loyalty.points_used     (Order → Identity)
-loyalty.points_refunded (Refund → Identity)
-loyalty.points_expired  (Worker → Notification)
-```
 
-### Trust Score & Appeal Events
-```
-trust_score.warning     (Identity → Notification)
-appeal.resolved         (Identity → Notification)
-```
 
 ---
 

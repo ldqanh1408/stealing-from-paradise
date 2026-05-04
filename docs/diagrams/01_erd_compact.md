@@ -13,13 +13,6 @@ erDiagram
     USERS ||--o{ SELLERS : "1:1"
     USERS ||--o{ ADMINS : "1:1"
     USERS ||--o{ ADDRESSES : "1:N"
-    USERS ||--o{ LOYALTY_ACCOUNTS : "1:1"
-    USERS ||--o{ POINT_TRANSACTIONS : "1:N"
-    USERS ||--o{ TRUST_SCORE_LOGS : "1:N"
-    USERS ||--o{ USER_BAN_HISTORY : "1:N"
-    USERS ||--o{ APPEALS : "1:N"
-    TRUST_SCORE_LOGS }o--|| TRUST_SCORE_EVENTS_CONFIG : "references"
-    LOYALTY_ACCOUNTS ||--o{ POINT_TRANSACTIONS : "records"
 
     USERS {
         BIGSERIAL id PK
@@ -51,21 +44,6 @@ erDiagram
         BIGINT user_id FK "UNIQUE"
     }
 
-    LOYALTY_ACCOUNTS {
-        BIGSERIAL id PK
-        BIGINT customer_id FK "UNIQUE"
-        INT available_points
-        INT version "Optimistic Lock"
-    }
-
-    POINT_TRANSACTIONS {
-        BIGSERIAL id PK
-        BIGINT customer_id FK
-        BIGINT order_id FK
-        INT delta
-        VARCHAR type "EARNED | USED | EXPIRED | REFUNDED"
-        VARCHAR status "PENDING | CONFIRMED"
-    }
 ```
 
 ---

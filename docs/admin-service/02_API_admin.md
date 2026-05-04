@@ -10,11 +10,9 @@
 
 1. [Product Management](#product-management)
 2. [User Management](#user-management)
-3. [Trust Score Configuration](#trust-score-configuration)
-4. [Appeal Management](#appeal-management)
-5. [Flash Sale Management](#flash-sale-management)
-6. [Refund Management](#refund-management)
-7. [Failed Events Management](#failed-events-management)
+3. [Flash Sale Management](#flash-sale-management)
+4. [Refund Management](#refund-management)
+5. [Failed Events Management](#failed-events-management)
 
 ---
 
@@ -203,69 +201,6 @@
 
 ---
 
-### POST /admin/users/{userId}/trust-score
-**Điều chỉnh trust score thủ công**
-
-**Request Body**:
-```json
-{
-  "delta": 10,
-  "reason": "Khiếu nại được phê duyệt - Appeal approved"
-}
-```
-
-**Response 200**:
-```json
-{
-  "user_id": 5,
-  "old_score": 92,
-  "new_score": 102,
-  "capped_score": 100,
-  "delta": 10,
-  "reason": "Khiếu nại được phê duyệt - Appeal approved",
-  "changed_by": "ADMIN",
-  "admin_id": 1,
-  "changed_at": "2026-04-15T10:00:00Z"
-}
-```
-
-**Kafka Events**:
-```json
-{
-  "topic": "trust_score.adjusted",
-  "payload": {
-    "user_id": 5,
-    "old_score": 92,
-    "new_score": 100,
-    "delta": 10,
-    "event_code": "ADMIN_OVERRIDE",
-    "reason": "Khiếu nại được phê duyệt",
-    "admin_id": 1,
-    "timestamp": "2026-04-15T10:00:00Z"
-  }
-}
-```
-
----
-
-### GET /admin/users/{userId}/trust-score/logs
-**Lịch sử trust score của user**
-
-**Query Params**: Phân trang (page, size)
-
-**Response 200**: Array TRUST_SCORE_LOGS của user
-
----
-
-### GET /admin/users/{userId}/ban-history
-**Lịch sử khóa/mở tài khoản**
-
-**Tag**: NEW v5.0
-
-**Response 200**: Array USER_BAN_HISTORY
-
----
-
 ### POST /admin/users/{userId}/unlock-product-posting
 **Gỡ tạm dừng đăng sản phẩm (Seller)**
 
@@ -281,102 +216,6 @@
 ```
 
 **Response 200**: product_posting_suspended = false, Seller nhận notification
-
----
-
-## Trust Score Configuration
-
-### GET /admin/trust-score-events-config
-**Xem cấu hình delta sự kiện trust score**
-
-**Tag**: NEW v5.0
-
-**Response 200**:
-```json
-[
-  {
-    "event_code": "BUYER_CANCEL_EXCESSIVE",
-    "delta": -5,
-    "description": "Hủy đơn > 5 lần trong 30 ngày",
-    "is_active": true,
-    "applies_to": "BUYER"
-  },
-  {
-    "event_code": "SELLER_CAUSED_REFUND",
-    "delta": -5,
-    "description": "Admin xác nhận lỗi từ phía Seller",
-    "is_active": true,
-    "applies_to": "SELLER"
-  },
-  {
-    "event_code": "FIRST_ORDER_COMPLETED",
-    "delta": 5,
-    "description": "Hoàn thành đơn hàng đầu tiên",
-    "is_active": true,
-    "applies_to": "BUYER"
-  }
-]
-```
-
----
-
-### PUT /admin/trust-score-events-config/{eventCode}
-**Cập nhật delta / bật-tắt sự kiện**
-
-**Tag**: NEW v5.0
-
-**⚠️ Ghi chú**: Thay đổi có hiệu lực ngay, không áp dụng hồi tố
-
-**Request Body** (all optional):
-```json
-{
-  "delta": -8,
-  "description": "Hủy đơn > 5 lần trong 30 ngày - Updated",
-  "is_active": true
-}
-```
-
-**Response 200**: Cấu hình đã được cập nhật
-
----
-
-## Appeal Management
-
-### GET /admin/appeals
-**Danh sách khiếu nại Trust Score chờ xét duyệt**
-
-**Tag**: GAP-PATCH
-
-**Query Params**:
-| Param | Type | Mô tả |
-|-------|------|-------|
-| status | string | PENDING \| APPROVED \| REJECTED (default: PENDING) |
-| page, size | integer | Phân trang |
-
-**Response 200**: Danh sách TRUST_SCORE_APPEALS với phân trang
-
----
-
-### POST /admin/appeals/{appealId}/resolve
-**Duyệt hoặc từ chối khiếu nại**
-
-**Tags**: Kafka → appeal.resolved | GAP-PATCH
-
-**Request Body**:
-```json
-{
-  "action": "APPROVED",
-  "admin_note": "Đã xác minh không có vi phạm, cộng lại điểm cho user"
-}
-```
-
-**Validation Rules**:
-| Field | Type | Rules |
-|-------|------|-------|
-| action | string | APPROVED \| REJECTED |
-| admin_note | string | Required; ghi chú lý do quyết định |
-
-**Response 200**: Xử lý thành công, Kafka event `appeal.resolved` published, user nhận notification
 
 ---
 
@@ -611,14 +450,7 @@
 | /admin/users | GET | Danh sách users |
 | /admin/users/{id}/lock | POST | Khóa tài khoản |
 | /admin/users/{id}/unlock | POST | Mở khóa tài khoản |
-| /admin/users/{id}/trust-score | POST | Điều chỉnh trust score |
-| /admin/users/{id}/trust-score/logs | GET | Lịch sử trust score |
-| /admin/users/{id}/ban-history | GET | Lịch sử khóa/mở |
 | /admin/users/{id}/unlock-product-posting | POST | Gỡ tạm dừng đăng bài |
-| /admin/trust-score-events-config | GET | Xem config trust score |
-| /admin/trust-score-events-config/{code} | PUT | Cập nhật config |
-| /admin/appeals | GET | Danh sách khiếu nại |
-| /admin/appeals/{id}/resolve | POST | Duyệt/từ chối khiếu nại |
 | /admin/flash-sale/sessions | GET | Danh sách sessions |
 | /admin/flash-sale/sessions/{id} | PUT | Cập nhật session |
 | /admin/flash-sale/sessions/{id} | DELETE | Xóa session |

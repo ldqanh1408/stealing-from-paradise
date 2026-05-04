@@ -22,7 +22,7 @@
 |---------|------|----|---------|---------------------|
 | `api-gateway` | 8080 | — | Spring Cloud Gateway | JWT RS256 validation, routing, rate limiting |
 | `discovery-service` | 8761 | — | Eureka | Service registry & health |
-| `identity-service` | 8081 | PostgreSQL | Traditional JPA | Auth, JWT, users, loyalty points, trust score |
+| `identity-service` | 8081 | PostgreSQL | Traditional JPA | Auth, JWT, users |
 | `payment-service` | 8082 | PostgreSQL + Axon | CQRS/ES | Stripe Connect, multi-vendor splits, refunds |
 | `order-service` | 8083 | PostgreSQL + Axon | CQRS/ES + Saga | Checkout, order lifecycle, multi-vendor split, RTS |
 | `flashsale-service` | 8085 | PostgreSQL + Axon + Redis | CQRS/ES | Flash sale sessions, Redis Lua atomic buy. **No REST controllers** — Kafka consumer only |
@@ -126,15 +126,6 @@ Controller  →  CommandGateway.send(XxxCommand)
 
 > Request-Reply topics (12) — xem chi tiết: `docs/11_KAFKA_REQUEST_REPLY.md`
 
-**Account / Identity**
-```
-account.locked          → Notification Service
-account.auto_locked     → Notification Service
-account.unlocked        → Notification Service
-seller.posting_suspended → Notification Service
-seller.posting_resumed  → Notification Service
-```
-
 **Product**
 ```
 product.created         → Search Service (index)
@@ -162,9 +153,9 @@ payment.requested        → Payment (internal)
 **Order**
 ```
 order.created           → Inventory (lock stock) + Search
-order.cancelled         → Cart + Loyalty + Notification
+order.cancelled         → Cart + Notification
 order.shipped           → Notification Service
-order.delivered         → Identity (trust score +5) + Loyalty (confirm points) + Notification
+order.delivered         → Notification
 order.returned          → Refund (auto) + Inventory + Notification
 order.checkout_completed → Cart (clear)
 order.auto_cancelled    → Notification Service
@@ -177,15 +168,10 @@ payment.failed          → Order Service + Notification
 refund.requested        → Notification (notify seller)
 refund.full_requested   → Notification + Payment (RTS flow)
 refund.created          → Notification (refund record created)
-refund.admin_approved   → Loyalty (return points) + Notification
+refund.admin_approved   → Notification
 refund.rejected         → Notification
 refund.rts_completed    → Order + Notification
-refund.stripe_auto      → Order + Loyalty
-```
-
-**Order Extended**
-```
-seller.order_cancelled  → Identity (seller trust score adjustment)
+refund.stripe_auto      → Order
 ```
 
 **Flash Sale**
@@ -196,20 +182,6 @@ flash_sale.item_approved   → Notification (seller)
 flash_sale.item_rejected   → Notification
 flash_sale.item_sold       → Inventory (update sold_count)
 flash_sale.reminder        → Notification (Worker cron)
-```
-
-**Loyalty**
-```
-loyalty.points_earned   → Notification
-loyalty.points_used     → Identity
-loyalty.points_refunded → Identity
-loyalty.points_expired  → Notification
-```
-
-**Trust Score**
-```
-trust_score.warning     → Notification
-appeal.resolved         → Notification
 ```
 
 ---
@@ -240,9 +212,7 @@ POST /flash-sale/sessions/{id}/buy
 Buyer: POST /orders/{id}/refunds → status PENDING + emit refund.requested
 Admin: POST /admin/refunds/{id}/approve
   → Stripe refund.create()
-  → Adjust loyalty if needed
-  → Adjust trust score if caused_by=SELLER
-  → Emit: refund.admin_approved → Loyalty + Notification
+  → Emit: refund.admin_approved → Notification
 ```
 
 ### RTS (Return To Sender)
@@ -281,21 +251,6 @@ Worker DeadlineManager: if order not paid in X minutes
 - Worker Service polls outbox → publishes to Kafka
 - Failed events stored in DLQ table → Admin retries via `POST /admin/failed-events/{id}/retry`
 
-### Trust Score System (6 Tiers)
-```
-BRONZE (0-39) → SILVER (40-59) → GOLD (60-79)
-  → PLATINUM (80-89) → DIAMOND (90-99) → ELITE (100)
-```
-- Default trust_score = 80 (PLATINUM) on account creation
-- Seller +5 on delivery confirmed, -5 on admin-approved refund caused by seller
-- Warnings sent at tier boundary thresholds
-
-### Loyalty Points
-- Merged into Identity Service (no separate loyalty-service)
-- Points earned on delivery, can be used at checkout
-- Points in PENDING state until buyer confirms receipt
-- Refund reverses points
-
 ---
 
 ## 10. Directory Structure (Navigating the Repo)
@@ -305,7 +260,7 @@ stealing-from-paradise/
 ├── backend/
 │   ├── api-gateway/          Spring Cloud Gateway
 │   ├── discovery-service/    Eureka
-│   ├── identity-service/     Auth + Loyalty + Trust Score (PostgreSQL/JPA)
+│   ├── identity-service/     Auth + Users (PostgreSQL/JPA)
 │   ├── payment-service/      Stripe + Axon CQRS
 │   ├── order-service/        Checkout + Axon Sagas
 │   ├── flashsale-service/    Flash Sale + Redis Lua + Axon
@@ -362,7 +317,7 @@ stealing-from-paradise/
 
 | Zone | Tables/Collections | Owner Service |
 |------|--------------------|---------------|
-| **Identity** | USERS, USER_ROLES, ADDRESSES, REFRESH_TOKENS, TRUST_SCORES, TRUST_SCORE_APPEALS, LOYALTY_ACCOUNTS, LOYALTY_TRANSACTIONS | identity-service |
+| **Identity** | USERS, USER_ROLES, ADDRESSES, REFRESH_TOKENS | identity-service |
 | **Order** | PARENT_ORDERS, ORDERS, ORDER_ITEMS, ORDER_STATUS_HISTORY | order-service (Axon projection) |
 | **Payment** | TRANSACTIONS, STRIPE_ACCOUNTS | payment-service (Axon projection) |
 | **Refund** | REFUNDS, REFUND_ITEMS | payment-service |
@@ -381,7 +336,7 @@ stealing-from-paradise/
 Distributed per service — each service runs its own scheduled jobs.
 
 **Key jobs by service**:
-- `identity-service`: Cleanup expired tokens, auto-lock high-risk accounts, appeal timeout
+- `identity-service`: Cleanup expired tokens
 - `order-service`: Auto-cancel unpaid orders (deadline), RTS timeout handling
 - `payment-service`: Stripe webhook reconciliation, refund timeout
 - `flashsale-service`: Session status transitions (UPCOMING→ACTIVE→ENDED), reminder dispatch
@@ -409,10 +364,8 @@ All routes prefixed: `http://localhost:8080/api/v1`
 | **Payments** | Stripe webhook /stripe/webhook, /stripe/onboarding/start | Payment Service |
 | **Refunds** | POST /orders/{id}/refunds, GET/POST /admin/refunds/** | Payment Service |
 | **Flash Sale** | CRUD /flash-sale/sessions, POST /flash-sale/sessions/{id}/buy | Flashsale Service |
-| **Loyalty** | GET /loyalty/balance, GET /loyalty/transactions | Identity Service |
 | **Notifications** | GET /notifications/stream (SSE) | Notification Service |
 | **Admin** | /admin/users/**, /admin/products/**, /admin/refunds/**, /admin/failed-events/** | Per-service, admin-routed |
-| **Support (Appeals)** | GET/POST /v1/support/trust-score-appeal, GET presigned-url | Identity Service — Seller/Buyer submit appeal |
 | **Seller Payments** | GET /v1/seller/payments/earnings, GET /v1/seller/payments/stripe-dashboard | Payment Service |
 
 **Internal APIs** (service-to-service, NOT exposed via API Gateway):
@@ -436,7 +389,7 @@ All routes prefixed: `http://localhost:8080/api/v1`
 | Understand request-reply Kafka pattern | `docs/11_KAFKA_REQUEST_REPLY.md` |
 | Understand payment/order Saga | `docs/06_PAYMENT_SAGA_FLOW.md` |
 | Database schema | `docs/database-entities.md` + `docs/ERD_FULL_SYSTEM.md` |
-| Business rules (trust, loyalty, flash sale) | `docs/04_POLICIES.md` |
+| Business rules (flash sale) | `docs/04_POLICIES.md` |
 | Business flows (diagrams) | `docs/07_BUSINESS_FLOWS.md` |
 | Refund/RTS flow | `docs/08_PAYMENT_ORDER_INTEGRATION.md` |
 | Cronjobs | `docs/05_OPERATIONS.md` |

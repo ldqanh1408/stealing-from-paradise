@@ -16,7 +16,7 @@ C4Context
 
     System_Boundary(platform, "E-Commerce Platform") {
         System(api_gateway, "API Gateway", "Spring Cloud Gateway\nPort: 8080")
-        System(identity_svc, "Identity Service", "Auth, Users,\nLoyalty, Trust")
+        System(identity_svc, "Identity Service", "Auth, Users")
         System(product_svc, "Product Service", "Catalog, Cart,\nInventory")
         System(order_svc, "Order Service", "Orders")
         System(payment_svc, "Payment Service", "Stripe, VNPAY,\nRefunds")
@@ -56,8 +56,8 @@ C4Container
     }
 
     System_Boundary(identity, "Identity Service\nPort: 8081") {
-        Container(identity_app, "Spring Boot App", "Java 21", "Auth, Users, Loyalty, Trust")
-        ContainerDb(identity_db, "PostgreSQL", "identity_db", "Users, Customers, Sellers,\nLoyalty, Trust, Appeals")
+        Container(identity_app, "Spring Boot App", "Java 21", "Auth, Users")
+        ContainerDb(identity_db, "PostgreSQL", "identity_db", "Users, Customers, Sellers")
     }
 
     System_Boundary(product, "Product Service\nPort: 8082") {
@@ -196,8 +196,6 @@ flowchart LR
     subgraph "Identity Domain"
         IS[Identity Service]
         IS -->|Users| PG1[(PostgreSQL)]
-        IS -->|Loyalty| PG1
-        IS -->|Trust/Moderation| PG1
     end
 
     subgraph "Catalog Domain"

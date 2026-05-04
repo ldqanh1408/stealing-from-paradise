@@ -8,8 +8,6 @@
 
 1. [Media & Images](#1-media--images)
 2. [Users & Identity](#2-users--identity)
-3. [Trust & Moderation](#3-trust--moderation)
-4. [Loyalty & Points](#4-loyalty--points)
 5. [Catalog - Categories & Products](#5-catalog---categories--products)
 6. [Cart](#6-cart)
 7. [Flash Sales](#7-flash-sales)
@@ -119,111 +117,6 @@ Hồ sơ Admin (1:1 với USERS)
 | `is_default` | BOOLEAN | Cờ mặc định cho Fast Checkout |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
-
----
-
-## 3. Trust & Moderation
-
-### TRUST_SCORE_EVENTS_CONFIG
-Cấu hình các sự kiện ảnh hưởng trust score
-
-| Cột | Kiểu | Ghi chú |
-|-----|------|--------|
-| `id` | BIGSERIAL | Primary Key |
-| `event_code` | VARCHAR | Unique, mã sự kiện (VD: PRODUCT_REJECTED_FIRST) |
-| `delta` | INT | Dương = cộng, âm = trừ |
-| `description` | TEXT | Mô tả sự kiện |
-| `is_active` | BOOLEAN | Cờ bật/tắt (default TRUE) |
-| `updated_at` | TIMESTAMP | Cập nhật cuối (Admin chỉnh) |
-
----
-
-### TRUST_SCORE_LOGS
-Lịch sử thay đổi trust score
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | BIGSERIAL | Primary Key |
-| `user_id` | BIGINT | FK → USERS.id |
-| `delta` | INT | Mức thay đổi (+/-) |
-| `event_code` | VARCHAR | FK → TRUST_SCORE_EVENTS_CONFIG.event_code |
-| `reason` | VARCHAR | Lý do override hoặc Admin note |
-| `changed_by` | VARCHAR | ADMIN \| SYSTEM |
-| `created_at` | TIMESTAMP | Thời gian thay đổi |
-
----
-
-### USER_BAN_HISTORY
-Lịch sử khóa/mở khóa tài khoản
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | BIGSERIAL | Primary Key |
-| `user_id` | BIGINT | FK → USERS.id |
-| `action` | VARCHAR | LOCKED \| UNLOCKED |
-| `reason` | TEXT | Lý do khóa/mở khóa |
-| `performed_by` | VARCHAR | ADMIN \| SYSTEM |
-| `admin_id` | BIGINT | FK → ADMINS.id, NULL nếu SYSTEM |
-| `locked_until` | TIMESTAMP | NULL = vĩnh viễn; có giá trị = khóa tạm thời |
-| `created_at` | TIMESTAMP | Thời điểm thực hiện |
-
----
-
-### APPEALS
-Khiếu nại trust score
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | BIGSERIAL | Primary Key |
-| `user_id` | BIGINT | FK → USERS.id |
-| `trust_score_log_id` | BIGINT | FK → TRUST_SCORE_LOGS.id |
-| `reason` | TEXT | Lý do khiếu nại của User |
-| `evidence_urls` | JSONB | Mảng URL bằng chứng (MinIO) |
-| `status` | VARCHAR | PENDING \| APPROVED \| REJECTED |
-| `reviewed_by` | BIGINT | FK → ADMINS.id, nullable |
-| `admin_note` | TEXT | Ghi chú Admin |
-| `reviewed_at` | TIMESTAMP | Thời điểm xử lý |
-| `created_at` | TIMESTAMP | Thời điểm nộp |
-| `updated_at` | TIMESTAMP | Cập nhật cuối |
-
----
-
-## 4. Loyalty & Points
-
-### LOYALTY_ACCOUNTS
-Tài khoản điểm (1:1 với CUSTOMERS)
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | BIGSERIAL | Primary Key |
-| `customer_id` | BIGINT | FK → CUSTOMERS.id, UNIQUE |
-| `total_earned_points` | INT | Tổng điểm tích lũy |
-| `available_points` | INT | Điểm còn có thể sử dụng |
-| `used_points` | INT | Tổng điểm đã dùng |
-| `expired_points` | INT | Tổng điểm đã hết hạn |
-| `version` | INT | Optimistic Locking |
-| `created_at` | TIMESTAMP | Thời điểm tạo |
-| `updated_at` | TIMESTAMP | Cập nhật cuối |
-
----
-
-### POINT_TRANSACTIONS
-Giao dịch điểm (tích/sử dụng/hết hạn/hoàn)
-
-| Cột | Kiểu | Ghi chí |
-|-----|------|--------|
-| `id` | BIGSERIAL | Primary Key |
-| `customer_id` | BIGINT | FK → CUSTOMERS.id |
-| `order_id` | BIGINT | FK → ORDERS.id |
-| `order_code` | VARCHAR | Mã đơn hàng hiển thị |
-| `delta` | INT | Số điểm thay đổi: dương/cộng, âm/trừ |
-| `remaining_delta` | INT | Số điểm còn lại (giảm khi dùng) |
-| `type` | VARCHAR | EARNED \| USED \| EXPIRED \| REFUNDED |
-| `status` | VARCHAR | PENDING \| CONFIRMED |
-| `balance_after` | INT | available_points sau giao dịch |
-| `note` | VARCHAR | Ghi chú |
-| `expires_at` | TIMESTAMP | Thời điểm hết hạn |
-| `created_at` | TIMESTAMP | Thời gian giao dịch |
 
 ---
 
@@ -648,18 +541,6 @@ Distributed Lock cho scheduled jobs (ShedLock)
 
 ## Các Tính Năng Chính
 
-### 1. Trust & Moderation System
-- **Trust Score**: Điểm tín nhiệm 0-100 cho cả Buyer và Seller
-- **Events Config**: Cấu hình sự kiện ảnh hưởng điểm (Admin quản lý)
-- **Appeal Mechanism**: User có thể khiếu nại (tối đa 3 lần/năm)
-- **Ban History**: Theo dõi lịch sử khóa tài khoản
-
-### 2. Loyalty & Points System
-- **Loyalty Accounts**: Tài khoản điểm 1:1 với Customer
-- **Point Transactions**: Lịch sử tích/sử dụng/hết hạn/hoàn điểm
-- **Status Tracking**: PENDING/CONFIRMED để đảm bảo consistency
-- **Expiration Management**: Tự động hết hạn theo ngày
-
 ### 3. Flash Sales
 - **Sessions**: Khoảng thời gian Flash Sale
 - **Items**: Sản phẩm tham gia với giá & tồn kho riêng
@@ -698,7 +579,7 @@ Distributed Lock cho scheduled jobs (ShedLock)
 
 ### Optimistic Locking
 - **version** column: Tăng mỗi update để tránh race condition
-- Dùng cho: USERS, LOYALTY_ACCOUNTS, ORDERS, FS_ITEMS, TRANSACTIONS
+- Dùng cho: USERS, ORDERS, FS_ITEMS, TRANSACTIONS
 
 ### Soft Deletes
 - **deleted_at**: TIMESTAMP NULL để keep audit trail
@@ -829,14 +710,12 @@ Event Outbox Pattern cho Kafka fallback khi publish thất bại
 2. **catalog** - Sản phẩm & danh mục
 3. **orders** - Đơn hàng
 4. **payments** - Thanh toán & transfers
-5. **loyalty** - Điểm & thưởng
-6. **flash_sale** - Flash Sale
-7. **cart** - Giỏ hàng
-8. **moderation** - Trust & kiểm duyệt
-9. **notifications** - Thông báo
-10. **infrastructure** - Messaging & locks
-11. **search** - Elasticsearch index
-12. **ai_chat** - AI Chat Support
+5. **flash_sale** - Flash Sale
+6. **cart** - Giỏ hàng
+7. **notifications** - Thông báo
+8. **infrastructure** - Messaging & locks
+9. **search** - Elasticsearch index
+10. **ai_chat** - AI Chat Support
 
 ---
 
@@ -846,7 +725,7 @@ Event Outbox Pattern cho Kafka fallback khi publish thất bại
 - **Outbox Pattern**: OUTBOX_EVENTS + FAILED_EVENTS cho eventual consistency
 - **ShedLock**: Distributed lock cho scheduled jobs
 - **MongoDB**: Cart, Categories, Products, Variants, Inventories, Notifications
-- **PostgreSQL**: Users, Orders, Payments, Loyalty, Trust
+- **PostgreSQL**: Users, Orders, Payments
 - **Elasticsearch**: Full-text search cho sản phẩm
 - **MinIO**: Lưu trữ ảnh (URLs trong IMAGES table)
 

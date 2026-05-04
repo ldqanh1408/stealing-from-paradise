@@ -31,13 +31,6 @@
 | 4 | `seller.posting_suspended` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Notify seller of suspension |
 | 5 | `seller.posting_resumed` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Notify seller of reinstatement |
 
-### Appeal & Trust Score
-
-| # | Topic | Producer | Action |
-|---|-------|----------|--------|
-| 6 | `appeal.resolved` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Send appeal decision |
-| 7 | `trust_score.warning` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Send tier boundary warning |
-
 ### Product Events
 
 | # | Topic | Producer | Action |
@@ -45,14 +38,7 @@
 | 8 | `product.pending_review` | 🔗 [Product Service](../product-service/KAFKA_EVENTS.md) | Alert admin to review |
 | 9 | `product.approved` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller of approval |
 | 10 | `product.rejected` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller of rejection with reason |
-| 11 | `product.auto_hidden` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller product auto-hidden |
-
-### Loyalty Events
-
-| # | Topic | Producer | Action |
-|---|-------|----------|--------|
-| 12 | `loyalty.points_earned` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Send points credit notification |
-| 13 | `loyalty.points_expired` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Notify points expiry |
+| 10 | `product.auto_hidden` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller product auto-hidden |
 
 ### Order Events
 
@@ -98,7 +84,7 @@
 ## 🔁 Flow: Consumer-Only Service Map
 
 ```
-Identity Service ──→ account.*, seller.*, appeal.*, loyalty.*, trust_score.* ──┐
+Identity Service ──→ account.*, seller.* ──┐
 Product Service  ──→ product.pending_review                                     │
 Admin Service    ──→ product.approved, product.rejected, product.auto_hidden    ├──→ Notification Service
 Order Service    ──→ order.*                                                    │     (SSE + MongoDB)

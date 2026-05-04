@@ -10,7 +10,6 @@ public final class KafkaTopics {
     public static final String ACCOUNT_AUTO_LOCKED      = "account.auto_locked";
     public static final String ACCOUNT_LOCKED           = "account.locked";
     public static final String ACCOUNT_UNLOCKED         = "account.unlocked";
-    public static final String TRUST_SCORE_WARNING      = "trust_score.warning";
     public static final String SELLER_POSTING_SUSPENDED = "seller.posting_suspended";
     public static final String SELLER_POSTING_RESUMED   = "seller.posting_resumed";
 

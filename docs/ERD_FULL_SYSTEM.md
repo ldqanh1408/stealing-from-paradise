@@ -34,53 +34,6 @@ erDiagram
         bigint user_id FK
     }
 
-    %% ==================== TRUST & MODERATION ====================
-    TRUST_SCORE_EVENTS_CONFIG {
-        bigint id PK
-        varchar event_code UK
-    }
-
-    TRUST_SCORE_LOGS ||--o| TRUST_SCORE_EVENTS_CONFIG : "references"
-    TRUST_SCORE_LOGS }o--|| USERS : "belongs"
-    TRUST_SCORE_LOGS {
-        bigint id PK
-        bigint user_id FK
-        varchar event_code FK
-    }
-
-    USER_BAN_HISTORY }o--|| USERS : "belongs"
-    USER_BAN_HISTORY }o--o| ADMINS : "reviewed by"
-    USER_BAN_HISTORY {
-        bigint id PK
-        bigint user_id FK
-        bigint admin_id FK
-    }
-
-    APPEALS }o--|| USERS : "belongs"
-    APPEALS }o--|| TRUST_SCORE_LOGS : "references"
-    APPEALS }o--o| ADMINS : "reviewed by"
-    APPEALS {
-        bigint id PK
-        bigint user_id FK
-        bigint trust_score_log_id FK
-        bigint reviewed_by FK
-    }
-
-    %% ==================== LOYALTY ====================
-    LOYALTY_ACCOUNTS ||--|| CUSTOMERS : "1:1"
-    LOYALTY_ACCOUNTS {
-        bigint id PK
-        bigint customer_id FK,UK
-    }
-
-    POINT_TRANSACTIONS }o--|| CUSTOMERS : "belongs"
-    POINT_TRANSACTIONS }o--o| ORDERS : "references"
-    POINT_TRANSACTIONS {
-        bigint id PK
-        bigint customer_id FK
-        bigint order_id FK
-    }
-
     %% ==================== CATALOG DOMAIN (MongoDB) ====================
     MG_CATEGORIES ||--o{ MG_CATEGORIES : "self: parent_id"
     MG_CATEGORIES ||--o{ MG_PRODUCTS : "contains"
@@ -295,8 +248,6 @@ erDiagram
 | Domain | Database | Service |
 |--------|----------|---------|
 | Identity | PostgreSQL | identity-service |
-| Trust & Moderation | PostgreSQL | identity-service |
-| Loyalty | PostgreSQL | identity-service |
 | Catalog | MongoDB | product-service |
 | Media Bridge | PostgreSQL | product-service |
 | Cart | MongoDB | product-service |
@@ -318,5 +269,5 @@ erDiagram
 | FS_ITEMS.sku_code | → Catalog.MG_PRODUCT_VARIANTS.sku_code |
 | ORDER_ITEMS.variant_id | → Catalog.MG_PRODUCT_VARIANTS.id |
 | ORDER_ITEMS.fs_item_id | → FlashSale.FS_ITEMS.id |
-| POINT_TRANSACTIONS.order_id | → Order.ORDERS.id |
+
 | MG_NOTIFICATIONS.user_id | → Identity.USERS.id |

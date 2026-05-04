@@ -1,7 +1,7 @@
 # 🔐 Identity Service API
 
 **Port**: `:8081`  
-**Mô tả**: Đăng ký, đăng nhập, JWT, quản lý địa chỉ, trust score, **điểm thưởng Loyalty** (gộp từ Loyalty Service `:8084`)  
+**Mô tả**: Đăng ký, đăng nhập, JWT, quản lý địa chỉ  
 **Base URL**: `/api/v1`  
 **Authentication**: JWT · RS256
 
@@ -13,8 +13,6 @@
 2. [User Profile Endpoints](#user-profile-endpoints)
 3. [Address Management Endpoints](#address-management-endpoints)
 4. [Seller Registration](#seller-registration)
-5. [Trust Score Appeal Endpoints](#trust-score-appeal-endpoints)
-6. [⭐ Loyalty Endpoints](#-loyalty-endpoints) *(gộp từ Loyalty Service)*
 
 ---
 
@@ -55,8 +53,6 @@
   "full_name": "Nguyễn Văn A",
   "roles": ["BUYER"],
   "status": "ACTIVE",
-  "trust_score": 80,
-  "trust_tier": "PLATINUM",
   "avatar_url": null,
   "created_at": "2026-04-15T08:00:00Z"
 }
@@ -72,7 +68,6 @@
     "phone": "0901234567",
     "username": "nguyen_van_a",
     "roles": ["BUYER"],
-    "trust_score": 80,
     "timestamp": "2026-04-15T08:00:00Z",
     "source": "auth-service"
   }
@@ -121,8 +116,6 @@
   "full_name": "Nguyễn Văn A",
   "roles": ["BUYER", "SELLER"],
   "status": "ACTIVE",
-  "trust_score": 80,
-  "trust_tier": "PLATINUM",
   "avatar_url": "https://cdn.marketplace.vn/avatars/42.jpg"
 }
 ```
@@ -132,7 +125,7 @@
 {
   "error": "ACCOUNT_LOCKED",
   "message": "Tài khoản bị khóa",
-  "lock_reason": "Trust score quá thấp (< 10). Liên hệ support để khiếu nại.",
+  "lock_reason": "Tài khoản bị khóa do vi phạm chính sách. Liên hệ support để được hỗ trợ.",
   "locked_until": "2026-05-15T10:00:00Z",
   "status_code": 403
 }
@@ -245,27 +238,11 @@ SET revoked_token:{jti} = 1 EX 900
   "avatar_url": "https://cdn.marketplace.vn/avatars/42.jpg",
   "roles": ["BUYER", "SELLER"],
   "status": "ACTIVE",
-  "trust_score": 85,
-  "trust_tier": "GOLD",
-  "appeal_count": 1,
   "product_posting_suspended": false,
   "lock_reason": null,
   "locked_until": null,
   "created_at": "2024-01-15T08:00:00Z"
 }
-```
-
-**Trust Tiers** [UNIFIED]:
-| Tier | Điểm |
-|------|------|
-| BRONZE | 0–39 |
-| SILVER | 40–59 |
-| GOLD | 60–79 |
-| PLATINUM | 80–89 |
-| DIAMOND | 90–99 |
-| ELITE | 100 |
-
-> Mặc định khi tạo tài khoản = 80 (PLATINUM)
 
 ---
 
@@ -294,9 +271,6 @@ SET revoked_token:{jti} = 1 EX 900
   "avatar_url": "https://cdn.marketplace.vn/avatars/42.jpg",
   "roles": ["BUYER", "SELLER"],
   "status": "ACTIVE",
-  "trust_score": 85,
-  "trust_tier": "GOLD",
-  "appeal_count": 1,
   "product_posting_suspended": false,
   "created_at": "2024-01-15T08:00:00Z",
   "updated_at": "2026-04-15T10:30:00Z"
@@ -432,148 +406,6 @@ SET revoked_token:{jti} = 1 EX 900
 
 ---
 
-## Trust Score Appeal Endpoints
-
-### GET /support/trust-score-appeal/presigned-url
-**Lấy Presigned URL upload ảnh bằng chứng khiếu nại**
-
-**Quyền truy cập**: JWT Required  
-**Tag**: GAP-PATCH R1
-
-**Mô tả**: Trả về Pre-signed PUT URL để upload ảnh bằng chứng lên MinIO bucket `appeal-evidence`. TTL: 15 phút.
-
-**Query Params**:
-| Param | Type | Required | Mô tả |
-|-------|------|----------|-------|
-| file_name | string | ✓ | Tên file gốc (dùng để detect extension) |
-| content_type | string | ✓ | MIME type: image/jpeg \| image/png \| image/webp |
-
-**Response 200**:
-```json
-{
-  "presigned_url": "https://minio.internal/appeal-evidence/appeals/42/uuid-abc.jpg?X-Amz-Signature=...",
-  "object_url": "https://cdn.marketplace.vn/appeal-evidence/appeals/42/uuid-abc.jpg",
-  "expires_in": 900
-}
-```
-
----
-
-### POST /support/trust-score-appeal
-**Gửi khiếu nại trust score**
-
-**Quyền truy cập**: JWT Required  
-**Tag**: NEW v5.0
-
-**Mô tả**: Tối đa 3 lần/năm theo `USERS.appeal_count`. JOB-20 reset appeal_count về 0 vào ngày 1/1 hàng năm.
-
-**Request Body**:
-```json
-{
-  "log_id": 1042,
-  "reason": "Tôi không hủy đơn quá số lần cho phép. Có bug hệ thống.",
-  "evidence_urls": [
-    "https://cdn.marketplace.vn/appeal-evidence/appeals/42/uuid-abc.jpg",
-    "https://cdn.marketplace.vn/appeal-evidence/appeals/42/uuid-def.jpg"
-  ]
-}
-```
-
-**Validation Rules**:
-| Field | Type | Rules |
-|-------|------|-------|
-| log_id | long | Phải tồn tại trong TRUST_SCORE_LOGS của user |
-| reason | string | Tối đa 500 ký tự |
-| evidence_urls | array | 0–5 URLs từ presigned URLs |
-
-**Response 201**:
-```json
-{
-  "appeal_id": 15,
-  "user_id": 42,
-  "log_id": 1042,
-  "status": "PENDING",
-  "reason": "Tôi không hủy đơn quá số lần cho phép. Có bug hệ thống.",
-  "evidence_urls": [
-    "https://cdn.marketplace.vn/appeal-evidence/appeals/42/uuid-abc.jpg",
-    "https://cdn.marketplace.vn/appeal-evidence/appeals/42/uuid-def.jpg"
-  ],
-  "created_at": "2026-04-15T10:00:00Z"
-}
-```
-
-**Kafka Events**:
-```json
-{
-  "topic": "appeal.submitted",
-  "payload": {
-    "appeal_id": 15,
-    "user_id": 42,
-    "log_id": 1042,
-    "event_code": "EXCESSIVE_CANCELLATION",
-    "old_score": 72,
-    "current_score": 72,
-    "timestamp": "2026-04-15T10:00:00Z"
-  }
-}
-```
-
-**Error Responses**:
-| Status | Mô tả |
-|--------|-------|
-| 409 | Đã đạt giới hạn 3 lần/năm (appeal_count ≥ 3) |
-| 404 | log_id không tồn tại hoặc không thuộc user này |
-
----
-
-### GET /users/me/trust-score/logs
-**Lịch sử thay đổi Trust Score**
-
-**Quyền truy cập**: JWT Required  
-**Tag**: NEW v5.1 — Gap A
-
-**Mô tả**: Trả về toàn bộ bản ghi `TRUST_SCORE_LOGS` của user. Retention: 2 năm (JOB-11).
-
-**Query Params**:
-| Param | Type | Mô tả |
-|-------|------|-------|
-| page | integer | Trang hiện tại (default: 0) |
-| size | integer | Số bản ghi/trang (default: 20, max: 100) |
-
-**Response 200**:
-```json
-{
-  "content": [
-    {
-      "log_id": 1042,
-      "event_code": "BUYER_CANCEL_EXCESSIVE",
-      "delta": -5,
-      "score_before": 77,
-      "score_after": 72,
-      "changed_by": "SYSTEM",
-      "reason": "Hủy đơn > 5 lần trong 30 ngày (rolling)",
-      "created_at": "2026-04-14T03:00:00Z"
-    },
-    {
-      "log_id": 1041,
-      "event_code": "FIRST_ORDER_COMPLETED",
-      "delta": 5,
-      "score_before": 80,
-      "score_after": 85,
-      "changed_by": "SYSTEM",
-      "reason": "Hoàn thành đơn hàng đầu tiên",
-      "created_at": "2026-04-01T15:30:00Z"
-    }
-  ],
-  "total_elements": 38,
-  "total_pages": 2,
-  "page_number": 0,
-  "page_size": 20
-}
-```
-
----
-
 ### POST /auth/register/seller
 **Đăng ký tài khoản Seller mới**
 
@@ -607,114 +439,7 @@ SET revoked_token:{jti} = 1 EX 900
 
 ---
 
-### GET /support/trust-score-appeal
-**Danh sách khiếu nại của tôi**
-
-**Quyền truy cập**: JWT Required
-
-**Response 200**: Danh sách các appeal của user kèm trạng thái (PENDING/APPROVED/REJECTED).
-
----
-
-## ⭐ Loyalty Endpoints
-
-> **Ghi chú**: Loyalty Service (port `:8084`) đã được gộp vào Identity Service. Các endpoint loyalty được đặt dưới Identity Service.
-
-### GET /loyalty/balance
-**Số dư điểm thưởng**
-
-**Quyền truy cập**: JWT Required
-
-**Response 200**:
-```json
-{
-  "user_id": 42,
-  "loyalty_account_id": 123,
-  "available_points": 1250,
-  "pending_points": 300,
-  "expired_points": 50,
-  "total_earned": 2000,
-  "total_used": 650,
-  "conversion_rate": 200,
-  "note": "1 point = 1/200 of 200,000 VND = 1,000 VND",
-  "max_usable_per_order": 275,
-  "max_usable_percentage": 0.20,
-  "expiry_policy": {
-    "expiry_days": 365,
-    "next_expiry_date": "2026-10-05",
-    "points_expiring_soon": 0
-  },
-  "tier_benefits": {
-    "tier": "PLATINUM",
-    "trust_score": 80,
-    "earning_rate": "5%",
-    "max_discount_rate": "20%"
-  },
-  "recent_transactions": [
-    {
-      "transaction_id": 501,
-      "type": "EARNED",
-      "delta": 300,
-      "status": "PENDING",
-      "order_id": 100,
-      "order_code": "OR-20251001-100",
-      "created_at": "2026-10-01T10:00:00Z",
-      "expires_at": "2026-10-01T10:00:00Z"
-    }
-  ]
-}
-```
-
-**Ghi chú**:
-- `conversion_rate`: số điểm tương đương 1.000 VNĐ
-- `pending_points`: điểm từ đơn chưa DELIVERED
-
----
-
-### GET /loyalty/transactions
-**Lịch sử giao dịch điểm**
-
-**Quyền truy cập**: JWT Required
-
-**Query Params**:
-| Param | Type | Mô tả |
-|-------|------|-------|
-| type | string | EARNED \| USED \| EXPIRED \| REFUNDED |
-| status | string | PENDING \| CONFIRMED |
-| page, size | integer | Phân trang |
-
----
-
-### GET /loyalty/estimate
-**Ước tính điểm sẽ nhận / có thể dùng**
-
-**Quyền truy cập**: JWT Required
-
-**Query Params**:
-| Param | Type | Required | Mô tả |
-|-------|------|----------|-------|
-| order_amount | decimal | ✓ | Tổng giá trị đơn hàng (VNĐ) |
-| points_to_use | integer | - | Số điểm muốn dùng (preview discount) |
-
-**Response 200**:
-```json
-{
-  "order_amount": 1200000,
-  "points_to_earn": 350,
-  "points_to_earn_formula": "order_amount * 5% / 1000 = 1200000 * 0.05 / 1000 = 60",
-  "available_points": 1250,
-  "max_points_usable": 240,
-  "max_points_usable_formula": "20% of order_amount = 1200000 * 0.20 / 1000 = 240",
-  "conversion_rate": 200,
-  "points_requested": 50,
-  "discount_if_use_50": 250000,
-  "cap_percent": 20
-}
-```
-
----
-
-## 📊 Summary — Identity + Loyalty Service
+## 📊 Summary — Identity Service
 
 | Endpoint | Method | Auth |
 |----------|--------|------|
@@ -732,13 +457,6 @@ SET revoked_token:{jti} = 1 EX 900
 | /auth/register/seller | POST | Public |
 | /users/me/roles/seller | POST | JWT (BUYER) |
 | /users/me/change-password | POST | JWT |
-| /support/trust-score-appeal/presigned-url | GET | JWT |
-| /support/trust-score-appeal | POST | JWT |
-| /support/trust-score-appeal | GET | JWT |
-| /users/me/trust-score/logs | GET | JWT |
-| /loyalty/balance | GET | JWT |
-| /loyalty/transactions | GET | JWT |
-| /loyalty/estimate | GET | JWT |
 
 ---
 

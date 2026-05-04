@@ -17,8 +17,7 @@
 6. [Luồng Vận Chuyển & Giao Hàng](#6-luồng-vận-chuyển--giao-hàng)
 7. [Luồng Hoàn Tiền & RTS](#7-luồng-hoàn-tiền--rts)
 8. [Luồng Flash Sale](#8-luồng-flash-sale)
-9. [Luồng Trust Score & Loyalty Points](#9-luồng-trust-score--loyalty-points)
-10. [Kafka Topics Overview](#10-kafka-topics-overview)
+9. [Kafka Topics Overview](#9-kafka-topics-overview)
 
 ---
 
@@ -130,8 +129,7 @@ sequenceDiagram
     Note over User,System: ĐĂNG KÝ TÀI KHOẢN
     User->>FE: Điền thông tin đăng ký
     FE->>System: Gửi yêu cầu đăng ký
-    System->>System: Tạo tài khoản mới<br>Trạng thái: Hoạt động<br>Điểm tin nhiệm: 80
-    System->>System: Tạo tài khoản Loyalty<br>Điểm khả dụng: 0
+    System->>System: Tạo tài khoản mới<br>Trạng thái: Hoạt động
     System->>System: Gán vai trò: Người mua
     System-->>FE: Tài khoản tạo thành công
     FE-->>User: Chuyển hướng đến đăng nhập
@@ -147,8 +145,6 @@ sequenceDiagram
 ```
 
 **Quy trình:**
-- Người dùng mới bắt đầu với điểm tin nhiệm 80 (mức Bạc)
-- Điểm Loyalty ban đầu là 0
 - Tài khoản hoạt động ngay lập tức
 - Phiên làm việc được bảo vệ và có thể gia hạn
 
@@ -160,7 +156,6 @@ stateDiagram-v2
     [*] --> ACTIVE: Tạo tài khoản mới
 
     ACTIVE --> LOCKED: Admin gọi<br>POST /admin/users/{id}/lock
-    ACTIVE --> LOCKED: JOB-17<br>(trust_score < 10)
 
     LOCKED --> ACTIVE: Admin gọi<br>POST /admin/users/{id}/unlock
     LOCKED --> ACTIVE: JOB-17<br>(locked_until <= NOW)
@@ -168,7 +163,7 @@ stateDiagram-v2
     LOCKED --> LOCKED: Admin gọi lại<br>POST /admin/users/{id}/lock<br>(update locked_until)
 
     note right of ACTIVE: JWT Revocation:<br>Identity Service thêm JTI vào<br>Redis blocklist ngay lập tức
-    note right of LOCKED: Tài khoản bị khóa:<br>- Không đăng nhập được<br>- Không đặt hàng<br>- Không dùng điểm loyalty<br>- Đơn đang xử lý vẫn tiếp tục
+    note right of LOCKED: Tài khoản bị khóa:<br>- Không đăng nhập được<br>- Không đặt hàng<br>- Đơn đang xử lý vẫn tiếp tục
 ```
 
 ### 2.3 Đăng Ký Trở Thành Seller
@@ -221,7 +216,6 @@ stateDiagram-v2
     APPROVED --> APPROVED: Auto ẩn nếu<br>Seller bị suspend đăng bị
 
     note right of APPROVED: Được index vào<br>Elasticsearch<br>Hiển thị trong tìm kiếm
-    note right of REJECTED: Trust Score Seller bị trừ<br>(-5 lần đầu, -10 tái phạm)
     note right of PENDING: Đang chờ Admin duyệt
 ```
 
@@ -241,7 +235,6 @@ sequenceDiagram
     FE->>GW: POST /api/v1/products
     GW->>PRD: ProductRequest
     PRD->>PRD: Validate Seller<br>(role=SELLER, stripe KYC done)
-    PRD->>PRD: Check trust_tier limits<br>(SILVER: max 10 PENDING,<br>BRONZE: max 3 PENDING)
     PRD->>PRD: INSERT MG_PRODUCTS<br>status=PENDING
     PRD->>PRD: INSERT MG_INVENTORIES
     PRD->>IDT: Kafka: product.pending_review
@@ -263,7 +256,6 @@ sequenceDiagram
         PRD-->>GW: Success
         GW-->>FE: Approved
         FE-->>Admin: "Đã duyệt"
-        IDT->>IDT: trust_score += +2<br>(PRODUCT_APPROVED)
     end
 ```
 
@@ -321,7 +313,7 @@ sequenceDiagram
 
     Buyer->>FE: Nhấn "Đặt Hàng" (Checkout)
     FE->>GW: POST /api/v1/orders/checkout
-    GW->>ORD: CheckoutRequest<br>(address_id, item_ids, loyalty_points)
+    GW->>ORD: CheckoutRequest<br>(address_id, item_ids)
     ORD->>PRD: Kafka: order.cart_items.request<br>↔ cart_items.response
     PRD-->>ORD: CartItem[] (product info, price, seller)
     ORD->>ORD: Tách theo Seller<br>→ N đơn con (1 per Seller)<br>→ 1 đơn cha (PARENT_ORDER)
@@ -396,7 +388,7 @@ stateDiagram-v2
 ```mermaid
 graph LR
     subgraph Parent["PARENT_ORDER (1 record)"]
-        PO["id: 55<br>buyer_id: 42<br>total_amount: 1,200,000<br>status: PAID<br>loyalty_discount: 10,000"]
+        PO["id: 55<br>buyer_id: 42<br>total_amount: 1,200,000<br>status: PAID"]
     end
 
     subgraph SubOrders["ORDERS (N records, 1 per Seller)"]
@@ -454,8 +446,6 @@ sequenceDiagram
     ORD->>ORD: Check order.status=SHIPPING
     ORD->>ORD: UPDATE ORDERS<br>status=DELIVERED
     ORD->>KFK: Publish order.delivered
-    KFK->>IDT: Trust Score Seller += +điểm
-    KFK->>IDT: Loyalty: PENDING → CONFIRMED
     KFK->>PAY: order.delivered<br>→ Stripe Transfer cho Seller
     KFK->>NTF: Thông báo Buyer + Seller
 
@@ -464,7 +454,6 @@ sequenceDiagram
     JOB22->>ORD: 7 ngày không xác nhận
     ORD->>ORD: UPDATE ORDERS.status=DELIVERED
     ORD->>KFK: Publish order.delivered<br>(autoDelivered=true)
-    KFK->>IDT: Cộng điểm (Trust Score, Loyalty)
     KFK->>PAY: order.delivered → Transfer
 
     Note over Seller,ORD: ⚠️ JOB-22 KHÔNG áp dụng cho đơn RTS
@@ -509,7 +498,6 @@ sequenceDiagram
     PAY->>STR: stripe.refunds.create()
     STR-->>PAY: refund_id
     PAY->>PAY: UPDATE REFUNDS.status=SUCCESS<br>tracking_number<br>reviewed_by
-    PAY->>PAY: Nếu lỗi Seller:<br>IDT: trust_score -= điểm
     PAY->>KFK: Publish refund.admin_approved
     KFK->>ORD: Cập nhật order.status<br>REFUNDED hoặc PARTIALLY_REFUNDED
     KFK->>NTF: Thông báo Buyer (tiền đang về)
@@ -521,7 +509,6 @@ sequenceDiagram
     FE_A->>GW: POST /admin/refunds/{id}/reject
     GW->>PAY: AdminRejectRequest
     PAY->>PAY: UPDATE REFUNDS.status=REJECTED
-    PAY->>PAY: Nếu bằng chứng giả:<br>IDT: trust_score -= nặng
     PAY->>KFK: Publish refund.rejected
     KFK->>NTF: Thông báo Buyer
 ```
@@ -579,24 +566,20 @@ graph LR
         B1["Điều kiện:<br>DELIVERED + ≤7 ngày"]
         B2["Init: BUYER<br>Admin duyệt ✓"]
         B3["Tracking number:<br>Optional"]
-        B4["Trust Score:<br>Trừ Seller nếu lỗi"]
     end
 
     subgraph RTS["Return To Sender"]
         R1["Điều kiện:<br>SHIPPING"]
         R2["Init: SELLER<br>Tự động (không cần duyệt) ✓"]
         R3["Tracking number:<br>Bắt buộc"]
-        R4["Trust Score:<br>Seller chịu trách nhiệm"]
     end
 
     style B1 fill:#fff3e0
     style B2 fill:#fff3e0
     style B3 fill:#fff3e0
-    style B4 fill:#fff3e0
     style R1 fill:#e8f5e9
     style R2 fill:#e8f5e9
     style R3 fill:#e8f5e9
-    style R4 fill:#e8f5e9
 ```
 
 ---
@@ -631,7 +614,7 @@ sequenceDiagram
     Seller->>FE_S: Đăng ký sản phẩm vào Flash Sale
     FE_S->>GW: POST /api/v1/flash-sale/items
     GW->>FS: RegisterFsItemRequest<br>(session_id, product_id,<br>flash_price, flash_stock,<br>limit_per_user)
-    FS->>FS: Validate Seller<br>(trust_score ≥ 40, KYC done)
+    FS->>FS: Validate Seller<br>(KYC done)
     FS->>FS: INSERT FS_ITEMS<br>status=PENDING
     FS-->>GW: ItemResponse
     GW-->>FE_S: "Đã đăng ký"
@@ -653,7 +636,7 @@ sequenceDiagram
     Buyer->>FE_C: Nhấn "Mua ngay"
     FE_C->>GW: POST /api/v1/flash-sale/sessions/{id}/buy
     GW->>FS: BuyRequest (item_id, quantity)
-    FS->>FS: Check Buyer<br>(trust_score ≥ 30, ACTIVE, verified)
+    FS->>FS: Check Buyer<br>(ACTIVE, verified)
     FS->>RED: GET fs:stock:{sessionId}:{itemId}
     alt Hết hàng
         FS-->>GW: 410 Gone
@@ -711,107 +694,14 @@ graph TD
 
 ---
 
-## 9. Luồng Trust Score & Loyalty Points
+## 9. Kafka Topics Overview
 
-### 9.1 Trust Score — Điểm Tin Nhiệm
-
-```mermaid
-stateDiagram-v2
-    [*] --> PLATINUM: Tạo tài khoản<br>(trust_score = 80)
-
-    PLATINUM --> DIAMOND: +điểm (max 99)
-    DIAMOND --> ELITE: Đạt 100 điểm
-    PLATINUM --> GOLD: -điểm (60-79)
-    GOLD --> SILVER: -điểm (40-59)
-    SILVER --> BRONZE: -điểm (0-39)
-
-    BRONZE --> LOCKED: trust_score < 10<br>(JOB-17 auto-lock)
-
-    note right of PLATINUM: Mới tạo tài khoản
-    note right of BRONZE: Cảnh báo khi < 30<br>Không được tham gia Flash Sale khi < 30
-    note right of LOCKED: JOB-17 khóa tài khoản<br>Thu hồi tất cả JWT
-```
-
-### 9.2 Trust Score Events
-
-```mermaid
-graph TD
-    subgraph Cộng_điểm["CỘNG ĐIỂM"]
-        C1["✓ Hoàn thành đơn đầu tiên (+5)"]
-        C2["✓ Mỗi 10 đơn (+2, max +20)"]
-        C3["✓ Sản phẩm được duyệt (+2)"]
-        C4["✓ Không refund 30 ngày — Seller (+3)"]
-        C5["✓ Xác minh phone + email (+5)"]
-    end
-
-    subgraph Trừ_điểm["TRỪ ĐIỂM"]
-        T1["✗ Sản phẩm bị từ chối lần đầu (-5)"]
-        T2["✗ Sản phẩm bị từ chối tái phạm (-10)"]
-        T3["✗ Buyer hủy >5 đơn/30 ngày (-10)"]
-        T4["✗ Seller tự hủy đơn PAID (-5)"]
-        T5["✗ Giao hàng chậm 3 lần/tháng (-5)"]
-        T6["✗ Buyer không nhận hàng oan (-10)"]
-        T7["✗ Bằng chứng refund giả (-15)"]
-        T8["✗ Spam/fraud được xác minh (-20)"]
-    end
-
-    style Cộng_điểm fill:#e8f5e9,color:#000
-    style Trừ_điểm fill:#ffebee,color:#000
-```
-
-### 9.3 Loyalty Points Lifecycle
-
-```mermaid
-sequenceDiagram
-    participant ORD as order-service
-    participant IDT as identity-service
-    participant JOB as Worker/Jobs
-    participant RED as Redis
-
-    Note over ORD,IDT: KHI ĐẶT HÀNG THÀNH CÔNG (→ PAID)
-    ORD->>KFK: order.created
-    KFK->>IDT: order.created
-    IDT->>IDT: INSERT POINT_TRANSACTIONS<br>type=EARNED<br>status=PENDING<br>expires_at = NOW() + 365 days
-    IDT->>IDT: (Điểm chưa dùng được)
-
-    Note over ORD,IDT: KHI XÁC NHẬN NHẬN HÀNG (→ DELIVERED)
-    ORD->>KFK: order.delivered
-    KFK->>IDT: order.delivered
-    IDT->>IDT: UPDATE POINT_TRANSACTIONS<br>status=CONFIRMED<br>(Điểm vào tài khoản)
-
-    Note over ORD,IDT: KHI DÙNG ĐIỂM (Checkout)
-    ORD->>IDT: Kafka: Dùng điểm loyalty
-    IDT->>IDT: Check available_points > 0
-    IDT->>IDT: UPDATE LOYALTY_ACCOUNTS<br>available_points -= used
-    IDT->>IDT: INSERT POINT_TRANSACTIONS<br>type=USED
-
-    Note over JOB,IDT: KHI HOÀN TIỀN (Refund SUCCESS)
-    ORD->>KFK: refund.admin_approved
-    KFK->>IDT: refund SUCCESS
-    IDT->>IDT: INSERT POINT_TRANSACTIONS<br>type=REFUNDED<br>(Hoàn lại điểm đã dùng)
-
-    Note over JOB,IDT: JOB-03 — HẾT HẠN (365 ngày)
-    JOB->>IDT: Chạy 02:00 hàng ngày
-    IDT->>IDT: SELECT remaining_delta > 0<br>expires_at <= NOW()
-    IDT->>IDT: UPDATE LOYALTY_ACCOUNTS<br>available_points -= remaining_delta
-    IDT->>IDT: INSERT POINT_TRANSACTIONS<br>type=EXPIRED
-
-    Note over JOB,IDT: JOB-14 — HỦY ĐIỂM PENDING CŨ
-    JOB->>IDT: Chạy 03:00 hàng ngày
-    IDT->>IDT: Đơn bị CANCELLED/REFUNDED<br>nhưng điểm PENDING chưa hủy
-    IDT->>IDT: UPDATE POINT_TRANSACTIONS<br>status=CONFIRMED (void audit)
-```
-
----
-
-## 10. Kafka Topics Overview
-
-### 10.1 Event Flow Between Services
+### 9.1 Event Flow Between Services
 
 ```mermaid
 graph LR
     subgraph Producers["Event Producers"]
-        IDT_E["identity-service<br>(Trust Score, Loyalty)"]
+        IDT_E["identity-service"]
         PRD_E["product-service<br>(Products, Inventory)"]
         ORD_E["order-service<br>(Orders, Checkout)"]
         PAY_E["payment-service<br>(Payments, Refunds)"]
@@ -820,7 +710,7 @@ graph LR
     end
 
     subgraph Consumers["Event Consumers"]
-        IDT_C["identity-service<br>(Trust Score, Loyalty)"]
+        IDT_C["identity-service"]
         PRD_C["product-service<br>(Inventory, Carts)"]
         ORD_C["order-service<br>(Payment Result)"]
         PAY_C["payment-service<br>(Payment Requests)"]
@@ -842,12 +732,11 @@ graph LR
     FS_E -->|"flash_sale.session_started / ended"| PRD_C
     PAY_E -->|"refund.admin_approved / rejected / rts_completed"| ORD_C
     PAY_E -->|"refund.admin_approved / rejected / rts_completed"| NTF_C
-    WRK_E -->|"trust_score.warning"| NTF_C
     WRK_E -->|"account.auto_locked / unlocked"| NTF_C
     WRK_E -->|"order.auto_cancelled"| NTF_C
 ```
 
-### 10.2 Topic Summary Table
+### 9.2 Topic Summary Table
 
 | Topic | Producer | Consumers | Purpose |
 |-------|----------|-----------|---------|
@@ -870,7 +759,6 @@ graph LR
 | `refund.rts_completed` | payment-service | order, notification | RTS hoàn tiền tự động |
 | `flash_sale.session_started` | flashsale-service | notification, product | Flash Sale bắt đầu |
 | `flash_sale.session_ended` | flashsale-service | notification, product | Flash Sale kết thúc |
-| `trust_score.warning` | identity | notification | Trust Score cảnh báo |
 | `account.auto_locked` | worker (JOB-17) | notification | Tài khoản bị khóa tự động |
 | `account.unlocked` | worker (JOB-17) | notification | Tài khoản được mở khóa |
 
