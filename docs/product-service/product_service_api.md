@@ -11,10 +11,11 @@
 1. [Product CRUD](#product-crud)
 2. [Variant CRUD](#variant-crud)
 3. [Product Lifecycle](#product-lifecycle)
-4. [Inventory Management](#inventory-management)
-5. [Inventory Query](#inventory-query)
-6. [Category Management](#category-management)
-7. [🛒 Cart Endpoints](#-cart-endpoints) *(gộp từ Cart Service)*
+4. [Product Image Management](#product-image-management)
+5. [Inventory Management](#inventory-management)
+6. [Inventory Query](#inventory-query)
+7. [Category Management](#category-management)
+8. [🛒 Cart Endpoints](#-cart-endpoints) *(gộp từ Cart Service)*
 
 ---
 
@@ -86,7 +87,38 @@
 
 **Quyền truy cập**: Public
 
-**Response 200**: Thông tin chi tiết sản phẩm
+**Response 200**: Thông tin chi tiết sản phẩm (product, skus, images)
+
+---
+
+### PUT /products/{productId}
+**Cập nhật sản phẩm**
+
+**Quyền truy cập**: JWT Required (SELLER - owner)
+
+**Request Body**:
+```json
+{
+  "name": "Áo Thun Nike Air Nam Pro",
+  "description": "<p>Mô tả mới...</p>",
+  "attributes": {
+    "brand": "Nike",
+    "material": "100% Cotton Premium"
+  }
+}
+```
+
+**Kafka Events**:
+```json
+{
+  "topic": "product.updated",
+  "payload": {
+    "product_id": "507f1f77bcf86cd799439012",
+    "seller_id": 5,
+    "timestamp": "2026-04-15T10:00:00Z"
+  }
+}
+```
 
 ---
 
@@ -154,7 +186,7 @@
 
 **Quyền truy cập**: JWT Required (SELLER - owner)
 
-**Response 200**: Danh sách MG_PRODUCT_VARIANTS của product
+**Response 200**: Danh sách SKU của product
 
 **Error Responses**:
 | Status | Mô tả |
@@ -213,6 +245,19 @@
 {
   "tier_name": "Xanh / XL",
   "price": 380000
+}
+```
+
+**Kafka Events**:
+```json
+{
+  "topic": "sku.price_updated",
+  "payload": {
+    "sku_id": "507f1f77bcf86cd799439013",
+    "product_id": "507f1f77bcf86cd799439012",
+    "seller_id": 5,
+    "timestamp": "2026-04-15T10:00:00Z"
+  }
 }
 ```
 
@@ -290,6 +335,45 @@
 
 ---
 
+## Product Image Management
+
+### POST /seller/products/{productId}/images
+**Thêm ảnh sản phẩm**
+
+**Quyền truy cập**: JWT Required (SELLER - owner)
+
+**Mô tả**:
+- Upload ảnh lên MinIO qua pre-signed URL (GET `/products/{productId}/presigned-url`)
+- Sau khi upload thành công, lưu URL vào bảng `product_image`
+
+**Request Body**:
+```json
+{
+  "url": "https://cdn.marketplace.vn/products-media/products/5/101/uuid.jpg",
+  "sku_id": null,
+  "sort_order": 0
+}
+```
+
+| Field | Type | Rules |
+|-------|------|-------|
+| url | string | Required; must be CDN URL |
+| sku_id | string | Optional; nếu có = ảnh riêng của SKU |
+| sort_order | int | Default 0; ảnh có sort_order nhỏ nhất = ảnh đại diện |
+
+**Response 201**: Tạo ảnh thành công
+
+---
+
+### DELETE /seller/products/{productId}/images/{imageId}
+**Xóa ảnh sản phẩm**
+
+**Quyền truy cập**: JWT Required (SELLER - owner)
+
+**Response 200**: Xóa ảnh thành công
+
+---
+
 ## Inventory Management
 
 ### POST /seller/inventory/adjust
@@ -307,6 +391,20 @@
 ```
 
 **Response 200**: Điều chỉnh tồn kho thành công
+
+**Kafka Events**:
+```json
+{
+  "topic": "sku.stock_updated",
+  "payload": {
+    "sku_id": "507f1f77bcf86cd799439013",
+    "product_id": "507f1f77bcf86cd799439012",
+    "seller_id": 5,
+    "delta": -5,
+    "timestamp": "2026-04-15T10:00:00Z"
+  }
+}
+```
 
 **Error Responses**:
 | Status | Mô tả |
@@ -364,6 +462,20 @@
 
 **Response 200**: Nhập thêm hàng thành công
 
+**Kafka Events**:
+```json
+{
+  "topic": "inventory.adjusted",
+  "payload": {
+    "sku_id": "507f1f77bcf86cd799439013",
+    "product_id": "507f1f77bcf86cd799439012",
+    "seller_id": 5,
+    "quantity_added": 50,
+    "timestamp": "2026-04-15T10:00:00Z"
+  }
+}
+```
+
 **Error Responses**:
 | Status | Mô tả |
 |--------|-------|
@@ -399,6 +511,18 @@
 
 **Response 201**: Tạo danh mục thành công
 
+**Kafka Events**:
+```json
+{
+  "topic": "category.updated",
+  "payload": {
+    "category_id": "507f1f77bcf86cd799439010",
+    "action": "created",
+    "timestamp": "2026-04-15T10:00:00Z"
+  }
+}
+```
+
 **Error Responses**:
 | Status | Mô tả |
 |--------|-------|
@@ -411,6 +535,18 @@
 
 **Quyền truy cập**: JWT Required (ADMIN)
 
+**Kafka Events**:
+```json
+{
+  "topic": "category.updated",
+  "payload": {
+    "category_id": "507f1f77bcf86cd799439010",
+    "action": "updated",
+    "timestamp": "2026-04-15T10:00:00Z"
+  }
+}
+```
+
 **Response 200**: Cập nhật danh mục thành công
 
 ---
@@ -419,6 +555,18 @@
 **Xóa danh mục**
 
 **Quyền truy cập**: JWT Required (ADMIN)
+
+**Kafka Events**:
+```json
+{
+  "topic": "category.updated",
+  "payload": {
+    "category_id": "507f1f77bcf86cd799439010",
+    "action": "deleted",
+    "timestamp": "2026-04-15T10:00:00Z"
+  }
+}
+```
 
 ---
 
@@ -619,6 +767,8 @@
 | /products/{id} | GET | Public |
 | /products/{id} | PUT | JWT (SELLER) |
 | /products/{id}/presigned-url | GET | JWT (SELLER) |
+| /seller/products/{id}/images | POST | JWT (SELLER) |
+| /seller/products/{id}/images/{imageId} | DELETE | JWT (SELLER) |
 | /sellers/me/products | GET | JWT (SELLER) |
 | /seller/products/{id}/variants | GET | JWT (SELLER) |
 | /seller/products/{id}/variants | POST | JWT (SELLER) |
@@ -629,15 +779,13 @@
 | /seller/products/{id}/unpublish | POST | JWT (SELLER) |
 | /seller/products/{id} | DELETE | JWT (SELLER) |
 | /seller/inventory/adjust | POST | JWT (SELLER) |
+| /seller/inventory/{sku}/logs | GET | JWT (SELLER) |
 | /inventory/{sku} | GET | JWT |
 | /inventory/{sku}/restock | PUT | JWT (SELLER) |
 | /categories | GET | Public |
 | /admin/categories | POST | JWT (ADMIN) |
 | /admin/categories/{id} | PUT | JWT (ADMIN) |
 | /admin/categories/{id} | DELETE | JWT (ADMIN) |
-| /admin/products/pending | GET | JWT (ADMIN) |
-| /admin/products/{id}/approve | POST | JWT (ADMIN) |
-| /admin/products/{id}/reject | POST | JWT (ADMIN) |
 | /cart | GET | JWT |
 | /cart | DELETE | JWT |
 | /cart/items | POST | JWT |
@@ -646,5 +794,5 @@
 
 ---
 
-**Phiên bản:** v5.4  
-**Cập nhật:** 2026-04-30
+**Phiên bản:** v6.0  
+**Cập nhật:** 2026-05-05
