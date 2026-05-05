@@ -1,4 +1,4 @@
-# Kafka Request-Reply Pattern
+﻿# Kafka Request-Reply Pattern
 
 **Version**: v5.4 | **Last Updated**: 2026-05-04  
 **Defined in**: `common-lib` → `KafkaTopics.java`
@@ -13,8 +13,8 @@ Mỗi service có tài liệu Kafka riêng với chi tiết request-reply cycle:
 |---------|-----------|-------------------|
 | Identity Service (8081) | 🔗 [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) | Responder: `order.address` |
 | Product Service (8090) | 🔗 [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) | Responder: `cart.product_info`, `order.stock_check`, `order.cart_items` |
-| Order Service (8087) | 🔗 [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) | Requester: 5 pairs |
-| Payment Service (8085) | 🔗 [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) | Responder: `order.payment_status`, `order.refunds` |
+| Order Service (8083) | 🔗 [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) | Requester: 5 pairs |
+| Payment Service (8082) | 🔗 [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) | Responder: `order.payment_status`, `order.refunds` |
 
 ---
 

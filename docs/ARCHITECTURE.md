@@ -28,7 +28,7 @@ Visual guide to service interactions and Kafka event flow.
     ┌────────┐        ┌────────┐        ┌────────┐     ┌────────┐
     │Identity│        │Product │        │Search  │ ... │Others  │
     │Service │        │Service │        │Service │     │Services│
-    │ :8081  │        │ :8082  │        │ :8089  │     │        │
+    │ :8081  │        │ :8090  │        │ :8091  │     │        │
     └────────┘        └────────┘        └────────┘     └────────┘
         │                  │                  ↑
         │                  └──────────────────┘
@@ -537,7 +537,7 @@ flash_sale.reminder          (Worker → Notification)
 
 ---
 
-**Last Updated**: 2026-04-28  
-**Version**: v5.3 RTS  
+**Last Updated**: 2026-05-05
+**Version**: v5.5
 **Format**: Markdown with ASCII diagrams
 

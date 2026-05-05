@@ -115,11 +115,8 @@
       "username": "shop_nike_vn",
       "email": "shop@nike.vn",
       "full_name": "Shop Nike Vietnam",
-      "roles": ["SELLER", "BUYER"],
       "status": "ACTIVE",
       "trust_score": 92,
-      "trust_tier": "DIAMOND",
-      "product_posting_suspended": false,
       "locked_until": null,
       "created_at": "2024-01-15T08:00:00Z",
       "updated_at": "2026-04-14T15:30:00Z"

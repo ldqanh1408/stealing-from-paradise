@@ -51,9 +51,7 @@
   "email": "a@example.com",
   "phone": "0901234567",
   "full_name": "Nguyễn Văn A",
-  "roles": ["BUYER"],
   "status": "ACTIVE",
-  "avatar_url": null,
   "created_at": "2026-04-15T08:00:00Z"
 }
 ```
@@ -67,7 +65,6 @@
     "email": "a@example.com",
     "phone": "0901234567",
     "username": "nguyen_van_a",
-    "roles": ["BUYER"],
     "timestamp": "2026-04-15T08:00:00Z",
     "source": "auth-service"
   }
@@ -114,10 +111,8 @@
   "email": "a@example.com",
   "phone": "0901234567",
   "full_name": "Nguyễn Văn A",
-  "roles": ["BUYER", "SELLER"],
   "status": "ACTIVE",
-  "avatar_url": "https://cdn.marketplace.vn/avatars/42.jpg"
-}
+  "created_at": "2026-04-15T08:05:00Z"
 ```
 
 **Response 403 — Account Locked**:
@@ -125,8 +120,6 @@
 {
   "error": "ACCOUNT_LOCKED",
   "message": "Tài khoản bị khóa",
-  "lock_reason": "Tài khoản bị khóa do vi phạm chính sách. Liên hệ support để được hỗ trợ.",
-  "locked_until": "2026-05-15T10:00:00Z",
   "status_code": 403
 }
 ```
@@ -235,14 +228,10 @@ SET revoked_token:{jti} = 1 EX 900
   "email": "a@example.com",
   "phone": "0901234567",
   "full_name": "Nguyễn Văn A",
-  "avatar_url": "https://cdn.marketplace.vn/avatars/42.jpg",
-  "roles": ["BUYER", "SELLER"],
   "status": "ACTIVE",
-  "product_posting_suspended": false,
-  "lock_reason": null,
-  "locked_until": null,
   "created_at": "2024-01-15T08:00:00Z"
 }
+```
 
 ---
 
@@ -255,7 +244,6 @@ SET revoked_token:{jti} = 1 EX 900
 ```json
 {
   "full_name": "Nguyễn Văn A",
-  "avatar_url": "https://cdn.marketplace.vn/avatars/42/uuid.jpg",
   "phone": "0901234567"
 }
 ```
@@ -268,10 +256,7 @@ SET revoked_token:{jti} = 1 EX 900
   "email": "a@example.com",
   "phone": "0901234567",
   "full_name": "Nguyễn Văn A",
-  "avatar_url": "https://cdn.marketplace.vn/avatars/42.jpg",
-  "roles": ["BUYER", "SELLER"],
   "status": "ACTIVE",
-  "product_posting_suspended": false,
   "created_at": "2024-01-15T08:00:00Z",
   "updated_at": "2026-04-15T10:30:00Z"
 }

@@ -1,6 +1,7 @@
 # Search Service — Database Tables
 
-> Cập nhật: 2026-05-03
+> Stack: PostgreSQL · Elasticsearch
+> Cập nhật: 2026-05-05
 
 ---
 
@@ -8,7 +9,7 @@
 Đánh chỉ mục sản phẩm cho tìm kiếm
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | VARCHAR | Mongo ObjectId — keyword |
 | `name` | TEXT | Tên sản phẩm — text |
 | `description` | TEXT | Mô tả — text |
@@ -29,18 +30,14 @@
 
 ---
 
-## Kafka Topics
+## Kafka Topics (Consumer)
 
 | Topic | Mục đích |
 |-------|----------|
-| `product.changes` | Realtime sync DB → Elasticsearch |
-
-### Event types
-
-| Type | ES action | Khi nào |
-|------|-----------|---------|
-| `CREATED` | Full index document | Sản phẩm mới tạo |
-| `UPDATED` | Full reindex | Tên, mô tả thay đổi |
-| `DELETED` | Update `is_active = false` | Soft delete |
-| `STOCK_CHANGED` | Partial update: `in_stock` | Tồn kho thay đổi |
-| `PRICE_CHANGED` | Partial update: `price` | Giá thay đổi |
+| `product.approved` | Index sản phẩm mới |
+| `product.updated` | Đồng bộ cập nhật sản phẩm |
+| `product.deleted` | Deindex sản phẩm |
+| `product.auto_hidden` | Ẩn sản phẩm bị rejected |
+| `account.locked` | Ẩn dữ liệu seller bị khóa |
+| `inventory.adjusted` | Đồng bộ tồn kho |
+| `category.updated` | Admin sửa danh mục |

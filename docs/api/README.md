@@ -1,15 +1,15 @@
-# 📚 API Documentation Summary
+﻿# 📚 API Documentation Summary
 
 **Project**: stealing-from-paradise Marketplace  
-**Version**: v5.4  
-**Status**: Reorganized & Consolidated  
-**Last Updated**: 2026-04-30
+**Version**: v5.5
+**Status**: Reorganized & Consolidated
+**Last Updated**: 2026-05-05
 
 ---
 
 ## 🎯 Documentation Reorganization
 
-Tài liệu API gốc `02_API.md` (5,220 dòng) đã được tách ra thành **9 file service riêng biệt** với cấu trúc rõ ràng, mỗi file chứa:
+Tài liệu API gốc `02_API.md` (5,220 dòng) đã được tách ra thành **10 file service riêng biệt** với cấu trúc rõ ràng, mỗi file chứa:
 
 ✅ Tất cả endpoints của service  
 ✅ Kafka producers/consumers chi tiết  
@@ -53,13 +53,14 @@ docs/
 | # | Service | Port | File | Endpoints | Status |
 |---|---------|------|------|-----------|--------|
 | 1 | **Identity** | 8081 | [Identity doc](../identity-service/02_API_identity_service.md) | 31 | Implemented |
-| 2 | **Product (+ Cart)** | 8082 | [Product doc](../product-service/02_API_product_service.md) | 24 | Implemented |
-| 3 | **Search** | 8089 | [Search doc](../search-service/02_API_search_service.md) | 0* | Routes configured |
-| 4 | **Order** | 8087 | [Order doc](../order-service/02_API_order_service.md) | 18 | Implemented |
-| 5 | **Payment (+ Refund)** | 8085 | [Payment doc](../payment-service/02_API_payment_service.md) | 15 | Implemented |
-| 6 | **Flash Sale** | 8086 | [Flash Sale doc](../flashsale-service/02_API_flash_sale_service.md) | 0* | Routes configured |
-| 7 | **Notification** | 8088 | [Notification doc](../notification-service/02_API_notification_service.md) | 0* | Routes configured |
-| 8 | **Admin** | - | [Admin doc](../admin-service/02_API_admin.md) | 14 | Implemented |
+| 2 | **Product (+ Cart)** | 8090 | [Product doc](../product-service/02_API_product_service.md) | 24 | Implemented |
+| 3 | **Search** | 8091 | [Search doc](../search-service/02_API_search_service.md) | 0* | Routes configured |
+| 4 | **Order** | 8083 | [Order doc](../order-service/02_API_order_service.md) | 18 | Implemented |
+| 5 | **Payment (+ Refund)** | 8082 | [Payment doc](../payment-service/02_API_payment_service.md) | 15 | Implemented |
+| 6 | **Flash Sale** | 8085 | [Flash Sale doc](../flashsale-service/02_API_flash_sale_service.md) | 0* | Routes configured |
+| 7 | **Notification** | 8092 | [Notification doc](../notification-service/02_API_notification_service.md) | 0* | Routes configured |
+| 8 | **AI Chat** | 8093 | [AI Chat doc](../ai-chat-service/02_API_ai_chat_service.md) | TBD | Implemented |
+|| 9 | **Admin** | - | [Admin doc](../admin-service/02_API_admin.md) | 14 | Implemented |
 
 > *Controllers still under development; gateway routes are configured.
 
@@ -263,7 +264,7 @@ docs/
 # SERVICE NAME
 
 **Service Name**: Name + Port  
-**Status**: v5.3 RTS
+**Status**: v5.5
 
 ## 📡 Kafka Integration
 
@@ -304,22 +305,21 @@ docs/
               ↓ routes to
     ┌─────────┴─────────┐
     ↓                   ↓
-[8081 Identity]    [8082 Product]
+[8081 Identity]    [8090 Product]
     ↓                   ↓
-[JWT/Auth]         [8089 Search]
+[JWT/Auth]         [8091 Search]
     │                   ↑
     │      ┌────────────┘
     │      │
-    ├─→[8087 Order Service]
-    │      ├─→[8085 Payment]
+    ├─→[8083 Order Service]
+    │      ├─→[8082 Payment]
     │      │   ├─→[Stripe API]
     │      │   └─→[Refund]
-    │      │
     │      ├─→[Inventory]
-    │      ├─→[8086 Flash Sale]
-    │      └─→[8084 Loyalty] (now in Identity)
+    │      ├─→[8085 Flash Sale]
+    │      └─→[8093 AI Chat]
     │
-    ├─→[8088 Notification] ← All services via Kafka
+    ├─→[8092 Notification] ← All services via Kafka
     │   (SSE real-time)
     │
     └─→[Admin APIs]
@@ -349,13 +349,13 @@ docs/
 - **[02_API.md](../02_API.md)** - Original unified API (deprecated, use individual service files)
 - **[03_BUSINESS.md](../03_BUSINESS.md)** - Business logic & workflows
 - **[04_POLICIES.md](../04_POLICIES.md)** - System rules, configuration
-- **[05_OPERATIONS.md](../05_OPERATIONS.md)** - Data retention, 23 cronjobs
+- **[05_OPERATIONS.md](../05_OPERATIONS.md)** - Data retention, 17 cronjobs
 - **[07_BUSINESS_FLOWS.md](../07_BUSINESS_FLOWS.md)** - Mermaid diagrams
 - **[ERD_FULL_SYSTEM.md](../ERD_FULL_SYSTEM.md)** - Entity-Relationship Diagram
 
 ---
 
-## ✨ v5.3 Features
+## ✨ v5.5 Features
 
 ✅ Trust Score Tier system (6 levels)  
 ✅ Multi-vendor order split  
@@ -364,7 +364,8 @@ docs/
 ✅ Return To Sender (RTS) workflow  
 ✅ Tracking number for refunds  
 ✅ Loyalty points integration  
-✅ Flash sale with Redis atomic operations  
+✅ Flash sale with Redis atomic operations
+✅ AI Chat Support (multi-turn conversation with Tool calls, human-in-the-loop)  
 
 ---
 
@@ -383,7 +384,7 @@ A: Each service file lists producers and consumers. Use these to follow event fl
 A: All except public endpoints (search, product view, register, login, category list)
 
 **Q: How many Kafka topics are there?**  
-A: See `00-index.md` for complete Kafka topics catalog (35+ topics)
+A: See `00-index.md` for complete Kafka topics catalog (47 topics)
 
 ---
 
@@ -398,7 +399,7 @@ A: See `00-index.md` for complete Kafka topics catalog (35+ topics)
 
 **Created**: 2026-04-28  
 **Consolidated from**: [02_API.md](../02_API.md) (5,220 lines)  
-**Services**: 9 consolidated files  
+**Services**: 10 consolidated files  
 **Total Endpoints**: 102+  
-**Status**: v5.3 RTS Production Ready
+**Status**: v5.5 Production Ready
 

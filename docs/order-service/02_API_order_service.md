@@ -50,14 +50,11 @@
 ```json
 {
   "parent_order_id": 55,
-  "order_code": "PO-20251001-55",
   "orders": [
     {
       "order_id": 100,
       "order_code": "OR-20251001-100",
       "seller_id": 5,
-      "seller_name": "Shop Nike VN",
-      "seller_trust_score": 92,
       "total_amt": 700000,
       "final_amt": 650000,
       "status": "PENDING",
@@ -65,12 +62,10 @@
         {
           "order_item_id": 501,
           "sku_code": "NK-AIR-RED-XL",
-          "product_name": "Áo Thun Nike Air",
-          "variant_name": "Đỏ / XL",
+          "name_snapshot": "Áo Thun Nike Air",
           "image_snapshot": "https://cdn.marketplace.vn/products-media/products/5/101/uuid.jpg",
           "price_snapshot": 350000,
-          "quantity": 2,
-          "subtotal": 700000
+          "quantity": 2
         }
       ],
       "created_at": "2026-10-01T10:00:00Z"
@@ -79,8 +74,6 @@
       "order_id": 101,
       "order_code": "OR-20251001-101",
       "seller_id": 9,
-      "seller_name": "Shop Adidas VN",
-      "seller_trust_score": 88,
       "total_amt": 500000,
       "final_amt": 500000,
       "status": "PENDING",
@@ -88,12 +81,10 @@
         {
           "order_item_id": 601,
           "sku_code": "AD-ULTRA-BLK-10",
-          "product_name": "Giày Adidas Ultraboost",
-          "variant_name": "Đen / EU 10",
+          "name_snapshot": "Giày Adidas Ultraboost",
           "image_snapshot": "https://cdn.marketplace.vn/products-media/products/9/201/uuid.jpg",
           "price_snapshot": 500000,
-          "quantity": 1,
-          "subtotal": 500000
+          "quantity": 1
         }
       ],
       "created_at": "2026-10-01T10:00:00Z"
@@ -105,17 +96,8 @@
     "province_id": 79,
     "district_id": 760
   },
-  "payment": {
-    "total_amount": 1200000,
-    "loyalty_discount": 50000,
-    "loyalty_points_used": 50,
-    "final_amount": 1150000,
-    "currency": "VND"
-  },
+  "total_amount": 1200000,
   "total_items": 3,
-  "total_sellers": 2,
-  "payment_status": "PENDING",
-  "timeout_at": "2026-10-01T10:30:00Z",
   "created_at": "2026-10-01T10:00:00Z"
 }
 ```
@@ -172,14 +154,10 @@
       "parent_order_id": 55,
       "order_code": "OR-20251001-100",
       "seller_id": 5,
-      "seller_name": "Shop Nike VN",
       "status": "PAID",
       "total_amt": 700000,
       "final_amt": 700000,
-      "is_flash_sale": false,
-      "item_count": 2,
-      "created_at": "2025-10-01T10:00:00Z",
-      "updated_at": "2025-10-01T10:05:00Z"
+      "created_at": "2025-10-01T10:00:00Z"
     }
   ],
   "total_elements": 12,
@@ -203,13 +181,10 @@
   "parent_order_id": 55,
   "order_code": "OR-20251001-100",
   "seller_id": 5,
-  "seller_name": "Shop Nike VN",
-  "buyer_id": 42,
-  "buyer_name": "Nguyễn Văn A",
+  "customer_id": 42,
   "status": "SHIPPING",
   "total_amt": 700000,
   "final_amt": 700000,
-  "is_flash_sale": false,
   "cancelled_by": null,
   "cancel_reason": null,
   "shipping_address": {
@@ -218,14 +193,12 @@
     "district_id": 760
   },
   "tracking_number": "VT123456789",
-  "carrier": "ViettelPost",
   "shipping_deadline": "2025-10-04T10:00:00Z",
   "items": [
     {
       "order_item_id": 501,
       "sku_code": "NK-AIR-RED-XL",
-      "product_name": "Áo Thun Nike Air",
-      "variant_name": "Đỏ / XL",
+      "name_snapshot": "Áo Thun Nike Air",
       "image_snapshot": "https://cdn.marketplace.vn/products-media/...",
       "price_snapshot": 350000,
       "quantity": 2,
@@ -329,8 +302,7 @@
   "order_code": "OR-20251001-100",
   "status": "DELIVERED",
   "delivered_at": "2026-10-03T14:30:00Z",
-  "loyalty_points_confirmed": 25,
-  "seller_trust_score_delta": 5
+  "loyalty_points_confirmed": 25
 }
 ```
 
@@ -366,7 +338,6 @@
 ```json
 {
   "tracking_number": "VT123456789",
-  "carrier": "ViettelPost",
   "note": "Giao hàng dự kiến 2-3 ngày"
 }
 ```
@@ -378,7 +349,6 @@
   "order_code": "OR-20251001-100",
   "status": "SHIPPING",
   "tracking_number": "VT123456789",
-  "carrier": "ViettelPost",
   "shipping_deadline": "2026-10-04T10:00:00Z",
   "updated_at": "2026-10-01T12:00:00Z"
 }
@@ -393,7 +363,6 @@
     "user_id": 42,
     "seller_id": 5,
     "tracking_number": "VT123456789",
-    "carrier": "ViettelPost",
     "shipped_at": "2026-10-01T12:00:00Z"
   }
 }
@@ -440,22 +409,11 @@ note: Hoàn do không gọi được Buyer, địa chỉ sai
   "order_code": "OR-20251001-1001",
   "order_status": "RETURNED",
   "refund_id": 99,
-  "refund_code": "RF-20251001-99",
   "refund_status": "PENDING",
-  "refund_amount": 250000,
   "return_tracking_number": "VT999888777",
-  "evidence_count": 2,
   "estimated_refund_days": 3,
   "stripe_refund_id": "re_3Px5Ab...",
   "message": "Hàng hoàn đã được ghi nhận. Hệ thống đang tự động hoàn tiền cho Buyer.",
-  "seller_notification": {
-    "status": "sent",
-    "message": "Xác nhận hàng hoàn đã được lưu. Tồn kho đã được cộng lại."
-  },
-  "buyer_notification": {
-    "status": "sent",
-    "message": "Seller đã nhận lại hàng hoàn. Tiền đang được hoàn về tài khoản của bạn."
-  },
   "created_at": "2026-10-01T14:30:00Z"
 }
 ```
@@ -570,7 +528,6 @@ PAID/SHIPPING/DELIVERED → PARTIALLY_REFUNDED / REFUNDED
     "total_amount": 500000,
     "refund_amount": 250000,
     "item_count": 1,
-    "estimated_days": 3,
     "message": "Yêu cầu hoàn tiền đã được ghi nhận"
   }
 }

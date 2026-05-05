@@ -30,6 +30,7 @@
 | `product-service` | 8090 | MongoDB | Traditional | Catalog, SKU variants, cart, images (MinIO) |
 | `search-service` | 8091 | Elasticsearch | Traditional | Full-text product search. **No REST controllers** — Kafka consumer only |
 | `notification-service` | 8092 | MongoDB | Traditional | SSE real-time notifications. **No REST controllers** — Kafka consumer only |
+| `ai-chat-service` | 8093 | PostgreSQL | Traditional | AI chat with LLM, Tool calls, human-in-the-loop confirmations |
 | `common-lib` | — | — | Shared lib | DTOs, exceptions, utilities |
 
 > **Admin Service**: Not a standalone process — admin routes handled inside relevant services, routed by API Gateway under `/admin/**`.
@@ -122,7 +123,7 @@ Controller  →  CommandGateway.send(XxxCommand)
 
 ## 7. Kafka Event Topology
 
-### Topics by Domain (41 total: 29 event + 12 request-reply)
+### Topics by Domain (47 total: 35 event + 12 request-reply)
 
 > Request-Reply topics (12) — xem chi tiết: `docs/11_KAFKA_REQUEST_REPLY.md`
 
@@ -182,6 +183,16 @@ flash_sale.item_approved   → Notification (seller)
 flash_sale.item_rejected   → Notification
 flash_sale.item_sold       → Inventory (update sold_count)
 flash_sale.reminder        → Notification (Worker cron)
+```
+
+**AI Chat** (Producer: ai-chat-service)
+```
+ai_chat.session_created   → Notification (new session alert)
+ai_chat.session_closed    → Notification (session closed)
+ai_chat.tool_executed    → Notification (tool call completed)
+ai_chat.confirm_needed   → Notification (human-in-the-loop pending)
+tool_call.failed          → Notification (tool execution failed)
+tool_call.rate_limited    → Notification (user rate limit)
 ```
 
 ---
@@ -268,6 +279,7 @@ stealing-from-paradise/
 │   ├── product-service/      Catalog + Cart (MongoDB)
 │   ├── search-service/       Elasticsearch
 │   ├── notification-service/ SSE (MongoDB)
+│   ├── ai-chat-service/     AI Chat + Tool calls (PostgreSQL)
 │   ├── common-lib/           Shared DTOs, exceptions
 │   ├── docker/               Init scripts (postgres, mongo, axon)
 │   └── pom.xml               Parent Maven POM
@@ -325,13 +337,14 @@ stealing-from-paradise/
 | **Worker** | OUTBOX_EVENTS, FAILED_EVENTS | worker-service |
 | **Product** | products, categories, cart_items, product_images (MongoDB) | product-service |
 | **Notification** | notifications (MongoDB) | notification-service |
+| **AI Chat** | CHAT_SESSIONS, CHAT_MESSAGES, PENDING_CONFIRMATIONS, TOOL_CALL_LOGS (PostgreSQL) | ai-chat-service |
 | **Search** | products index (Elasticsearch) | search-service |
 
 > See `docs/database-entities.md` for full schema · `docs/ERD_FULL_SYSTEM.md` for ERD diagram
 
 ---
 
-## 12. Operations (23 Cronjobs)
+## 12. Operations (17 Cronjobs)
 
 Distributed per service — each service runs its own scheduled jobs.
 

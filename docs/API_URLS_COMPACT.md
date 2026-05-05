@@ -24,32 +24,15 @@
 | POST | /users/me/addresses | Thêm địa chỉ |
 | PUT | /users/me/addresses/{addressId} | Sửa địa chỉ |
 | DELETE | /users/me/addresses/{addressId} | Xóa địa chỉ |
-| POST | /users/me/roles/seller | Đăng ký Seller |
-| GET | /users/me/trust-score/logs | Lịch sử trust score |
-| GET | /support/trust-score-appeal/presigned-url | Upload bằng chứng |
-| POST | /support/trust-score-appeal | Gửi khiếu nại |
-| GET | /loyalty/balance | Số dư điểm |
-| GET | /loyalty/transactions | Lịch sử giao dịch điểm |
-| GET | /loyalty/estimate | Tính điểm dự kiến |
 
 ### Admin (JWT + ADMIN)
 | Method | Path | Ghi chú |
 |--------|------|---------|
 | GET | /admin/users | DS người dùng |
-| POST | /admin/users/{userId}/lock | Khóa tài khoản |
-| POST | /admin/users/{userId}/unlock | Mở khóa |
-| POST | /admin/users/{userId}/trust-score | Điều chỉnh trust score |
-| GET | /admin/users/{userId}/trust-score/logs | Log trust score |
-| GET | /admin/users/{userId}/ban-history | Lịch sử khóa |
-| POST | /admin/users/{userId}/unlock-product-posting | Gỡ cấm đăng SP |
-| GET | /admin/trust-score-events-config | Xem cấu hình event |
-| PUT | /admin/trust-score-events-config/{eventCode} | Sửa cấu hình event |
-| GET | /admin/appeals | DS khiếu nại |
-| POST | /admin/appeals/{appealId}/resolve | Duyệt/từ chối khiếu nại |
 
 ---
 
-## Product Service (`product-service:8082`)
+## Product Service (`product-service:8090`)
 
 ### Public
 | Method | Path | Ghi chú |
@@ -141,7 +124,7 @@
 
 ---
 
-## Payment Service (`payment-service:8084`)
+## Payment Service (`payment-service:8082`)
 
 ### Public
 | Method | Path | Ghi chú |
@@ -161,6 +144,7 @@
 | Method | Path | Ghi chú |
 |--------|------|---------|
 | GET | /payments/parent-order/{parentOrderId} | Trạng thái thanh toán |
+| GET | /payments/by-intent/{stripePaymentIntentId} | Tra cứu theo Payment Intent |
 
 ### Admin (JWT + ADMIN)
 | Method | Path | Ghi chú |
@@ -207,7 +191,7 @@
 
 ---
 
-## Search Service (`search-service:8086`)
+## Search Service (`search-service:8091`)
 
 ### Public
 | Method | Path | Ghi chú |
@@ -217,7 +201,7 @@
 
 ---
 
-## Notification Service (`notification-service:8087`)
+## Notification Service (`notification-service:8092`)
 
 ### JWT Required
 | Method | Path | Ghi chú |
@@ -230,7 +214,7 @@
 
 ---
 
-## Worker Service (`worker-service:8089`)
+## Worker Service (`worker-service:8086`)
 
 ### Admin (JWT + ADMIN)
 | Method | Path | Ghi chú |
@@ -241,7 +225,7 @@
 
 ---
 
-## AI Chat Service (`ai-chat-service`)
+## AI Chat Service (`ai-chat-service:8093`)
 
 > Base path: `/api/ai` → Gateway routes to `ai-chat-service`
 
@@ -265,15 +249,15 @@
 
 | Service | Public | JWT | Seller | Buyer | Admin | Tổng |
 |---------|--------|-----|--------|-------|-------|------|
-| Identity | 3 | 16 | - | - | 11 | 30 |
+| Identity | 3 | 12 | - | - | 3 | 18 |
 | Product | 3 | 5 | 16 | - | 6 | 30 |
 | Order | 0 | - | 4 | 15 | 3 | 22 |
-| Payment | 1 | 1 | 5 | - | 3 | 10 |
+| Payment | 1 | 2 | 5 | - | 3 | 11 |
 | Flash Sale | 2 | 1 | 1 | 2 | 6 | 12 |
 | Search | 2 | - | - | - | - | 2 |
 | Notification | - | 5 | - | - | - | 5 |
 | Worker | - | - | - | - | 3 | 3 |
 | AI Chat | 1 | 5 | - | - | - | 6 |
-| **Tổng** | **12** | **33** | **26** | **17** | **32** | **119** |
+| **Tổng** | **12** | **29** | **26** | **17** | **27** | **111** |
 
 > Ghi chú: Một số endpoint được nhiều role truy cập (vd: GET /orders/{orderId} cho cả BUYER lẫn SELLER) được tính vào mỗi role tương ứng.

@@ -38,7 +38,7 @@
 | 8 | `product.pending_review` | 🔗 [Product Service](../product-service/KAFKA_EVENTS.md) | Alert admin to review |
 | 9 | `product.approved` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller of approval |
 | 10 | `product.rejected` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller of rejection with reason |
-| 10 | `product.auto_hidden` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller product auto-hidden |
+| 11 | `product.auto_hidden` | 🔗 [Admin Service](../admin-service/KAFKA_EVENTS.md) | Notify seller product auto-hidden |
 
 ### Order Events
 

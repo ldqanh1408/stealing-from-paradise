@@ -1,6 +1,6 @@
 # 📱 Marketplace Platform
 
-**Tài liệu Nghiệp Vụ thuần túy • Phiên bản v5.3 • Cập nhật: Return To Sender (RTS) • Thanh toán: Stripe • 16 Cronjobs (v5.0 — Distributed per Service)**
+**Tài liệu Nghiệp Vụ thuần túy • Phiên bản v5.5 • Cập nhật: Return To Sender (RTS) • Thanh toán: Stripe • 17 Cronjobs (v5.0 — Distributed per Service)**
 
 > **v5.0:** Cronjobs được chạy trong service tương ứng (identity-service, flashsale-service, product-service, order-service, payment-service, notification-service). Không có worker-service trung tâm. Xem chi tiết tại [05_OPERATIONS.md](05_OPERATIONS.md).
 
@@ -8,7 +8,7 @@
 
 - **7** Luồng nghiệp vụ
 - **4** Chính sách cột lại
-- **16** Cronjobs
+- **17** Cronjobs
 - **3** Vai trò người dùng
 
 ---
@@ -24,7 +24,7 @@ Marketplace Platform là sàn thương mại điện tử đa nhà bán (multi-v
 - Hoàn tiền (Buyer + RTS từ đơng)
 - Flash Sale concurrency cao
 - Product lifecycle
-- 23 Cronjobs
+- 17 Cronjobs
 - Outbox + DLQ
 - Data Retention
 
@@ -469,7 +469,7 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 
 ---
 
-## 🤖 Cronjobs — 16 Jobs Tự động (v5.0 — Distributed per Service)
+## 🤖 Cronjobs — 17 Jobs Tự động (v5.0 — Distributed per Service)
 
 > **Mỗi job chạy trong service sở hữu primary data.** Không có worker-service trung tâm. Xem chi tiết tại [05_OPERATIONS.md](05_OPERATIONS.md).
 
@@ -492,6 +492,7 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 | JOB-12 | payment-service | Dọn ShedLock stale entries |
 | JOB-15 | payment-service | Nullify Stripe onboarding URL (>24h) |
 | JOB-16 | product-service | Soft-delete sản phẩm REJECTED không sửa (90 ngày) |
+| JOB-17 | identity-service | Auto-lock/unlock tài khoản theo Trust Score |
 | JOB-22 | order-service | Auto-delivered SHIPPING >7 ngày |
 
 ### 📆 Định kỳ (tuần / tháng / năm)

@@ -1,8 +1,8 @@
-# 🧭 Kafka Events & Topics Catalog
+﻿# 🧭 Kafka Events & Topics Catalog
 
 **Project**: stealing-from-paradise Marketplace  
-**Version**: v5.4  
-**Last Updated**: 2026-05-04
+**Version**: v5.5  
+**Last Updated**: 2026-05-05
 
 > Tài liệu này là **index catalog** — mỗi service có file riêng với chi tiết đầy đủ.  
 > Xem per-service docs để biết payload, consumer actions và request-reply cycles.
@@ -13,8 +13,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total Topics** | 41 (29 event topics + 12 request-reply topics) |
-| **Event Producers** | 7 services (Identity, Product, Order, Payment, Flash Sale, Admin, Worker) |
+| **Total Topics** | 47 (35 event topics + 12 request-reply topics) |
+| **Event Producers** | 8 services (Identity, Product, Order, Payment, Flash Sale, Admin, Worker) |
 | **Event Consumers** | 8 services |
 | **Max Consumers per Topic** | 4+ (Notification Service) |
 | **Retention Policy** | 7–365 days (depends on topic type) |
@@ -29,12 +29,13 @@
 | 1 | **Identity** (8081) | account.*, appeal.*, loyalty.*, seller.*, trust_score.* | order.delivered, order.cancelled, refund.admin_approved, seller.order_cancelled, stripe.account_suspended | Responder: order.address | 🔗 [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) |
 | 2 | **Product + Cart + Inventory** (8090) | product.*, category.*, inventory.*, product.pending_review | order.created, order.cancelled, order.returned, order.checkout_completed, order.auto_cancelled, flash_sale.* | Responder: cart.product_info, order.stock_check, order.cart_items | 🔗 [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) |
 | 3 | **Search** (8091) | — (consumer-only) | product.*, category.*, inventory.*, account.locked, order.created | — | 🔗 [search-service/KAFKA_EVENTS.md](search-service/KAFKA_EVENTS.md) |
-| 4 | **Order** (8087) | order.*, seller.order_cancelled | payment.*, refund.stripe_auto, refund.rts_completed, stripe.transfer.reversed | Requester: order.stock_check, order.payment_status, order.cart_items, order.address, order.refunds | 🔗 [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) |
-| 5 | **Payment + Refund** (8085) | payment.*, refund.*, stripe.* | order.returned | Responder: order.payment_status, order.refunds | 🔗 [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) |
-| 6 | **Flash Sale** (8086) | flash_sale.* | — | — | 🔗 [flashsale-service/KAFKA_EVENTS.md](flashsale-service/KAFKA_EVENTS.md) |
+| 4 | **Order** (8083) | order.*, seller.order_cancelled | payment.*, refund.stripe_auto, refund.rts_completed, stripe.transfer.reversed | Requester: order.stock_check, order.payment_status, order.cart_items, order.address, order.refunds | 🔗 [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) |
+| 5 | **Payment + Refund** (8082) | payment.*, refund.*, stripe.* | order.returned | Responder: order.payment_status, order.refunds | 🔗 [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) |
+| 6 | **Flash Sale** (8085) | flash_sale.* | — | — | 🔗 [flashsale-service/KAFKA_EVENTS.md](flashsale-service/KAFKA_EVENTS.md) |
 | 7 | **Notification** (8092) | — (consumer-only) | 20+ topics từ tất cả services (SSE + MongoDB) | — | 🔗 [notification-service/KAFKA_EVENTS.md](notification-service/KAFKA_EVENTS.md) |
 | 8 | **Admin** (routes trong services) | product.approved, product.rejected, product.auto_hidden | — | — | 🔗 [admin-service/KAFKA_EVENTS.md](admin-service/KAFKA_EVENTS.md) |
 | 9 | **Worker** (8086) | flash_sale.reminder | order.created, payment.success | — | 🔗 [worker-service/KAFKA_EVENTS.md](worker-service/KAFKA_EVENTS.md) |
+| 10 | **AI Chat** (8093) | ai_chat.*, tool_call.* | — | — | 🔗 [ai-chat-service/KAFKA_EVENTS.md](ai-chat-service/KAFKA_EVENTS.md) |
 
 ---
 
@@ -215,4 +216,4 @@ Admin retry via: `POST /admin/failed-events/{id}/retry`
 
 ---
 
-**Version**: v5.4 · **Total Topics**: 41 (29 event + 12 request-reply) · **Status**: Production Ready
+**Version**: v5.5 · **Total Topics**: 47 (35 event + 12 request-reply) · **Status**: Production Ready

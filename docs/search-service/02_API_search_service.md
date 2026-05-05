@@ -42,7 +42,6 @@ GET /search/products?q=áo thun&category_id=507f1f77bcf86cd799439011&price_min=1
       "name": "Áo Thun Nike Air Nam",
       "seller_id": 5,
       "seller_name": "Shop Nike VN",
-      "seller_trust_score": 92,
       "category_id": "507f1f77bcf86cd799439011",
       "category_name": "Áo Thun Nam",
       "price_min": 250000,
@@ -52,22 +51,9 @@ GET /search/products?q=áo thun&category_id=507f1f77bcf86cd799439011&price_min=1
       ],
       "stock_available": 95,
       "is_flash": true,
-      "flash_price": 189999,
-      "rating_avg": 4.7,
-      "rating_count": 245,
-      "sold_count": 1200,
       "created_at": "2026-04-01T08:00:00Z"
     }
-  ],
-  "facets": {
-    "price_ranges": [
-      { "range": "0-100000", "count": 32 },
-      { "range": "100000-500000", "count": 98 }
-    ],
-    "sellers": [
-      { "seller_id": 5, "seller_name": "Shop Nike VN", "count": 45 }
-    ]
-  }
+  ]
 }
 ```
 

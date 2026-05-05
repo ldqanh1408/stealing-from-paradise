@@ -1,6 +1,7 @@
 # Identity Service — Database Tables
 
-> Cập nhật: 2026-05-03
+> Stack: PostgreSQL
+> Cập nhật: 2026-05-05
 
 ---
 
@@ -8,7 +9,7 @@
 Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key, ID tự tăng |
 | `username` | VARCHAR | Unique, tên đăng nhập |
 | `email` | VARCHAR | Unique, email xác thực |
@@ -16,9 +17,6 @@ Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 | `password` | VARCHAR | Mật khẩu Bcrypt |
 | `full_name` | VARCHAR | Tên hiển thị |
 | `status` | VARCHAR | ACTIVE \| LOCKED |
-| `locked_until` | TIMESTAMP | NULL = khóa vĩnh viễn; có giá trị = tự mở sau |
-| `lock_reason` | VARCHAR | Lý do khóa |
-| `version` | INT | Optimistic Locking |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
@@ -30,14 +28,9 @@ Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 Hồ sơ Buyer (1:1 với USERS)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `user_id` | BIGINT | FK → USERS.id, UNIQUE |
-| `trust_score` | INT | 0-100, mặc định 80 |
-| `appeal_count` | INT | Số lần appeal/năm (max 3) |
-| `last_warning_at` | TIMESTAMP | Mốc warning gần nhất (debounce 24h) |
-| `last_cancellation_penalty_at` | TIMESTAMP | Mốc trừ điểm hủy đơn gần nhất |
-| `reward_10_orders_accumulated` | INT | Tổng điểm từ sự kiện EVERY_10_ORDERS (không reset, cap +20) |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
@@ -47,14 +40,9 @@ Hồ sơ Buyer (1:1 với USERS)
 Hồ sơ Seller (1:1 với USERS, bắt buộc KYC Stripe)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `user_id` | BIGINT | FK → USERS.id, UNIQUE |
-| `trust_score` | INT | 0-100, mặc định 80 |
-| `appeal_count` | INT | Số lần appeal/năm (max 3) |
-| `last_warning_at` | TIMESTAMP | Mốc warning gần nhất (debounce 24h) |
-| `product_posting_suspended` | BOOLEAN | TRUE = tạm dừng đăng sản phẩm |
-| `last_posting_suspension_at` | TIMESTAMP | Mốc cấm đăng bài gần nhất |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
@@ -64,7 +52,7 @@ Hồ sơ Seller (1:1 với USERS, bắt buộc KYC Stripe)
 Hồ sơ Admin (1:1 với USERS)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `user_id` | BIGINT | FK → USERS.id, UNIQUE |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
@@ -76,7 +64,7 @@ Hồ sơ Admin (1:1 với USERS)
 Địa chỉ giao hàng (dùng chung cho Buyer và Seller)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `user_id` | BIGINT | FK → USERS.id, chủ sở hữu |
 | `province_id` | INT | Mã Tỉnh/Thành phố |

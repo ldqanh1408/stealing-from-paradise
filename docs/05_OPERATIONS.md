@@ -1,4 +1,4 @@
-# Data Retention, Cleanup Cronjobs & Policy
+﻿# Data Retention, Cleanup Cronjobs & Policy
 
 **Phiên bản:** **v5.0** - Mỗi service tự quản lý jobs của mình
 **Áp dụng cho:** Marketplace Microservices (Java 25 / Spring Boot 4.0.4)
@@ -61,7 +61,7 @@
 
 ---
 
-### 🏠 identity-service (`:8085`) — Trust Score & Account Management
+### 🏠 identity-service (`:8081`) — Trust Score & Account Management
 
 ---
 
@@ -282,7 +282,7 @@ db.mg_carts.find({ updated_at: { $lt: new Date(Date.now() - 90*24*60*60*1000) } 
 
 ---
 
-### 🛒 order-service (`:8088`) — Orders
+### 🛒 order-service (`:8083`) — Orders
 
 ---
 
@@ -357,7 +357,7 @@ VALUES ('order.delivered', ?, 'PENDING', NOW());
 
 ---
 
-### 💳 payment-service (`:8089`) — Payments & Outbox
+### 💳 payment-service (`:8082`) — Payments & Outbox
 
 ---
 

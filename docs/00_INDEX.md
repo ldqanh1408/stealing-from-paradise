@@ -1,8 +1,8 @@
 # Documentation Index
 
 **Project**: stealing-from-paradise — Flash Sale E-Commerce Platform
-**Version**: v5.4
-**Last Updated**: 2026-05-04
+**Version**: v5.5
+**Last Updated**: 2026-05-05
 **Status**: Production-Ready
 
 ---
@@ -49,7 +49,7 @@ docs/
 ├── 01_OVERVIEW.md           Architecture, services, tech stack, setup
 ├── 03_BUSINESS.md           Business logic, workflows, policies
 ├── 04_POLICIES.md          System rules, trust score, flash sale, loyalty
-├── 05_OPERATIONS.md         23 cronjobs, data retention, cleanup
+├── 05_OPERATIONS.md         17 cronjobs, data retention, cleanup
 ├── 06_PAYMENT_SAGA_FLOW.md Axon Saga payment orchestration
 ├── 07_BUSINESS_FLOWS.md     Visual flows (Mermaid diagrams)
 ├── 08_PAYMENT_ORDER_INTEGRATION.md Order-Payment integration
@@ -59,6 +59,8 @@ docs/
 ├── database-entities.md     Full database schema documentation
 ├── 10_ENVIRONMENT_VARIABLES.md  All env vars, .env template, security notes
 ├── 11_KAFKA_REQUEST_REPLY.md    Request-Reply over Kafka pattern (6 pairs)
+├── ai-chat-service/
+│   └── KAFKA_EVENTS.md      AI Chat Kafka events
 └── README.md                This documentation guide
 ```
 
@@ -82,15 +84,19 @@ docs/
 │   └── 02_API_flash_sale_service.md  Flash sale (routes configured, WIP)
 ├── notification-service/
 │   └── 02_API_notification_service.md  SSE notifications (routes configured, WIP)
-└── admin-service/
-    ├── 02_API_admin.md            Admin APIs (14 endpoints)
-    └── KAFKA_EVENTS.md            Kafka events for Admin domain
+├── admin-service/
+│   ├── 02_API_admin.md            Admin APIs (14 endpoints)
+│   └── KAFKA_EVENTS.md            Kafka events for Admin domain
+├── ai-chat-service/
+│   └── KAFKA_EVENTS.md            AI Chat Kafka events (7 topics)
+└── worker-service/
+    └── KAFKA_EVENTS.md            Worker Kafka events
 
 #### Kafka Event Docs (Per-Service)
 
 ```
 docs/
-├── KAFKA_EVENTS.md                Index catalog (41 topics total)
+├── KAFKA_EVENTS.md                Index catalog (47 topics total)
 ├── identity-service/KAFKA_EVENTS.md   account.*, loyalty.*, seller.*
 ├── product-service/KAFKA_EVENTS.md    product.*, inventory.*, cart.*
 ├── search-service/KAFKA_EVENTS.md     consumer-only (10 topics)
@@ -100,6 +106,7 @@ docs/
 ├── notification-service/KAFKA_EVENTS.md  consumer-only (20+ topics)
 ├── admin-service/KAFKA_EVENTS.md      product.approved/rejected/auto_hidden
 ├── worker-service/KAFKA_EVENTS.md     flash_sale.reminder, outbox pattern
+├── ai-chat-service/KAFKA_EVENTS.md    ai_chat.*, tool_call.*
 └── 11_KAFKA_REQUEST_REPLY.md        6 request-reply pairs
 ```
 ```
@@ -112,13 +119,13 @@ docs/
 | 2 | 01_OVERVIEW.md | ~1200 | Project architecture, tech stack, setup |
 | 3 | 03_BUSINESS.md | ~700 | Business logic & workflows |
 | 5 | 04_POLICIES.md | ~500 | System policies & rules |
-| 6 | 05_OPERATIONS.md | ~800 | 23 cronjobs, data retention |
+| 6 | 05_OPERATIONS.md | ~800 | 17 cronjobs, data retention |
 | 7 | 06_PAYMENT_SAGA_FLOW.md | — | Payment Saga pattern |
 | 8 | 07_BUSINESS_FLOWS.md | ~900 | Visual flows (Mermaid) |
 | 9 | 08_PAYMENT_ORDER_INTEGRATION.md | — | Order-Payment integration |
 | 10 | 09_RUNNING.md | ~600 | Running & deployment guide |
 | 11 | ARCHITECTURE.md | ~600 | Service architecture & Kafka flows |
-| 12 | KAFKA_EVENTS.md | ~220 | Kafka index → 9 per-service event docs |
+| 12 | KAFKA_EVENTS.md | ~220 | Kafka index → 10 per-service event docs |
 | 13 | database-entities.md | ~800 | Database schema reference |
 | 14 | README.md | ~200 | Documentation guide |
 | — | api/README.md | ~400 | API overview |
@@ -150,13 +157,14 @@ docs/
 | API Gateway | 8080 | — | Entry point, JWT validation, routing |
 | Discovery Service | 8761 | — | Eureka service registry |
 | Identity Service | 8081 | PostgreSQL | Auth, users, loyalty |
-| Payment Service | 8085 | PostgreSQL + Axon | Stripe, payments |
-| Order Service | 8087 | PostgreSQL + Axon | Orders, checkout, RTS |
-| Flashsale Service | 8086 | PostgreSQL + Axon | Flash sales, Redis |
+| Payment Service | 8082 | PostgreSQL + Axon | Stripe, payments |
+| Order Service | 8083 | PostgreSQL + Axon | Orders, checkout, RTS |
+| Flashsale Service | 8085 | PostgreSQL + Axon | Flash sales, Redis |
 | Worker Service | 8086 | PostgreSQL + Axon | Outbox, failed events, DLQ |
 | Product Service | 8090 | MongoDB | Products, cart, variants |
 | Search Service | 8091 | Elasticsearch | Full-text search |
 | Notification Service | 8092 | MongoDB | SSE, real-time notifications |
+| AI Chat Service | 8093 | PostgreSQL | AI chat, tool calls, human-in-the-loop |
 
 ### Frontend Apps
 
@@ -221,8 +229,9 @@ docs/
 - Real-time SSE notifications via Notification Service
 - Full-text search with Elasticsearch
 - Return To Sender (RTS) refund workflow
-- 23 scheduled cronjobs for data retention and cleanup
-- 41 Kafka topics for event-driven architecture
+- AI Chat Support (multi-turn conversation with Tool calls, human-in-the-loop)
+- 17 scheduled cronjobs for data retention and cleanup
+- 47 Kafka topics for event-driven architecture
 - Axon Framework for Order, Payment, Flashsale, Worker services
 
 ---
@@ -246,6 +255,7 @@ docs/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v5.5 | 2026-05-05 | Documentation refactor: ports unified, Redis 7.2, AI Chat docs, 47 Kafka topics |
 | v5.4 | 2026-05-01 | Documentation consolidation, index created, service docs organized |
 | v5.3 RTS | 2026-04-30 | Return To Sender, tracking number for refunds |
 | v5.0 | 2026-04-22 | Distributed cronjobs per service, Loyalty merged into Identity |
@@ -254,6 +264,6 @@ docs/
 
 ---
 
-**Last Updated**: 2026-05-04
-**Documentation Version**: v5.4
-**Total Documents**: 24
+**Last Updated**: 2026-05-05
+**Documentation Version**: v5.5
+**Total Documents**: 30

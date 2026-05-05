@@ -1,6 +1,7 @@
 # Payment Service — Database Tables
 
-> Cập nhật: 2026-05-03
+> Stack: PostgreSQL · Axon
+> Cập nhật: 2026-05-05
 
 ---
 
@@ -8,7 +9,7 @@
 KYC Stripe cho Seller
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `seller_id` | BIGINT | FK → SELLERS.id, UNIQUE |
 | `stripe_account_id` | VARCHAR | acct_xxx — Stripe Express Account ID |
@@ -25,14 +26,13 @@ KYC Stripe cho Seller
 ---
 
 ## TRANSACTIONS
-Giao dịch thanh toán (dùng Stripe hoặc VNPAY)
+Giao dịch thanh toán (dùng Stripe)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `parent_order_id` | BIGINT | FK → PARENT_ORDERS.id |
 | `amount` | DECIMAL | Số tiền giao dịch |
-| `method` | VARCHAR | STRIPE \| VNPAY |
 | `trans_ref` | VARCHAR | PaymentIntent ID (pi_xxx) |
 | `stripe_transfer_id` | VARCHAR | Transfer ID tr_xxx (chỉ lưu transfer đầu tiên) |
 | `application_fee_amount` | DECIMAL | Phí sàn |
@@ -49,7 +49,7 @@ Giao dịch thanh toán (dùng Stripe hoặc VNPAY)
 Transfer tiền cho Seller sau khi DELIVERED
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `order_id` | BIGINT | FK → ORDERS.id |
 | `seller_id` | BIGINT | FK → SELLERS.id |
@@ -65,7 +65,7 @@ Transfer tiền cho Seller sau khi DELIVERED
 Phiếu hoàn tiền
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `transaction_id` | BIGINT | FK → TRANSACTIONS.id |
 | `order_id` | BIGINT | FK → ORDERS.id |
@@ -79,7 +79,6 @@ Phiếu hoàn tiền
 | `evidence_images` | JSONB | Mảng ảnh bằng chứng (MinIO) |
 | `reject_reason` | VARCHAR | Lý do từ chối |
 | `admin_note` | TEXT | Ghi chú admin |
-| `adjust_amount` | DECIMAL | Số tiền admin điều chỉnh |
 | `reviewed_by` | BIGINT | FK → ADMINS.id |
 | `reviewed_at` | TIMESTAMP | Thời điểm duyệt/từ chối |
 | `refund_ref` | VARCHAR | Stripe refund ID (re_xxx) |
@@ -93,7 +92,7 @@ Phiếu hoàn tiền
 Chi tiết hoàn tiền (từng sản phẩm)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `refund_id` | BIGINT | FK → REFUNDS.id |
 | `item_id` | BIGINT | FK → ORDER_ITEMS.id |
@@ -102,5 +101,53 @@ Chi tiết hoàn tiền (từng sản phẩm)
 | `item_reason` | VARCHAR | Lý do hoàn riêng |
 | `status` | VARCHAR | PENDING \| SUCCESS \| FAILED |
 | `return_tracking_number` | VARCHAR | Mã vận đơn hoàn hàng |
-| `return_evidence_images` | JSONB | Mảng ảnh gói hàng hoàn (MinIO) |
 | `returned_at` | TIMESTAMP | Thời điểm Seller xác nhận nhận lại |
+
+---
+
+## Infrastructure Tables
+
+> Các bảng dưới đây thuộc Infrastructure & Messaging domain, được quản lý chính bởi **worker-service**.
+> Payment service maintain local copy phục vụ outbox pattern riêng.
+
+### OUTBOX_EVENTS
+Event Outbox Pattern (cho eventual consistency)
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|---------|
+| `id` | BIGSERIAL | Primary Key |
+| `topic` | VARCHAR | Tên topic/event |
+| `payload` | JSONB | Nội dung event |
+| `status` | VARCHAR | PENDING \| PROCESSED \| FAILED |
+| `retry_count` | INT | Số lần retry |
+| `processed_at` | TIMESTAMP | Thời điểm xử lý |
+| `created_at` | TIMESTAMP | Thời điểm tạo |
+| `updated_at` | TIMESTAMP | Cập nhật cuối |
+
+---
+
+### FAILED_EVENTS
+Lưu trữ event/task lỗi để xử lý thủ công
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|---------|
+| `id` | BIGSERIAL | Primary Key |
+| `topic_or_task` | VARCHAR | Tên topic hoặc task |
+| `payload` | JSONB | Payload bị lỗi |
+| `error_reason` | TEXT | Lý do lỗi |
+| `retry_count` | INT | Số lần retry |
+| `status` | VARCHAR | PENDING \| DEAD \| RESOLVED \| MANUAL_INTERVENTION |
+| `created_at` | TIMESTAMP | Thời điểm tạo |
+| `updated_at` | TIMESTAMP | Cập nhật cuối |
+
+---
+
+### SHEDLOCK
+Distributed Lock cho scheduled jobs (ShedLock)
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|---------|
+| `name` | VARCHAR | Primary Key, tên lock |
+| `lock_until` | TIMESTAMP | Thời điểm hết lock |
+| `locked_at` | TIMESTAMP | Thời điểm bắt đầu lock |
+| `locked_by` | VARCHAR | Node/thread đang giữ lock |

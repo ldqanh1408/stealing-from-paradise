@@ -39,14 +39,14 @@ graph TB
     end
 
     subgraph AxonServices["Axon Services (CQRS + Event Sourcing)"]
-        ORD[order-service<br>:8088<br>OrderAggregate<br>ParentOrderPaymentSaga<br>OrderProcessingSaga]
-        PAY[payment-service<br>:8089<br>PaymentAggregate<br>RefundModule]
+        ORD[order-service<br>:8083<br>OrderAggregate<br>ParentOrderPaymentSaga<br>OrderProcessingSaga]
+        PAY[payment-service<br>:8082<br>PaymentAggregate<br>RefundModule]
         FS[flashsale-service<br>:8085<br>FlashSaleAggregate]
         WRK[flashsale-service<br>:8085<br>FlashSaleAggregate<br>Cronjobs<br>(JOB-01/02/08/21)]
     end
 
     subgraph TraditionalServices["Traditional Services"]
-        IDT[identity-service<br>:8085<br>PostgreSQL<br>JWT Auth]
+        IDT[identity-service<br>:8081<br>PostgreSQL<br>JWT Auth]
         PRD[product-service<br>:8090<br>MongoDB<br>Carts]
         SCH[search-service<br>:8091<br>Elasticsearch]
         NTF[notification-service<br>:8092<br>MongoDB<br>Email/SMS]
@@ -103,10 +103,10 @@ graph LR
     FE -->|"GET /api/v1/admin/**"| GW
     FE -->|"GET /api/v1/seller/**"| GW
 
-    GW -->|"→ identity-service:8085"| GW
+    GW -->|"→ identity-service:8081"| GW
     GW -->|"→ product-service:8090"| GW
-    GW -->|"→ order-service:8088"| GW
-    GW -->|"→ payment-service:8089"| GW
+    GW -->|"→ order-service:8083"| GW
+    GW -->|"→ payment-service:8082"| GW
     GW -->|"→ flashsale-service:8085"| GW
     GW -->|"→ search-service:8091"| GW
     GW -->|"→ notification-service:8092"| GW

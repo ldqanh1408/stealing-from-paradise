@@ -1,6 +1,7 @@
 # Flash Sale Service — Database Tables
 
-> Cập nhật: 2026-05-03
+> Stack: PostgreSQL
+> Cập nhật: 2026-05-05
 
 ---
 
@@ -8,7 +9,7 @@
 Session Flash Sale (theo khoảng thời gian)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `name` | VARCHAR | Tên flash sale session |
 | `start_time` | TIMESTAMP | Thời điểm bắt đầu |
@@ -24,7 +25,7 @@ Session Flash Sale (theo khoảng thời gian)
 Sản phẩm tham gia Flash Sale
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `session_id` | BIGINT | FK → FS_SESSIONS.id |
 | `sku_code` | VARCHAR | FK → MG_PRODUCT_VARIANTS.sku_code |
@@ -43,7 +44,7 @@ Sản phẩm tham gia Flash Sale
 Nhắc nhở Flash Sale (dành cho Buyer có trust_score ≥ 30)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `customer_id` | BIGINT | FK → CUSTOMERS.id |
 | `session_id` | BIGINT | FK → FS_SESSIONS.id |

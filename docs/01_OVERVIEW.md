@@ -1,4 +1,4 @@
-# Flash Sale E-Commerce Platform - Project Overview
+﻿# Flash Sale E-Commerce Platform - Project Overview
 
 **Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)
 **Date**: 2026-05-01  
@@ -56,7 +56,7 @@
 | **Axon Framework** | 4.13.0 | Event sourcing & CQRS |
 | **PostgreSQL** | 15.4 | SQL database |
 | **MongoDB** | 6.0 | NoSQL database |
-| **Redis** | 7.0 | Cache |
+| **Redis** | 7.2 | Cache |
 | **Kafka** | 7.4.0 | Message queue |
 | **Elasticsearch** | 8.10 | Search engine |
 | **MinIO** | Latest | Object storage |
@@ -109,7 +109,7 @@
                    PaymentSaga FlashSaleSaga
 ```
 
-### Backend Services (11 microservices + common-lib)
+### Backend Services (12 microservices + common-lib)
 
 #### **Infrastructure Services**
 
@@ -173,9 +173,16 @@
     - Order/payment alerts
     - Database: MongoDB
 
+11. **ai-chat-service** (Port 8093)
+    - Multi-turn AI conversation with LLM integration
+    - Tool calls for order, product, refund, loyalty operations
+    - Human-in-the-loop for Mức 3 risky actions (confirm tokens)
+    - Audit trail for tool calls (partitioned by month)
+    - Database: PostgreSQL
+
 #### **Shared Library**
 
-11. **common-lib**
+12. **common-lib**
     - Shared DTOs
     - Common exceptions
     - Utility functions
@@ -301,9 +308,10 @@ product-service/
 
 ### Traditional Database Services:
 - identity-service (PostgreSQL + JPA)
-- product-service (MongoDB + Redis for Cart)
+- product-service (MongoDB + Redis 7.2 for Cart)
 - search-service (Elasticsearch)
 - notification-service (MongoDB)
+- ai-chat-service (PostgreSQL)
 - common-lib (Shared code)
 ```
 
@@ -560,17 +568,17 @@ mvn spring-boot:run
 # Identity Service
 cd backend/identity-service
 mvn spring-boot:run
-# Port: 8085
+# Port: 8081
 
 # Product Service
 cd backend/product-service
 mvn spring-boot:run
-# Port: 8086
+# Port: 8090
 
 # Order Service (Axon)
 cd backend/order-service
 mvn spring-boot:run
-# Port: 8088
+# Port: 8083
 # Requires Axon Server running
 
 # Continue for other services...
@@ -863,9 +871,9 @@ http://localhost:8080/swagger-ui.html
 curl http://localhost:8080/actuator/health
 
 # Each service
-curl http://localhost:8085/actuator/health      # Identity
-curl http://localhost:8088/actuator/health      # Order
-curl http://localhost:8089/actuator/health      # Payment
+curl http://localhost:8081/actuator/health      # Identity
+curl http://localhost:8083/actuator/health      # Order
+curl http://localhost:8082/actuator/health      # Payment
 
 # Eureka dashboard
 http://localhost:8761
@@ -1050,7 +1058,7 @@ curl -X POST http://localhost:9200/products/_reindex
 
 | File | Purpose | Details |
 |------|---------|---------|
-| **05_OPERATIONS.md** | Data retention & 23 cronjobs | Cleanup jobs, retention periods, SQL logic |
+| **05_OPERATIONS.md** | Data retention & 17 cronjobs | Cleanup jobs, retention periods, SQL logic |
 | **RUNNING.md** | Build & deployment commands | Docker, health checks, scaling |
 
 ### Business & Policies
@@ -1140,7 +1148,7 @@ git commit -m "docs(readme): update setup instructions"
 - [04_POLICIES.md](04_POLICIES.md) - System rules, configuration
 
 **Operations**:
-- [05_OPERATIONS.md](05_OPERATIONS.md) - 23 cronjobs, retention periods
+- [05_OPERATIONS.md](05_OPERATIONS.md) - 17 cronjobs, retention periods
 - [RUNNING.md](../RUNNING.md) - Deployment procedures
 
 **API & Architecture**:
@@ -1168,7 +1176,7 @@ git commit -m "docs(readme): update setup instructions"
 | 3 | [api/README.md](api/README.md) | API specification v5.4 |
 | 4 | [03_BUSINESS.md](03_BUSINESS.md) | Business logic & workflows v5.3 |
 | 5 | [04_POLICIES.md](04_POLICIES.md) | System policies v3 |
-| 6 | [05_OPERATIONS.md](05_OPERATIONS.md) | 23 cronjobs & data retention v5.0 (per service) |
+| 6 | [05_OPERATIONS.md](05_OPERATIONS.md) | 17 cronjobs & data retention v5.0 (per service) |
 | 7 | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) | Payment flow & Saga |
 | 8 | [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) | Luồng nghiệp vụ tổng hợp (Mermaid) |
 | 9 | [08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration |

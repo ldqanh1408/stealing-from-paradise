@@ -1,6 +1,7 @@
 # Notification Service — Database Tables
 
-> Cập nhật: 2026-05-03
+> Stack: MongoDB
+> Cập nhật: 2026-05-05
 
 ---
 

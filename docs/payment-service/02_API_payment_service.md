@@ -100,40 +100,32 @@
   "transaction_id": 301,
   "parent_order_id": 55,
   "amount": 1200000,
-  "method": "STRIPE",
   "status": "SUCCESS",
-  "stripe_pi_id": "pi_3PxABC2K1234567...",
-  "application_fee": 60000,
-  "application_fee_percentage": 5.0,
+  "application_fee_amount": 60000,
   "trans_ref": "TXN-20251001-301",
-  "paid_at": "2026-10-01T10:05:00Z",
-  "remaining_seconds": null,
+  "pay_at": "2026-10-01T10:05:00Z",
   "sellers": [
     {
       "seller_id": 5,
-      "seller_name": "Shop Nike VN",
       "order_id": 100,
       "amount": 700000,
       "fee": 35000,
       "net_amount": 665000,
       "stripe_transfer_id": "tr_3PxABC2K98765432",
-      "transfer_status": "SUCCEEDED"
+      "transfer_status": "SUCCESS"
     },
     {
       "seller_id": 9,
-      "seller_name": "Shop Adidas VN",
       "order_id": 101,
       "amount": 500000,
       "fee": 25000,
       "net_amount": 475000,
       "stripe_transfer_id": "tr_3PxABC2K98765433",
-      "transfer_status": "SUCCEEDED"
+      "transfer_status": "SUCCESS"
     }
   ]
 }
 ```
-
-> `remaining_seconds` chỉ có giá trị khi status = PENDING
 
 ---
 

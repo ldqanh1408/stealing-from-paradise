@@ -1,4 +1,4 @@
-# Service Architecture — C4 Container Diagrams
+﻿# Service Architecture — C4 Container Diagrams
 
 > Mô tả kiến trúc hệ thống ở mức Container, luồng giao tiếp giữa các service và database.
 
@@ -60,7 +60,7 @@ C4Container
         ContainerDb(identity_db, "PostgreSQL", "identity_db", "Users, Customers, Sellers")
     }
 
-    System_Boundary(product, "Product Service\nPort: 8082") {
+    System_Boundary(product, "Product Service\nPort: 8090") {
         Container(product_app, "Spring Boot App", "Java 21", "Catalog, Cart, Inventory")
         ContainerDb(product_db, "MongoDB", "product_db", "Products, Categories,\nVariants, Inventories, Carts")
         ContainerDb(image_db, "PostgreSQL", "media_db", "IMAGES table")
@@ -71,7 +71,7 @@ C4Container
         ContainerDb(order_db, "PostgreSQL", "order_db", "Orders, Order Items, Outbox")
     }
 
-    System_Boundary(payment, "Payment Service\nPort: 8084") {
+    System_Boundary(payment, "Payment Service\nPort: 8090") {
         Container(payment_app, "Spring Boot App", "Java 21", "Stripe/VNPAY, Transfers")
         ContainerDb(payment_db, "PostgreSQL", "payment_db", "Transactions, Refunds,\nStripe Accounts")
     }
@@ -81,17 +81,17 @@ C4Container
         ContainerDb(flashsale_db, "PostgreSQL", "flashsale_db", "Sessions, Items, Reminders")
     }
 
-    System_Boundary(search, "Search Service\nPort: 8086") {
+    System_Boundary(search, "Search Service\nPort: 8091") {
         Container(search_app, "Spring Boot App", "Java 21", "ES indexing & search")
         ContainerDb(search_db, "Elasticsearch", "search_db", "Product index")
     }
 
-    System_Boundary(notification, "Notification Service\nPort: 8087") {
+    System_Boundary(notification, "Notification Service\nPort: 8092") {
         Container(notification_app, "Spring Boot App", "Java 21", "Push notifications")
         ContainerDb(notification_db, "MongoDB", "notification_db", "Notifications")
     }
 
-    System_Boundary(ai_chat, "AI Chat Service\nPort: 8088") {
+    System_Boundary(ai_chat, "AI Chat Service\nPort: 8093") {
         Container(ai_chat_app, "Spring Boot App", "Java 21 + Spring AI", "Chat, Tools, Sessions")
         ContainerDb(ai_chat_db, "PostgreSQL", "ai_chat_db", "Sessions, Messages,\nConfirmations, Tool Logs")
         ContainerDb(ai_chat_cache, "Redis", "ai_chat_cache", "Rate limit, Session cache,\nConfirm fast-lookup")
@@ -125,16 +125,16 @@ flowchart TB
 
     subgraph "Core Services"
         IS[Identity Service\nPort 8081]
-        PS[Product Service\nPort 8082]
+        PS[Product Service\nPort 8090]
         OS[Order Service\nPort 8083]
-        PM[Payment Service\nPort 8084]
+        PM[Payment Service\nPort 8082]
         FS[Flash Sale Service\nPort 8085]
     end
 
     subgraph "Supporting Services"
-        SS[Search Service\nPort 8086]
-        NS[Notification Service\nPort 8087]
-        AI[AI Chat Service\nPort 8088]
+        SS[Search Service\nPort 8091]
+        NS[Notification Service\nPort 8092]
+        AI[AI Chat Service\nPort 8093]
     end
 
     subgraph "Data Stores"

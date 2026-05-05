@@ -1,8 +1,8 @@
 # Stealing From Paradise — Documentation Index
 
 **Project**: stealing-from-paradise (Flash Sale E-Commerce Platform)
-**Version**: v5.4
-**Last Updated**: 2026-05-04
+**Version**: v5.5
+**Last Updated**: 2026-05-05
 
 ---
 
@@ -22,7 +22,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | [01_OVERVIEW.md](01_OVERVIEW.md) | Architecture, services, tech stack, project structure |
 | [09_RUNNING.md](09_RUNNING.md) | How to run, build, and deploy |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Service interactions, Kafka flows, ASCII diagrams |
-| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | Kafka index → per-service event docs (41 topics) |
+| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | Kafka index → per-service event docs (47 topics) |
 | [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md) | Kafka request-reply pattern (6 pairs) |
 | [database-entities.md](database-entities.md) | Database schema reference |
 | [ERD_FULL_SYSTEM.md](ERD_FULL_SYSTEM.md) | Entity-Relationship Diagram |
@@ -33,7 +33,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 |------|---------|
 | [03_BUSINESS.md](03_BUSINESS.md) | Business logic, 9 workflows, trust score, loyalty |
 | [04_POLICIES.md](04_POLICIES.md) | System rules, trust score tiers, flash sale policies |
-| [05_OPERATIONS.md](05_OPERATIONS.md) | 23 cronjobs, data retention, cleanup |
+| [05_OPERATIONS.md](05_OPERATIONS.md) | 17 cronjobs, data retention, cleanup |
 
 ### API Documentation
 
@@ -71,6 +71,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | [notification-service/KAFKA_EVENTS.md](notification-service/KAFKA_EVENTS.md) | Consumer-only (20+ topics, SSE output) |
 | [admin-service/KAFKA_EVENTS.md](admin-service/KAFKA_EVENTS.md) | product.approved/rejected/auto_hidden |
 | [worker-service/KAFKA_EVENTS.md](worker-service/KAFKA_EVENTS.md) | flash_sale.reminder, outbox pattern |
+| [ai-chat-service/KAFKA_EVENTS.md](ai-chat-service/KAFKA_EVENTS.md) | ai_chat.*, tool_call.* events |
 | [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md) | 6 request-reply pairs with full cycle diagrams |
 
 ---
@@ -89,6 +90,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | Product Service | 8090 | MongoDB | Products, cart, variants |
 | Search Service | 8091 | Elasticsearch | Full-text search |
 | Notification Service | 8092 | MongoDB | SSE, real-time notifications |
+| AI Chat Service | 8093 | PostgreSQL | AI chat, tool calls, human-in-the-loop |
 
 ### Frontend Apps
 
@@ -146,17 +148,17 @@ Authorization: Bearer <jwt_token>
 
 | Metric | Value |
 |--------|-------|
-| **Backend Services** | 11 (+ common-lib) |
+| **Backend Services** | 12 (+ common-lib) |
 | **Frontend Apps** | 3 |
 | **API Endpoints** | 100+ |
-| **Kafka Topics** | 41 (29 event + 12 request-reply) |
-| **Cronjobs** | 23 |
+| **Kafka Topics** | 47 (35 event + 12 request-reply) |
+| **Cronjobs** | 17 |
 | **Documentation Files** | 35 |
 | **Authentication** | JWT (RS256) |
 
 ---
 
-## ✨ v5.4 Features
+## ✨ v5.5 Features
 
 - Trust Score Tier system (6 levels: BRONZE → ELITE)
 - Multi-vendor order split with Stripe Connect
@@ -164,7 +166,8 @@ Authorization: Bearer <jwt_token>
 - Return To Sender (RTS) refund workflow
 - Cart merged into Product Service
 - Loyalty merged into Identity Service
-- 41 Kafka topics for event-driven architecture
+- AI Chat Support (multi-turn conversation with Tool calls, human-in-the-loop)
+- 47 Kafka topics for event-driven architecture
 - High-concurrency Flash Sale (50k+ req/s with Redis Lua scripts)
 - Axon Sagas: OrderProcessingSaga + ParentOrderPaymentSaga
 
@@ -184,6 +187,7 @@ backend/
 ├── product-service/       (Products, cart — 8090)
 ├── search-service/       (Elasticsearch — 8091)
 ├── notification-service/  (SSE — 8092)
+├── ai-chat-service/     (AI Chat, Tool calls — 8093)
 └── common-lib/           (Shared DTOs, Kafka topics, security)
 
 frontend/

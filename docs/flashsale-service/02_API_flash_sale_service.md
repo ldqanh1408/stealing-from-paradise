@@ -40,7 +40,6 @@
       "status": "ACTIVE",
       "start_time": "2026-04-15T20:00:00Z",
       "end_time": "2026-04-15T22:00:00Z",
-      "item_count": 15,
       "seconds_remaining": 120,
       "is_ended": false
     }

@@ -20,9 +20,9 @@ Authorization: Bearer <access_token>
 
 **SSE Format** (`text/event-stream`):
 ```
-data: {"notif_id":"64f3a","type":"REFUND_APPROVED","title":"Hoàn tiền thành công","body":"Yêu cầu hoàn 350.000đ đã được duyệt","priority":"NORMAL","metadata":{"deeplink":"/orders/100/refunds/88"},"created_at":"2026-04-15T10:00:00Z"}
+data: {"id":"64f3a","type":"REFUND_APPROVED","title":"Hoàn tiền thành công","body":"Yêu cầu hoàn 350.000đ đã được duyệt","metadata":{"deeplink":"/orders/100/refunds/88"},"created_at":"2026-04-15T10:00:00Z"}
 
-data: {"notif_id":"64f3b","type":"ORDER_SHIPPED","title":"Đơn hàng đang giao","body":"Mã vận đơn: VT123456789","priority":"NORMAL","metadata":{"deeplink":"/orders/100"},"created_at":"2026-04-15T10:05:00Z"}
+data: {"id":"64f3b","type":"ORDER_SHIPPED","title":"Đơn hàng đang giao","body":"Mã vận đơn: VT123456789","metadata":{"deeplink":"/orders/100"},"created_at":"2026-04-15T10:05:00Z"}
 ```
 
 **Ghi chú**:
@@ -51,22 +51,19 @@ data: {"notif_id":"64f3b","type":"ORDER_SHIPPED","title":"Đơn hàng đang giao
 {
   "content": [
     {
-      "notif_id": "64f3a",
+      "id": "64f3a",
       "type": "REFUND_APPROVED",
       "title": "Hoàn tiền thành công",
       "body": "Yêu cầu hoàn 350.000đ đã được duyệt",
       "is_read": false,
-      "priority": "HIGH",
       "metadata": {
         "deeplink": "/orders/100/refunds/88",
         "refund_id": 88
       },
-      "created_at": "2026-04-15T10:00:00Z",
-      "expires_at": "2026-07-15T10:00:00Z"
+      "created_at": "2026-04-15T10:00:00Z"
     }
   ],
   "total_elements": 24,
-  "unread_count": 5,
   "page_number": 0,
   "page_size": 20
 }
@@ -84,7 +81,7 @@ data: {"notif_id":"64f3b","type":"ORDER_SHIPPED","title":"Đơn hàng đang giao
 **Response 200**:
 ```json
 {
-  "notif_id": "64f3a",
+  "id": "64f3a",
   "is_read": true
 }
 ```
