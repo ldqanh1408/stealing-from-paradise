@@ -45,30 +45,73 @@ This is the entry point for all project documentation. Read the documents in the
 ```
 docs/
 ├── 00_INDEX.md              ← You are here
-├── ARCHITECTURE_MAP.md      Single-file context primer (AI/LLM optimized)
-├── 01_OVERVIEW.md           Architecture, services, tech stack, setup
-├── 03_BUSINESS.md           Business logic, workflows, policies
-├── 05_OPERATIONS.md         17 cronjobs, data retention, cleanup
-├── 06_PAYMENT_SAGA_FLOW.md Axon Saga payment orchestration
-├── 07_BUSINESS_FLOWS.md     Visual flows (Mermaid diagrams)
-├── 08_PAYMENT_ORDER_INTEGRATION.md Order-Payment integration
-├── 09_RUNNING.md            How to run, build, deploy
-├── ARCHITECTURE.md          Service architecture, Kafka flows, diagrams
-├── KAFKA_EVENTS.md          Kafka index catalog → per-service event docs
-├── database-entities.md     Full database schema documentation
-├── 10_ENVIRONMENT_VARIABLES.md  All env vars, .env template, security notes
-├── 11_KAFKA_REQUEST_REPLY.md    Request-Reply over Kafka pattern (6 pairs)
-├── ai-chat-service/
-│   ├── KAFKA_EVENTS.md      AI Chat Kafka events
-│   ├── 01_API_ai_chat.md    AI Chat API specification
-│   ├── 02_technical_module.md  AI Chat technical module docs
-│   └── 03_database_tables.md   AI Chat database tables
-├── worker-service/
-│   └── 03_database_tables.md   Worker service database tables
-├── diagrams/
-│   ├── 00_service_architecture.md  C4 Container diagrams
-│   └── 01_erd_compact.md           Compact ERD overview
-└── README.md                This documentation guide
+├── README.md                This documentation guide
+├── overview/
+│   ├── 01_OVERVIEW.md       Architecture, services, tech stack, setup
+│   ├── ARCHITECTURE.md      Service architecture, Kafka flows, diagrams
+│   └── ARCHITECTURE_MAP.md  Single-file context primer (AI/LLM optimized)
+├── business/
+│   ├── 03_BUSINESS.md       Business logic, workflows, policies
+│   ├── 06_PAYMENT_SAGA_FLOW.md  Axon Saga payment orchestration
+│   ├── 07_BUSINESS_FLOWS.md     Visual flows (Mermaid diagrams)
+│   └── 08_PAYMENT_ORDER_INTEGRATION.md Order-Payment integration
+├── operations/
+│   ├── 05_OPERATIONS.md     17 cronjobs, data retention, cleanup
+│   ├── 09_RUNNING.md        How to run, build, deploy
+│   ├── 10_ENVIRONMENT_VARIABLES.md  All env vars, .env template, security notes
+│   └── API_URLS_COMPACT.md  API URL reference
+├── messaging/
+│   ├── KAFKA_EVENTS.md      Kafka index catalog → per-service event docs
+│   └── 11_KAFKA_REQUEST_REPLY.md  Request-Reply over Kafka pattern (6 pairs)
+├── database/
+│   ├── database-entities.md Full database schema reference
+│   └── ERD_FULL_SYSTEM.md   Entity-Relationship Diagram
+├── api/
+│   └── README.md            API overview and navigation
+├── architecture/
+│   ├── C4-Documentation/    C4 architecture documentation
+│   └── diagrams/
+│       ├── 00_service_architecture.md  C4 Container diagrams
+│       └── 01_erd_compact.md           Compact ERD overview
+└── services/
+    ├── ai-chat-service/
+    │   ├── KAFKA_EVENTS.md      AI Chat Kafka events
+    │   ├── 02_API_ai_chat.md    AI Chat API specification
+    │   ├── 01_technical_module.md  AI Chat technical module docs
+    │   └── 03_database_tables.md   AI Chat database tables
+    ├── worker-service/
+    │   └── 03_database_tables.md   Worker service database tables
+    ├── flashsale-service/
+    │   ├── 02_API_flash_sale_service.md  Flash sale session API
+    │   ├── 03_database_tables.md         Flash sale database tables
+    │   └── KAFKA_EVENTS.md              Flash sale Kafka events
+    ├── identity-service/
+    │   ├── 02_API_identity_service.md   Auth, users, admin (45 endpoints)
+    │   ├── 03_database_tables.md        Identity database tables
+    │   └── KAFKA_EVENTS.md              Identity Kafka events (admin events merged)
+    ├── notification-service/
+    │   ├── 02_API_notification_service.md  SSE notifications (5 endpoints)
+    │   ├── 03_database_tables.md           Notification database tables
+    │   └── KAFKA_EVENTS.md                Notification Kafka events
+    ├── order-service/
+    │   ├── 02_API_order_service.md  Orders, checkout, RTS (18 endpoints)
+    │   ├── 03_database_tables.md    Order database tables
+    │   └── KAFKA_EVENTS.md          Order Kafka events
+    ├── payment-service/
+    │   ├── 02_API_payment_service.md  Stripe, payments, refunds (15 endpoints)
+    │   ├── 03_database_tables.md      Payment database tables
+    │   └── KAFKA_EVENTS.md            Payment Kafka events
+    ├── product-service/
+    │   ├── 02_API_product_service.md  Products, variants, cart (24 endpoints)
+    │   ├── product_service_flow.md    Product service workflows
+    │   ├── product_service_ui_logic.md  Product UI display logic
+    │   ├── 03_database_tables.md      Product MongoDB tables
+    │   ├── database_tables.md         Product PostgreSQL schema (legacy)
+    │   └── KAFKA_EVENTS.md            Product Kafka events
+    └── search-service/
+        ├── 02_API_search_service.md  Search (2 endpoints)
+        ├── 03_database_tables.md     Search database tables
+        └── KAFKA_EVENTS.md           Search Kafka events
 ```
 
 ### Service-Specific API Docs
@@ -77,34 +120,30 @@ docs/
 docs/
 ├── api/
 │   └── README.md            API overview and navigation
-├── identity-service/
-│   └── 02_API_identity_service.md  Auth, users (loyalty removed in MVP) (31 endpoints)
-├── product-service/
+├── services/identity-service/
+│   └── 02_API_identity_service.md  Auth, users (31 endpoints)
+├── services/product-service/
 │   ├── 02_API_product_service.md   Products, variants, cart (24 endpoints)
-│   ├── product_service_api.md      Product API deep-dive
 │   ├── product_service_flow.md     Product service workflows
 │   ├── product_service_ui_logic.md Product UI display logic
 │   ├── 03_database_tables.md       Product MongoDB tables
 │   └── database_tables.md          Product PostgreSQL schema (legacy)
-├── search-service/
+├── services/search-service/
 │   └── 02_API_search_service.md    Search (2 endpoints)
-├── order-service/
+├── services/order-service/
 │   └── 02_API_order_service.md    Orders, checkout, RTS (18 endpoints)
-├── payment-service/
+├── services/payment-service/
 │   └── 02_API_payment_service.md  Stripe, payments, refunds (15 endpoints)
-├── flashsale-service/
+├── services/flashsale-service/
 │   └── 02_API_flash_sale_service.md  Flash sale (12 endpoints)
-├── notification-service/
+├── services/notification-service/
 │   └── 02_API_notification_service.md  SSE notifications (5 endpoints)
-├── admin-service/
-│   ├── 02_API_admin.md            Admin APIs (14 endpoints)
-│   └── KAFKA_EVENTS.md            Kafka events for Admin domain
-├── ai-chat-service/
-│   ├── 01_API_ai_chat.md           AI Chat API specification
-│   ├── 02_technical_module.md      AI Chat technical module
+├── services/ai-chat-service/
+│   ├── 02_API_ai_chat.md           AI Chat API specification
+│   ├── 01_technical_module.md      AI Chat technical module
 │   ├── 03_database_tables.md       AI Chat database tables
 │   └── KAFKA_EVENTS.md            AI Chat Kafka events (7 topics)
-├── worker-service/
+├── services/worker-service/
 │   ├── KAFKA_EVENTS.md            Worker Kafka events
 │   └── 03_database_tables.md      Worker database tables
 
@@ -112,19 +151,17 @@ docs/
 
 ```
 docs/
-├── KAFKA_EVENTS.md                Index catalog (47 topics total)
-├── identity-service/KAFKA_EVENTS.md   account.*, seller.*
-├── product-service/KAFKA_EVENTS.md    product.*, inventory.*, cart.*
-├── search-service/KAFKA_EVENTS.md     consumer-only (10 topics)
-├── order-service/KAFKA_EVENTS.md      order.*, seller.order_cancelled
-├── payment-service/KAFKA_EVENTS.md    payment.*, refund.*, stripe.*
-├── flashsale-service/KAFKA_EVENTS.md  flash_sale.*
-├── notification-service/KAFKA_EVENTS.md  consumer-only (20+ topics)
-├── admin-service/KAFKA_EVENTS.md      product.approved/rejected/auto_hidden
-├── worker-service/KAFKA_EVENTS.md     flash_sale.reminder, outbox pattern
-├── ai-chat-service/KAFKA_EVENTS.md    ai_chat.*, tool_call.*
-└── 11_KAFKA_REQUEST_REPLY.md        6 request-reply pairs
-```
+├── messaging/KAFKA_EVENTS.md                        Index catalog (47 topics total)
+├── services/identity-service/KAFKA_EVENTS.md        account.*, seller.*
+├── services/product-service/KAFKA_EVENTS.md         product.*, inventory.*, cart.*
+├── services/search-service/KAFKA_EVENTS.md          consumer-only (10 topics)
+├── services/order-service/KAFKA_EVENTS.md           order.*, seller.order_cancelled
+├── services/payment-service/KAFKA_EVENTS.md         payment.*, refund.*, stripe.*
+├── services/flashsale-service/KAFKA_EVENTS.md       flash_sale.*
+├── services/notification-service/KAFKA_EVENTS.md    consumer-only (20+ topics)
+├── services/worker-service/KAFKA_EVENTS.md          flash_sale.reminder, outbox pattern
+├── services/ai-chat-service/KAFKA_EVENTS.md         ai_chat.*, tool_call.*
+└── messaging/11_KAFKA_REQUEST_REPLY.md             6 request-reply pairs
 ```
 
 ## Document Summary
@@ -132,47 +169,39 @@ docs/
 | # | File | Lines | Purpose |
 |---|------|-------|---------|
 | 1 | 00_INDEX.md | — | Documentation navigation |
-| 2 | 01_OVERVIEW.md | ~1200 | Project architecture, tech stack, setup |
-| 3 | 03_BUSINESS.md | ~700 | Business logic & workflows |
-| 6 | 05_OPERATIONS.md | ~800 | 17 cronjobs, data retention |
-| 7 | 06_PAYMENT_SAGA_FLOW.md | — | Payment Saga pattern |
-| 8 | 07_BUSINESS_FLOWS.md | ~900 | Visual flows (Mermaid) |
-| 9 | 08_PAYMENT_ORDER_INTEGRATION.md | — | Order-Payment integration |
-| 10 | 09_RUNNING.md | ~600 | Running & deployment guide |
-| 11 | ARCHITECTURE.md | ~600 | Service architecture & Kafka flows |
-| 12 | KAFKA_EVENTS.md | ~220 | Kafka index → 10 per-service event docs |
-| 13 | database-entities.md | ~800 | Database schema reference |
-| 14 | README.md | ~200 | Documentation guide |
-| — | api/README.md | ~400 | API overview |
-| — | identity-service/02_API_identity_service.md | ~750 | Identity API |
-| — | identity-service/KAFKA_EVENTS.md | ~170 | Identity Kafka events |
-| — | product-service/02_API_product_service.md | ~650 | Product API |
-| — | product-service/KAFKA_EVENTS.md | ~200 | Product Kafka events |
-| — | search-service/02_API_search_service.md | ~100 | Search API |
-| — | search-service/KAFKA_EVENTS.md | ~95 | Search Kafka events |
-| — | order-service/02_API_order_service.md | ~600 | Order API |
-| — | order-service/KAFKA_EVENTS.md | ~250 | Order Kafka events |
-| — | payment-service/02_API_payment_service.md | ~280 | Payment API |
-| — | payment-service/KAFKA_EVENTS.md | ~220 | Payment Kafka events |
-| — | flashsale-service/02_API_flash_sale_service.md | ~330 | Flash Sale API |
-| — | flashsale-service/KAFKA_EVENTS.md | ~85 | Flash Sale Kafka events |
-| — | notification-service/02_API_notification_service.md | ~170 | Notification API |
-| — | notification-service/KAFKA_EVENTS.md | ~125 | Notification Kafka events |
-| — | admin-service/02_API_admin.md | ~630 | Admin API |
-| — | admin-service/KAFKA_EVENTS.md | ~65 | Admin Kafka events |
-| — | worker-service/KAFKA_EVENTS.md | ~75 | Worker Kafka events |
-| — | worker-service/03_database_tables.md | ~30 | Worker DB tables |
-| — | 11_KAFKA_REQUEST_REPLY.md | ~320 | Kafka request-reply (6 pairs) |
-| — | ai-chat-service/01_API_ai_chat.md | ~150 | AI Chat API spec |
-| — | ai-chat-service/02_technical_module.md | ~200 | AI Chat technical module |
-| — | ai-chat-service/03_database_tables.md | ~80 | AI Chat DB tables |
-| — | product-service/product_service_api.md | ~300 | Product API deep-dive |
-| — | product-service/product_service_flow.md | ~200 | Product service workflows |
-| — | product-service/product_service_ui_logic.md | ~150 | Product UI logic |
-| — | product-service/03_database_tables.md | ~130 | Product MongoDB tables |
-| — | product-service/database_tables.md | ~370 | Product PostgreSQL schema (legacy) |
-| — | diagrams/00_service_architecture.md | ~200 | C4 Container diagrams |
-| — | diagrams/01_erd_compact.md | ~150 | Compact ERD overview |
+| 2 | overview/01_OVERVIEW.md | ~1200 | Project architecture, tech stack, setup |
+| 3 | overview/ARCHITECTURE.md | ~600 | Service architecture & Kafka flows |
+| 4 | overview/ARCHITECTURE_MAP.md | — | Single-file context primer |
+| 5 | business/03_BUSINESS.md | ~700 | Business logic & workflows |
+| 6 | business/06_PAYMENT_SAGA_FLOW.md | — | Payment Saga pattern |
+| 7 | business/07_BUSINESS_FLOWS.md | ~900 | Visual flows (Mermaid) |
+| 8 | business/08_PAYMENT_ORDER_INTEGRATION.md | — | Order-Payment integration |
+| 9 | operations/05_OPERATIONS.md | ~800 | 17 cronjobs, data retention |
+| 10 | operations/09_RUNNING.md | ~600 | Running & deployment guide |
+| 11 | operations/10_ENVIRONMENT_VARIABLES.md | — | Environment variables reference |
+| 12 | messaging/KAFKA_EVENTS.md | ~220 | Kafka index → per-service event docs |
+| 13 | messaging/11_KAFKA_REQUEST_REPLY.md | ~320 | Kafka request-reply (6 pairs) |
+| 14 | database/database-entities.md | ~800 | Database schema reference |
+| 15 | database/ERD_FULL_SYSTEM.md | — | Entity-Relationship Diagram |
+| 16 | api/README.md | ~400 | API overview |
+| — | services/identity-service/02_API_identity_service.md | ~750 | Identity API |
+| — | services/product-service/02_API_product_service.md | ~650 | Product API |
+| — | services/product-service/product_service_api.md | ~300 | Product API deep-dive |
+| — | services/product-service/product_service_flow.md | ~200 | Product service workflows |
+| — | services/product-service/product_service_ui_logic.md | ~150 | Product UI logic |
+| — | services/product-service/03_database_tables.md | ~130 | Product MongoDB tables |
+| — | services/product-service/database_tables.md | ~370 | Product PostgreSQL schema (legacy) |
+| — | services/search-service/02_API_search_service.md | ~100 | Search API |
+| — | services/order-service/02_API_order_service.md | ~600 | Order API |
+| — | services/payment-service/02_API_payment_service.md | ~280 | Payment API |
+| — | services/flashsale-service/02_API_flash_sale_service.md | ~330 | Flash Sale API |
+| — | services/notification-service/02_API_notification_service.md | ~170 | Notification API |
+| — | services/ai-chat-service/02_API_ai_chat.md | ~150 | AI Chat API spec |
+| — | services/ai-chat-service/01_technical_module.md | ~200 | AI Chat technical module |
+| — | services/ai-chat-service/03_database_tables.md | ~80 | AI Chat DB tables |
+| — | services/worker-service/03_database_tables.md | ~30 | Worker DB tables |
+| — | architecture/diagrams/00_service_architecture.md | ~200 | C4 Container diagrams |
+| — | architecture/diagrams/01_erd_compact.md | ~150 | Compact ERD overview |
 
 ---
 
@@ -250,7 +279,6 @@ docs/
 - Multi-vendor marketplace with 3 roles (Customer, Seller, Admin)
 - Flash sales with Redis Lua scripts for 50k+ req/s concurrency
 - Stripe Connect for multi-vendor payments with automatic transfers
-- Loyalty Points with configurable earning rates (removed in MVP — kept for reference)
 - Real-time SSE notifications via Notification Service
 - Full-text search with Elasticsearch
 - Return To Sender (RTS) refund workflow
@@ -283,7 +311,7 @@ docs/
 | v5.5 | 2026-05-05 | Documentation refactor: ports unified, Redis 7.2, AI Chat docs, 47 Kafka topics |
 | v5.4 | 2026-05-01 | Documentation consolidation, index created, service docs organized |
 | v5.3 RTS | 2026-04-30 | Return To Sender, tracking number for refunds |
-| v5.0 | 2026-04-22 | Distributed cronjobs per service, Loyalty merged into Identity |
+| v5.0 | 2026-04-22 | Distributed cronjobs per service |
 | v4.0 | 2026-04-15 | Tracking number for refunds, 23 cronjobs |
 | v3.0 | — | Dynamic delta config (policy system removed in later versions) |
 

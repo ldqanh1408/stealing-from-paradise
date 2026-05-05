@@ -35,4 +35,12 @@ public interface SellerTransferRepository extends JpaRepository<SellerTransfer, 
         @Param("toDate") LocalDateTime toDate,
         Pageable pageable
     );
+
+    /** Find transfers whose return window has expired and are ready for payout. */
+    @Query("SELECT t FROM SellerTransfer t WHERE t.status = :status AND t.payoutEligibleAt <= :cutoff ORDER BY t.payoutEligibleAt ASC")
+    List<SellerTransfer> findByStatusAndPayoutEligibleAtBefore(
+        @Param("status") String status,
+        @Param("cutoff") LocalDateTime cutoff,
+        Pageable pageable
+    );
 }

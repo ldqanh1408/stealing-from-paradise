@@ -1,0 +1,1204 @@
+openapi: 3.1.0
+info:
+  title: Order Service API
+  description: >
+    Order management API for the FlashSale marketplace platform. Handles multi-vendor checkout
+    with automatic seller splitting (1 parent order -> N sub-orders), order lifecycle management
+    (PENDING -> PAID -> SHIPPING -> DELIVERED), cancellations, return-to-sender (RTS) with
+    automatic full refunds, and partial/full refund requests. Uses CQRS pattern with Axon
+    Framework and dual-saga orchestration (OrderProcessingSaga + ParentOrderPaymentSaga).
+    Communicates with Product, Payment, Identity, and Notification services via Kafka.
+  version: 5.4.0
+  contact:
+    name: FlashSale Platform Team
+
+servers:
+  - url: http://localhost:8083/api/v1
+    description: Local development (Order Service direct)
+  - url: https://api.marketplace.vn/api/v1
+    description: Production (via API Gateway)
+
+tags:
+  - name: Checkout
+    description: Multi-vendor checkout from cart
+  - name: Orders
+    description: Order listing, detail, lifecycle management
+  - name: Refunds
+    description: Partial and full refund requests
+  - name: Seller
+    description: Seller order management and dashboard
+
+security:
+  - bearerAuth: []
+
+paths:
+  # =========================================================================
+  # Checkout
+  # =========================================================================
+  /orders/checkout:
+    post:
+      tags: [Checkout]
+      summary: Create orders from cart (multi-vendor checkout)
+      description: >
+        Creates 1 parent order + N sub-orders (one per seller from cart items).
+        Items are split by seller automatically. Loyalty points are recorded as PENDING
+        (removed in MVP). Triggers OrderProcessingSaga and ParentOrderPaymentSaga.
+      operationId: checkout
+      security:
+        - bearerAuth: [BUYER]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '201':
+          description: Orders created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Address not found or does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Some items out of stock or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Buyer Order Endpoints
+  # =========================================================================
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List buyer's orders
+      description: Returns paginated list of the authenticated buyer's orders with status and date filtering.
+      operationId: listOrders
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PAID, SHIPPING, DELIVERED, RETURNED, CANCELLED, PARTIALLY_REFUNDED, REFUNDED]
+          description: Filter by order status
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter orders from this date (ISO 8601)
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter orders until this date (ISO 8601)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Orders retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPage'
+
+  /orders/{orderId}:
+    get:
+      tags: [Orders]
+      summary: Get sub-order detail
+      description: Returns detailed information for a single sub-order including items, shipping address, and tracking.
+      operationId: getOrder
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Order detail retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '403':
+          description: Not the order owner (buyer or seller)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /orders/parent/{parentOrderId}:
+    get:
+      tags: [Orders]
+      summary: Get parent order detail
+      description: Returns the parent order with all sub-orders and payment information.
+      operationId: getParentOrder
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/ParentOrderId'
+      responses:
+        '200':
+          description: Parent order retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParentOrderDetail'
+        '403':
+          description: Parent order does not belong to this buyer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /orders/{orderId}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order
+      description: >
+        Cancels a PENDING order. Buyer cancellations that are excessive within 30 days
+        trigger trust score deductions (removed in MVP). Publishes order.cancelled Kafka event.
+        Triggers Saga compensation: unlocks inventory, refunds payment if paid.
+      operationId: cancelOrder
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelOrderRequest'
+      responses:
+        '200':
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderCancelledResponse'
+        '403':
+          description: Not the order owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Order is not in PENDING status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /orders/{orderId}/confirm-received:
+    post:
+      tags: [Orders]
+      summary: Confirm order received
+      description: >
+        Buyer confirms delivery. Transitions order to DELIVERED status.
+        Confirms loyalty points from PENDING to CONFIRMED (removed in MVP).
+        Publishes order.delivered Kafka event.
+      operationId: confirmReceived
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Delivery confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDeliveredResponse'
+
+  /orders/{orderId}/tracking:
+    put:
+      tags: [Orders, Seller]
+      summary: Update tracking number (Seller)
+      description: >
+        Seller updates the shipping tracking number. Transitions order from PAID to SHIPPING
+        status. Sets a shipping deadline. Publishes order.shipped Kafka event.
+      operationId: updateTracking
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackingRequest'
+      responses:
+        '200':
+          description: Tracking updated, order shipped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderShippedResponse'
+        '403':
+          description: Seller is not the owner of this sub-order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Order is not in PAID status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /orders/{orderId}/return-to-sender:
+    post:
+      tags: [Orders, Seller]
+      summary: Return to sender (RTS) - automatic full refund
+      description: >
+        Seller confirms receiving returned goods. Automatically triggers:
+        1. Order status -> RETURNED
+        2. Creates a FULL refund (initiated_by=SELLER, refund_reason_type=RETURN_TO_SENDER)
+        3. Restores stock_available for each SKU (atomic)
+        4. Publishes order.returned Kafka event
+        5. Executes Stripe refund automatically (no admin approval needed)
+        6. Saves evidence images to REFUND_ITEMS.return_evidence_images
+      operationId: returnToSender
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReturnToSenderRequest'
+      responses:
+        '200':
+          description: RTS processed, refund initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RTSResponse'
+        '400':
+          description: evidence_images missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Not the order's seller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Order already RETURNED or has pending refund
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Order status must be SHIPPING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Seller Endpoints
+  # =========================================================================
+  /sellers/me/orders:
+    get:
+      tags: [Seller]
+      summary: List seller's orders
+      description: Returns paginated orders for the authenticated seller with filtering.
+      operationId: listSellerOrders
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PAID, SHIPPING, DELIVERED, RETURNED, CANCELLED, PARTIALLY_REFUNDED, REFUNDED]
+          description: Filter by order status
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Seller orders retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPage'
+
+  /sellers/me/dashboard:
+    get:
+      tags: [Seller]
+      summary: Seller dashboard
+      description: Returns order overview, revenue summary, and active products for the seller.
+      operationId: getSellerDashboard
+      security:
+        - bearerAuth: [SELLER]
+      responses:
+        '200':
+          description: Dashboard data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_orders:
+                    type: integer
+                  total_revenue:
+                    type: number
+                    format: double
+                  active_products:
+                    type: integer
+                  pending_orders:
+                    type: integer
+                  recent_orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderSummary'
+
+  # =========================================================================
+  # Refund Endpoints (Buyer)
+  # =========================================================================
+  /orders/{orderId}/refunds:
+    post:
+      tags: [Refunds]
+      summary: Request partial refund (one sub-order)
+      description: >
+        Buyer requests a partial refund for specific items in a sub-order.
+        Publishes refund.requested Kafka event.
+      operationId: requestPartialRefund
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartialRefundRequest'
+      responses:
+        '201':
+          description: Refund request submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+    get:
+      tags: [Refunds]
+      summary: Get refund history for a sub-order
+      description: Returns all refund requests for a specific sub-order.
+      operationId: listOrderRefunds
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Refund history retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RefundDetail'
+
+  /orders/{orderId}/refunds/{refundId}:
+    get:
+      tags: [Refunds]
+      summary: Get refund detail
+      description: Returns detailed information for a specific refund request.
+      operationId: getRefundDetail
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - $ref: '#/components/parameters/RefundId'
+      responses:
+        '200':
+          description: Refund detail retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundDetailEnvelope'
+
+  /orders/refunds:
+    get:
+      tags: [Refunds]
+      summary: List all refunds for buyer
+      description: Returns paginated list of all refund requests for the authenticated buyer.
+      operationId: listAllRefunds
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, SUCCESS, FAILED, REJECTED]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [FULL, PARTIAL]
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Refunds retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RefundDetail'
+                  total_elements:
+                    type: integer
+                  total_pages:
+                    type: integer
+                  page_number:
+                    type: integer
+                  page_size:
+                    type: integer
+
+  /orders/parent/{parentOrderId}/refund:
+    post:
+      tags: [Refunds]
+      summary: Request full refund (all sub-orders)
+      description: >
+        Buyer requests a full refund for the entire parent order.
+        Publishes refund.full_requested Kafka event.
+      operationId: requestFullRefund
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/ParentOrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FullRefundRequest'
+      responses:
+        '201':
+          description: Full refund request submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+    get:
+      tags: [Refunds]
+      summary: Get full refund status (parent order)
+      description: Returns the full refund status for the parent order.
+      operationId: getFullRefundStatus
+      parameters:
+        - $ref: '#/components/parameters/ParentOrderId'
+      responses:
+        '200':
+          description: Full refund status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundDetailEnvelope'
+
+  /orders/parent/{parentOrderId}/refunds/partial:
+    post:
+      tags: [Refunds]
+      summary: Request partial refund (multi-seller)
+      description: Buyer requests a partial refund across multiple sellers in a parent order.
+      operationId: requestMultiSellerPartialRefund
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/ParentOrderId'
+      responses:
+        '201':
+          description: Multi-seller partial refund submitted
+
+  /orders/{orderId}/refunds/presigned-url:
+    get:
+      tags: [Refunds]
+      summary: Get presigned URL for refund evidence upload
+      description: Generates a MinIO presigned PUT URL for uploading refund evidence images.
+      operationId: getRefundEvidencePresignedUrl
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: file_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Original file name
+        - name: content_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [image/jpeg, image/png, image/webp]
+          description: MIME type
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      presigned_url:
+                        type: string
+                        format: uri
+                      object_url:
+                        type: string
+                        format: uri
+                      expires_in:
+                        type: integer
+        '403':
+          description: Not the order owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Invalid content_type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+  parameters:
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Sub-order ID
+    ParentOrderId:
+      name: parentOrderId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Parent order ID
+    RefundId:
+      name: refundId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Refund request ID
+
+  schemas:
+    CheckoutRequest:
+      type: object
+      required: [address_id, item_ids]
+      properties:
+        address_id:
+          type: integer
+          format: int64
+          description: Must exist and belong to the user
+          example: 7
+        item_ids:
+          type: array
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+          description: Cart item IDs to checkout
+          example: [201, 202]
+        use_loyalty_points:
+          type: boolean
+          default: false
+          deprecated: true
+          description: Removed in MVP
+        loyalty_points_to_use:
+          type: integer
+          minimum: 0
+          deprecated: true
+          description: Removed in MVP
+
+    CheckoutResponse:
+      type: object
+      properties:
+        parent_order_id:
+          type: integer
+          format: int64
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubOrderDetail'
+        shipping_address:
+          type: object
+          properties:
+            address_id:
+              type: integer
+              format: int64
+            full_address:
+              type: string
+            province_id:
+              type: integer
+            district_id:
+              type: integer
+        total_amount:
+          type: number
+          format: double
+        total_items:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    SubOrderDetail:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        order_code:
+          type: string
+          example: "OR-20251001-100"
+        seller_id:
+          type: integer
+          format: int64
+        total_amt:
+          type: number
+          format: double
+        final_amt:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [PENDING, PAID, SHIPPING, DELIVERED, RETURNED, CANCELLED, PARTIALLY_REFUNDED, REFUNDED]
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemDetail'
+        created_at:
+          type: string
+          format: date-time
+
+    OrderItemDetail:
+      type: object
+      properties:
+        order_item_id:
+          type: integer
+          format: int64
+        sku_code:
+          type: string
+        name_snapshot:
+          type: string
+          description: Product name at time of purchase
+        image_snapshot:
+          type: string
+          format: uri
+        price_snapshot:
+          type: number
+          format: double
+          description: Price at time of purchase
+        quantity:
+          type: integer
+        refunded_quantity:
+          type: integer
+          description: Quantity already refunded for this item
+        fs_item_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Flash sale item ID (if purchased during flash sale)
+
+    OrderSummary:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        parent_order_id:
+          type: integer
+          format: int64
+        order_code:
+          type: string
+        seller_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+        total_amt:
+          type: number
+          format: double
+        final_amt:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+
+    OrderDetail:
+      allOf:
+        - $ref: '#/components/schemas/OrderSummary'
+        - type: object
+          properties:
+            customer_id:
+              type: integer
+              format: int64
+            cancelled_by:
+              type: string
+              nullable: true
+              enum: [BUYER, SELLER, null]
+            cancel_reason:
+              type: string
+              nullable: true
+            shipping_address:
+              type: object
+              properties:
+                full_address:
+                  type: string
+                province_id:
+                  type: integer
+                district_id:
+                  type: integer
+            tracking_number:
+              type: string
+              nullable: true
+            shipping_deadline:
+              type: string
+              format: date-time
+              nullable: true
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderItemDetail'
+            updated_at:
+              type: string
+              format: date-time
+
+    ParentOrderDetail:
+      type: object
+      properties:
+        parent_order_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        total_amount:
+          type: number
+          format: double
+        sub_orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderDetail'
+        payment:
+          $ref: '#/components/schemas/PaymentInfo'
+
+    PaymentInfo:
+      type: object
+      properties:
+        transaction_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+        amount:
+          type: number
+          format: double
+        pay_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CancelOrderRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+          example: "I want to cancel this order"
+        note:
+          type: string
+          maxLength: 500
+          example: "Ordered by mistake"
+
+    OrderCancelledResponse:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        order_code:
+          type: string
+        status:
+          type: string
+          enum: [CANCELLED]
+        cancelled_by:
+          type: string
+          enum: [BUYER, SELLER]
+        cancel_reason:
+          type: string
+        cancelled_at:
+          type: string
+          format: date-time
+
+    OrderDeliveredResponse:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        order_code:
+          type: string
+        status:
+          type: string
+          enum: [DELIVERED]
+        delivered_at:
+          type: string
+          format: date-time
+        loyalty_points_confirmed:
+          type: integer
+          deprecated: true
+          description: Removed in MVP
+
+    TrackingRequest:
+      type: object
+      required: [tracking_number]
+      properties:
+        tracking_number:
+          type: string
+          maxLength: 100
+          example: "VT123456789"
+        note:
+          type: string
+          maxLength: 500
+          example: "Estimated delivery 2-3 days"
+
+    OrderShippedResponse:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        order_code:
+          type: string
+        status:
+          type: string
+          enum: [SHIPPING]
+        tracking_number:
+          type: string
+        shipping_deadline:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ReturnToSenderRequest:
+      type: object
+      required: [return_tracking_number, evidence_images]
+      properties:
+        return_tracking_number:
+          type: string
+          example: "VT999888777"
+        note:
+          type: string
+          example: "Returned due to unreachable buyer, wrong address"
+        evidence_images:
+          type: array
+          items:
+            type: string
+            format: binary
+          description: Image files as multipart form data
+
+    RTSResponse:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        order_code:
+          type: string
+        order_status:
+          type: string
+          enum: [RETURNED]
+        refund_id:
+          type: integer
+          format: int64
+        refund_status:
+          type: string
+          enum: [PENDING]
+        return_tracking_number:
+          type: string
+        estimated_refund_days:
+          type: integer
+          example: 3
+        stripe_refund_id:
+          type: string
+        message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    OrderPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderSummary'
+        total_elements:
+          type: integer
+        total_pages:
+          type: integer
+        page_number:
+          type: integer
+        page_size:
+          type: integer
+
+    PartialRefundRequest:
+      type: object
+      required: [reason, items]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: "Product is defective, does not match description"
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [order_item_id, quantity, item_reason]
+            properties:
+              order_item_id:
+                type: integer
+                format: int64
+              quantity:
+                type: integer
+                minimum: 1
+                description: Must not exceed order_item.quantity - refunded_quantity
+              item_reason:
+                type: string
+                minLength: 1
+                maxLength: 500
+        evidence_images:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            format: uri
+          description: Up to 5 CDN URLs to evidence images
+
+    FullRefundRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          example: "All products are defective"
+        evidence_images:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            format: uri
+
+    RefundResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            group_ref:
+              type: string
+              format: uuid
+            order_id:
+              type: integer
+              format: int64
+            type:
+              type: string
+              enum: [FULL, PARTIAL]
+            status:
+              type: string
+              enum: [PENDING]
+            total_amount:
+              type: number
+              format: double
+            refund_amount:
+              type: number
+              format: double
+            item_count:
+              type: integer
+            message:
+              type: string
+
+    RefundDetail:
+      type: object
+      properties:
+        refund_id:
+          type: integer
+          format: int64
+        transaction_id:
+          type: integer
+          format: int64
+        order_id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [FULL, PARTIAL]
+        amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED, REJECTED]
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              order_item_id:
+                type: integer
+                format: int64
+              quantity:
+                type: integer
+              refund_amount:
+                type: number
+                format: double
+        admin_note:
+          type: string
+          nullable: true
+        reviewed_by:
+          type: integer
+          format: int64
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    RefundDetailEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/RefundDetail'
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        status_code:
+          type: integer
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token (RS256). Required roles noted per endpoint (BUYER, SELLER, ADMIN).

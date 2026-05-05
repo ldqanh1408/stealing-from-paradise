@@ -19,59 +19,57 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | File | Purpose |
 |------|---------|
 | [00_INDEX.md](00_INDEX.md) | **START HERE** — Complete index, service ports, navigation |
-| [01_OVERVIEW.md](01_OVERVIEW.md) | Architecture, services, tech stack, project structure |
-| [09_RUNNING.md](09_RUNNING.md) | How to run, build, and deploy |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Service interactions, Kafka flows, ASCII diagrams |
-| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | Kafka index → per-service event docs (47 topics) |
-| [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md) | Kafka request-reply pattern (6 pairs) |
-| [database-entities.md](database-entities.md) | Database schema reference |
-| [ERD_FULL_SYSTEM.md](ERD_FULL_SYSTEM.md) | Entity-Relationship Diagram |
+| [overview/01_OVERVIEW.md](overview/01_OVERVIEW.md) | Architecture, services, tech stack, project structure |
+| [operations/09_RUNNING.md](operations/09_RUNNING.md) | How to run, build, and deploy |
+| [overview/ARCHITECTURE.md](overview/ARCHITECTURE.md) | Service interactions, Kafka flows, ASCII diagrams |
+| [messaging/KAFKA_EVENTS.md](messaging/KAFKA_EVENTS.md) | Kafka index → per-service event docs (47 topics) |
+| [messaging/11_KAFKA_REQUEST_REPLY.md](messaging/11_KAFKA_REQUEST_REPLY.md) | Kafka request-reply pattern (6 pairs) |
+| [database/database-entities.md](database/database-entities.md) | Database schema reference |
+| [database/ERD_FULL_SYSTEM.md](database/ERD_FULL_SYSTEM.md) | Entity-Relationship Diagram |
 
 ### Business & Policy
 
 | File | Purpose |
 |------|---------|
-| [03_BUSINESS.md](03_BUSINESS.md) | Business logic, 9 workflows, refunds, RTS |
-| [05_OPERATIONS.md](05_OPERATIONS.md) | 17 cronjobs, data retention, cleanup |
+| [business/03_BUSINESS.md](business/03_BUSINESS.md) | Business logic, 9 workflows, refunds, RTS |
+| [operations/05_OPERATIONS.md](operations/05_OPERATIONS.md) | 17 cronjobs, data retention, cleanup |
 
 ### API Documentation
 
 | File | Purpose |
 |------|---------|
 | [api/README.md](api/README.md) | API documentation summary (all services) |
-| [identity-service/02_API_identity_service.md](identity-service/02_API_identity_service.md) | Auth, users (31 endpoints) |
-| [product-service/02_API_product_service.md](product-service/02_API_product_service.md) | Products, variants, cart (24 endpoints) |
-| [search-service/02_API_search_service.md](search-service/02_API_search_service.md) | Elasticsearch search |
-| [order-service/02_API_order_service.md](order-service/02_API_order_service.md) | Orders, checkout, RTS (18 endpoints) |
-| [payment-service/02_API_payment_service.md](payment-service/02_API_payment_service.md) | Stripe, payments, refunds (15 endpoints) |
-| [flashsale-service/02_API_flash_sale_service.md](flashsale-service/02_API_flash_sale_service.md) | Flash sale sessions |
-| [notification-service/02_API_notification_service.md](notification-service/02_API_notification_service.md) | SSE notifications |
-| [admin-service/02_API_admin.md](admin-service/02_API_admin.md) | Admin APIs (14 endpoints) |
+| [services/identity-service/02_API_identity_service.md](services/identity-service/02_API_identity_service.md) | Auth, users (31 endpoints) |
+| [services/product-service/02_API_product_service.md](services/product-service/02_API_product_service.md) | Products, variants, cart (24 endpoints) |
+| [services/search-service/02_API_search_service.md](services/search-service/02_API_search_service.md) | Elasticsearch search |
+| [services/order-service/02_API_order_service.md](services/order-service/02_API_order_service.md) | Orders, checkout, RTS (18 endpoints) |
+| [services/payment-service/02_API_payment_service.md](services/payment-service/02_API_payment_service.md) | Stripe, payments, refunds (15 endpoints) |
+| [services/flashsale-service/02_API_flash_sale_service.md](services/flashsale-service/02_API_flash_sale_service.md) | Flash sale sessions |
+| [services/notification-service/02_API_notification_service.md](services/notification-service/02_API_notification_service.md) | SSE notifications |
 
 ### Integration Deep Dives
 
 | File | Purpose |
 |------|---------|
-| [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) | Axon Saga payment orchestration (OrderProcessingSaga, ParentOrderPaymentSaga) |
-| [08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration, Stripe webhooks, multi-vendor transfers |
-| [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) | Visual flows (Mermaid diagrams) |
+| [business/06_PAYMENT_SAGA_FLOW.md](business/06_PAYMENT_SAGA_FLOW.md) | Axon Saga payment orchestration (OrderProcessingSaga, ParentOrderPaymentSaga) |
+| [business/08_PAYMENT_ORDER_INTEGRATION.md](business/08_PAYMENT_ORDER_INTEGRATION.md) | Order-Payment integration, Stripe webhooks, multi-vendor transfers |
+| [business/07_BUSINESS_FLOWS.md](business/07_BUSINESS_FLOWS.md) | Visual flows (Mermaid diagrams) |
 
 ### Kafka Event Docs (Per-Service)
 
 | File | Purpose |
 |------|---------|
-| [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | **Index catalog** — all topics, flow chains, config |
-| [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) | account.*, seller.* events |
-| [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) | product.*, inventory.*, cart.* events |
-| [search-service/KAFKA_EVENTS.md](search-service/KAFKA_EVENTS.md) | Consumer-only (10 topics from Product, Identity, Order) |
-| [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) | order.*, seller.order_cancelled + 5 request-reply |
-| [payment-service/KAFKA_EVENTS.md](payment-service/KAFKA_EVENTS.md) | payment.*, refund.*, stripe.* events |
-| [flashsale-service/KAFKA_EVENTS.md](flashsale-service/KAFKA_EVENTS.md) | flash_sale.* session & item events |
-| [notification-service/KAFKA_EVENTS.md](notification-service/KAFKA_EVENTS.md) | Consumer-only (20+ topics, SSE output) |
-| [admin-service/KAFKA_EVENTS.md](admin-service/KAFKA_EVENTS.md) | product.approved/rejected/auto_hidden |
-| [worker-service/KAFKA_EVENTS.md](worker-service/KAFKA_EVENTS.md) | flash_sale.reminder, outbox pattern |
-| [ai-chat-service/KAFKA_EVENTS.md](ai-chat-service/KAFKA_EVENTS.md) | ai_chat.*, tool_call.* events |
-| [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md) | 6 request-reply pairs with full cycle diagrams |
+| [messaging/KAFKA_EVENTS.md](messaging/KAFKA_EVENTS.md) | **Index catalog** — all topics, flow chains, config |
+| [services/identity-service/KAFKA_EVENTS.md](services/identity-service/KAFKA_EVENTS.md) | account.*, seller.* events |
+| [services/product-service/KAFKA_EVENTS.md](services/product-service/KAFKA_EVENTS.md) | product.*, inventory.*, cart.* events |
+| [services/search-service/KAFKA_EVENTS.md](services/search-service/KAFKA_EVENTS.md) | Consumer-only (10 topics from Product, Identity, Order) |
+| [services/order-service/KAFKA_EVENTS.md](services/order-service/KAFKA_EVENTS.md) | order.*, seller.order_cancelled + 5 request-reply |
+| [services/payment-service/KAFKA_EVENTS.md](services/payment-service/KAFKA_EVENTS.md) | payment.*, refund.*, stripe.* events |
+| [services/flashsale-service/KAFKA_EVENTS.md](services/flashsale-service/KAFKA_EVENTS.md) | flash_sale.* session & item events |
+| [services/notification-service/KAFKA_EVENTS.md](services/notification-service/KAFKA_EVENTS.md) | Consumer-only (20+ topics, SSE output) |
+| [services/worker-service/KAFKA_EVENTS.md](services/worker-service/KAFKA_EVENTS.md) | flash_sale.reminder, outbox pattern |
+| [services/ai-chat-service/KAFKA_EVENTS.md](services/ai-chat-service/KAFKA_EVENTS.md) | ai_chat.*, tool_call.* events |
+| [messaging/11_KAFKA_REQUEST_REPLY.md](messaging/11_KAFKA_REQUEST_REPLY.md) | 6 request-reply pairs with full cycle diagrams |
 
 ---
 
@@ -105,13 +103,13 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 
 | Goal | Go to |
 |------|-------|
-| **Understand the system** | [00_INDEX.md](00_INDEX.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
-| **Run the project** | [09_RUNNING.md](09_RUNNING.md) |
+| **Understand the system** | [00_INDEX.md](00_INDEX.md) → [overview/ARCHITECTURE.md](overview/ARCHITECTURE.md) |
+| **Run the project** | [operations/09_RUNNING.md](operations/09_RUNNING.md) |
 | **API reference** | [api/README.md](api/README.md) or service-specific docs above |
-| **Debug Kafka flows** | [KAFKA_EVENTS.md](KAFKA_EVENTS.md) → [ARCHITECTURE.md](ARCHITECTURE.md) |
-| **Understand payment saga** | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) |
-| **Database schema** | [database-entities.md](database-entities.md) → [ERD_FULL_SYSTEM.md](ERD_FULL_SYSTEM.md) |
-| **Business logic** | [03_BUSINESS.md](03_BUSINESS.md) → [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) |
+| **Debug Kafka flows** | [messaging/KAFKA_EVENTS.md](messaging/KAFKA_EVENTS.md) → [overview/ARCHITECTURE.md](overview/ARCHITECTURE.md) |
+| **Understand payment saga** | [business/06_PAYMENT_SAGA_FLOW.md](business/06_PAYMENT_SAGA_FLOW.md) |
+| **Database schema** | [database/database-entities.md](database/database-entities.md) → [database/ERD_FULL_SYSTEM.md](database/ERD_FULL_SYSTEM.md) |
+| **Business logic** | [business/03_BUSINESS.md](business/03_BUSINESS.md) → [business/07_BUSINESS_FLOWS.md](business/07_BUSINESS_FLOWS.md) |
 
 ---
 
@@ -159,12 +157,10 @@ Authorization: Bearer <jwt_token>
 
 ## ✨ v5.5 Features
 
-- Trust Score Tier system (6 levels: BRONZE to ELITE) (removed in MVP)
 - Multi-vendor order split with Stripe Connect
 - Real-time SSE notifications
 - Return To Sender (RTS) refund workflow
 - Cart merged into Product Service
-- Loyalty merged into Identity Service (removed in MVP)
 - AI Chat Support (multi-turn conversation with Tool calls, human-in-the-loop)
 - 47 Kafka topics for event-driven architecture
 - High-concurrency Flash Sale (50k+ req/s with Redis Lua scripts)

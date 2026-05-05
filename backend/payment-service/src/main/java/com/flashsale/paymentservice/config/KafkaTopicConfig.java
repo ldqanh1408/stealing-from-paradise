@@ -56,6 +56,11 @@ public class KafkaTopicConfig {
     @Bean public NewTopic stripeTransferReversed()     { return topic(KafkaTopics.STRIPE_TRANSFER_REVERSED); }
     @Bean public NewTopic stripePayoutFailed()         { return topic(KafkaTopics.STRIPE_PAYOUT_FAILED); }
 
+    // ─── Payout topics ─────────────────────────────────────────────────────────
+    @Bean public NewTopic payoutProcessed()             { return topic(KafkaTopics.PAYOUT_PROCESSED); }
+    @Bean public NewTopic payoutFailed()                { return topic(KafkaTopics.PAYOUT_FAILED); }
+    @Bean public NewTopic orderDelivered()              { return topic(KafkaTopics.ORDER_DELIVERED); }
+
     private NewTopic topic(String name) {
         return TopicBuilder.name(name).partitions(3).replicas(1).build();
     }

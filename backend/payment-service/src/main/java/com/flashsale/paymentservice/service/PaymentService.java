@@ -23,7 +23,6 @@ import com.stripe.model.*;
 import com.stripe.net.Webhook;
 import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.PaymentIntentCreateParams;
-import com.stripe.param.TransferCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -173,9 +172,9 @@ public class PaymentService {
     }
 
     /**
-     * Creates Stripe Connect transfers to each seller's connected account.
-     * SellerTransfer records were created during onPaymentRequested().
-     * Only transfers to sellers with chargesEnabled=true are executed.
+     * Validates seller accounts and transitions PENDING transfers to AWAITING_DELIVERY.
+     * No actual Stripe transfer is created yet — the money stays in the platform balance.
+     * Actual payout happens after the return window expires (see PayoutScheduler).
      */
     private void createSellerTransfers(Long parentOrderId, PaymentIntent pi) {
         List<SellerTransfer> pendingTransfers = sellerTransferRepository.findAllByParentOrderId(parentOrderId)
@@ -188,51 +187,21 @@ public class PaymentService {
             return;
         }
 
-        String latestChargeId = pi.getLatestCharge();
-
         for (SellerTransfer st : pendingTransfers) {
-            try {
-                SellerStripeAccount sellerAccount = sellerStripeAccountRepository
-                        .findBySellerId(st.getSellerId()).orElse(null);
+            SellerStripeAccount sellerAccount = sellerStripeAccountRepository
+                    .findBySellerId(st.getSellerId()).orElse(null);
 
-                if (sellerAccount == null || !Boolean.TRUE.equals(sellerAccount.getChargesEnabled())) {
-                    log.warn("Seller {} has no active Stripe account — skipping transfer for orderId={}",
-                            st.getSellerId(), st.getOrderId());
-                    st.setStatus("SKIPPED");
-                    sellerTransferRepository.save(st);
-                    continue;
-                }
-
-                long netStripeAmount = toStripeAmount(
-                        st.getTransferAmount().multiply(
-                            BigDecimal.ONE.subtract(BigDecimal.valueOf(stripeConfig.getPlatformFeePercentage() / 100.0))
-                        ).setScale(0, RoundingMode.HALF_UP));
-                TransferCreateParams params = TransferCreateParams.builder()
-                        .setAmount(netStripeAmount)
-                        .setCurrency("vnd")
-                        .setDestination(sellerAccount.getStripeAccountId())
-                        .putMetadata("order_id",    String.valueOf(st.getOrderId()))
-                        .putMetadata("seller_id",   String.valueOf(st.getSellerId()))
-                        .putMetadata("parent_order_id", String.valueOf(parentOrderId))
-                        .setSourceTransaction(latestChargeId)
-                        .build();
-
-                Transfer transfer = Transfer.create(params);
-
-                st.setStripeTransferId(transfer.getId());
-                st.setStatus("SUCCEEDED");
-                sellerTransferRepository.save(st);
-
-                log.info("Stripe transfer created: orderId={}, sellerId={}, transferId={}, amount={}",
-                        st.getOrderId(), st.getSellerId(), transfer.getId(), netStripeAmount);
-
-            } catch (StripeException e) {
-                log.error("Stripe transfer failed for orderId={}, sellerId={}: {}",
-                        st.getOrderId(), st.getSellerId(), e.getMessage());
-                st.setStatus("FAILED");
-                sellerTransferRepository.save(st);
+            if (sellerAccount == null || !Boolean.TRUE.equals(sellerAccount.getChargesEnabled())) {
+                log.warn("Seller {} has no active Stripe account — skipping transfer for orderId={}",
+                        st.getSellerId(), st.getOrderId());
+                st.setStatus("SKIPPED");
+            } else {
+                st.setStatus("AWAITING_DELIVERY");
             }
+            sellerTransferRepository.save(st);
         }
+
+        log.info("SellerTransitions transitioned to AWAITING_DELIVERY for parentOrderId={}", parentOrderId);
     }
 
     private void handlePaymentIntentFailed(Event event) {
@@ -755,6 +724,51 @@ public class PaymentService {
     @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "payment-service-group")
     public void onPaymentSuccess(String message) {
         log.info("Payment success event received: {}", message);
+    }
+
+    /**
+     * Listens for ORDER_DELIVERED and schedules the seller payout deadline.
+     * Transitions SellerTransfer from AWAITING_DELIVERY → RETURN_WINDOW
+     * with payout_eligible_at = delivered_at + 7 days.
+     */
+    @KafkaListener(topics = KafkaTopics.ORDER_DELIVERED, groupId = "payment-service-group")
+    @Transactional
+    public void onOrderDelivered(String message) {
+        try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
+            Long orderId = toLong(payload.get("order_id"));
+
+            if (orderId == null) {
+                log.warn("onOrderDelivered: missing order_id in payload");
+                return;
+            }
+
+            SellerTransfer st = sellerTransferRepository.findByOrderId(orderId).orElse(null);
+            if (st == null) {
+                log.warn("onOrderDelivered: no SellerTransfer for orderId={}", orderId);
+                return;
+            }
+
+            if (!"AWAITING_DELIVERY".equals(st.getStatus())) {
+                log.debug("onOrderDelivered: skip — SellerTransfer orderId={} status={} (expected AWAITING_DELIVERY)",
+                        orderId, st.getStatus());
+                return;
+            }
+
+            LocalDateTime deliveredAt = LocalDateTime.now();
+            LocalDateTime payoutEligibleAt = deliveredAt.plusDays(7);
+
+            st.setDeliveredAt(deliveredAt);
+            st.setPayoutEligibleAt(payoutEligibleAt);
+            st.setStatus("RETURN_WINDOW");
+            sellerTransferRepository.save(st);
+
+            log.info("Seller payout scheduled: orderId={}, sellerId={}, deliveredAt={}, payoutEligibleAt={}",
+                    orderId, st.getSellerId(), deliveredAt, payoutEligibleAt);
+
+        } catch (Exception e) {
+            log.error("Failed to process ORDER_DELIVERED: {}", e.getMessage(), e);
+        }
     }
 
     /**

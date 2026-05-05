@@ -636,6 +636,19 @@ public class RefundService {
             log.warn("reverseSellerTransfer: no SellerTransfer for orderId={}", orderId);
             return null;
         }
+
+        // New: if transfer hasn't been paid out yet, no stripe reversal needed.
+        // Funds are still in the platform balance — just mark the transfer as REFUNDED
+        // so the payout cron won't pick it up later.
+        String transferStatus = st.getStatus();
+        if ("AWAITING_DELIVERY".equals(transferStatus)
+                || "RETURN_WINDOW".equals(transferStatus)
+                || "READY_FOR_PAYOUT".equals(transferStatus)) {
+            log.info("reverseSellerTransfer: transfer not yet paid (status={}) for orderId={}, marking REFUNDED", transferStatus, orderId);
+            st.setStatus("REFUNDED");
+            sellerTransferRepository.save(st);
+            return null;
+        }
         if (st.getStripeTransferId() == null) {
             // Seller chưa có Stripe account khi thanh toán → transfer bị SKIPPED → không cần reverse
             log.info("reverseSellerTransfer: no stripeTransferId for orderId={} (status={}), skipping", orderId, st.getStatus());

@@ -23,18 +23,18 @@ Tài liệu API gốc `02_API.md` (5,220 dòng) đã được tách ra thành **
 
 ```
 docs/
-├── identity-service/02_API_identity_service.md   # 🔐 Auth, Users (Loyalty removed in MVP) (31 endpoints)
-├── product-service/02_API_product_service.md     # 📦 Products, Variants, Inventory, Cart (24 endpoints)
-├── search-service/02_API_search_service.md       # 🔍 Search (routes configured, controllers WIP)
-├── order-service/02_API_order_service.md         # 📋 Orders, Checkout, RTS, Refunds (18 endpoints)
-├── payment-service/02_API_payment_service.md     # 💳 Payment, Stripe, Refunds, Transfers (15 endpoints)
-├── flashsale-service/02_API_flash_sale_service.md # ⚡ Flash Sales (routes configured, controllers WIP)
-├── notification-service/02_API_notification_service.md # 🔔 SSE Notifications (routes configured)
-├── admin-service/02_API_admin.md                 # 🛡️ Admin, Moderation (14 endpoints)
-└── api/README.md                                 # 📋 This index file
+├── services/identity-service/02_API_identity_service.md   # 🔐 Auth, Users (31 endpoints)
+├── services/product-service/02_API_product_service.md     # 📦 Products, Variants, Inventory, Cart (24 endpoints)
+├── services/search-service/02_API_search_service.md       # 🔍 Search (routes configured, controllers WIP)
+├── services/order-service/02_API_order_service.md         # 📋 Orders, Checkout, RTS, Refunds (18 endpoints)
+├── services/payment-service/02_API_payment_service.md     # 💳 Payment, Stripe, Refunds, Transfers (15 endpoints)
+├── services/flashsale-service/02_API_flash_sale_service.md # ⚡ Flash Sales (routes configured, controllers WIP)
+├── services/notification-service/02_API_notification_service.md # 🔔 SSE Notifications (routes configured)
+├── services/ai-chat-service/02_API_ai_chat.md             # 🤖 AI Chat (routes configured)
+└── api/README.md                                           # 📋 This index file
 ```
 
-**Total**: 102+ endpoints across 8 services (Cart merged into Product, Loyalty merged into Identity)
+**Total**: 102+ endpoints across 8 services (Cart merged into Product)
 
 ---
 
@@ -42,9 +42,9 @@ docs/
 
 | Original | Consolidated Into | Rationale |
 |----------|-------------------|-----------|
-| Loyalty Service | Identity Service | User-centric, points management tied to user account |
 | Cart Service | Product Service | Cart data is product-adjacent, shared MongoDB backend |
 | Refund Service | Payment Service | Refund logic depends on Stripe payment state |
+| Admin Service | Identity Service | Admin không phải standalone process; endpoints route từ API Gateway vào Identity Service |
 
 ---
 
@@ -52,15 +52,15 @@ docs/
 
 | # | Service | Port | File | Endpoints | Status |
 |---|---------|------|------|-----------|--------|
-| 1 | **Identity** | 8081 | [Identity doc](../identity-service/02_API_identity_service.md) | 31 | Implemented |
-| 2 | **Product (+ Cart)** | 8090 | [Product doc](../product-service/02_API_product_service.md) | 24 | Implemented |
-| 3 | **Search** | 8091 | [Search doc](../search-service/02_API_search_service.md) | 0* | Routes configured |
-| 4 | **Order** | 8083 | [Order doc](../order-service/02_API_order_service.md) | 18 | Implemented |
-| 5 | **Payment (+ Refund)** | 8082 | [Payment doc](../payment-service/02_API_payment_service.md) | 15 | Implemented |
-| 6 | **Flash Sale** | 8085 | [Flash Sale doc](../flashsale-service/02_API_flash_sale_service.md) | 0* | Routes configured |
-| 7 | **Notification** | 8092 | [Notification doc](../notification-service/02_API_notification_service.md) | 0* | Routes configured |
-| 8 | **AI Chat** | 8093 | [AI Chat doc](../ai-chat-service/02_API_ai_chat_service.md) | TBD | Implemented |
-|| 9 | **Admin** | - | [Admin doc](../admin-service/02_API_admin.md) | 14 | Implemented |
+| 1 | **Identity** (+ Admin) | 8081 | [Identity doc](../services/identity-service/02_API_identity_service.md) | 45 | Implemented |
+| 2 | **Product (+ Cart)** | 8090 | [Product doc](../services/product-service/02_API_product_service.md) | 24 | Implemented |
+| 3 | **Search** | 8091 | [Search doc](../services/search-service/02_API_search_service.md) | 0* | Routes configured |
+| 4 | **Order** | 8083 | [Order doc](../services/order-service/02_API_order_service.md) | 18 | Implemented |
+| 5 | **Payment (+ Refund)** | 8082 | [Payment doc](../services/payment-service/02_API_payment_service.md) | 15 | Implemented |
+| 6 | **Flash Sale** | 8085 | [Flash Sale doc](../services/flashsale-service/02_API_flash_sale_service.md) | 0* | Routes configured |
+| 7 | **Notification** | 8092 | [Notification doc](../services/notification-service/02_API_notification_service.md) | 0* | Routes configured |
+| 8 | **AI Chat** | 8093 | [AI Chat doc](../services/ai-chat-service/02_API_ai_chat.md) | TBD | Implemented |
+|| 9 | **Admin** | - | Merged into Identity Service | 14 | Merged |
 
 > *Controllers still under development; gateway routes are configured.
 
@@ -72,10 +72,13 @@ docs/
 
 **Identity Service**:
 - `account.locked` → Notification
-- `account.auto_locked` → Notification (removed in MVP)
-- `account.unlocked` → Notification (removed in MVP)
+- `account.unlocked` → Notification
+- `seller.posting_suspended` → Notification
+- `seller.posting_resumed` → Notification
+- `product.approved` → Search, Notification
+- `product.rejected` → Search, Notification
+- `product.auto_hidden` → Search, Notification
 - `appeal.resolved` → Notification (removed in MVP)
-- `loyalty.points_earned` → Notification (removed in MVP)
 
 **Product Service**:
 - `product.created` → Search
@@ -84,9 +87,9 @@ docs/
 
 **Order Service**:
 - `order.created` → Inventory (lock stock)
-- `order.cancelled` → Cart (Loyalty removed in MVP)
+- `order.cancelled` → Cart
 - `order.shipped` → Notification
-- `order.delivered` → Identity (Loyalty credit points removed in MVP)
+- `order.delivered` → Identity
 - `order.returned` → Refund, Inventory (RTS)
 - `order.checkout_completed` → Cart (clear cart)
 
@@ -96,7 +99,7 @@ docs/
 - `refund.requested` → Notification
 - `refund.admin_approved` → Notification
 - `refund.rejected` → Notification
-- `refund.stripe_auto` → Order (chargeback; Loyalty removed in MVP)
+- `refund.stripe_auto` → Order (chargeback)
 
 **Flash Sale Service**:
 - `flash_sale.session_started` → Notification
@@ -104,9 +107,7 @@ docs/
 - `flash_sale.item_approved` → Notification
 - `flash_sale.item_sold` → Inventory
 
-**Admin Service**:
-- `product.approved` → Search
-- `product.rejected` → Notification
+*(Admin events `product.approved`, `product.rejected`, `product.auto_hidden` thuộc Identity Service — xem [Identity Service doc](../services/identity-service/02_API_identity_service.md#🛡-admin-management))*
 
 ### Consumers (Event Listeners)
 
@@ -154,18 +155,15 @@ docs/
    └─ Update orders to PAID status
    └─ Produce: order.shipped (when seller updates tracking)
    
-5. LOYALTY: (removed in MVP)
-   └─ Credit points (PENDING → CONFIRMED) (Loyalty removed in MVP)
-   
-6. USER: POST /orders/{id}/refunds (within 7 days)
+5. USER: POST /orders/{id}/refunds (within 7 days)
    └─ Payment Service creates refund request
    └─ Produce: refund.requested
    
-7. ADMIN: POST /admin/refunds/{id}/approve
+6. ADMIN: POST /admin/refunds/{id}/approve
    └─ Stripe refund.create()
    └─ Produce: refund.admin_approved
    
-8. NOTIFICATION: Listen to all events
+7. NOTIFICATION: Listen to all events
    └─ Send real-time updates via SSE
    └─ Store in MongoDB (TTL 90 days)
 ```
@@ -225,11 +223,11 @@ docs/
 
 | Service | Endpoints |
 |---------|-----------|
-| Identity (+ Loyalty) | 31 |
+| Identity (+ Admin) | 45 |
 | Product (+ Cart) | 24 |
 | Order | 18 |
 | Payment (+ Refund) | 15 |
-| Admin | 14 |
+| Admin | 14 (merged into Identity) |
 | Flash Sale | 0* |
 | Notification | 0* |
 | Search | 0* |
@@ -242,7 +240,7 @@ docs/
 ## 🚀 Getting Started
 
 ### 1️⃣ Start Here: Read the Overview
-→ [00-index.md](00-index.md) for service architecture & quick flows
+→ [Documentation Index](../00_INDEX.md) for service architecture & quick flows
 
 ### 2️⃣ Find Your Service
 → Look up your service in the table above
@@ -322,7 +320,7 @@ docs/
     ├─→[8092 Notification] ← All services via Kafka
     │   (SSE real-time)
     │
-    └─→[Admin APIs]
+    └─→[Admin APIs (in Identity Service)]
         (Moderation, Config)
 ```
 
@@ -347,22 +345,20 @@ docs/
 ## 📚 Related Documentation
 
 - **[02_API.md](../02_API.md)** - Original unified API (deprecated, use individual service files)
-- **[03_BUSINESS.md](../03_BUSINESS.md)** - Business logic & workflows
-- **[05_OPERATIONS.md](../05_OPERATIONS.md)** - Data retention, 17 cronjobs
-- **[07_BUSINESS_FLOWS.md](../07_BUSINESS_FLOWS.md)** - Mermaid diagrams
-- **[ERD_FULL_SYSTEM.md](../ERD_FULL_SYSTEM.md)** - Entity-Relationship Diagram
+- **[Business Logic](../business/03_BUSINESS.md)** - Business logic & workflows
+- **[Operations](../operations/05_OPERATIONS.md)** - Data retention, 17 cronjobs
+- **[Business Flows](../business/07_BUSINESS_FLOWS.md)** - Mermaid diagrams
+- **[ERD Full System](../database/ERD_FULL_SYSTEM.md)** - Entity-Relationship Diagram
 
 ---
 
 ## ✨ v5.5 Features
 
-✅ Trust Score Tier system (6 levels) (removed in MVP)  
 ✅ Multi-vendor order split  
 ✅ Real-time SSE notifications  
 ✅ Failed events management & retry  
 ✅ Return To Sender (RTS) workflow  
 ✅ Tracking number for refunds  
-✅ Loyalty points integration (removed in MVP)  
 ✅ Flash sale with Redis atomic operations
 ✅ AI Chat Support (multi-turn conversation with Tool calls, human-in-the-loop)  
 
@@ -370,11 +366,9 @@ docs/
 
 ## 🔍 Quick FAQ
 
-**Q: Where is the Loyalty Service documentation?**  
-A: Loyalty Service has been removed in MVP. Previously consolidated into Identity Service.
 
 **Q: Where is the Refund Service documentation?**  
-A: Consolidated into Payment Service ([06-payment-service.md](06-payment-service.md)) under "↩️ Refund Management APIs" section
+A: Consolidated into Payment Service ([Payment Service doc](../services/payment-service/02_API_payment_service.md)) under "↩️ Refund Management APIs" section
 
 **Q: How do I trace a Kafka event?**  
 A: Each service file lists producers and consumers. Use these to follow event flow across services.
@@ -383,7 +377,7 @@ A: Each service file lists producers and consumers. Use these to follow event fl
 A: All except public endpoints (search, product view, register, login, category list)
 
 **Q: How many Kafka topics are there?**  
-A: See `00-index.md` for complete Kafka topics catalog (47 topics)
+A: See [Documentation Index](../00_INDEX.md) for complete Kafka topics catalog (47 topics)
 
 ---
 
@@ -392,12 +386,12 @@ A: See `00-index.md` for complete Kafka topics catalog (47 topics)
 - **API Issues**: Check error responses in respective service files
 - **Integration Issues**: See "🔗 Integration Points" in each file
 - **Kafka Events**: Check Kafka Integration sections
-- **Business Logic**: See [03_BUSINESS.md](../03_BUSINESS.md)
+- **Business Logic**: See [03_BUSINESS.md](../business/03_BUSINESS.md)
 
 ---
 
 **Created**: 2026-04-28  
-**Consolidated from**: [02_API.md](../02_API.md) (5,220 lines)  
+**Consolidated from**: `02_API.md` (5,220 lines)  
 **Services**: 10 consolidated files  
 **Total Endpoints**: 102+  
 **Status**: v5.5 Production Ready

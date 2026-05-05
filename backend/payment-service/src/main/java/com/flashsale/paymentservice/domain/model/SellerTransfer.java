@@ -36,6 +36,21 @@ public class SellerTransfer {
     @Column(nullable = false)
     private String status = "PENDING";
 
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
+
+    @Column(name = "payout_eligible_at")
+    private LocalDateTime payoutEligibleAt;
+
+    @Column(name = "platform_commission_amt")
+    private BigDecimal platformCommissionAmount;
+
+    @Column(name = "payout_at")
+    private LocalDateTime payoutAt;
+
+    @Column(name = "payout_retry_count")
+    private Integer payoutRetryCount = 0;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

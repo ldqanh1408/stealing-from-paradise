@@ -10,6 +10,6 @@
 
 dev-data:
   enabled: true
-  # reset=true drops all users/roles/loyalty/addresses before seeding.
+  # reset=true drops all users/roles/addresses before seeding.
   # CAUTION: This destroys ALL data in the identity schema.
   reset: false

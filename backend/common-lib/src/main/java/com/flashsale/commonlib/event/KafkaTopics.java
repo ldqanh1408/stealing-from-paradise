@@ -42,6 +42,12 @@ public final class KafkaTopics {
     public static final String SELLER_STRIPE_REQUIREMENT = "seller.stripe_requirement"; // → notification-service: seller cần hoàn tất yêu cầu Stripe
 
     // ──────────────────────────────────────────────
+    // Payout  (Producer: Payment Service)
+    // ──────────────────────────────────────────────
+    public static final String PAYOUT_PROCESSED         = "payout.processed";
+    public static final String PAYOUT_FAILED            = "payout.failed";
+
+    // ──────────────────────────────────────────────
     // Refund  (Producer: Payment Service)
     // ──────────────────────────────────────────────
     public static final String REFUND_REQUESTED         = "refund.requested";

@@ -1,0 +1,647 @@
+openapi: 3.1.0
+info:
+  title: Flash Sale Service API
+  description: >
+    High-throughput flash sale management API for the FlashSale marketplace platform.
+    Built with Spring WebFlux (reactive) for 50k+ req/s capacity. Handles flash sale
+    session lifecycle (UPCOMING -> ACTIVE -> ENDED), seller item registration with admin
+    approval, buyer purchases with Redis Lua script anti-oversell protection, and flash
+    sale reminders. Uses PostgreSQL via R2DBC for session/item persistence and Redis for
+    real-time stock counters. Session status transitions managed by JOB-01 (minute-level
+    polling). Publishes flash_sale.session_started, flash_sale.session_ended,
+    flash_sale.item_approved, flash_sale.item_rejected, flash_sale.item_sold, and
+    flash_sale.reminder Kafka events.
+  version: 5.4.0
+  contact:
+    name: FlashSale Platform Team
+
+servers:
+  - url: http://localhost:8085/api/v1
+    description: Local development (Flash Sale Service direct)
+  - url: https://api.marketplace.vn/api/v1
+    description: Production (via API Gateway)
+
+tags:
+  - name: Sessions
+    description: Public flash sale session listing and detail
+  - name: Seller Items
+    description: Seller flash sale item registration
+  - name: Admin
+    description: Admin session management and item approval/rejection
+  - name: Purchases
+    description: High-throughput flash sale purchase endpoint
+  - name: Reminders
+    description: Flash sale reminder registration
+
+security:
+  - bearerAuth: []
+
+paths:
+  # =========================================================================
+  # Public Session Endpoints
+  # =========================================================================
+  /flash-sale/sessions:
+    get:
+      tags: [Sessions]
+      summary: List active and upcoming flash sale sessions
+      description: >
+        Returns UPCOMING and ACTIVE sessions. ENDED sessions are not shown.
+        Session status is updated by JOB-01 every minute.
+        Response includes server_time for client-side countdown calculation.
+      operationId: listFlashSaleSessions
+      security: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [UPCOMING, ACTIVE]
+          description: Optional status filter
+      responses:
+        '200':
+          description: Sessions retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+
+  /flash-sale/sessions/{sessionId}:
+    get:
+      tags: [Sessions]
+      summary: Get session detail with items
+      description: Returns session detail including all APPROVED flash sale items.
+      operationId: getFlashSaleSession
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session detail retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDetail'
+
+  # =========================================================================
+  # Seller Item Registration
+  # =========================================================================
+  /flash-sale/sessions/{sessionId}/items:
+    post:
+      tags: [Seller Items]
+      summary: Register a product for flash sale session
+      description: >
+        Seller registers a SKU for a flash sale session. Subject to 6 validation conditions:
+        1. Session status must be UPCOMING
+        2. Seller Stripe details_submitted must be true
+        3. Seller trust_score >= configurable threshold (removed in MVP)
+        4. flash_price must be less than variant.price
+        5. flash_stock must be <= stock_available
+        6. SKU must not already have a PENDING/APPROVED item in this session
+
+        Created item starts in PENDING status, awaiting admin approval.
+      operationId: registerFlashSaleItem
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterFlashSaleItemRequest'
+      responses:
+        '201':
+          description: Item registered, pending admin approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashSaleItemResponse'
+
+  # =========================================================================
+  # Admin Endpoints
+  # =========================================================================
+  /flash-sale/sessions:
+    post:
+      tags: [Admin]
+      summary: Create a new flash sale session (Admin)
+      description: Admin creates a new flash sale session with start and end times.
+      operationId: createFlashSaleSession
+      security:
+        - bearerAuth: [ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+
+  /admin/flash-sale/sessions:
+    get:
+      tags: [Admin]
+      summary: List all flash sale sessions (Admin)
+      description: Admin endpoint returning all sessions including ENDED, with full status visibility.
+      operationId: listAllFlashSaleSessionsAdmin
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [UPCOMING, ACTIVE, ENDED]
+          description: Optional status filter
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: All sessions retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionResponse'
+                  total_elements:
+                    type: integer
+                  total_pages:
+                    type: integer
+                  page_number:
+                    type: integer
+                  page_size:
+                    type: integer
+
+  /admin/flash-sale/sessions/{sessionId}:
+    put:
+      tags: [Admin]
+      summary: Update a flash sale session (Admin)
+      description: >
+        Updates session name, start_time, or end_time. Cannot update ACTIVE or ENDED sessions.
+      operationId: updateFlashSaleSession
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Flash Sale 8PM Friday - Updated"
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Session updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '409':
+          description: Cannot update ACTIVE or ENDED session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    delete:
+      tags: [Admin]
+      summary: Delete a flash sale session (Admin)
+      description: >
+        Deletes a session. Cannot delete ACTIVE sessions or sessions with APPROVED items.
+      operationId: deleteFlashSaleSession
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session deleted
+        '409':
+          description: Session is ACTIVE or has APPROVED items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /flash-sale/sessions/{sessionId}/items/{itemId}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve a flash sale item (Admin)
+      description: >
+        Admin approves a PENDING flash sale item for inclusion in the session.
+        Publishes flash_sale.item_approved Kafka event.
+      operationId: approveFlashSaleItem
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  example: "Product meets flash sale criteria"
+      responses:
+        '200':
+          description: Item approved, status -> APPROVED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashSaleItemResponse'
+
+  /admin/flash-sale/items/{itemId}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a flash sale item (Admin)
+      description: >
+        Admin rejects a PENDING flash sale item. Publishes flash_sale.item_rejected
+        Kafka event.
+      operationId: rejectFlashSaleItem
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reject_reason]
+              properties:
+                reject_reason:
+                  type: string
+                  example: "Flash sale price does not meet minimum 20% discount"
+      responses:
+        '200':
+          description: Item rejected, status -> REJECTED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashSaleItemResponse'
+
+  # =========================================================================
+  # Buyer Purchase (High Load)
+  # =========================================================================
+  /flash-sale/sessions/{sessionId}/buy:
+    post:
+      tags: [Purchases]
+      summary: Purchase flash sale item (high load)
+      description: >
+        High-throughput purchase endpoint. Uses Redis Lua scripts for atomic
+        oversell protection. Validates stock availability and per-user purchase
+        limits in a single atomic operation. Creates a PENDING order with a
+        10-minute payment timeout. Publishes flash_sale.item_sold Kafka event.
+      operationId: buyFlashSaleItem
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuyFlashSaleRequest'
+      responses:
+        '201':
+          description: Purchase successful, order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuyResponse'
+        '400':
+          description: Purchase limit per user exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitExceededError'
+        '409':
+          description: Item sold out (Redis atomic check)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoldOutError'
+
+  # =========================================================================
+  # Reminders
+  # =========================================================================
+  /flash-sale/sessions/{sessionId}/reminders:
+    post:
+      tags: [Reminders]
+      summary: Register for flash sale reminder
+      description: >
+        Registers the authenticated user to receive a notification when the flash sale
+        session starts. JOB-02 sends reminders via Notification Service.
+      operationId: registerReminder
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '201':
+          description: Reminder registered
+    delete:
+      tags: [Reminders]
+      summary: Cancel flash sale reminder
+      description: Removes the user's reminder registration for a session.
+      operationId: cancelReminder
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Reminder cancelled
+        '404':
+          description: No reminder registered for this session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Flash sale session ID
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Flash sale item ID
+
+  schemas:
+    SessionListResponse:
+      type: object
+      properties:
+        server_time:
+          type: string
+          format: date-time
+          description: Server time for client-side countdown (do NOT use client clock)
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionSummary'
+
+    SessionSummary:
+      type: object
+      properties:
+        session_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          example: "Flash Sale 8PM Friday"
+        status:
+          type: string
+          enum: [UPCOMING, ACTIVE, ENDED]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        seconds_remaining:
+          type: integer
+          description: Seconds until start (UPCOMING) or until end (ACTIVE)
+        is_ended:
+          type: boolean
+
+    SessionResponse:
+      type: object
+      properties:
+        session_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        status:
+          type: string
+          enum: [UPCOMING, ACTIVE, ENDED]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    SessionDetail:
+      allOf:
+        - $ref: '#/components/schemas/SessionResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/FlashSaleItemResponse'
+
+    CreateSessionRequest:
+      type: object
+      required: [name, start_time, end_time]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          example: "Flash Sale 8PM Friday"
+        start_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T20:00:00Z"
+        end_time:
+          type: string
+          format: date-time
+          example: "2026-04-15T22:00:00Z"
+
+    RegisterFlashSaleItemRequest:
+      type: object
+      required: [sku_code, flash_price, flash_stock, limit_per_user]
+      properties:
+        sku_code:
+          type: string
+          description: Must exist; unique per session (no duplicate PENDING/APPROVED)
+          example: "NK-AIR-RED-XL"
+        flash_price:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: Must be less than variant.price
+          example: 189999
+        flash_stock:
+          type: integer
+          minimum: 1
+          description: Must not exceed stock_available
+          example: 50
+        limit_per_user:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 3
+
+    FlashSaleItemResponse:
+      type: object
+      properties:
+        fs_item_id:
+          type: integer
+          format: int64
+        session_id:
+          type: integer
+          format: int64
+        sku_code:
+          type: string
+        flash_price:
+          type: number
+          format: double
+        flash_stock:
+          type: integer
+        sold_qty:
+          type: integer
+          description: Number sold so far
+        limit_per_user:
+          type: integer
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    BuyFlashSaleRequest:
+      type: object
+      required: [fs_item_id, quantity, address_id]
+      properties:
+        fs_item_id:
+          type: integer
+          format: int64
+          example: 1001
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        address_id:
+          type: integer
+          format: int64
+          description: Shipping address for the order
+          example: 7
+
+    BuyResponse:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        order_code:
+          type: string
+          example: "OR-20260415-1002"
+        fs_item_id:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+        flash_price:
+          type: number
+          format: double
+        total:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [PENDING]
+        is_flash_sale:
+          type: boolean
+          enum: [true]
+        timeout_at:
+          type: string
+          format: date-time
+          description: Payment must be completed by this time (10 min window)
+        message:
+          type: string
+          example: "Order created. Complete payment within 10 minutes."
+
+    SoldOutError:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: [SOLD_OUT]
+        message:
+          type: string
+          example: "Item sold out"
+        status_code:
+          type: integer
+          example: 409
+
+    LimitExceededError:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: [LIMIT_EXCEEDED]
+        message:
+          type: string
+          example: "Purchase limit per user exceeded"
+        status_code:
+          type: integer
+          example: 400
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        status_code:
+          type: integer
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token (RS256). Roles: BUYER, SELLER, ADMIN as noted per endpoint.

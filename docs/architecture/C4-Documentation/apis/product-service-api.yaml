@@ -1,0 +1,1324 @@
+openapi: 3.1.0
+info:
+  title: Product Service API
+  description: >
+    Central product catalog, variant, category, cart, and inventory management API for the
+    FlashSale marketplace platform. Handles full product lifecycle (DRAFT -> PENDING -> APPROVED
+    -> PUBLISHED), variant/SKU management, hierarchical categories, multi-seller shopping cart,
+    atomic inventory operations via MongoDB $inc, presigned image upload URLs via MinIO, and
+    admin product moderation. Communicates with other services via Kafka for product lifecycle
+    events (created, updated, deleted, approved, rejected) and cart checkout integration.
+  version: 5.4.0
+  contact:
+    name: FlashSale Platform Team
+
+servers:
+  - url: http://localhost:8090/api/v1
+    description: Local development (Product Service direct)
+  - url: https://api.marketplace.vn/api/v1
+    description: Production (via API Gateway)
+
+tags:
+  - name: Products
+    description: Product CRUD, lifecycle, and presigned image URLs
+  - name: Variants
+    description: Product variant/SKU management
+  - name: Categories
+    description: Hierarchical category management
+  - name: Cart
+    description: Multi-seller shopping cart operations
+  - name: Inventory
+    description: Inventory query, restock, and audit trail
+  - name: Admin
+    description: Admin product moderation (approve/reject) and category management
+
+security:
+  - bearerAuth: []
+
+paths:
+  # =========================================================================
+  # Public Product Endpoints
+  # =========================================================================
+  /products:
+    get:
+      tags: [Products]
+      summary: Search published products
+      description: Public endpoint to search published products by name (regex) with category filtering and pagination.
+      operationId: searchProducts
+      security: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category ID
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Product name search query (regex match)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Page number (0-indexed)
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Page size
+      responses:
+        '200':
+          description: Products retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSearchPage'
+
+  /products/{productId}:
+    get:
+      tags: [Products]
+      summary: Get product detail
+      description: Public endpoint returning product detail with variants and category information.
+      operationId: getProduct
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product detail retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================================================================
+  # Seller Product Endpoints
+  # =========================================================================
+  /products:
+    post:
+      tags: [Products]
+      summary: Create a new product (DRAFT)
+      description: Seller creates a new product in DRAFT status. Requires variants to be added before submission.
+      operationId: createProduct
+      security:
+        - bearerAuth: [SELLER]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created in DRAFT status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /products/{productId}:
+    put:
+      tags: [Products]
+      summary: Update a product
+      description: Seller updates their own product details.
+      operationId: updateProduct
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '403':
+          description: Not the product owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /products/{productId}/presigned-url:
+    get:
+      tags: [Products]
+      summary: Get presigned URL for product image upload
+      description: >
+        Generates a MinIO presigned PUT URL for direct product image upload.
+        Images stored at products-media/products/{sellerId}/{productId}/{uuid}.{ext}.
+        URL valid for 15 minutes.
+      operationId: getProductImagePresignedUrl
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+        - name: file_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Original file name (e.g. product-front.jpg)
+        - name: content_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [image/jpeg, image/png, image/webp]
+          description: MIME type of the image
+      responses:
+        '200':
+          description: Presigned URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignedUrlResponse'
+
+  /sellers/me/products:
+    get:
+      tags: [Products]
+      summary: List seller's own products
+      description: Returns the authenticated seller's products with status filtering and pagination.
+      operationId: listSellerProducts
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, PENDING, APPROVED, REJECTED, PUBLISHED, UNPUBLISHED]
+          description: Filter by product lifecycle status
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Seller products retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+
+  /seller/products/{productId}:
+    delete:
+      tags: [Products]
+      summary: Soft-delete a product
+      description: >
+        Soft-deletes a product (sets deletedAt). Products with locked stock
+        (stock_locked > 0) cannot be deleted.
+      operationId: deleteProduct
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product soft-deleted
+        '403':
+          description: Not the product owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Product has locked stock (active orders)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Product Lifecycle
+  # =========================================================================
+  /seller/products/{productId}/submit:
+    post:
+      tags: [Products]
+      summary: Submit product for admin review
+      description: Transitions product from DRAFT to PENDING status. Publishes product.pending_review Kafka event.
+      operationId: submitProductForReview
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product submitted for review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStatusResponse'
+        '422':
+          description: Product incomplete or variants invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /seller/products/{productId}/publish:
+    post:
+      tags: [Products]
+      summary: Publish approved product
+      description: Transitions product from APPROVED to PUBLISHED status, making it visible to buyers.
+      operationId: publishProduct
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStatusResponse'
+
+  /seller/products/{productId}/unpublish:
+    post:
+      tags: [Products]
+      summary: Unpublish product
+      description: Transitions product from PUBLISHED to UNPUBLISHED status, hiding it from buyers.
+      operationId: unpublishProduct
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product unpublished
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStatusResponse'
+
+  # =========================================================================
+  # Variant Endpoints
+  # =========================================================================
+  /seller/products/{productId}/variants:
+    get:
+      tags: [Variants]
+      summary: List variants for a product
+      description: Returns all product variants (SKUs) for the seller's product.
+      operationId: listVariants
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Variants retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VariantResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Variants]
+      summary: Create a new variant
+      description: >
+        Creates a new product variant (SKU) with auto-created zero-stock inventory record.
+        SKU code must be unique across the system.
+      operationId: createVariant
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVariantRequest'
+      responses:
+        '201':
+          description: Variant created with auto-created inventory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantResponse'
+        '409':
+          description: SKU code already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /seller/variants/{variantId}:
+    put:
+      tags: [Variants]
+      summary: Update a variant
+      description: Updates variant tier name and/or price.
+      operationId: updateVariant
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/VariantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVariantRequest'
+      responses:
+        '200':
+          description: Variant updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantResponse'
+    delete:
+      tags: [Variants]
+      summary: Delete a variant
+      description: >
+        Deletes a variant. Blocked if stock_locked > 0 (active orders holding stock).
+      operationId: deleteVariant
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/VariantId'
+      responses:
+        '200':
+          description: Variant deleted
+        '409':
+          description: Variant has locked stock or is referenced by active orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Category Endpoints
+  # =========================================================================
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List all categories
+      description: Returns the full hierarchical category tree.
+      operationId: listCategories
+      security: []
+      responses:
+        '200':
+          description: Category tree retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+
+  /admin/categories:
+    post:
+      tags: [Categories, Admin]
+      summary: Create a new category (Admin)
+      description: Admin-only endpoint to create a new category with URL-friendly slug.
+      operationId: createCategory
+      security:
+        - bearerAuth: [ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '409':
+          description: Slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /admin/categories/{categoryId}:
+    put:
+      tags: [Categories, Admin]
+      summary: Update a category (Admin)
+      operationId: updateCategory
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+    delete:
+      tags: [Categories, Admin]
+      summary: Delete a category (Admin)
+      description: Blocked if the category has active products or subcategories.
+      operationId: deleteCategory
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200':
+          description: Category deleted
+        '409':
+          description: Category has active products or subcategories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Admin Moderation
+  # =========================================================================
+  /admin/products/pending:
+    get:
+      tags: [Admin]
+      summary: List pending products (Admin)
+      description: Admin endpoint to list products awaiting review. Filterable by category and seller.
+      operationId: listPendingProducts
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category ID
+        - name: seller
+          in: query
+          schema:
+            type: integer
+            format: int64
+          description: Filter by seller ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Pending products retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+
+  /admin/products/{productId}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve a pending product (Admin)
+      description: >
+        Admin approves a product in PENDING status. Publishes product.approved Kafka event.
+        After approval, the seller can publish the product.
+      operationId: approveProduct
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Product approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStatusResponse'
+
+  /admin/products/{productId}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a pending product (Admin)
+      description: >
+        Admin rejects a product with a reason. Publishes product.rejected Kafka event.
+        Seller can resubmit a rejected product.
+      operationId: rejectProduct
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  maxLength: 1000
+                  example: "Product images do not meet quality standards"
+      responses:
+        '200':
+          description: Product rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductStatusResponse'
+
+  # =========================================================================
+  # Cart Endpoints
+  # =========================================================================
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Get cart grouped by seller
+      description: >
+        Returns the authenticated user's cart with items grouped by seller for multi-vendor
+        checkout presentation. Enriches with real-time product name, variant details, and pricing.
+      operationId: getCart
+      responses:
+        '200':
+          description: Cart retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+    delete:
+      tags: [Cart]
+      summary: Clear entire cart
+      description: Removes all items from the authenticated user's cart.
+      operationId: clearCart
+      responses:
+        '200':
+          description: Cart cleared
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      description: >
+        Adds an item to the cart with stock validation. If the SKU already exists in the cart,
+        quantity is incremented. Flash sale items are validated against limit_per_user on Redis.
+      operationId: addCartItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemRequest'
+      responses:
+        '200':
+          description: Item added to cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemResponse'
+        '409':
+          description: Trust score tier limit exceeded or flash sale limit per user exceeded (removed in MVP)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: SKU out of stock or does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /cart/items/{itemId}:
+    put:
+      tags: [Cart]
+      summary: Update cart item quantity
+      description: >
+        Updates the quantity of a cart item. Setting quantity to 0 is not allowed;
+        use DELETE to remove the item.
+      operationId: updateCartItemQuantity
+      parameters:
+        - $ref: '#/components/parameters/CartItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  example: 3
+      responses:
+        '200':
+          description: Quantity updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemResponse'
+        '404':
+          description: Cart item not found or does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Quantity exceeds available stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    delete:
+      tags: [Cart]
+      summary: Remove item from cart
+      operationId: removeCartItem
+      parameters:
+        - $ref: '#/components/parameters/CartItemId'
+      responses:
+        '200':
+          description: Item removed
+        '404':
+          description: Cart item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Inventory Endpoints
+  # =========================================================================
+  /inventory/{skuCode}:
+    get:
+      tags: [Inventory]
+      summary: Get inventory by SKU
+      description: Returns current stock levels for a given SKU code.
+      operationId: getInventory
+      parameters:
+        - $ref: '#/components/parameters/SkuCode'
+      responses:
+        '200':
+          description: Inventory retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+        '404':
+          description: SKU not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /inventory/{skuCode}/restock:
+    put:
+      tags: [Inventory]
+      summary: Restock inventory (Seller)
+      description: >
+        Increases stock_total and stock_available for a SKU using atomic MongoDB $inc operation.
+      operationId: restockInventory
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/SkuCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestockRequest'
+      responses:
+        '200':
+          description: Inventory restocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+
+  /seller/inventory/adjust:
+    post:
+      tags: [Inventory]
+      summary: Manual inventory adjustment (Seller)
+      description: >
+        Manually adjusts stock for a SKU. Negative delta for stock decrease, positive for increase.
+        Every adjustment creates an InventoryLog audit entry.
+      operationId: adjustInventory
+      security:
+        - bearerAuth: [SELLER]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryAdjustRequest'
+      responses:
+        '200':
+          description: Inventory adjusted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+        '422':
+          description: Invalid SKU code or stock_available would become negative
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /seller/inventory/{skuCode}/logs:
+    get:
+      tags: [Inventory]
+      summary: Get inventory audit trail
+      description: Returns the inventory adjustment history for a SKU.
+      operationId: getInventoryLogs
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - $ref: '#/components/parameters/SkuCode'
+      responses:
+        '200':
+          description: Inventory logs retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryLogResponse'
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+  parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Product ID (MongoDB ObjectId as hex string)
+    VariantId:
+      name: variantId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Variant ID (MongoDB ObjectId as hex string)
+    CategoryId:
+      name: categoryId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Category ID (MongoDB ObjectId as hex string)
+    CartItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Cart item ID (MongoDB ObjectId as hex string)
+    SkuCode:
+      name: skuCode
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9-]{3,50}$'
+      description: SKU code (alphanumeric with hyphens, 3-50 characters)
+
+  schemas:
+    CreateProductRequest:
+      type: object
+      required: [name, description, category_id, images]
+      properties:
+        name:
+          type: string
+          minLength: 5
+          maxLength: 200
+          example: "Nike Air Men's T-Shirt"
+        description:
+          type: string
+          maxLength: 10000
+          description: HTML content allowed
+          example: "<p>High quality cotton t-shirt...</p>"
+        category_id:
+          type: string
+          description: Leaf category only
+        attributes:
+          type: object
+          additionalProperties: true
+          example:
+            brand: "Nike"
+            material: "100% Cotton"
+            size_chart: "S-M-L-XL-XXL"
+        images:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+            format: uri
+          description: CDN URLs to product images (JPEG, PNG, or WebP)
+        is_flash:
+          type: boolean
+          default: false
+          description: Flag for flash sale designation
+
+    UpdateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 5
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 10000
+        category_id:
+          type: string
+        attributes:
+          type: object
+          additionalProperties: true
+        images:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+            format: uri
+        is_flash:
+          type: boolean
+
+    ProductResponse:
+      type: object
+      properties:
+        product_id:
+          type: string
+        seller_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        category_id:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, PENDING, APPROVED, REJECTED, PUBLISHED, UNPUBLISHED]
+        created_at:
+          type: string
+          format: date-time
+
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProductResponse'
+        - type: object
+          properties:
+            description:
+              type: string
+            attributes:
+              type: object
+            images:
+              type: array
+              items:
+                type: string
+                format: uri
+            variants:
+              type: array
+              items:
+                $ref: '#/components/schemas/VariantResponse'
+            category:
+              $ref: '#/components/schemas/CategoryResponse'
+
+    ProductStatusResponse:
+      type: object
+      properties:
+        product_id:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, PENDING, APPROVED, REJECTED, PUBLISHED, UNPUBLISHED]
+        message:
+          type: string
+
+    ProductPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+        total_elements:
+          type: integer
+        total_pages:
+          type: integer
+        page_number:
+          type: integer
+        page_size:
+          type: integer
+
+    ProductSearchPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductDetail'
+        total_elements:
+          type: integer
+        total_pages:
+          type: integer
+        page_number:
+          type: integer
+        page_size:
+          type: integer
+
+    CreateVariantRequest:
+      type: object
+      required: [sku_code, tier_name, price]
+      properties:
+        sku_code:
+          type: string
+          pattern: '^[a-zA-Z0-9-]{3,50}$'
+          description: Unique SKU code (alphanumeric + hyphens)
+          example: "NK-AIR-RED-XL"
+        tier_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Human-readable variant name (e.g., "Red / XL")
+          example: "Red / XL"
+        price:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          maximum: 9999999999
+          example: 350000
+
+    UpdateVariantRequest:
+      type: object
+      properties:
+        tier_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        price:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+
+    VariantResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        sku_code:
+          type: string
+        tier_name:
+          type: string
+        price:
+          type: number
+          format: double
+        product_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CreateCategoryRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Men's T-Shirts"
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          description: URL-friendly unique slug
+          example: "mens-tshirts"
+        parent_id:
+          type: string
+          description: Parent category ID (null for root)
+        level:
+          type: integer
+          description: 0 for root, 1+ for subcategories
+          example: 1
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        parent_id:
+          type: string
+          nullable: true
+        level:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryResponse'
+
+    AddCartItemRequest:
+      type: object
+      required: [sku_code, quantity]
+      properties:
+        sku_code:
+          type: string
+          example: "NK-AIR-RED-XL"
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          example: 2
+        fs_item_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Flash sale item ID (only for approved flash sale items)
+
+    CartResponse:
+      type: object
+      properties:
+        cart_id:
+          type: string
+        user_id:
+          type: integer
+          format: int64
+        sellers:
+          type: array
+          items:
+            type: object
+            properties:
+              seller_id:
+                type: integer
+                format: int64
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartItemDetail'
+              subtotal:
+                type: number
+                format: double
+        total_items:
+          type: integer
+        total:
+          type: number
+          format: double
+
+    CartItemResponse:
+      type: object
+      properties:
+        cart_item_id:
+          type: string
+        sku_code:
+          type: string
+        product_name:
+          type: string
+        quantity:
+          type: integer
+        unit_price:
+          type: number
+          format: double
+        subtotal:
+          type: number
+          format: double
+        message:
+          type: string
+
+    CartItemDetail:
+      type: object
+      properties:
+        cart_item_id:
+          type: string
+        sku_code:
+          type: string
+        product_id:
+          type: string
+        product_name:
+          type: string
+        variant_name:
+          type: string
+        unit_price:
+          type: number
+          format: double
+        quantity:
+          type: integer
+        is_flash:
+          type: boolean
+        fs_item_id:
+          type: integer
+          format: int64
+          nullable: true
+        flash_price:
+          type: number
+          format: double
+          nullable: true
+        subtotal:
+          type: number
+          format: double
+        added_at:
+          type: string
+          format: date-time
+
+    InventoryResponse:
+      type: object
+      properties:
+        sku_code:
+          type: string
+        stock_total:
+          type: integer
+        stock_locked:
+          type: integer
+          description: Stock held by PENDING/PAID orders
+        stock_available:
+          type: integer
+          description: stock_total - stock_locked - stock_flash_reserved
+        stock_flash_reserved:
+          type: integer
+          description: Stock reserved for flash sale sessions
+        updated_at:
+          type: string
+          format: date-time
+
+    RestockRequest:
+      type: object
+      required: [quantity, reason]
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          example: 50
+        reason:
+          type: string
+          example: "Restock from supplier"
+        note:
+          type: string
+          example: "April 2026 batch"
+
+    InventoryAdjustRequest:
+      type: object
+      required: [sku_code, delta, reason]
+      properties:
+        sku_code:
+          type: string
+        delta:
+          type: integer
+          description: Positive for increase, negative for decrease
+          example: -5
+        reason:
+          type: string
+          example: "Damaged in warehouse"
+
+    InventoryLogResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        sku_code:
+          type: string
+        delta:
+          type: integer
+        reason:
+          type: string
+        seller_id:
+          type: integer
+          format: int64
+        timestamp:
+          type: string
+          format: date-time
+
+    PresignedUrlResponse:
+      type: object
+      properties:
+        presigned_url:
+          type: string
+          format: uri
+          description: MinIO presigned PUT URL
+        object_url:
+          type: string
+          format: uri
+          description: CDN URL for the uploaded image
+        expires_in:
+          type: integer
+          description: URL TTL in seconds (900)
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        status_code:
+          type: integer
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token (RS256). Roles: SELLER, ADMIN, or any authenticated user.

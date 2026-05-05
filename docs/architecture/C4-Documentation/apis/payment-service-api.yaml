@@ -1,0 +1,667 @@
+openapi: 3.1.0
+info:
+  title: Payment Service API
+  description: >
+    Payment processing API for the FlashSale marketplace platform. Handles Stripe Connect
+    (Express) destination charges with multi-vendor transfer splits, seller onboarding
+    via Stripe account links, payment intent creation, Stripe webhook event processing
+    (payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, account.updated,
+    transfer.created), seller transfer history and balance queries, and admin refund management
+    (list, approve, reject). Publishes payment.success, payment.failed, and
+    stripe.account_suspended Kafka events.
+  version: 5.4.0
+  contact:
+    name: FlashSale Platform Team
+
+servers:
+  - url: http://localhost:8082/api/v1
+    description: Local development (Payment Service direct)
+  - url: https://api.marketplace.vn/api/v1
+    description: Production (via API Gateway)
+
+tags:
+  - name: Stripe Onboarding
+    description: Seller Stripe Connect Express onboarding
+  - name: Payments
+    description: Payment queries and client secret retrieval
+  - name: Stripe Webhooks
+    description: Stripe webhook event ingestion
+  - name: Seller Payments
+    description: Seller earnings, transfers, balance, and Stripe dashboard
+  - name: Admin Refunds
+    description: Admin refund management (list, detail, approve, reject)
+
+security:
+  - bearerAuth: []
+
+paths:
+  # =========================================================================
+  # Stripe Onboarding (Seller)
+  # =========================================================================
+  /stripe/onboarding/start:
+    post:
+      tags: [Stripe Onboarding]
+      summary: Start Stripe Connect onboarding
+      description: >
+        Creates a Stripe Express account and returns an onboarding URL via Stripe
+        accountLinks.create. The URL is valid for 24 hours, after which JOB-15
+        automatically nullifies it.
+      operationId: startOnboarding
+      security:
+        - bearerAuth: [SELLER]
+      responses:
+        '201':
+          description: Onboarding URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingResponse'
+        '409':
+          description: Seller already has a Stripe account with details_submitted=true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /stripe/onboarding/status:
+    get:
+      tags: [Stripe Onboarding]
+      summary: Check Stripe account status
+      description: Returns the current status of the seller's Stripe Connect Express account.
+      operationId: getOnboardingStatus
+      security:
+        - bearerAuth: [SELLER]
+      responses:
+        '200':
+          description: Onboarding status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingStatus'
+
+  /stripe/onboarding/refresh-link:
+    post:
+      tags: [Stripe Onboarding]
+      summary: Refresh expired onboarding link
+      description: Generates a new onboarding link when the previous one has expired.
+      operationId: refreshOnboardingLink
+      security:
+        - bearerAuth: [SELLER]
+      responses:
+        '200':
+          description: New onboarding URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingResponse'
+
+  # =========================================================================
+  # Payment Queries
+  # =========================================================================
+  /payments/parent-order/{parentOrderId}:
+    get:
+      tags: [Payments]
+      summary: Get payment transaction details
+      description: >
+        Returns the payment transaction for a parent order, including per-seller transfer
+        details (amount, fee, net amount, Stripe transfer ID, transfer status).
+      operationId: getPaymentByParentOrder
+      parameters:
+        - $ref: '#/components/parameters/ParentOrderId'
+      responses:
+        '200':
+          description: Payment details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/parent-order/{parentOrderId}/client-secret:
+    get:
+      tags: [Payments]
+      summary: Get Stripe client secret for payment
+      description: >
+        Returns the Stripe PaymentIntent client_secret for the frontend to complete
+        the payment using Stripe.js Elements.
+      operationId: getClientSecret
+      security:
+        - bearerAuth: [BUYER]
+      parameters:
+        - $ref: '#/components/parameters/ParentOrderId'
+      responses:
+        '200':
+          description: Client secret retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_secret:
+                    type: string
+                    example: "pi_3PxABC2K1234567_secret_abc123..."
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/by-intent/{stripePaymentIntentId}:
+    get:
+      tags: [Payments]
+      summary: Lookup transaction by Stripe Payment Intent ID
+      description: Returns the transaction matching the given Stripe PaymentIntent ID.
+      operationId: getPaymentByIntent
+      parameters:
+        - name: stripePaymentIntentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The Stripe Payment Intent ID (e.g., pi_xxx)
+      responses:
+        '200':
+          description: Transaction found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDetail'
+
+  # =========================================================================
+  # Stripe Webhooks
+  # =========================================================================
+  /stripe/webhooks:
+    post:
+      tags: [Stripe Webhooks]
+      summary: Receive Stripe webhook events
+      description: >
+        Endpoint receiving Stripe webhook events. Authenticated using the Stripe-Signature
+        header. Processes: payment_intent.succeeded, payment_intent.payment_failed,
+        charge.refunded, account.updated, transfer.created, and more (20+ event types).
+      operationId: stripeWebhook
+      security: []
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Stripe webhook signature for payload verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Stripe event payload
+      responses:
+        '200':
+          description: Webhook processed successfully
+        '400':
+          description: Invalid signature or payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Seller Payments
+  # =========================================================================
+  /seller/payments/earnings:
+    get:
+      tags: [Seller Payments]
+      summary: View seller earnings
+      description: Returns earnings overview including total earned, pending balance, and transfer history.
+      operationId: getSellerEarnings
+      security:
+        - bearerAuth: [SELLER]
+      responses:
+        '200':
+          description: Earnings data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerEarnings'
+
+  /seller/payments/stripe-dashboard:
+    get:
+      tags: [Seller Payments]
+      summary: Get Stripe Express dashboard link
+      description: Returns a link to the seller's Stripe Express dashboard for managing payouts and settings.
+      operationId: getStripeDashboard
+      security:
+        - bearerAuth: [SELLER]
+      responses:
+        '200':
+          description: Dashboard link retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dashboard_url:
+                    type: string
+                    format: uri
+                    example: "https://dashboard.stripe.com/express/..."
+
+  /seller/payments/transfers:
+    get:
+      tags: [Seller Payments]
+      summary: List seller transfer history
+      description: Returns paginated list of all transfers to the seller with status filtering.
+      operationId: listSellerTransfers
+      security:
+        - bearerAuth: [SELLER]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, SUCCESS, FAILED, REVERSED]
+          description: Filter by transfer status
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Transfers retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferPage'
+
+  /seller/payments/balance:
+    get:
+      tags: [Seller Payments]
+      summary: Get seller available balance
+      description: Returns the seller's pending balance, available balance, and total earned.
+      operationId: getSellerBalance
+      security:
+        - bearerAuth: [SELLER]
+      responses:
+        '200':
+          description: Balance retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerBalance'
+
+  # =========================================================================
+  # Admin Refund Management
+  # =========================================================================
+  /admin/refunds:
+    get:
+      tags: [Admin Refunds]
+      summary: List all refunds (Admin)
+      description: Admin endpoint to list all refund requests with filtering and pagination.
+      operationId: listAdminRefunds
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, SUCCESS, FAILED, REJECTED]
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Refunds retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminRefundSummary'
+                  total_elements:
+                    type: integer
+                  total_pages:
+                    type: integer
+                  page_number:
+                    type: integer
+                  page_size:
+                    type: integer
+
+  /admin/refunds/{refundId}:
+    get:
+      tags: [Admin Refunds]
+      summary: Get refund detail (Admin)
+      description: Admin endpoint to view full refund details.
+      operationId: getAdminRefundDetail
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/RefundId'
+      responses:
+        '200':
+          description: Refund detail retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRefundSummary'
+
+  /admin/refunds/{refundId}/approve:
+    post:
+      tags: [Admin Refunds]
+      summary: Approve a refund (Admin)
+      description: Admin approves a pending refund request. Triggers Stripe refund via the Saga.
+      operationId: approveRefund
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/RefundId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tracking_number:
+                  type: string
+                  example: "VT123456789"
+                note:
+                  type: string
+                  example: "Confirmed, processing refund"
+      responses:
+        '200':
+          description: Refund approved
+
+  /admin/refunds/{refundId}/reject:
+    post:
+      tags: [Admin Refunds]
+      summary: Reject a refund (Admin)
+      description: Admin rejects a refund request with a reason.
+      operationId: rejectRefund
+      security:
+        - bearerAuth: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/RefundId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  example: "Does not meet refund eligibility criteria"
+      responses:
+        '200':
+          description: Refund rejected
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+  parameters:
+    ParentOrderId:
+      name: parentOrderId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Parent order ID
+    RefundId:
+      name: refundId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Refund ID
+
+  schemas:
+    OnboardingResponse:
+      type: object
+      properties:
+        onboarding_url:
+          type: string
+          format: uri
+          description: Stripe Connect onboarding link (valid 24 hours)
+          example: "https://connect.stripe.com/setup/e/acct_xxx/..."
+        expires_at:
+          type: string
+          format: date-time
+
+    OnboardingStatus:
+      type: object
+      properties:
+        stripe_account_id:
+          type: string
+          example: "acct_1OxABC123456789"
+        account_status:
+          type: string
+          enum: [ACTIVE, SUSPENDED]
+        details_submitted:
+          type: boolean
+          description: Whether the seller completed Stripe KYC
+        charges_enabled:
+          type: boolean
+        payouts_enabled:
+          type: boolean
+        onboarding_status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETE, SUSPENDED]
+          description: |
+            PENDING - Not started
+            IN_PROGRESS - KYC in progress
+            COMPLETE - Onboarding completed
+            SUSPENDED - Suspended by Stripe
+        onboarding_url:
+          type: string
+          format: uri
+          nullable: true
+
+    PaymentDetail:
+      type: object
+      properties:
+        transaction_id:
+          type: integer
+          format: int64
+        parent_order_id:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED, REFUNDED]
+        application_fee_amount:
+          type: number
+          format: double
+          description: Platform application fee
+        trans_ref:
+          type: string
+          description: Internal transaction reference
+        pay_at:
+          type: string
+          format: date-time
+          nullable: true
+        sellers:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerTransferDetail'
+
+    SellerTransferDetail:
+      type: object
+      properties:
+        seller_id:
+          type: integer
+          format: int64
+        order_id:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: double
+        fee:
+          type: number
+          format: double
+        net_amount:
+          type: number
+          format: double
+        stripe_transfer_id:
+          type: string
+          nullable: true
+        transfer_status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED, REVERSED]
+
+    SellerEarnings:
+      type: object
+      properties:
+        total_earned:
+          type: number
+          format: double
+        pending_balance:
+          type: number
+          format: double
+        available_balance:
+          type: number
+          format: double
+        recent_transfers:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerTransferDetail'
+
+    SellerBalance:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            seller_id:
+              type: integer
+              format: int64
+            pending_balance:
+              type: number
+              format: double
+            available_balance:
+              type: number
+              format: double
+            total_earned:
+              type: number
+              format: double
+
+    TransferPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerTransferDetail'
+        total_elements:
+          type: integer
+        total_pages:
+          type: integer
+        page_number:
+          type: integer
+        page_size:
+          type: integer
+
+    AdminRefundSummary:
+      type: object
+      properties:
+        refund_id:
+          type: integer
+          format: int64
+        order_id:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED, REJECTED]
+        type:
+          type: string
+          enum: [FULL, PARTIAL]
+        refund_reason_type:
+          type: string
+          enum: [BUYER_REQUEST, RETURN_TO_SENDER]
+        buyer_id:
+          type: integer
+          format: int64
+        seller_id:
+          type: integer
+          format: int64
+        admin_note:
+          type: string
+          nullable: true
+        reviewed_by:
+          type: integer
+          format: int64
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        status_code:
+          type: integer
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token (RS256). Roles: SELLER, BUYER, ADMIN as noted per endpoint.
