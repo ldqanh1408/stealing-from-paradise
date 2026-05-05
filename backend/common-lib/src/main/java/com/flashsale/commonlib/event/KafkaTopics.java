@@ -26,14 +26,6 @@ public final class KafkaTopics {
     public static final String INVENTORY_ADJUSTED       = "inventory.adjusted";
 
     // ──────────────────────────────────────────────
-    // Review  (Producer: Product Service)
-    // ──────────────────────────────────────────────
-    public static final String REVIEW_CREATED           = "review.created";
-    public static final String REVIEW_UPDATED           = "review.updated";
-    public static final String REVIEW_DELETED           = "review.deleted";
-    public static final String REVIEW_SUMMARY_UPDATED   = "review.summary_updated";  // → search-service: update reviewCount/avgRating
-
-    // ──────────────────────────────────────────────
     // Order  (Producer: Order Service / Worker)
     // ──────────────────────────────────────────────
     public static final String ORDER_CREATED            = "order.created";
@@ -96,5 +88,7 @@ public final class KafkaTopics {
     public static final String ORDER_ADDRESS_RESPONSE        = "order.address.response";
     public static final String ORDER_REFUNDS_REQUEST         = "order.refunds.request";
     public static final String ORDER_REFUNDS_RESPONSE        = "order.refunds.response";
+    public static final String ORDER_REFUND_PRESIGNED_URL_REQUEST  = "order.refund_presigned_url.request";
+    public static final String ORDER_REFUND_PRESIGNED_URL_RESPONSE = "order.refund_presigned_url.response";
 
 }

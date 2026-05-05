@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.List;
+import java.time.LocalDateTime;
 
 /**
  * Authentication response DTO
@@ -24,10 +24,7 @@ public class AuthResponse {
     private String email;
     private String phone;
     private String fullName;
-    private List<String> roles;
     private String status;
-    private Integer trustScore;
-    private String trustTier;
-    private String role;
+    private LocalDateTime createdAt;
 }
 

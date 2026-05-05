@@ -25,12 +25,11 @@ public class Notification {
 
     private String type;  // ORDER_CREATED | PAYMENT_SUCCESS | REFUND_APPROVED | etc.
     private String title;
-    private String message;
+    private String body;
+    private String metadata;
 
     @Builder.Default
     private Boolean isRead = false;
-
-    private String deeplink;
 
     @Indexed(expireAfterSeconds = 7776000)  // 90 days TTL
     private LocalDateTime createdAt;

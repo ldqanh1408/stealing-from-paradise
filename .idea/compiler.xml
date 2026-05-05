@@ -44,28 +44,29 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="api-gateway" options="" />
+      <module name="api-gateway" options="-parameters" />
       <module name="cart-service" options="" />
-      <module name="common-lib" options="" />
-      <module name="discovery-service" options="" />
+      <module name="common-lib" options="-parameters" />
+      <module name="dev-data-runner" options="-parameters" />
+      <module name="discovery-service" options="-parameters" />
       <module name="flashsale-api" options="" />
-      <module name="flashsale-parent" options="" />
+      <module name="flashsale-parent" options="-parameters" />
       <module name="flashsale-parent (1)" options="" />
-      <module name="flashsale-service" options="" />
+      <module name="flashsale-service" options="-parameters" />
       <module name="identity-api" options="" />
-      <module name="identity-service" options="" />
-      <module name="notification-service" options="" />
+      <module name="identity-service" options="-parameters" />
+      <module name="notification-service" options="-parameters" />
       <module name="order-api" options="" />
-      <module name="order-service" options="" />
+      <module name="order-service" options="-parameters" />
       <module name="payment-api" options="" />
-      <module name="payment-service" options="" />
+      <module name="payment-service" options="-parameters" />
       <module name="product-api" options="" />
-      <module name="product-service" options="" />
+      <module name="product-service" options="-parameters" />
       <module name="promotion-api" options="" />
       <module name="promotion-domain" options="" />
-      <module name="search-service" options="" />
+      <module name="search-service" options="-parameters" />
       <module name="woker-service" options="" />
-      <module name="worker-service" options="" />
+      <module name="worker-service" options="-parameters" />
     </option>
   </component>
 </project>

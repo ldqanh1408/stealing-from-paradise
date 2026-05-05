@@ -21,8 +21,8 @@ public class FlashSaleReminder {
     @Id
     private Long id;
 
-    @Column("user_id")
-    private Long userId;
+    @Column("customer_id")
+    private Long customerId;
 
     @Column("session_id")
     private Long sessionId;
