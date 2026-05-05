@@ -41,7 +41,7 @@ Sản phẩm tham gia Flash Sale
 ---
 
 ## FS_REMINDERS
-Nhắc nhở Flash Sale (dành cho Buyer có trust_score ≥ 30)
+Nhắc nhở Flash Sale (dành cho Buyer có trust_score ≥ 30 — removed in MVP)
 
 | Cột | Kiểu | Ghi chú |
 |-----|------|---------|

@@ -112,7 +112,7 @@ The payment saga is **distributed across two Axon Sagas** and the Payment Servic
     ├─ Cancel payment deadline
     ├─ Kafka → ORDER_CANCELLED
     │   ├─→ CartService: restore cart items
-    │   ├─→ LoyaltyService: refund loyalty points
+    │   ├─→ (LoyaltyService: removed in MVP)
     │   └─→ NotificationService: notify buyer
     └─ @EndSaga
 ```
@@ -136,7 +136,7 @@ The payment saga is **distributed across two Axon Sagas** and the Payment Servic
     │
     ├─ OrderService: JOB-13 backup check
     ├─ NotificationService: notify buyer
-    └─ LoyaltyService: refund loyalty points
+    └─ (LoyaltyService: removed in MVP)
 ```
 
 ---
@@ -169,7 +169,7 @@ private Long sellerId;
 private String sellerName;
 private BigDecimal totalAmount;
 private boolean isFlashSale;
-private int loyaltyPointsUsed;
+private int loyaltyPointsUsed; // (removed in MVP)
 private String paymentDeadlineId;  // from DeadlineManager
 private String shippingDeadlineId;
 ```
@@ -209,9 +209,9 @@ The Payment Service is **not an Axon Saga**. It is a traditional Spring `@Servic
 | `payment.failed` | PaymentService | OrderService (ParentOrderPaymentSaga) | Cancel orders |
 | `order.created` | OrderProcessingSaga | NotificationService, WorkerService | Notify order created |
 | `order.shipped` | OrderProcessingSaga | NotificationService | Notify shipped |
-| `order.delivered` | OrderProcessingSaga | IdentityService, LoyaltyService, NotificationService | Award points + notify |
-| `order.cancelled` | OrderProcessingSaga | CartService, LoyaltyService, NotificationService | Restore items + refund points |
-| `order.auto_cancelled` | OrderProcessingSaga (deadline) | NotificationService, IdentityService | Auto-cancel notification |
+| `order.delivered` | OrderProcessingSaga | IdentityService, NotificationService | Notify (Loyalty removed in MVP) |
+| `order.cancelled` | OrderProcessingSaga | CartService, NotificationService | Restore items (Loyalty removed in MVP) |
+| `order.auto_cancelled` | OrderProcessingSaga (deadline) | NotificationService | Auto-cancel notification |
 | `order.returned` | OrderProcessingSaga | PaymentService, NotificationService | RTS → auto refund |
 
 ---
@@ -229,7 +229,7 @@ CHECKOUT
   │     │     │     │
   │     │     │     ├─→ DELIVERED (buyer confirms)
   │     │     │     │     │
-  │     │     │     │     └─ Terminal (loyalty points credited)
+  │     │     │     │     └─ Terminal (loyalty points credited — removed in MVP)
   │     │     │     │
   │     │     │     └─→ RETURNED (RTS — goods returned to seller)
   │     │     │           │

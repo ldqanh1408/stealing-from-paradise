@@ -22,7 +22,6 @@ export interface AdminUser {
   email: string;
   role: string;
   status: 'ACTIVE' | 'BANNED' | 'PENDING';
-  trustScore: number;
   createdAt: string;
 }
 

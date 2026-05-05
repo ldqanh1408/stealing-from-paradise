@@ -13,8 +13,6 @@ export interface AuthUser {
   fullName?: string;
   role: string;
   roles: string[];
-  trustScore: number;
-  trustTier?: string;
   status: string;
   avatarUrl?: string;
 }
@@ -38,8 +36,6 @@ interface AuthState {
     fullName?: string;
     role: string;
     roles: string[];
-    trustScore: number;
-    trustTier?: string;
     status: string;
     avatarUrl?: string;
   }) => void;
@@ -67,8 +63,6 @@ export const useAuthStore = create<AuthState>()(
             fullName: auth.fullName,
             role: auth.role,
             roles: auth.roles,
-            trustScore: auth.trustScore,
-            trustTier: auth.trustTier,
             status: auth.status,
             avatarUrl: auth.avatarUrl,
           },
@@ -92,8 +86,6 @@ export const useAuthStore = create<AuthState>()(
             fullName: auth.fullName,
             role: auth.role,
             roles: auth.roles,
-            trustScore: auth.trustScore,
-            trustTier: auth.trustTier,
             status: auth.status,
             avatarUrl: auth.avatarUrl,
           },
@@ -117,8 +109,6 @@ export const useAuthStore = create<AuthState>()(
             fullName: auth.fullName,
             role: auth.role,
             roles: auth.roles,
-            trustScore: auth.trustScore,
-            trustTier: auth.trustTier,
             status: auth.status,
             avatarUrl: auth.avatarUrl,
           },
@@ -142,8 +132,6 @@ export const useAuthStore = create<AuthState>()(
             fullName: auth.fullName,
             role: auth.role,
             roles: auth.roles,
-            trustScore: auth.trustScore,
-            trustTier: auth.trustTier,
             status: auth.status,
             avatarUrl: auth.avatarUrl,
           },
@@ -171,8 +159,6 @@ export const useAuthStore = create<AuthState>()(
               phone: profile.phone,
               fullName: profile.fullName,
               roles: profile.roles,
-              trustScore: profile.trustScore,
-              trustTier: profile.trustTier,
               status: profile.status,
               avatarUrl: profile.avatarUrl,
             } : null,

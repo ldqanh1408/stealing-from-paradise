@@ -14,7 +14,6 @@
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
         </processorPath>
-        <module name="worker-service" />
         <module name="dev-data-runner" />
         <module name="payment-service" />
         <module name="search-service" />
@@ -40,6 +39,7 @@
       <module name="promotion-api" target="17" />
       <module name="promotion-domain" target="17" />
       <module name="woker-service" target="17" />
+      <module name="worker-service" target="25" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

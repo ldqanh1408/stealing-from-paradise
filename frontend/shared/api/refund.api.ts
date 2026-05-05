@@ -64,7 +64,6 @@ export interface FullRefundCreatedResponse {
     amount: number;
     itemCount: number;
   }[];
-  loyaltyPointsToReturn?: number;
   estimatedDays: number;
 }
 

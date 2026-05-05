@@ -31,8 +31,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 
 | File | Purpose |
 |------|---------|
-| [03_BUSINESS.md](03_BUSINESS.md) | Business logic, 9 workflows, trust score, loyalty |
-| [04_POLICIES.md](04_POLICIES.md) | System rules, trust score tiers, flash sale policies |
+| [03_BUSINESS.md](03_BUSINESS.md) | Business logic, 9 workflows, refunds, RTS |
 | [05_OPERATIONS.md](05_OPERATIONS.md) | 17 cronjobs, data retention, cleanup |
 
 ### API Documentation
@@ -40,7 +39,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | File | Purpose |
 |------|---------|
 | [api/README.md](api/README.md) | API documentation summary (all services) |
-| [identity-service/02_API_identity_service.md](identity-service/02_API_identity_service.md) | Auth, users, loyalty (31 endpoints) |
+| [identity-service/02_API_identity_service.md](identity-service/02_API_identity_service.md) | Auth, users (31 endpoints) |
 | [product-service/02_API_product_service.md](product-service/02_API_product_service.md) | Products, variants, cart (24 endpoints) |
 | [search-service/02_API_search_service.md](search-service/02_API_search_service.md) | Elasticsearch search |
 | [order-service/02_API_order_service.md](order-service/02_API_order_service.md) | Orders, checkout, RTS (18 endpoints) |
@@ -62,7 +61,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | File | Purpose |
 |------|---------|
 | [KAFKA_EVENTS.md](KAFKA_EVENTS.md) | **Index catalog** — all topics, flow chains, config |
-| [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) | account.*, loyalty.*, seller.* events |
+| [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) | account.*, seller.* events |
 | [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) | product.*, inventory.*, cart.* events |
 | [search-service/KAFKA_EVENTS.md](search-service/KAFKA_EVENTS.md) | Consumer-only (10 topics from Product, Identity, Order) |
 | [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) | order.*, seller.order_cancelled + 5 request-reply |
@@ -82,7 +81,7 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 |---------|------|----------|-------|
 | API Gateway | 8080 | — | Entry point, JWT validation, routing |
 | Discovery (Eureka) | 8761 | — | Service registry |
-| Identity Service | 8081 | PostgreSQL | Auth, users, loyalty |
+| Identity Service | 8081 | PostgreSQL | Auth, users |
 | Payment Service | 8082 | PostgreSQL + Axon | Stripe, payments |
 | Order Service | 8083 | PostgreSQL + Axon | Orders, checkout, RTS |
 | Flashsale Service | 8085 | PostgreSQL + Axon | Flash sales, Redis |
@@ -148,7 +147,7 @@ Authorization: Bearer <jwt_token>
 
 | Metric | Value |
 |--------|-------|
-| **Backend Services** | 12 (+ common-lib) |
+| **Backend Services** | 11 (+ common-lib) |
 | **Frontend Apps** | 3 |
 | **API Endpoints** | 100+ |
 | **Kafka Topics** | 47 (35 event + 12 request-reply) |
@@ -160,12 +159,12 @@ Authorization: Bearer <jwt_token>
 
 ## ✨ v5.5 Features
 
-- Trust Score Tier system (6 levels: BRONZE → ELITE)
+- Trust Score Tier system (6 levels: BRONZE to ELITE) (removed in MVP)
 - Multi-vendor order split with Stripe Connect
 - Real-time SSE notifications
 - Return To Sender (RTS) refund workflow
 - Cart merged into Product Service
-- Loyalty merged into Identity Service
+- Loyalty merged into Identity Service (removed in MVP)
 - AI Chat Support (multi-turn conversation with Tool calls, human-in-the-loop)
 - 47 Kafka topics for event-driven architecture
 - High-concurrency Flash Sale (50k+ req/s with Redis Lua scripts)
@@ -179,7 +178,7 @@ Authorization: Bearer <jwt_token>
 backend/
 ├── api-gateway/          (Spring Cloud Gateway — 8080)
 ├── discovery-service/     (Eureka — 8761)
-├── identity-service/      (Auth, users, loyalty — 8081)
+├── identity-service/      (Auth, users — 8081)
 ├── payment-service/       (Stripe Connect — 8082)
 ├── order-service/        (Orders, checkout, RTS — 8083)
 ├── flashsale-service/    (Flash sales — 8085)
@@ -196,7 +195,7 @@ frontend/
 ├── apps/admin/            (Port 3002)
 └── shared/                (API clients, stores, components)
 
-docs/                     (25 documentation files)
+docs/                     (42 documentation files)
 ```
 
 ---

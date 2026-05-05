@@ -1,6 +1,6 @@
 # 📋 Order Service API
 
-**Port**: `:8087`  
+**Port**: `:8083`  
 **Mô tả**: Checkout, quản lý đơn hàng, Saga CQRS · Axon  
 **Base URL**: `/api/v1`
 
@@ -26,15 +26,15 @@
 - Tạo 1 PARENT_ORDER + N ORDERS (1 sub-order per Seller từ các item trong giỏ)
 - Lọc item theo address_id và thực hiện checkout cho tất cả
 - Hệ thống tự động split thanh toán theo Seller
-- Điểm Loyalty được ghi nhận ở trạng thái PENDING
+- Điểm Loyalty được ghi nhận ở trạng thái PENDING (Loyalty removed in MVP)
 
 **Request Body**:
 ```json
 {
   "address_id": 7,
   "item_ids": [201, 202],
-  "use_loyalty_points": true,
-  "loyalty_points_to_use": 50
+  "use_loyalty_points": true,  // (Loyalty removed in MVP)
+  "loyalty_points_to_use": 50  // (Loyalty removed in MVP)
 }
 ```
 
@@ -43,8 +43,8 @@
 |-------|------|-------|
 | address_id | long | Phải tồn tại; thuộc user |
 | item_ids | array | 1–50 items; không trùng |
-| use_loyalty_points | boolean | Optional; default false |
-| loyalty_points_to_use | integer | ≤ 20% of total amount; ≤ available points |
+| use_loyalty_points | boolean | (removed in MVP) |
+| loyalty_points_to_use | integer | (removed in MVP) |
 
 **Response 201**:
 ```json
@@ -114,7 +114,7 @@
       { "order_id": 101, "seller_id": 9, "total_amount": 500000, "items_count": 1 }
     ],
     "total_amount": 1200000,
-    "loyalty_points_used": 50,
+    "loyalty_points_used": 50,  // (Loyalty removed in MVP)
     "timestamp": "2026-10-01T10:00:00Z"
   }
 }
@@ -125,7 +125,7 @@
 |--------|-------|
 | 422 | Một số item hết hàng hoặc không hợp lệ |
 | 409 | Địa chỉ không tồn tại hoặc không thuộc user |
-| 400 | Loyalty points vượt giới hạn hoặc validation thất bại |
+| 400 | Loyalty points vượt giới hạn hoặc validation thất bại (Loyalty removed in MVP) |
 
 ---
 
@@ -239,7 +239,7 @@
 **Quyền truy cập**: JWT Required (BUYER \| SELLER)  
 **Tags**: Kafka → order.cancelled
 
-**⚠️ Cảnh báo**: Hủy đơn sẽ trừ Trust Score Buyer theo event_code `BUYER_CANCEL_EXCESSIVE` nếu tổng hủy trong 30 ngày vượt ngưỡng.
+**⚠️ Cảnh báo**: Hủy đơn sẽ trừ Trust Score Buyer theo event_code `BUYER_CANCEL_EXCESSIVE` nếu tổng hủy trong 30 ngày vượt ngưỡng. (Trust Score removed in MVP)
 
 **Request Body**:
 ```json
@@ -273,7 +273,7 @@
     "cancelled_by": "BUYER",
     "cancel_reason": "Tôi muốn hủy đơn này",
     "total_amount": 700000,
-    "loyalty_points_refunded": 25,
+    "loyalty_points_refunded": 25,  // (Loyalty removed in MVP)
     "timestamp": "2026-04-15T11:00:00Z"
   }
 }
@@ -302,7 +302,7 @@
   "order_code": "OR-20251001-100",
   "status": "DELIVERED",
   "delivered_at": "2026-10-03T14:30:00Z",
-  "loyalty_points_confirmed": 25
+  "loyalty_points_confirmed": 25  // (Loyalty removed in MVP)
 }
 ```
 
@@ -315,14 +315,14 @@
     "user_id": 42,
     "seller_id": 5,
     "total_amount": 700000,
-    "loyalty_points": 25,
+    "loyalty_points": 25,  // (Loyalty removed in MVP)
     "delivered_at": "2026-10-03T14:30:00Z",
     "timestamp": "2026-10-03T14:30:00Z"
   }
 }
 ```
 
-**Side Effects**: status → DELIVERED, điểm thưởng PENDING → CONFIRMED, trust_score Seller +5
+**Side Effects**: status → DELIVERED, điểm thưởng PENDING → CONFIRMED (loyalty removed in MVP), trust_score Seller +5 (Trust Score removed in MVP)
 
 ---
 

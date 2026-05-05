@@ -29,8 +29,6 @@ export interface AuthResponse {
   role: string;
   roles: string[];
   status: string;
-  trustScore: number;
-  trustTier?: string;
   avatarUrl?: string;
 }
 

@@ -1,6 +1,6 @@
 # 🔍 Search Service API
 
-**Port**: `:8089`  
+**Port**: `:8091`  
 **Mô tả**: Elasticsearch · Full-text · Faceted filter · Aggregation  
 **Base URL**: `/api/v1`
 
@@ -102,5 +102,4 @@ GET /search/products?q=áo thun&category_id=507f1f77bcf86cd799439011&price_min=1
 ---
 
 **Phiên bản:** v5.4  
-**Cập nhật:** 2026-04-30  
-**Cập nhật:** 2026-04-15
+**Cập nhật:** 2026-04-30

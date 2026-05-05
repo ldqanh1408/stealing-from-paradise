@@ -25,15 +25,6 @@ done
 echo "Kafka is ready."
 
 echo ""
-echo "=== Account & Trust Score topics ==="
-create_topic "account.auto_locked"
-create_topic "account.locked"
-create_topic "account.unlocked"
-create_topic "trust_score.warning"
-create_topic "seller.posting_suspended"
-create_topic "seller.posting_resumed"
-
-echo ""
 echo "=== Product topics ==="
 create_topic "product.created"
 create_topic "product.pending_review"

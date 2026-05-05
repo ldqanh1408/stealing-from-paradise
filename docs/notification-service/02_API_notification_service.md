@@ -1,6 +1,6 @@
 # 🔔 Notification Service API
 
-**Port**: `:8088`  
+**Port**: `:8092`  
 **Mô tả**: WebFlux · SSE · Redis Pub/Sub · MongoDB TTL 90 ngày  
 **Base URL**: `/api/v1`
 
@@ -137,10 +137,10 @@ data: {"id":"64f3b","type":"ORDER_SHIPPED","title":"Đơn hàng đang giao","bod
 | FS_ITEM_REJECTED | Item Flash Sale bị từ chối | NORMAL |
 | PRODUCT_APPROVED | Sản phẩm được duyệt | NORMAL |
 | PRODUCT_REJECTED | Sản phẩm bị từ chối | HIGH |
-| TRUST_SCORE_WARNING | Cảnh báo điểm tín nhiệm | HIGH |
-| ACCOUNT_LOCKED | Tài khoản bị khóa | URGENT |
-| ACCOUNT_UNLOCKED | Tài khoản được mở khóa | HIGH |
-| APPEAL_RESOLVED | Kết quả xét duyệt khiếu nại | HIGH |
+| TRUST_SCORE_WARNING | Cảnh báo điểm tín nhiệm (removed in MVP) | HIGH |
+| ACCOUNT_LOCKED | Tài khoản bị khóa (manual) | URGENT |
+| ACCOUNT_UNLOCKED | Tài khoản được mở khóa (manual) | HIGH |
+| APPEAL_RESOLVED | Kết quả xét duyệt khiếu nại (removed in MVP) | HIGH |
 | STRIPE_ACCOUNT_SUSPENDED | Stripe bị đình chỉ | URGENT |
 | SELLER_POSTING_SUSPENDED | Tạm dừng đăng sản phẩm | HIGH |
 | SELLER_POSTING_RESUMED | Mở lại quyền đăng bài | NORMAL |
@@ -156,7 +156,7 @@ data: {"id":"64f3b","type":"ORDER_SHIPPED","title":"Đơn hàng đang giao","bod
 | /notifications/unread-count | GET | JWT |
 
 **Kafka Topics consumed by Notification Service**:
-- `account.auto_locked`, `account.locked`, `account.unlocked`
+- `account.auto_locked` (removed in MVP), `account.locked`, `account.unlocked`
 - `flash_sale.session_started`, `flash_sale.session_ended`
 - `flash_sale.item_approved`, `flash_sale.item_rejected`
 - `flash_sale.reminder` (JOB-02)
@@ -166,11 +166,10 @@ data: {"id":"64f3b","type":"ORDER_SHIPPED","title":"Đơn hàng đang giao","bod
 - `refund.admin_approved`, `refund.rejected`, `refund.requested`
 - `seller.posting_resumed`, `seller.posting_suspended`
 - `stripe.account_suspended`
-- `trust_score.warning`
-- `appeal.resolved`
+- `trust_score.warning` (removed in MVP)
+- `appeal.resolved` (removed in MVP)
 
 ---
 
 **Phiên bản:** v5.4  
-**Cập nhật:** 2026-04-30  
-**Cập nhật:** 2026-04-15
+**Cập nhật:** 2026-04-30

@@ -6,7 +6,6 @@ export interface SellerDashboardStats {
   totalProducts: number;
   ordersToday: number;
   revenueMonth: number;
-  trustScore: number;
   pendingOrders: number;
   activeProducts: number;
 }

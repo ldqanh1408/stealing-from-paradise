@@ -13,7 +13,7 @@ Liệt kê đầy đủ Kafka topics mà Identity Service **produces** và **con
 | Field | Value |
 |-------|-------|
 | **Consumers** | 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md), 🔗 [Search Service](../search-service/KAFKA_EVENTS.md) |
-| **Trigger** | Admin locks account via `/admin/users/{userId}/lock`; Auto-lock when trust score < 10 |
+| **Trigger** | Admin locks account via `/admin/users/{userId}/lock` (auto-lock by trust score removed in MVP) |
 
 **Payload & Consumer Actions**: Xem chi tiết tại [Notification → account.locked](../notification-service/KAFKA_EVENTS.md) | [Search → account.locked](../search-service/KAFKA_EVENTS.md)
 
@@ -31,47 +31,18 @@ Liệt kê đầy đủ Kafka topics mà Identity Service **produces** và **con
 | Field | Value |
 |-------|-------|
 | **Consumers** | 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
-| **Trigger** | JOB-17 auto-locks accounts when trust score < 10 |
+| **Trigger** | JOB-17 auto-locks accounts (JOB-17 removed in MVP) |
 
 ---
 
-### 4. `appeal.resolved`
-| Field | Value |
-|-------|-------|
-| **Consumers** | 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
-| **Trigger** | Admin resolves appeal via `/admin/appeals/{appealId}/resolve` |
+### 4. `appeal.resolved` (removed in MVP)
 
 ---
 
-### 5. `loyalty.points_earned`
-| Field | Value |
-|-------|-------|
-| **Consumers** | 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
-| **Trigger** | Order delivered, buyer confirms receipt → points confirmed |
-
----
-
-### 6. `loyalty.points_used`
-| Field | Value |
-|-------|-------|
-| **Consumers** | Identity Service (internal) |
-| **Trigger** | User spends loyalty points at checkout |
-
----
-
-### 7. `loyalty.points_refunded`
-| Field | Value |
-|-------|-------|
-| **Consumers** | Identity Service (internal) |
-| **Trigger** | Refund approved, points returned to user |
-
----
-
-### 8. `loyalty.points_expired`
-| Field | Value |
-|-------|-------|
-| **Consumers** | 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
-| **Trigger** | JOB-X expires points older than 365 days |
+### 5. `loyalty.points_earned` (removed in MVP)
+### 6. `loyalty.points_used` (removed in MVP)
+### 7. `loyalty.points_refunded` (removed in MVP)
+### 8. `loyalty.points_expired` (removed in MVP)
 
 ---
 
@@ -91,11 +62,7 @@ Liệt kê đầy đủ Kafka topics mà Identity Service **produces** và **con
 
 ---
 
-### 11. `trust_score.warning`
-| Field | Value |
-|-------|-------|
-| **Consumers** | 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
-| **Trigger** | User reaches tier boundary threshold (e.g., GOLD→SILVER) |
+### 11. `trust_score.warning` (removed in MVP)
 
 ---
 
@@ -104,25 +71,25 @@ Liệt kê đầy đủ Kafka topics mà Identity Service **produces** và **con
 ### 1. `order.delivered` ← 🔗 [Order Service](../order-service/KAFKA_EVENTS.md)
 | Field | Value |
 |-------|-------|
-| **Action** | Award seller trust_score +5; Confirm pending loyalty points |
+| **Action** | (Trust Score + Loyalty logic removed in MVP) |
 | **Producer** | Order Service (buyer confirms receipt) |
 
 ### 2. `order.cancelled` ← 🔗 [Order Service](../order-service/KAFKA_EVENTS.md)
 | Field | Value |
 |-------|-------|
-| **Action** | Adjust trust score (BUYER: -5 if excessive cancel); Refund pending loyalty points |
+| **Action** | (Trust Score + Loyalty logic removed in MVP) |
 | **Producer** | Order Service (buyer/seller/system cancels) |
 
 ### 3. `refund.admin_approved` ← 🔗 [Payment Service](../payment-service/KAFKA_EVENTS.md)
 | Field | Value |
 |-------|-------|
-| **Action** | If `caused_by=SELLER`: adjust seller trust_score -5; Return loyalty points |
+| **Action** | (Trust Score + Loyalty logic removed in MVP) |
 | **Producer** | Payment Service (admin approves refund) |
 
 ### 4. `seller.order_cancelled` ← 🔗 [Order Service](../order-service/KAFKA_EVENTS.md)
 | Field | Value |
 |-------|-------|
-| **Action** | Adjust seller trust score when seller proactively cancels |
+| **Action** | (Trust Score logic removed in MVP) |
 | **Producer** | Order Service |
 
 ### 5. `stripe.account_suspended` ← 🔗 [Payment Service](../payment-service/KAFKA_EVENTS.md)

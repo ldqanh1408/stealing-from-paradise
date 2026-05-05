@@ -162,7 +162,7 @@ export default function UserManagementPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['#', 'Người dùng', 'Email', 'Vai trò', 'Trạng thái', 'Trust Score', 'Ngày tạo', 'Thao tác'].map(h => (
+                    {['#', 'Người dùng', 'Email', 'Vai trò', 'Trạng thái', 'Ngày tạo', 'Thao tác'].map(h => (
                       <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -185,17 +185,6 @@ export default function UserManagementPage() {
                       </td>
                       <td className="px-5 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[u.status] ?? 'bg-gray-100 text-gray-600'}`}>{u.status}</span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 shrink-0 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${u.trustScore >= 80 ? 'bg-green-500' : u.trustScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                              style={{ width: `${u.trustScore}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-medium text-gray-700">{u.trustScore}</span>
-                        </div>
                       </td>
                       <td className="px-5 py-4 text-gray-400 whitespace-nowrap text-xs">{fmtDate(u.createdAt)}</td>
                       <td className="px-5 py-4">

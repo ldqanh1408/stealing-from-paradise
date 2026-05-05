@@ -16,10 +16,25 @@
 8. [Notifications](#10-notifications)
 9. [Infrastructure & Messaging](#11-infrastructure--messaging)
 10. [Search Index](#12-search-index)
+11. [AI Chat Support](#13-ai-chat-support)
 
 ---
 
 ---
+
+## 1. Media & Images
+
+Lưu trữ tại **MinIO** (object storage), bucket `products-media`. Mỗi sản phẩm/variant có thể có nhiều ảnh. Ảnh được upload qua presigned URL và xóa khi sản phẩm bị xóa.
+
+| Collection | Key | Kiểu | Ghi chú |
+| ---------- | --- | ---- | ------- |
+| `product_images` | `products/{seller_id}/{product_id}/{uuid}-{type}.{ext}` | MinIO Object | Ảnh gốc, full-size |
+| `product_images` | `products/{seller_id}/{product_id}/{uuid}-{type}_thumb.{ext}` | MinIO Object | Thumbnail, resize tự động |
+| `product_images` | `products/{seller_id}/{product_id}/{uuid}-{type}_small.{ext}` | MinIO Object | Ảnh nhỏ cho danh sách |
+
+**Entity tham chiếu**:
+- `products.images[]` — Mảng URL ảnh trong MongoDB document
+- `variants.image_url` — URL ảnh đại diện cho từng variant
 
 ## 2. Users & Identity
 
@@ -37,11 +52,14 @@ Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 | `password`   | VARCHAR   | Mật khẩu Bcrypt         |
 | `full_name`  | VARCHAR   | Tên hiển thị            |
 | `status`     | VARCHAR   | ACTIVE | LOCKED         |
+| `role`       | VARCHAR   | BUYER | SELLER | ADMIN, mặc định BUYER |
 | `created_at` | TIMESTAMP | Thời điểm tạo           |
 | `updated_at` | TIMESTAMP | Cập nhật cuối           |
 
 
 **Ràng buộc:** `username`, `email`, `phone` đều là UNIQUE
+
+> **Multi-role:** Một user có thể vừa là BUYER vừa là SELLER. Role column lưu role chính; các role phụ được thể hiện qua sự tồn tại của row trong bảng CUSTOMERS / SELLERS / ADMINS tương ứng.
 
 ---
 
@@ -237,6 +255,7 @@ Chi tiết giỏ hàng
 | `sku_code`       | VARCHAR   | Mã SKU                      |
 | `fs_item_id`     | BIGINT    | FK → FS_ITEMS.id, nullable  |
 | `price_snapshot` | DECIMAL   | Giá tại thời điểm thêm vào  |
+| `is_selected`    | BOOLEAN   | Chọn để checkout (mặc định TRUE) |
 | `quantity`       | INT       | Số lượng                    |
 | `added_at`       | TIMESTAMP | Thời điểm thêm              |
 
@@ -288,7 +307,7 @@ Sản phẩm tham gia Flash Sale
 
 ### FS_REMINDERS
 
-Nhắc nhở Flash Sale (dành cho Buyer có trust_score ≥ 30)
+Nhắc nhở Flash Sale (yêu cầu trust_score ≥ 30 removed in MVP)
 
 
 | Cột           | Kiểu      | Ghi chí             |
@@ -310,12 +329,13 @@ Nhắc nhở Flash Sale (dành cho Buyer có trust_score ≥ 30)
 
 | Cột           | Kiểu      | Ghi chí                    |
 | ------------- | --------- | -------------------------- |
-| `id`          | BIGSERIAL | Primary Key                |
-| `customer_id` | BIGINT    | FK → CUSTOMERS.id          |
-| `total_amt`   | DECIMAL   | Tổng tiền trước khuyến mãi |
-| `final_amt`   | DECIMAL   | Số tiền thực thu           |
-| `created_at`  | TIMESTAMP | Thời điểm tạo              |
-| `updated_at`  | TIMESTAMP | Cập nhật cuối              |
+| `id`          | BIGSERIAL | Primary Key                              |
+| `customer_id` | BIGINT    | FK → CUSTOMERS.id                        |
+| `total_amt`   | DECIMAL   | Tổng tiền trước khuyến mãi               |
+| `final_amt`   | DECIMAL   | Số tiền thực thu                         |
+| `status`      | VARCHAR   | PENDING_PAYMENT | PAID | CANCELLED      |
+| `created_at`  | TIMESTAMP | Thời điểm tạo                            |
+| `updated_at`  | TIMESTAMP | Cập nhật cuối                            |
 
 
 ---
@@ -404,7 +424,9 @@ Giao dịch thanh toán (dùng Stripe hoặc VNPAY)
 | `id`                     | BIGSERIAL | Primary Key                                      |
 | `parent_order_id`        | BIGINT    | FK → PARENT_ORDERS.id                            |
 | `amount`                 | DECIMAL   | Số tiền giao dịch                                |
+| `currency`               | VARCHAR   | VND | USD, mặc định VND                          |
 | `trans_ref`              | VARCHAR   | PaymentIntent ID (pi_xxx)                        |
+| `client_secret`          | VARCHAR   | Stripe PaymentIntent client_secret, dùng cho FE confirm payment |
 | `stripe_transfer_id`     | VARCHAR   | Transfer ID tr_xxx (chỉ lưu transfer đầu tiên)   |
 | `application_fee_amount` | DECIMAL   | Phí sàn                                          |
 | `stripe_connect_mode`    | VARCHAR   | DESTINATION | TRANSFER | NONE                    |
@@ -432,6 +454,9 @@ Transfer tiền cho Seller sau khi DELIVERED
 | `status`             | VARCHAR   | PENDING | SUCCESS | FAILED | REVERSED  |
 | `created_at`         | TIMESTAMP | Thời điểm tạo                          |
 | `updated_at`         | TIMESTAMP | Cập nhật cuối                          |
+
+> **UNIQUE (order_id):** Mỗi order chỉ được transfer một lần — ràng buộc này ngăn duplicate transfer do job chạy lại hoặc retry không idempotent, tránh trả tiền gấp đôi cho seller.
+
 
 
 ---
@@ -598,7 +623,7 @@ Distributed Lock cho scheduled jobs (ShedLock)
 
 - **Sessions**: Khoảng thời gian Flash Sale
 - **Items**: Sản phẩm tham gia với giá & tồn kho riêng
-- **Reminders**: Buyer có thể nhắc nhở (yêu cầu trust_score ≥ 30)
+- **Reminders**: Buyer có thể nhắc nhở (yêu cầu trust_score ≥ 30 removed in MVP)
 - **Stock Management**: Tách biệt tồn kho Flash vs Regular
 
 ### 4. Orders & Fulfillment

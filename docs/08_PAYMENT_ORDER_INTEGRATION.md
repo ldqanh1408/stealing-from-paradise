@@ -64,13 +64,13 @@ After checkout, the frontend calls the Payment Service directly to get the Strip
 
 | Topic | Trigger | Payload | Consumers |
 |-------|---------|---------|-----------|
-| `order.created` | OrderProcessingSaga | `{parent_order_id, order_id, user_id, seller_id, order_code, total_amount, loyalty_points_used, is_flash_sale}` | NotificationService, WorkerService |
+| `order.created` | OrderProcessingSaga | `{parent_order_id, order_id, user_id, seller_id, order_code, total_amount, is_flash_sale}` | NotificationService, WorkerService |
 | `order.shipped` | OrderProcessingSaga | `{order_id, user_id, seller_id, tracking_number, carrier, shipped_at}` | NotificationService |
-| `order.delivered` | OrderProcessingSaga | `{order_id, user_id, seller_id, total_amount, loyalty_points, delivered_by, delivered_at}` | IdentityService, LoyaltyService, NotificationService |
-| `order.cancelled` | OrderProcessingSaga | `{order_id, parent_order_id, user_id, seller_id, cancelled_by, cancel_reason, total_amount}` | CartService, LoyaltyService, NotificationService |
-| `order.auto_cancelled` | Axon Deadline (payment timeout) | `{order_id, parent_order_id, user_id, seller_id, cancelled_by=SYSTEM, cancel_reason, total_amount, loyalty_points_used}` | NotificationService, LoyaltyService |
+| `order.delivered` | OrderProcessingSaga | `{order_id, user_id, seller_id, total_amount, delivered_by, delivered_at}` | IdentityService, NotificationService |
+| `order.cancelled` | OrderProcessingSaga | `{order_id, parent_order_id, user_id, seller_id, cancelled_by, cancel_reason, total_amount}` | CartService, NotificationService |
+| `order.auto_cancelled` | Axon Deadline (payment timeout) | `{order_id, parent_order_id, user_id, seller_id, cancelled_by=SYSTEM, cancel_reason, total_amount}` | NotificationService |
 | `order.checkout_completed` | OrderService.publishCheckoutCompleted() | `{user_id, item_ids[], parent_order_id}` | CartService (remove purchased items) |
-| `seller.order_cancelled` | OrderProcessingSaga (seller cancels) | `{order_id, seller_id, buyer_id}` | IdentityService (trust score) |
+| `seller.order_cancelled` | OrderProcessingSaga (seller cancels) | `{order_id, seller_id, buyer_id}` | IdentityService |
 
 ---
 
@@ -305,7 +305,7 @@ Stripe webhooks are delivered at-least-once. The system handles duplicate events
 │                           ├─ Cancel deadline                                 │
 │                           ├─ Kafka: order.cancelled                          │
 │                           │   ├─→ CartService: restore items                │
-│                           │   ├─→ LoyaltyService: refund points            │
+│                           │   ├─→ (LoyaltyService: removed in MVP)          │
 │                           │   └─→ NotificationService: notify             │
 │                           └─ @EndSaga                                       │
 └─────────────────────────────────────────────────────────────────────────────┘

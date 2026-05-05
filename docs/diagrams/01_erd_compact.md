@@ -29,13 +29,13 @@ erDiagram
     CUSTOMERS {
         BIGSERIAL id PK
         BIGINT user_id FK "UNIQUE"
-        INT trust_score "0-100"
+        INT trust_score "0-100 (removed in MVP)"
     }
 
     SELLERS {
         BIGSERIAL id PK
         BIGINT user_id FK "UNIQUE"
-        INT trust_score "0-100"
+        INT trust_score "0-100 (removed in MVP)"
         BOOLEAN product_posting_suspended
     }
 

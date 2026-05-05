@@ -26,7 +26,7 @@
 
 | # | Service | Produces | Consumes | Request-Reply | Link |
 |---|---------|----------|----------|---------------|------|
-| 1 | **Identity** (8081) | account.*, appeal.*, loyalty.*, seller.*, trust_score.* | order.delivered, order.cancelled, refund.admin_approved, seller.order_cancelled, stripe.account_suspended | Responder: order.address | 🔗 [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) |
+| 1 | **Identity** (8081) | account.*, seller.* | order.delivered, order.cancelled, refund.admin_approved, seller.order_cancelled, stripe.account_suspended | Responder: order.address | 🔗 [identity-service/KAFKA_EVENTS.md](identity-service/KAFKA_EVENTS.md) |
 | 2 | **Product + Cart + Inventory** (8090) | product.*, category.*, inventory.*, product.pending_review | order.created, order.cancelled, order.returned, order.checkout_completed, order.auto_cancelled, flash_sale.* | Responder: cart.product_info, order.stock_check, order.cart_items | 🔗 [product-service/KAFKA_EVENTS.md](product-service/KAFKA_EVENTS.md) |
 | 3 | **Search** (8091) | — (consumer-only) | product.*, category.*, inventory.*, account.locked, order.created | — | 🔗 [search-service/KAFKA_EVENTS.md](search-service/KAFKA_EVENTS.md) |
 | 4 | **Order** (8083) | order.*, seller.order_cancelled | payment.*, refund.stripe_auto, refund.rts_completed, stripe.transfer.reversed | Requester: order.stock_check, order.payment_status, order.cart_items, order.address, order.refunds | 🔗 [order-service/KAFKA_EVENTS.md](order-service/KAFKA_EVENTS.md) |
@@ -47,17 +47,14 @@
                        ──→ [Search] update sold count
 [Payment] payment.success ──→ [Order] mark PAID
 [Order] order.shipped ──→ [Notification] tracking update
-[Order] order.delivered ──→ [Identity] trust score +5, confirm loyalty points
-                        ──→ [Notification] delivery confirmation
+[Order] order.delivered ──→ [Notification] delivery confirmation
 ```
 
 ### Refund Flow
 ```
 [Payment] refund.requested ──→ [Notification] notify seller
-[Payment] refund.admin_approved ──→ [Identity] return points, adjust trust score
-                                ──→ [Notification] notify buyer + seller
+[Payment] refund.admin_approved ──→ [Notification] notify buyer + seller
 [Payment] refund.stripe_auto ──→ [Order] mark refunded
-                             ──→ [Identity] deduct points
 ```
 
 ### Flash Sale Flow
@@ -77,12 +74,7 @@
 [Identity] seller.posting_suspended ──→ [Notification] suspension notice
 ```
 
-### Trust Score Impact Chain
-```
-[Order] order.cancelled (excessive) → [Identity] account.auto_locked → [Notification] urgent notice
-[Payment] refund.admin_approved (caused_by=SELLER) → [Identity] seller trust score -5
-[Order] order.delivered → [Identity] seller trust score +5
-```
+### Trust Score Impact Chain (removed in MVP)
 
 ---
 
@@ -112,8 +104,8 @@ Xem đầy đủ: 🔗 [11_KAFKA_REQUEST_REPLY.md](11_KAFKA_REQUEST_REPLY.md)
 | order.* | 30 days | Order history & audit |
 | payment.*, refund.* | 90 days | Payment compliance & refunds |
 | flash_sale.* | 7 days | Session-based events |
-| loyalty.* | 365 days | Annual loyalty audit |
-| appeal.* | 365 days | Legal appeal records |
+| loyalty.* | 365 days | Annual loyalty audit (removed in MVP) |
+| appeal.* | 365 days | Legal appeal records (removed in MVP) |
 
 ### Partitioning Strategy
 

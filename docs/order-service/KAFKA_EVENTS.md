@@ -26,12 +26,12 @@
 ### 2. `order.cancelled`
 | Field | Value |
 |-------|-------|
-| **Consumers** | 🔗 [Product Service](../product-service/KAFKA_EVENTS.md) (Cart + Inventory), 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) (Loyalty), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
+| **Consumers** | 🔗 [Product Service](../product-service/KAFKA_EVENTS.md) (Cart + Inventory), 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
 | **Trigger** | Buyer cancels, seller cancels, or JOB-13 auto-cancel |
 
 **Consumer Actions**:
 - **Product Service**: Remove items from cart, unlock stock
-- **Identity Service (Loyalty)**: Refund pending points, adjust trust score
+- **Identity Service**: (Trust Score + Loyalty logic removed in MVP)
 - **Notification Service**: Send cancellation notification
 
 ---
@@ -50,11 +50,11 @@
 ### 4. `order.delivered`
 | Field | Value |
 |-------|-------|
-| **Consumers** | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) (Trust Score + Loyalty), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
+| **Consumers** | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
 | **Trigger** | Buyer confirms receipt via `POST /orders/{orderId}/confirm-received` |
 
 **Consumer Actions**:
-- **Identity Service**: Award seller trust_score +5; Confirm pending loyalty points
+- **Identity Service**: (Trust Score + Loyalty logic removed in MVP)
 - **Notification Service**: Send delivery confirmation
 
 ---
@@ -86,12 +86,12 @@
 ### 7. `order.auto_cancelled`
 | Field | Value |
 |-------|-------|
-| **Consumers** | 🔗 [Product Service](../product-service/KAFKA_EVENTS.md) (Inventory), 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) (Loyalty), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
+| **Consumers** | 🔗 [Product Service](../product-service/KAFKA_EVENTS.md) (Inventory), 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
 | **Trigger** | Payment timeout — Axon Deadline fires, JOB-13 as safety net |
 
 **Consumer Actions**:
 - **Product Service (Inventory)**: Unlock stock
-- **Identity Service (Loyalty)**: Release pending points
+- **Identity Service**: (Loyalty logic removed in MVP)
 - **Notification Service**: Send auto-cancellation notice
 
 ---
@@ -103,7 +103,7 @@
 | **Trigger** | Seller proactively cancels order (separate from buyer cancellation) |
 
 **Consumer Actions**:
-- **Identity Service**: Adjust seller trust score
+- **Identity Service**: (Trust Score logic removed in MVP)
 
 ---
 

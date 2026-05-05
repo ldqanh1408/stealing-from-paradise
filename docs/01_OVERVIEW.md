@@ -109,7 +109,7 @@
                    PaymentSaga FlashSaleSaga
 ```
 
-### Backend Services (12 microservices + common-lib)
+### Backend Services (11 microservices + common-lib)
 
 #### **Infrastructure Services**
 
@@ -153,8 +153,7 @@
    - User authentication & authorization
    - JWT token management (RS256)
    - User profiles, addresses
-   - Loyalty points management (merged from Loyalty Service)
-   - Trust Score and appeals
+   - User profiles, addresses
    - Database: PostgreSQL + JPA
 
 8. **product-service** (Port 8090)
@@ -175,7 +174,7 @@
 
 11. **ai-chat-service** (Port 8093)
     - Multi-turn AI conversation with LLM integration
-    - Tool calls for order, product, refund, loyalty operations
+    - Tool calls for order, product, refund operations (loyalty removed in MVP)
     - Human-in-the-loop for Mức 3 risky actions (confirm tokens)
     - Audit trail for tool calls (partitioned by month)
     - Database: PostgreSQL
@@ -398,7 +397,7 @@ frontend/
         │   │   ├── ProductModerationPage.tsx
         │   │   ├── RefundsPage.tsx
         │   │   ├── FlashSaleConfigPage.tsx
-        │   │   └── TrustScorePage.tsx
+        │   │   └── (TrustScorePage.tsx removed in MVP)
         │   ├── App.tsx
         │   ├── main.tsx
         │   └── index.css
@@ -1065,8 +1064,7 @@ curl -X POST http://localhost:9200/products/_reindex
 
 | File | Purpose | Details |
 |------|---------|---------|
-| **03_BUSINESS.md** | Business logic & workflows (v5.3) | 9 workflows, policies, trust score, refunds |
-| **04_POLICIES.md** | System policies & configuration (v3) | Trust score, flash sale, seller, loyalty, refunds |
+| **03_BUSINESS.md** | Business logic & workflows (v5.5) | 9 workflows, refunds, RTS |
 
 ### API & Architecture
 
@@ -1136,7 +1134,7 @@ git commit -m "docs(readme): update setup instructions"
 ### Documentation by Role
 
 **New Developer**: README.md → 01_OVERVIEW.md → CLAUDE.md
-**Backend Dev**: 01_OVERVIEW.md → api/README.md → 03_BUSINESS.md → 04_POLICIES.md
+**Backend Dev**: 01_OVERVIEW.md → api/README.md → 03_BUSINESS.md
 **Frontend Dev**: 01_OVERVIEW.md → api/README.md → CLAUDE.md
 **DevOps/Ops**: CLAUDE.md → RUNNING.md → 05_OPERATIONS.md
 **Product Manager**: 01_OVERVIEW.md → 03_BUSINESS.md → 07_BUSINESS_FLOWS.md
@@ -1144,8 +1142,7 @@ git commit -m "docs(readme): update setup instructions"
 ### Key Business & Technical References
 
 **Business Logic** (v5.3 RTS):
-- [03_BUSINESS.md](03_BUSINESS.md) - 9 workflows, policies, Trust Score, Refunds, RTS
-- [04_POLICIES.md](04_POLICIES.md) - System rules, configuration
+- [03_BUSINESS.md](03_BUSINESS.md) - 9 workflows, Refunds, RTS
 
 **Operations**:
 - [05_OPERATIONS.md](05_OPERATIONS.md) - 17 cronjobs, retention periods
@@ -1175,7 +1172,6 @@ git commit -m "docs(readme): update setup instructions"
 | 2 | [01_OVERVIEW.md](01_OVERVIEW.md) | Project architecture & setup |
 | 3 | [api/README.md](api/README.md) | API specification v5.4 |
 | 4 | [03_BUSINESS.md](03_BUSINESS.md) | Business logic & workflows v5.3 |
-| 5 | [04_POLICIES.md](04_POLICIES.md) | System policies v3 |
 | 6 | [05_OPERATIONS.md](05_OPERATIONS.md) | 17 cronjobs & data retention v5.0 (per service) |
 | 7 | [06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md) | Payment flow & Saga |
 | 8 | [07_BUSINESS_FLOWS.md](07_BUSINESS_FLOWS.md) | Luồng nghiệp vụ tổng hợp (Mermaid) |

@@ -26,8 +26,8 @@
 | # | Topic | Producer | Action |
 |---|-------|----------|--------|
 | 1 | `account.locked` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Send lock notification to user |
-| 2 | `account.auto_locked` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Send urgent lock notification |
-| 3 | `account.unlocked` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Send unlock confirmation |
+| 2 | `account.auto_locked` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | (removed in MVP) |
+| 3 | `account.unlocked` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | (removed in MVP) |
 | 4 | `seller.posting_suspended` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Notify seller of suspension |
 | 5 | `seller.posting_resumed` | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) | Notify seller of reinstatement |
 

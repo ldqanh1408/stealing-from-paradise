@@ -23,7 +23,7 @@ Tài liệu API gốc `02_API.md` (5,220 dòng) đã được tách ra thành **
 
 ```
 docs/
-├── identity-service/02_API_identity_service.md   # 🔐 Auth, Users, Loyalty (31 endpoints)
+├── identity-service/02_API_identity_service.md   # 🔐 Auth, Users (Loyalty removed in MVP) (31 endpoints)
 ├── product-service/02_API_product_service.md     # 📦 Products, Variants, Inventory, Cart (24 endpoints)
 ├── search-service/02_API_search_service.md       # 🔍 Search (routes configured, controllers WIP)
 ├── order-service/02_API_order_service.md         # 📋 Orders, Checkout, RTS, Refunds (18 endpoints)
@@ -72,10 +72,10 @@ docs/
 
 **Identity Service**:
 - `account.locked` → Notification
-- `account.auto_locked` → Notification
-- `account.unlocked` → Notification
-- `appeal.resolved` → Notification
-- `loyalty.points_earned` → Notification
+- `account.auto_locked` → Notification (removed in MVP)
+- `account.unlocked` → Notification (removed in MVP)
+- `appeal.resolved` → Notification (removed in MVP)
+- `loyalty.points_earned` → Notification (removed in MVP)
 
 **Product Service**:
 - `product.created` → Search
@@ -84,9 +84,9 @@ docs/
 
 **Order Service**:
 - `order.created` → Inventory (lock stock)
-- `order.cancelled` → Cart, Loyalty
+- `order.cancelled` → Cart (Loyalty removed in MVP)
 - `order.shipped` → Notification
-- `order.delivered` → Identity, Loyalty (credit points)
+- `order.delivered` → Identity (Loyalty credit points removed in MVP)
 - `order.returned` → Refund, Inventory (RTS)
 - `order.checkout_completed` → Cart (clear cart)
 
@@ -96,7 +96,7 @@ docs/
 - `refund.requested` → Notification
 - `refund.admin_approved` → Notification
 - `refund.rejected` → Notification
-- `refund.stripe_auto` → Order, Loyalty (chargeback)
+- `refund.stripe_auto` → Order (chargeback; Loyalty removed in MVP)
 
 **Flash Sale Service**:
 - `flash_sale.session_started` → Notification
@@ -154,8 +154,8 @@ docs/
    └─ Update orders to PAID status
    └─ Produce: order.shipped (when seller updates tracking)
    
-5. LOYALTY: Listen to order.delivered
-   └─ Credit points (PENDING → CONFIRMED)
+5. LOYALTY: (removed in MVP)
+   └─ Credit points (PENDING → CONFIRMED) (Loyalty removed in MVP)
    
 6. USER: POST /orders/{id}/refunds (within 7 days)
    └─ Payment Service creates refund request
@@ -348,7 +348,6 @@ docs/
 
 - **[02_API.md](../02_API.md)** - Original unified API (deprecated, use individual service files)
 - **[03_BUSINESS.md](../03_BUSINESS.md)** - Business logic & workflows
-- **[04_POLICIES.md](../04_POLICIES.md)** - System rules, configuration
 - **[05_OPERATIONS.md](../05_OPERATIONS.md)** - Data retention, 17 cronjobs
 - **[07_BUSINESS_FLOWS.md](../07_BUSINESS_FLOWS.md)** - Mermaid diagrams
 - **[ERD_FULL_SYSTEM.md](../ERD_FULL_SYSTEM.md)** - Entity-Relationship Diagram
@@ -357,13 +356,13 @@ docs/
 
 ## ✨ v5.5 Features
 
-✅ Trust Score Tier system (6 levels)  
+✅ Trust Score Tier system (6 levels) (removed in MVP)  
 ✅ Multi-vendor order split  
 ✅ Real-time SSE notifications  
 ✅ Failed events management & retry  
 ✅ Return To Sender (RTS) workflow  
 ✅ Tracking number for refunds  
-✅ Loyalty points integration  
+✅ Loyalty points integration (removed in MVP)  
 ✅ Flash sale with Redis atomic operations
 ✅ AI Chat Support (multi-turn conversation with Tool calls, human-in-the-loop)  
 
@@ -372,7 +371,7 @@ docs/
 ## 🔍 Quick FAQ
 
 **Q: Where is the Loyalty Service documentation?**  
-A: Consolidated into Identity Service ([01-identity-service.md](01-identity-service.md)) under "⭐ Loyalty Service Endpoints" section
+A: Loyalty Service has been removed in MVP. Previously consolidated into Identity Service.
 
 **Q: Where is the Refund Service documentation?**  
 A: Consolidated into Payment Service ([06-payment-service.md](06-payment-service.md)) under "↩️ Refund Management APIs" section

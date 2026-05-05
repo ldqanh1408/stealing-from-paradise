@@ -76,8 +76,6 @@ export interface CheckoutResponse {
   orderCode: string;
   orders: CheckoutSubOrder[];
   totalAmount: number;
-  loyaltyDiscount?: number;
-  loyaltyPointsUsed?: number;
   finalAmount: number;
   itemsCount: number;
   paymentStatus?: string;
@@ -88,8 +86,6 @@ export interface CheckoutResponse {
 export interface CheckoutRequest {
   addressId: number;
   itemIds: string[];
-  useLoyaltyPoints?: boolean;
-  loyaltyPointsToUse?: number;
 }
 
 // ─── Parent Order ──────────────────────────────────────────────────────────────

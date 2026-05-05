@@ -5,15 +5,6 @@ public final class KafkaTopics {
     private KafkaTopics() {}   // utility class
 
     // ──────────────────────────────────────────────
-    // Account & Trust Score  (Producer: Identity / Worker)
-    // ──────────────────────────────────────────────
-    public static final String ACCOUNT_AUTO_LOCKED      = "account.auto_locked";
-    public static final String ACCOUNT_LOCKED           = "account.locked";
-    public static final String ACCOUNT_UNLOCKED         = "account.unlocked";
-    public static final String SELLER_POSTING_SUSPENDED = "seller.posting_suspended";
-    public static final String SELLER_POSTING_RESUMED   = "seller.posting_resumed";
-
-    // ──────────────────────────────────────────────
     // Product  (Producer: Product Service / Identity Service)
     // ──────────────────────────────────────────────
     public static final String PRODUCT_CREATED          = "product.created";

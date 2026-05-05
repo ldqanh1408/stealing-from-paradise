@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { orderApi, type CheckoutResponse } from '@shared/api/order.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
-import { userApi } from '@shared/api/user.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -258,10 +257,6 @@ export default function OrderReviewPage() {
   const [showNoDefaultDialog, setShowNoDefaultDialog] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Loyalty points state
-  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
-  const [pointsToUse, setPointsToUse] = useState(0);
-
   const selectedItemIds = (location.state?.selectedItemIds || []) as number[];
 
   const getSelectedItemsData = () => {
@@ -279,30 +274,6 @@ export default function OrderReviewPage() {
 
   const selectedItems = getSelectedItemsData();
   const subtotal = selectedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-
-  // Fetch loyalty balance
-  const { data: loyaltyBalance } = useQuery({
-    queryKey: ['loyalty-balance'],
-    queryFn: () => userApi.getLoyaltyBalance().then(r => r.data.data),
-    retry: 1,
-  });
-
-  // Estimate loyalty discount when on review step
-  const { data: loyaltyEstimate } = useQuery({
-    queryKey: ['loyalty-estimate', subtotal],
-    queryFn: () => userApi.estimateLoyaltyPoints(subtotal).then(r => r.data.data),
-    enabled: subtotal > 0,
-    retry: 1,
-  });
-
-  // Auto-set default points when loyalty is toggled
-  useEffect(() => {
-    if (useLoyaltyPoints && loyaltyEstimate?.maxPointsUsable) {
-      setPointsToUse(loyaltyEstimate.maxPointsUsable);
-    } else if (!useLoyaltyPoints) {
-      setPointsToUse(0);
-    }
-  }, [useLoyaltyPoints, loyaltyEstimate?.maxPointsUsable]);
 
   const { data: addresses = [], isLoading: addrsLoading, refetch: refetchAddresses } = useQuery({
     queryKey: ['addresses'],
@@ -340,8 +311,6 @@ export default function OrderReviewPage() {
       const { data } = await orderApi.checkout({
         addressId: selectedAddressId,
         itemIds: selectedItemIds.map(String),
-        useLoyaltyPoints,
-        loyaltyPointsToUse: useLoyaltyPoints ? pointsToUse : 0,
       });
       if (data.data) {
         setOrderData(data.data);
@@ -362,8 +331,6 @@ export default function OrderReviewPage() {
       // Persist checkout data to sessionStorage so CheckoutPage can recover
       sessionStorage.setItem('pending_checkout', JSON.stringify({
         ...orderData,
-        _useLoyaltyPoints: useLoyaltyPoints,
-        _loyaltyPointsToUse: useLoyaltyPoints ? pointsToUse : 0,
         _paymentMethod: paymentMethod,
       }));
 
@@ -534,60 +501,6 @@ export default function OrderReviewPage() {
                     <span>Tạm tính</span>
                     <span>{fmt(subtotal)}</span>
                   </div>
-                  {loyaltyEstimate && loyaltyEstimate.maxPointsUsable > 0 && (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-gray-600">Điểm tích luỹ</span>
-                        <p className="text-xs text-gray-400">
-                          Có {loyaltyBalance?.availablePoints?.toLocaleString() ?? 0} điểm ·{' '}
-                          {loyaltyEstimate.maxPointsUsable.toLocaleString()} điểm khả dụng cho đơn này
-                        </p>
-                      </div>
-                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={useLoyaltyPoints}
-                          onChange={e => setUseLoyaltyPoints(e.target.checked)}
-                          className="w-4 h-4 accent-blue-600"
-                        />
-                        <span className="text-sm font-medium text-blue-600">
-                          {useLoyaltyPoints ? `-${fmt(loyaltyEstimate.pointsRequested ? loyaltyEstimate.pointsRequested / (loyaltyEstimate.conversionRate || 100) * 1000 : 0)}` : 'Dùng điểm'}
-                        </span>
-                      </label>
-                    </div>
-                  )}
-                  {useLoyaltyPoints && loyaltyEstimate && (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm text-gray-600">Số điểm sử dụng:</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setPointsToUse(p => Math.max(100, p - 100))}
-                          disabled={pointsToUse <= 100}
-                          className="w-7 h-7 rounded border text-xs font-bold hover:bg-gray-100 disabled:opacity-30"
-                        >
-                          −
-                        </button>
-                        <span className="w-20 text-center font-medium text-sm">
-                          {pointsToUse.toLocaleString()} điểm
-                        </span>
-                        <button
-                          onClick={() => setPointsToUse(p => Math.min(loyaltyEstimate.maxPointsUsable, p + 100))}
-                          disabled={pointsToUse >= loyaltyEstimate.maxPointsUsable}
-                          className="w-7 h-7 rounded border text-xs font-bold hover:bg-gray-100 disabled:opacity-30"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {useLoyaltyPoints && loyaltyEstimate && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Giảm từ điểm thưởng</span>
-                      <span className="font-medium">
-                        -{fmt(loyaltyEstimate.pointsRequested ? Math.floor(loyaltyEstimate.pointsRequested / (loyaltyEstimate.conversionRate || 100) * 1000) : 0)}
-                      </span>
-                    </div>
-                  )}
                   <div className="flex justify-between text-gray-600">
                     <span>Phí vận chuyển</span>
                     <span className="text-green-600 font-medium">Miễn phí</span>
@@ -596,12 +509,7 @@ export default function OrderReviewPage() {
                   <div className="flex justify-between font-bold text-base">
                     <span>Tổng cộng</span>
                     <span className="text-red-600">
-                      {fmt(
-                        subtotal -
-                        (useLoyaltyPoints && loyaltyEstimate?.pointsRequested
-                          ? Math.floor(loyaltyEstimate.pointsRequested / (loyaltyEstimate.conversionRate || 100) * 1000)
-                          : 0)
-                      )}
+                      {fmt(subtotal)}
                     </span>
                   </div>
                 </div>
@@ -676,12 +584,6 @@ export default function OrderReviewPage() {
                   <span>Tạm tính</span>
                   <span>{fmt(orderData.totalAmount)}</span>
                 </div>
-                {orderData.loyaltyDiscount ? (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Giảm từ điểm thưởng</span>
-                    <span className="text-green-600 font-medium">-{fmt(orderData.loyaltyDiscount)}</span>
-                  </div>
-                ) : null}
                 <div className="flex justify-between text-gray-600">
                   <span>Phí vận chuyển</span>
                   <span className="text-green-600 font-medium">Miễn phí</span>

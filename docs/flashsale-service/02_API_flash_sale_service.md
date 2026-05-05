@@ -1,6 +1,6 @@
 # ⚡ Flash Sale Service API
 
-**Port**: `:8086`  
+**Port**: `:8085`  
 **Mô tả**: WebFlux · Redis Lua Script · Chống oversell · 50k req/s  
 **Base URL**: `/api/v1`
 
@@ -72,7 +72,7 @@
 ```
 1. session.status == UPCOMING
 2. seller.details_submitted == true
-3. seller.trust_score >= ngưỡng config
+3. seller.trust_score >= ngưỡng config (removed in MVP)
 4. flash_price < variant.price
 5. flash_stock <= stock_available
 6. sku chưa có FS_ITEM PENDING/APPROVED trong session này
@@ -324,5 +324,4 @@
 ---
 
 **Phiên bản:** v5.4  
-**Cập nhật:** 2026-04-30  
-**Cập nhật:** 2026-04-15
+**Cập nhật:** 2026-04-30

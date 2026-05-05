@@ -42,7 +42,7 @@ graph TB
         ORD[order-service<br>:8083<br>OrderAggregate<br>ParentOrderPaymentSaga<br>OrderProcessingSaga]
         PAY[payment-service<br>:8082<br>PaymentAggregate<br>RefundModule]
         FS[flashsale-service<br>:8085<br>FlashSaleAggregate]
-        WRK[flashsale-service<br>:8085<br>FlashSaleAggregate<br>Cronjobs<br>(JOB-01/02/08/21)]
+        WRK[worker-service<br>:8086<br>OutboxProcessor<br>Cronjobs<br>(JOB-13/14/15)]
     end
 
     subgraph TraditionalServices["Traditional Services"]
@@ -158,7 +158,7 @@ stateDiagram-v2
     ACTIVE --> LOCKED: Admin gọi<br>POST /admin/users/{id}/lock
 
     LOCKED --> ACTIVE: Admin gọi<br>POST /admin/users/{id}/unlock
-    LOCKED --> ACTIVE: JOB-17<br>(locked_until <= NOW)
+    LOCKED --> ACTIVE: JOB-17<br>(locked_until <= NOW) (removed in MVP)
 
     LOCKED --> LOCKED: Admin gọi lại<br>POST /admin/users/{id}/lock<br>(update locked_until)
 
@@ -732,7 +732,7 @@ graph LR
     FS_E -->|"flash_sale.session_started / ended"| PRD_C
     PAY_E -->|"refund.admin_approved / rejected / rts_completed"| ORD_C
     PAY_E -->|"refund.admin_approved / rejected / rts_completed"| NTF_C
-    WRK_E -->|"account.auto_locked / unlocked"| NTF_C
+    WRK_E -->|"account.auto_locked / unlocked (removed in MVP)"| NTF_C
     WRK_E -->|"order.auto_cancelled"| NTF_C
 ```
 
@@ -759,15 +759,14 @@ graph LR
 | `refund.rts_completed` | payment-service | order, notification | RTS hoàn tiền tự động |
 | `flash_sale.session_started` | flashsale-service | notification, product | Flash Sale bắt đầu |
 | `flash_sale.session_ended` | flashsale-service | notification, product | Flash Sale kết thúc |
-| `account.auto_locked` | worker (JOB-17) | notification | Tài khoản bị khóa tự động |
-| `account.unlocked` | worker (JOB-17) | notification | Tài khoản được mở khóa |
+| `account.auto_locked` | worker (JOB-17) | notification | Tài khoản bị khóa tự động (removed in MVP) |
+| `account.unlocked` | worker (JOB-17) | notification | Tài khoản được mở khóa (removed in MVP) |
 
 ---
 
 ## 📚 Related Documents
 
 - **[03_BUSINESS.md](03_BUSINESS.md)** — Tài liệu nghiệp vụ chi tiết (9 workflows, policies, cronjobs)
-- **[04_POLICIES.md](04_POLICIES.md)** — System policies chi tiết
 - **[06_PAYMENT_SAGA_FLOW.md](06_PAYMENT_SAGA_FLOW.md)** — Saga implementation chi tiết
 - **[08_PAYMENT_ORDER_INTEGRATION.md](08_PAYMENT_ORDER_INTEGRATION.md)** — Integration patterns chi tiết
 - **[05_OPERATIONS.md](05_OPERATIONS.md)** — Cronjobs chi tiết

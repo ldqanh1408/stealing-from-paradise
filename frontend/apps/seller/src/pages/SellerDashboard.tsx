@@ -38,13 +38,6 @@ export default function SellerDashboard() {
       color: 'from-purple-500 to-purple-600',
       light: 'bg-purple-50 text-purple-700',
     },
-    {
-      label: 'Điểm tin cậy',
-      value: stats?.trustScore?.toFixed(1) ?? '—',
-      icon: '⭐',
-      color: 'from-amber-500 to-orange-500',
-      light: 'bg-amber-50 text-amber-700',
-    },
   ];
 
   return (

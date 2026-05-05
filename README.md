@@ -78,7 +78,6 @@ Complete documentation available in `/docs`:
 | [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) | Project architecture & setup |
 | [docs/02_API.md](docs/02_API.md) | Complete API specification (v5.4) |
 | [docs/03_BUSINESS.md](docs/03_BUSINESS.md) | Business logic & workflows (v5.3) |
-| [docs/04_POLICIES.md](docs/04_POLICIES.md) | System policies & configuration (v3.0) |
 | [docs/05_OPERATIONS.md](docs/05_OPERATIONS.md) | 23 Cronjobs & data retention (v5.0) |
 | [docs/06_PAYMENT_SAGA_FLOW.md](docs/06_PAYMENT_SAGA_FLOW.md) | Payment saga & OrderPaymentSaga |
 | [docs/07_BUSINESS_FLOWS.md](docs/07_BUSINESS_FLOWS.md) | Visual flows (Mermaid diagrams) |
@@ -172,7 +171,6 @@ cp .env.example .env
 1. [01_OVERVIEW.md](docs/01_OVERVIEW.md) - Backend Architecture
 2. [02_API.md](docs/02_API.md) - API endpoints
 3. [03_BUSINESS.md](docs/03_BUSINESS.md) - Business logic
-4. [04_POLICIES.md](docs/04_POLICIES.md) - System rules
 
 **Frontend Developer:**
 1. [01_OVERVIEW.md](docs/01_OVERVIEW.md) - Frontend Architecture
@@ -279,7 +277,6 @@ See [05_OPERATIONS.md](docs/05_OPERATIONS.md) and [01_OVERVIEW.md](docs/01_OVERV
 - ✅ Architecture & Setup ([01_OVERVIEW.md](docs/01_OVERVIEW.md))
 - ✅ API Specification ([02_API.md](docs/02_API.md))
 - ✅ Business Logic ([03_BUSINESS.md](docs/03_BUSINESS.md))
-- ✅ System Policies ([04_POLICIES.md](docs/04_POLICIES.md))
 - ✅ Data Retention & Cronjobs ([05_OPERATIONS.md](docs/05_OPERATIONS.md))
 - ✅ Deployment & Operations ([CLAUDE.md](CLAUDE.md))
 

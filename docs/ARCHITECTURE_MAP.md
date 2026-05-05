@@ -58,7 +58,7 @@
 |-----|------|-------|-----------|
 | Customer | 3000 | React 19 + Vite + TypeScript | ProductList, Cart, Checkout (Stripe), FlashSale, OrderHistory |
 | Seller | 3001 | React 19 + Vite + TypeScript | Dashboard, ProductManagement, Orders, StripeOnboarding |
-| Admin | 3002 | React 19 + Vite + TypeScript | UserManagement, ProductModeration, Refunds, FlashSaleConfig, TrustScore |
+| Admin | 3002 | React 19 + Vite + TypeScript | UserManagement, ProductModeration, Refunds, FlashSaleConfig |
 
 **Shared frontend code**: `frontend/shared/` — axios client (JWT interceptor), React Query config, auth store (Zustand), LoginPage, RegisterPage.
 
@@ -402,7 +402,7 @@ All routes prefixed: `http://localhost:8080/api/v1`
 | Understand request-reply Kafka pattern | `docs/11_KAFKA_REQUEST_REPLY.md` |
 | Understand payment/order Saga | `docs/06_PAYMENT_SAGA_FLOW.md` |
 | Database schema | `docs/database-entities.md` + `docs/ERD_FULL_SYSTEM.md` |
-| Business rules (flash sale) | `docs/04_POLICIES.md` |
+| Business rules (flash sale) | `docs/03_BUSINESS.md` |
 | Business flows (diagrams) | `docs/07_BUSINESS_FLOWS.md` |
 | Refund/RTS flow | `docs/08_PAYMENT_ORDER_INTEGRATION.md` |
 | Cronjobs | `docs/05_OPERATIONS.md` |

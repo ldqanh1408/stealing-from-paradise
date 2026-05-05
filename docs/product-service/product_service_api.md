@@ -1,6 +1,6 @@
 # 📦 Product Service API
 
-**Port**: `:8082`  
+**Port**: `:8090`  
 **Mô tả**: Sản phẩm, variant, danh mục, kho hàng, ảnh (MinIO), **giỏ hàng** (gộp từ Cart Service `:8083`)  
 **Base URL**: `/api/v1`
 
@@ -500,7 +500,7 @@
 
 **Mô tả**:
 - Nếu SKU đã có trong giỏ → cộng thêm số lượng
-- Giới hạn số lượng theo Trust Score: Silver ≤3 items/seller, Bronze ≤1 item/seller
+- Giới hạn số lượng theo Trust Score: Silver ≤3 items/seller, Bronze ≤1 item/seller (Trust Score tier limits removed in MVP)
 - Flash Sale item kiểm tra `limit_per_user` trên Redis
 
 **Request Body**:
@@ -548,7 +548,7 @@
 **Error Responses**:
 | Status | Mô tả |
 |--------|-------|
-| 409 | Vượt giới hạn Trust Score tier hoặc vượt Flash Sale limit_per_user |
+| 409 | Vượt giới hạn Trust Score tier hoặc vượt Flash Sale limit_per_user (Trust Score tier limits removed in MVP) |
 | 422 | SKU hết hàng hoặc không tồn tại |
 
 ---

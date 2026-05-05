@@ -36,10 +36,10 @@ Marketplace Platform là sàn thương mại điện tử đa nhà bán (multi-v
 - Đăng ký tài khoản, xác minh phone + email
 - Duyệt sản phẩm, thêm vào giỏ hàng
 - Checkout, thanh toán qua Stripe
-- Tham gia Flash Sale (trust_score ≥ 30)
+- Tham gia Flash Sale (tài khoản ACTIVE, xác minh đầy đủ)
 - Xác nhận nhận hàng hoặc mở yêu cầu hoàn tiền (≤ 7 ngày sau DELIVERED)
-- Sử dụng và tích lũy điểm Loyalty
-- Khiếu nại Trust Score (tối đa 3 lần/năm)
+- Sử dụng và tích lũy điểm Loyalty (removed in MVP)
+- Khiếu nại Trust Score (tối đa 3 lần/năm) (removed in MVP)
 
 ### 💼 SELLER
 - Phải hoàn thành Stripe KYC trước khi bán hàng
@@ -55,9 +55,9 @@ Marketplace Platform là sàn thương mại điện tử đa nhà bán (multi-v
 - Duyệt / từ chối yêu cầu hoàn tiền Buyer
 - Duyệt / từ chối Flash Sale items
 - Khóa / mở khóa tài khoản (có/không thời hạn)
-- Điều chỉnh Trust Score thủ công
-- Xử lý Appeal của user
-- Chỉnh cấu hình delta Trust Score đơng
+- Điều chỉnh Trust Score thủ công (removed in MVP)
+- Xử lý Appeal của user (removed in MVP)
+- Chỉnh cấu hình delta Trust Score đơng (removed in MVP)
 - Giám sát và retry các sự kiện thất bại (DLQ)
 
 **Lưu:** Một user có thể có nhiều role. Ví dụ: một người vừa là BUYER vừa là SELLER. Đăng ký role SELLER yêu cầu hoàn thành Stripe KYC (xác minh danh tính kinh doanh).
@@ -113,11 +113,11 @@ Seller đăng sản phẩm → trạng thái: PENDING (chờ duyệt)
  ↓
  → Admin DUYỆT → APPROVED
  │   → Sản phẩm hiển thị trên kết quả tìm kiếm
- │   → Trust Score Seller được cộng điểm
+ │   → Trust Score Seller được cộng điểm (removed in MVP)
  ↓
  → Admin TỪ CHỐI → REJECTED (có ghi lý do)
  │   → Thông báo đến Seller (lý do + thời hạn sửa)
- │   → Trust Score Seller bị trừ điểm (lần đầu vs tái phạm)
+ │   → Trust Score Seller bị trừ điểm (lần đầu vs tái phạm) (removed in MVP)
  │   → Seller có 90 ngày để sửa và gửi lại
  │   → JOB-16 (hàng ngày 03:00): Sản phẩm bị REJECTED và không sửa trong 90 ngày
  │     → đánh dấu soft-deleted
@@ -142,17 +142,17 @@ Buyer checkout → đơn hàng cha (PARENT_ORDER) tạo ra
  ↓
  → Thanh toán thành công → PAID
  │   → Hàng hóa bị "khóa kho" (không bán cho người khác)
- │   → Điểm Loyalty PENDING được ghi nhận (chỉ xác nhận)
+ │   → Điểm Loyalty PENDING được ghi nhận (chỉ xác nhận) (removed in MVP)
  │   → Seller nhận thông báo có đơn mới
  ↓
  → PAID → Seller cập nhật mã vận đơn → SHIPPING
  │   → Buyer nhận thông báo + mã để theo dõi đơn hàng
  │   → Đơng hộ theo dõi giao hàng bắt đầu chạy (3 ngày)
- │   → JOB-13b: Nếu giao hàng chậm quá 3 lần/tháng → trừ Trust Score Seller
+ │   → (JOB-13b removed in MVP)
  ↓
  → SHIPPING → Buyer xác nhận nhận hàng → DELIVERED
- │   → Điểm Loyalty được CONFIRMED (vào tài khoản chính thức)
- │   → Trust Score Seller được cộng điểm
+ │   → Điểm Loyalty được CONFIRMED (vào tài khoản chính thức) (removed in MVP)
+ │   → Trust Score Seller được cộng điểm (removed in MVP)
  │   → Tiền chuyển cho Seller qua Stripe
  ↓
  → SHIPPING → JOB-22 (mỗi ngày 02:00): đơn > 7 ngày chưa xác nhận
@@ -168,11 +168,11 @@ Buyer checkout → đơn hàng cha (PARENT_ORDER) tạo ra
  → PENDING hoặc PAID → Hủy đơn
      Ai có thể hủy:
      - BUYER: hủy tự do khi PENDING hoặc PAID (trước khi Seller giao hàng)
-     - SELLER: hủy khi PENDING hoặc PAID → trừ Trust Score Seller nặng
+     - SELLER: hủy khi PENDING hoặc PAID (removed in MVP)
      - HỆ THỐNG: JOB-13 tự hủy đơn quá hạn thanh toán
        (đơn thường: 30 phút • đơn Flash Sale: 10 phút)
      
-     Khi hủy: kho được mở khóa, điểm Loyalty PENDING bị hủy theo
+     Khi hủy: kho được mở khóa (loyalty points removed in MVP)
 ```
 
 ---
@@ -252,14 +252,14 @@ Admin xem xét yêu cầu + bằng chứng:
  │       → Lưu vào REFUND_ITEMS.tracking_number (NEW v5.3)
  │       → Ghi vào REFUND_ITEMS.return_evidence (audit trail)
  │       → Thông báo Buyer kèm mã vận đơn hoàn
- │   → Nếu lỗi do Seller gây ra → trừ Trust Score Seller
+ │   → (Trust Score penalty removed in MVP)
  │   → Đơn hàng: REFUNDED (toàn phần) hoặc PARTIALLY_REFUNDED
- │   → Điểm Loyalty ở dùng được hoàn lại
+ │   → (Loyalty points refund removed in MVP)
  │   → Thông báo Buyer (tiền đang về, tracking số nếu có)
  ↓
  → Admin TỪ CHỐI:
      → Yêu cầu bị REJECTED, ghi lý do
-     → Nếu bằng chứng giả → trừ Trust Score Buyer nặng
+     → (Trust Score penalty removed in MVP)
      → Buyer nhận thông báo lý do + link khiếu nại
 ```
 
@@ -363,7 +363,7 @@ JOB-21 (mỗi 5 phút): Đối sánh kho để phát hiện và sửa bất đơ
 
 | Đối tượng | Điều kiện |
 |----------|----------|
-| Buyer tham gia | Trust Score ≥ 30 • Tài khoản ACTIVE • Xác minh đầy đủ |
+| Buyer tham gia | Tài khoản ACTIVE • Xác minh đầy đủ (Trust Score ≥ 30 removed in MVP) |
 | Seller đăng ký sản phẩm | Stripe KYC hoàn tất • Sản phẩm đang APPROVED • Số lượng Flash ≤ số lượng tồn trong kho |
 | Timeout đơn hàng | **10 phút** (so với 30 phút đơn thường) |
 
@@ -388,7 +388,7 @@ Khi Admin duyệt refund, **bắt buộc nhập tracking number nếu liên quan
 |--------|----------|-------|
 | `admin_note` | ✓ Bắt buộc | Lý do Admin can thiệp (ví dụ: "Lỗi giao hàng", "Confirm RTS") |
 | `adjust_amount` | ✗ Optional | Điều chỉnh số tiền hoàn (nếu khác original) |
-| `caused_by` | ✗ Optional | SELLER \| BUYER - để tính trừ Trust Score |
+| `caused_by` | ✗ Optional | SELLER | BUYER (Trust Score logic removed in MVP) |
 | `tracking_number` | ✓ Khi có | Mã vận đơn hoàn (nếu hàng được hoàn về hoặc cần track) |
 
 **Quy Tắc Nhập Tracking Number**:
@@ -417,7 +417,7 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 
 | Quy tắc | Nội dung |
 |--------|---------|
-| Điều kiện Buyer tham gia | Trust Score ≥ 30 • Tài khoản ACTIVE • Xác minh đầy đủ |
+| Điều kiện Buyer tham gia | Tài khoản ACTIVE • Xác minh đầy đủ (Trust Score ≥ 30 removed in MVP) |
 | Điều kiện Seller đăng ký | Stripe KYC hoàn tất • Sản phẩm APPROVED • Số lượng Flash ≤ tồn kho thực tế |
 | Timeout đơn Flash Sale | **10 phút** (so với 30 phút đơn thường) |
 | Đối sánh kho định kỳ | JOB-21 mỗi 5 phút: đảm bảo không có sai lệch kho |
@@ -492,7 +492,7 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 | JOB-12 | payment-service | Dọn ShedLock stale entries |
 | JOB-15 | payment-service | Nullify Stripe onboarding URL (>24h) |
 | JOB-16 | product-service | Soft-delete sản phẩm REJECTED không sửa (90 ngày) |
-| JOB-17 | identity-service | Auto-lock/unlock tài khoản theo Trust Score |
+| JOB-17 | identity-service | Auto-lock/unlock tài khoản (removed in MVP) |
 | JOB-22 | order-service | Auto-delivered SHIPPING >7 ngày |
 
 ### 📆 Định kỳ (tuần / tháng / năm)
@@ -507,8 +507,6 @@ Khi Seller xác nhận hàng bị hoàn về (Return To Sender): hệ thống t�
 ---
 
 **Tài liệu cập nhật: 2026-04-22**
-
-**Tài liệu cập nhật: 2026-04-14**
 
 
 

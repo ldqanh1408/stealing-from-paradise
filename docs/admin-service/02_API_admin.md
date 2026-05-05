@@ -1,6 +1,6 @@
 # 🛡️ Admin APIs
 
-**Mô tả**: Duyệt sản phẩm, quản lý user, trust score, flash sale, refund, failed events, điều hành hệ thống  
+**Mô tả**: Duyệt sản phẩm, quản lý user, flash sale, refund, failed events, điều hành hệ thống (trust score removed in MVP)  
 **Base URL**: `/api/v1`  
 **Quyền truy cập**: Tất cả endpoint yêu cầu JWT + ADMIN role
 
@@ -100,8 +100,8 @@
 |-------|------|-------|
 | status | string | ACTIVE \| LOCKED |
 | role | string | BUYER \| SELLER \| ADMIN |
-| trust_score_min | integer | Điểm tối thiểu [0–100] |
-| trust_score_max | integer | Điểm tối đa [0–100] |
+| trust_score_min | integer | Điểm tối thiểu [0–100] (removed in MVP) |
+| trust_score_max | integer | Điểm tối đa [0–100] (removed in MVP) |
 | product_posting_suspended | boolean | true = chỉ Seller bị đình chỉ |
 | q | string | Tìm theo username, email, phone |
 | page, size | integer | Phân trang |
@@ -116,7 +116,7 @@
       "email": "shop@nike.vn",
       "full_name": "Shop Nike Vietnam",
       "status": "ACTIVE",
-      "trust_score": 92,
+      "trust_score": 92,  // (removed in MVP)
       "locked_until": null,
       "created_at": "2024-01-15T08:00:00Z",
       "updated_at": "2026-04-14T15:30:00Z"

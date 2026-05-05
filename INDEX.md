@@ -23,7 +23,6 @@
 - **[01_OVERVIEW.md](docs/01_OVERVIEW.md)** - Full project architecture & setup
 - **[02_API.md](docs/02_API.md)** - API specification (v5.3) with all endpoints
 - **[03_BUSINESS.md](docs/03_BUSINESS.md)** - Business logic & workflows (v5.3)
-- **[04_POLICIES.md](docs/04_POLICIES.md)** - System policies & rules (v3)
 - **[05_OPERATIONS.md](docs/05_OPERATIONS.md)** - Data retention & 23 cronjobs (v4)
 - **[06_PAYMENT_SAGA_FLOW.md](docs/06_PAYMENT_SAGA_FLOW.md)** - Payment flow details
 - **[07_BUSINESS_FLOWS.md](docs/07_BUSINESS_FLOWS.md)** - Luồng nghiệp vụ tổng hợp (Mermaid)
@@ -39,7 +38,6 @@
 2. [docs/01_OVERVIEW.md](docs/01_OVERVIEW.md) - Architecture
 3. [docs/02_API.md](docs/02_API.md) - Endpoints
 4. [docs/03_BUSINESS.md](docs/03_BUSINESS.md) - Business logic
-5. [docs/04_POLICIES.md](docs/04_POLICIES.md) - Rules
 
 ### I'm a Developer (Frontend)
 1. [CLAUDE.md](CLAUDE.md) - Setup

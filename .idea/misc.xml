@@ -34,6 +34,7 @@
     <option name="ignoredFiles">
       <set>
         <option value="$PROJECT_DIR$/backend/cart-service/pom.xml" />
+        <option value="$PROJECT_DIR$/backend/worker-service/pom.xml" />
         <option value="$PROJECT_DIR$/flash-sale-service/pom.xml" />
       </set>
     </option>

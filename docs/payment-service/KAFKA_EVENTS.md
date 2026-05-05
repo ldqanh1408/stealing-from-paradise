@@ -65,12 +65,11 @@
 ### 6. `refund.admin_approved`
 | Field | Value |
 |-------|-------|
-| **Consumers** | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) (Loyalty + Trust Score), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
+| **Consumers** | 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md), 🔗 [Notification Service](../notification-service/KAFKA_EVENTS.md) |
 | **Trigger** | Admin approves refund via `POST /admin/refunds/{refundId}/approve` |
 
 **Consumer Actions**:
-- **Identity Service (Loyalty)**: Return loyalty points
-- **Identity Service (Trust Score)**: Adjust seller trust_score -5 if caused_by=SELLER
+- **Identity Service**: (Trust Score + Loyalty logic removed in MVP)
 - **Notification Service**: Notify buyer and seller
 
 ---
@@ -86,12 +85,12 @@
 ### 8. `refund.stripe_auto`
 | Field | Value |
 |-------|-------|
-| **Consumers** | 🔗 [Order Service](../order-service/KAFKA_EVENTS.md), 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) (Loyalty) |
+| **Consumers** | 🔗 [Order Service](../order-service/KAFKA_EVENTS.md), 🔗 [Identity Service](../identity-service/KAFKA_EVENTS.md) |
 | **Trigger** | Stripe webhook `charge.refunded` (chargeback/dispute) |
 
 **Consumer Actions**:
 - **Order Service**: Mark orders as refunded
-- **Identity Service (Loyalty)**: Deduct loyalty points
+- **Identity Service**: (Loyalty logic removed in MVP)
 
 ---
 

@@ -237,12 +237,6 @@ export default function CheckoutPage() {
                 <span>Tạm tính</span>
                 <span>{fmt(orderData.totalAmount)}</span>
               </div>
-              {orderData.loyaltyDiscount ? (
-                <div className="flex justify-between text-gray-600">
-                  <span>Giảm điểm</span>
-                  <span className="text-green-600">-{fmt(orderData.loyaltyDiscount)}</span>
-                </div>
-              ) : null}
               <div className="flex justify-between text-gray-600">
                 <span>Phí ship</span>
                 <span className="text-green-600">Miễn phí</span>

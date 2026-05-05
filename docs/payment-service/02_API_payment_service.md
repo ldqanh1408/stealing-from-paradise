@@ -1,6 +1,6 @@
 # 💳 Payment Service API
 
-**Port**: `:8085`  
+**Port**: `:8082`  
 **Mô tả**: Stripe Connect · Destination Charges · Transfer API · Webhooks  
 **Base URL**: `/api/v1`
 

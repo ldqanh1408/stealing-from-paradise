@@ -29,7 +29,7 @@
 ┌─────────────────────┬──────────────────────────────────────────────────────────────┬─────────┐
 │ Service              │ Jobs                                                            │ DB      │
 ├─────────────────────┼──────────────────────────────────────────────────────────────┼─────────┤
-│ identity-service     │ JOB-17 (auto lock/unlock accounts)                             │ Postgres │
+│ identity-service     │ JOB-17 (auto lock/unlock accounts) (removed in MVP)                             │ Postgres │
 │ (:8081)            │                                                                  │         │
 ├─────────────────────┼──────────────────────────────────────────────────────────────┼─────────┤
 │ flashsale-service   │ JOB-01 (session lifecycle)                                     │ Postgres│
@@ -61,48 +61,13 @@
 
 ---
 
-### 🏠 identity-service (`:8081`) — Trust Score & Account Management
+### 🏠 identity-service (`:8081`) — Account Management
 
 ---
 
-#### JOB-17 — Auto-Lock/Unlock Accounts by Trust Score
+#### JOB-17 — Auto-Lock/Unlock Accounts by Trust Score (removed in MVP)
 
-| Thuộc Tính | Giá Trị |
-|------------|---------|
-| **Mô Tả** | (1) Tự động khóa tài khoản khi `trust_score < 10`. (2) Tự động mở khóa tạm thời khi đến `locked_until`. |
-| **Service** | `identity-service` |
-| **Cron** | `0 0/15 * * * *` (mỗi 15 phút) |
-| **ShedLock** | `auto-lock-by-trust-score` — lock duration 14 phút |
-| **Bảng tác động** | `USERS` |
-
-```sql
--- Bước 1: Khóa tài khoản khi trust_score < 10
-UPDATE USERS
-SET status      = 'LOCKED',
-    lock_reason = 'Trust score quá thấp (< 10). Liên hệ support để khiếu nại.',
-    updated_at  = NOW()
-WHERE trust_score < 10
-  AND status = 'ACTIVE'
-LIMIT 100;
-
--- Với mỗi user vừa bị khóa:
--- Phát Kafka event account.auto_locked
-
--- Bước 2: Tự mở khóa tạm thời khi hết thời hạn
-UPDATE USERS
-SET status       = 'ACTIVE',
-    locked_until = NULL,
-    lock_reason  = NULL,
-    updated_at   = NOW()
-WHERE status = 'LOCKED'
-  AND locked_until IS NOT NULL
-  AND locked_until <= NOW()
-LIMIT 100;
-
--- Với mỗi user vừa được mở khóa:
--- Phát Kafka event account.unlocked → Notification Service thông báo User
--- Identity Service thêm JTI vào Redis blocklist (xem Redis Token Blocklist bên dưới)
-```
+The entire trust score auto-lock/unlock system has been removed from the codebase. Accounts are now only locked/unlocked manually by Admin.
 
 ---
 
@@ -349,7 +314,7 @@ VALUES ('order.delivered', ?, 'PENDING', NOW());
 ```
 
 **Side effects:** Phát Kafka `order.delivered` với flag `autoDelivered: true`:
-- Identity Service: cộng điểm Trust Score cho Seller
+- Identity Service: (Trust Score logic removed in MVP)
 - Payment Service: Stripe Transfer cho Seller
 - Notification Service: thông báo Buyer và Seller
 
@@ -472,7 +437,7 @@ db.mg_notifications.createIndex(
 
 | Bảng | Retention | Hard Delete? | Job | Service |
 |------|-----------|---------|-----|---------|
-| `USERS` | Vĩnh viễn | Không | JOB-17 (lock/unlock) | identity-service |
+| `USERS` | Vĩnh viễn | Không | JOB-17 (lock/unlock) (removed in MVP) | identity-service |
 | `ROLES` | Vĩnh viễn | Không | — | — |
 | `ADDRESSES` | Khi user tự xóa | Có | — | identity-service |
 | `ORDERS` | Vĩnh viễn | Không | JOB-22 (auto-delivered) | order-service |
@@ -523,7 +488,7 @@ db.mg_notifications.createIndex(
 - **Key pattern:** `revoked_token:{jti}`
 - **Value:** `1`
 - **TTL:** Thời gian còn lại của token gốc (max 900 giây)
-- **Use case:** JWT revocation khi account bị LOCKED (JOB-17)
+- **Use case:** JWT revocation khi account bị LOCKED (trước đây dùng JOB-17, nay removed in MVP)
 
 **Logic khi lock:**
 1. Identity Service lấy tất cả JTI đang active của user
@@ -557,7 +522,7 @@ db.mg_notifications.createIndex(
 | JOB-13 | order-service | 5 phút | 4m30s | Không |
 | JOB-15 | payment-service | 02:00 hàng ngày | 2m | Có |
 | JOB-16 | product-service | 03:00 Chủ nhật | 15m | Có |
-| JOB-17 | identity-service | 15 phút | 14m | Không |
+| JOB-17 | identity-service | 15 phút | 14m | Không | (removed in MVP) |
 | JOB-21 | flashsale-service | 5 phút (ACTIVE) | 4m30s | Không |
 | JOB-22 | order-service | 02:00 hàng ngày | 55m | Có |
 
@@ -569,7 +534,7 @@ db.mg_notifications.createIndex(
 
 - [ ] ShedLock table (`shedlock`) được tạo trên PostgreSQL của service đó
 - [ ] Spring `@Scheduled` + ShedLock annotation configured trong service
-- [ ] Kafka topics (`order.delivered`, `order.auto_cancelled`, `account.auto_locked`, `account.unlocked`, `trust_score.warning`, `flash_sale.stock_reconciled`, etc.) được tạo
+- [ ] Kafka topics (`order.delivered`, `order.auto_cancelled`, `account.auto_locked` (removed in MVP), `account.unlocked` (removed in MVP), `trust_score.warning` (removed in MVP), `flash_sale.stock_reconciled`, etc.) được tạo
 - [ ] Redis keys configured (nếu service dùng Redis)
 - [ ] MongoDB TTL index created (notification-service)
 - [ ] MinIO buckets created (product-service, payment-service)
@@ -585,7 +550,7 @@ db.mg_notifications.createIndex(
 
 ### Testing
 
-- [ ] Unit test JOB-17 lock/unlock logic
+- [ ] Unit test JOB-17 lock/unlock logic (removed in MVP)
 - [ ] Unit test JOB-21 stock reconciliation
 - [ ] Integration test JOB-22 auto-delivery + Kafka event
 - [ ] Chaos test: Pod crash during JOB-21 DECR + recovery
