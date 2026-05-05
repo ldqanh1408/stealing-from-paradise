@@ -77,22 +77,22 @@
 
 ---
 
-### 7. `sku.price_updated`
+### 7. `variant.price_updated`
 || Field | Value |
 ||-------|-------|
 || **Consumers** | 🔗 [Search Service](../search-service/KAFKA_EVENTS.md) |
-|| **Trigger** | Seller updates SKU price via `PUT /seller/variants/{variantId}` |
+|| **Trigger** | Seller updates variant price via `PUT /seller/variants/{variantId}` |
 
 **Consumer Actions**:
 - **Search Service**: Update price and min_price in Elasticsearch index
 
 ---
 
-### 8. `sku.stock_updated`
+### 8. `variant.stock_updated`
 || Field | Value |
 ||-------|-------|
 || **Consumers** | 🔗 [Search Service](../search-service/KAFKA_EVENTS.md) |
-|| **Trigger** | Seller adjusts stock or SKU status changes |
+|| **Trigger** | Seller adjusts stock or variant status changes |
 
 **Consumer Actions**:
 - **Search Service**: Update stock_status in Elasticsearch index
@@ -179,7 +179,7 @@ Product Service là **Responder** cho 3 cặp request-reply sau:
 **Cycle**:
 ```
 Cart Module ──cart.product_info.request──→ Product Catalog Module
-  (Requester)   (productId, skuId)            (Responder)
+  (Requester)   (productId, variantId)            (Responder)
        │                                            │ look up product info
        │◀──cart.product_info.response──────────────│
        │     (name, price, imageUrl, available)     │
@@ -196,10 +196,10 @@ Cart Module ──cart.product_info.request──→ Product Catalog Module
 **Cycle**:
 ```
 Order Service (Requester) ──order.stock_check.request──→ Product Service (Responder)
-    │                       (items[{skuId, qty}])           │
+    │                       (items[{variantId, qty}])           │
     │                                                        │ check stock
     │◀──order.stock_check.response──────────────────────────│
-    │     ({allAvailable, results[{sku, available, ...}]})   │
+    │     ({allAvailable, results[{variant, available, ...}]})   │
     │                                                        │
     └──→ if allAvailable → proceed checkout                  ┘
 ```
@@ -216,7 +216,7 @@ Order Service (Requester) ──order.cart_items.request──→ Product Servic
     │                       (userId, selectedItemIds)       │
     │                                                        │ get cart items
     │◀──order.cart_items.response──────────────────────────│
-    │     (items[{cartItemId, skuId, price, qty, ...}])     │
+    │     (items[{cartItemId, variantId, price, qty, ...}])     │
     │                                                        │
     └──→ create order with cart items                        ┘
 ```

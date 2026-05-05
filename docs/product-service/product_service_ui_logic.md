@@ -2,21 +2,21 @@
 
 ## 1. Trang chủ — Card sản phẩm
 
-Card sản phẩm ở trang chủ hiển thị ở **Product level** (không phải SKU level), nhưng các giá trị số liệu lấy từ tập hợp SKU.
+Card sản phẩm ở trang chủ hiển thị ở **Product level** (không phải product_variant level), nhưng các giá trị số liệu lấy từ tập hợp product_variant.
 
 ### Dữ liệu hiển thị trên card
 
 ```
 ┌─────────────────────────────┐
-│  [Thumbnail ảnh product]    │  ← product_image WHERE sku_id IS NULL
+│  [Thumbnail ảnh product]    │  ← product_image WHERE variant_id IS NULL
 │                             │    AND sort_order = 0 (ảnh đại diện)
 │  Tên sản phẩm               │  ← product.name
 │                             │
-│  Từ 150.000đ                │  ← MIN(sku.price) WHERE sku.status = 'active'
+│  Từ 150.000đ                │  ← MIN(product_variant.price) WHERE product_variant.status = 'active'
 │                             │    Hiển thị "Từ X" nếu có nhiều mức giá
 │  Đã bán 3.4k                │  ← sold_count (từ Search document)
 │                             │
-│  [Badge: FLASH SALE -30%]   │  ← Hiển thị nếu có SKU: price < original_price
+│  [Badge: FLASH SALE -30%]   │  ← Hiển thị nếu có product_variant: price < original_price
 └─────────────────────────────┘
 ```
 
@@ -25,7 +25,7 @@ Card sản phẩm ở trang chủ hiển thị ở **Product level** (không ph�
 | Điều kiện | Badge hiển thị |
 |---|---|
 | `product.status = 'out_of_stock'` | "Hết hàng" (màu xám) |
-| Có ít nhất 1 SKU: `price < original_price` | "SALE" hoặc phần trăm giảm |
+| Có ít nhất 1 product_variant: `price < original_price` | "SALE" hoặc phần trăm giảm |
 | `product.status = 'inactive'` | Không hiển thị card (ẩn khỏi listing) |
 | `sold_count > threshold` | "Bán chạy" hoặc "Phổ biến" |
 
@@ -39,22 +39,22 @@ Card sản phẩm ở trang chủ hiển thị ở **Product level** (không ph�
 Logic hiển thị ảnh:
 
 Mặc định (chưa chọn biến thể):
-  Hiển thị gallery từ product_image WHERE sku_id IS NULL
+  Hiển thị gallery từ product_image WHERE variant_id IS NULL
   Sắp xếp theo sort_order ASC
   Ảnh đầu tiên (sort_order nhỏ nhất) = ảnh chính lớn
 
 Khi khách chọn biến thể (ví dụ chọn màu Đỏ):
-  Kiểm tra product_image WHERE sku_id = :selected_sku_id
-  → Có ảnh SKU? → Swap sang ảnh của SKU đó
+  Kiểm tra product_image WHERE variant_id = :selected_variant_id
+  → Có ảnh variant? → Swap sang ảnh của variant đó
   → Không có? → Giữ nguyên gallery product
 ```
 
 ### 2.2 Phần giá
 
 ```
-Hiển thị giá theo SKU đang được chọn:
+Hiển thị giá theo product_variant đang được chọn:
 
-Nếu sku.original_price IS NOT NULL và sku.price < sku.original_price:
+Nếu product_variant.original_price IS NOT NULL và product_variant.price < product_variant.original_price:
   Hiển thị: [~~original_price~~]  [price]  [-X%]
   Ví dụ:    ~~200.000đ~~  150.000đ  -25%
 
@@ -64,13 +64,13 @@ Nếu không có original_price:
 
 Khi chưa chọn biến thể (product level):
   Hiển thị: "Từ [min_price]đ"
-  = MIN(sku.price) WHERE sku.status IN ('active', 'out_of_stock')
+  = MIN(product_variant.price) WHERE product_variant.status IN ('active', 'out_of_stock')
 ```
 
 ### 2.3 Phần chọn biến thể
 
 ```
-Dữ liệu: tất cả SKU của product (kể cả out_of_stock)
+Dữ liệu: tất cả product_variant của product (kể cả out_of_stock)
   [{ id, variant_attributes, price, stock_quantity, status }]
 
 Frontend group theo key của variant_attributes:
@@ -84,9 +84,9 @@ Mỗi option:
   inactive            → Ẩn hoàn toàn (không hiển thị với khách)
 
 Khi chọn kết hợp biến thể:
-  Map sang SKU cụ thể dựa trên variant_attributes
+  Map sang product_variant cụ thể dựa trên variant_attributes
   → Cập nhật giá hiển thị
-  → Cập nhật ảnh (nếu SKU có ảnh riêng)
+  → Cập nhật ảnh (nếu variant có ảnh riêng)
   → Cập nhật trạng thái nút mua
 ```
 
@@ -112,16 +112,16 @@ Tab "Mô tả sản phẩm" ← product.description (Rich text / HTML)
 Khi khách tăng/giảm số lượng:
   [−]  [3]  [+]
 
-  Giới hạn trên = sku.stock_quantity (đọc real-time hoặc từ cache)
+  Giới hạn trên = product_variant.stock_quantity (đọc real-time hoặc từ cache)
   Nếu quantity = stock_quantity → disable nút [+]
   Hiển thị: "Còn X sản phẩm" nếu stock_quantity <= 5 (ngưỡng cảnh báo)
 
 Trạng thái các nút:
 
-  sku.status = 'active' và stock_quantity > 0:
+  product_variant.status = 'active' và stock_quantity > 0:
     [Thêm vào giỏ hàng]  [Mua ngay]  — cả 2 enable
 
-  sku.status = 'out_of_stock':
+  product_variant.status = 'out_of_stock':
     [Hết hàng] — disable
     Có thể hiển thị thêm: [Thông báo khi có hàng]
 
@@ -130,7 +130,7 @@ Trạng thái các nút:
 
 Bấm "Thêm vào giỏ hàng":
   → Soft check tồn kho (đọc Redis/DB)
-  → Nếu OK: UPSERT cart_item với price_snapshot = sku.price hiện tại
+  → Nếu OK: UPSERT cart_item với price_snapshot = product_variant.price hiện tại
   → Hiển thị toast "Đã thêm vào giỏ hàng"
 
 Bấm "Mua ngay":
@@ -146,8 +146,8 @@ Bấm "Mua ngay":
 
 ```
 ┌──────────────────────────────────────────────┐
-│ [Ảnh SKU]  Áo thun nam cổ tròn              │
-│            Màu: Đen | Size: M                │ ← sku_name_snapshot
+│ [Ảnh variant]  Áo thun nam cổ tròn              │
+│            Màu: Đen | Size: M                │ ← variant_name_snapshot
 │                                              │
 │            ~~200.000đ~~  150.000đ            │ ← Nếu giá thay đổi:
 │            ⚠ Giá đã thay đổi                │   hiển thị giá mới + warning
@@ -160,22 +160,22 @@ Bấm "Mua ngay":
 
 | Trạng thái | 
 |---|---|
-| Runtime check: `sku.price != price_snapshot`
-| Runtime check: `sku.status = 'inactive'`
-| Runtime check: `sku.stock_quantity = 0`
+| Runtime check: `product_variant.price != price_snapshot`
+| Runtime check: `product_variant.status = 'inactive'`
+| Runtime check: `product_variant.stock_quantity = 0`
 Hiển thị cảnh báo chung: "Dữ liệu giỏ hàng đã thay đổi, vui lòng xem lại dữ liệu mới nhất"
 
 ### 3.3 Logic kiểm tra khi mở giỏ hàng
 
 ```
 Mỗi khi khách mở trang giỏ hàng:
-  Batch fetch data của các SKU liên quan từ Redis/DB (Lazy load).
+  Batch fetch data của các product_variant liên quan từ Redis/DB (Lazy load).
 
   Với mỗi item API kiểm tra on-the-fly:
-    Nếu sku.price != cart_item.price_snapshot (Lệch giá, sale kết thúc...):
+    Nếu product_variant.price != cart_item.price_snapshot (Lệch giá, sale kết thúc...):
       → Tính trả JSON attribute để UI hiển thị cảnh báo từ Z -> Y đ. Khách bấm cập nhật giỏ để confirm Y đ.
-    
-    Nếu sku.stock_quantity == 0 HOẶC status != 'active':
+
+    Nếu product_variant.stock_quantity == 0 HOẶC status != 'active':
       → API trả về cờ disable tương ứng. UI mờ item, bỏ tick checkbox đi. (Khách có hàng lại thì lại hiện lên).
 
   Tổng tiền = SUM (giá có đánh dấu tick chọn checkbox x quantity).
@@ -196,7 +196,7 @@ Hiển thị:
 **Giai đoạn trước khi vào màn hình này (Bấm Checkout ở Giỏ)**:
   Khi khách bấm "Check out" sau khi nán lại trang giỏ hàng quá lâu (vd bị afk lúc flash sale diễn ra).
   API /checkout/preview bắn lên Backend. Backend check real-time:
-  - Giá lệch (sku.price != price_snapshot)
+  - Giá lệch (product_variant.price != price_snapshot)
   - Số lượng hụt, hết hàng
   - Inactive.
   Nếu GẶP LỖI: API bắn 409 Conflict.
@@ -238,7 +238,7 @@ Payment thất bại:
 
 | Context | Nguồn ảnh | Logic |
 |---|---|---|
-| Card trang chủ / listing | `product_image` | `sku_id IS NULL AND sort_order = MIN` |
-| Product Detail — gallery mặc định | `product_image` | `sku_id IS NULL ORDER BY sort_order` |
-| Product Detail — sau khi chọn màu | `product_image` | `sku_id = selected_sku_id`, fallback về product images nếu không có |
-| Cart item | `cart_item.sku_image_snapshot` | Snapshot lưu lại, không phụ thuộc product còn tồn tại không |
+| Card trang chủ / listing | `product_image` | `variant_id IS NULL AND sort_order = MIN` |
+| Product Detail — gallery mặc định | `product_image` | `variant_id IS NULL ORDER BY sort_order` |
+| Product Detail — sau khi chọn màu | `product_image` | `variant_id = selected_variant_id`, fallback về product images nếu không có |
+| Cart item | `cart_item.variant_image_snapshot` | Snapshot lưu lại, không phụ thuộc product còn tồn tại không |

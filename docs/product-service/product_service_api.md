@@ -87,7 +87,7 @@
 
 **Quyền truy cập**: Public
 
-**Response 200**: Thông tin chi tiết sản phẩm (product, skus, images)
+**Response 200**: Thông tin chi tiết sản phẩm (product, variants, images)
 
 ---
 
@@ -186,7 +186,7 @@
 
 **Quyền truy cập**: JWT Required (SELLER - owner)
 
-**Response 200**: Danh sách SKU của product
+**Response 200**: Danh sách product_variant của product
 
 **Error Responses**:
 | Status | Mô tả |
@@ -203,7 +203,7 @@
 **Request Body**:
 ```json
 {
-  "sku_code": "NK-AIR-RED-XL",
+  "variant_code": "NK-AIR-RED-XL",
   "tier_name": "Đỏ / XL",
   "price": 350000
 }
@@ -212,7 +212,7 @@
 **Validation Rules**:
 | Field | Type | Rules |
 |-------|------|-------|
-| sku_code | string | Unique; 3–50 ký tự; alphanumeric + dash |
+| variant_code | string | Unique; 3–50 ký tự; alphanumeric + dash |
 | tier_name | string | 1–100 ký tự |
 | price | decimal | > 0; max 9,999,999,999 |
 
@@ -220,7 +220,7 @@
 ```json
 {
   "variant_id": "507f1f77bcf86cd799439013",
-  "sku_code": "NK-AIR-RED-XL",
+  "variant_code": "NK-AIR-RED-XL",
   "tier_name": "Đỏ / XL",
   "price": 350000,
   "product_id": "507f1f77bcf86cd799439012",
@@ -231,7 +231,7 @@
 **Error Responses**:
 | Status | Mô tả |
 |--------|-------|
-| 409 | sku_code đã tồn tại |
+| 409 | variant_code đã tồn tại |
 
 ---
 
@@ -251,9 +251,9 @@
 **Kafka Events**:
 ```json
 {
-  "topic": "sku.price_updated",
+  "topic": "variant.price_updated",
   "payload": {
-    "sku_id": "507f1f77bcf86cd799439013",
+    "variant_id": "507f1f77bcf86cd799439013",
     "product_id": "507f1f77bcf86cd799439012",
     "seller_id": 5,
     "timestamp": "2026-04-15T10:00:00Z"
@@ -350,7 +350,7 @@
 ```json
 {
   "url": "https://cdn.marketplace.vn/products-media/products/5/101/uuid.jpg",
-  "sku_id": null,
+  "variant_id": null,
   "sort_order": 0
 }
 ```
@@ -358,7 +358,7 @@
 | Field | Type | Rules |
 |-------|------|-------|
 | url | string | Required; must be CDN URL |
-| sku_id | string | Optional; nếu có = ảnh riêng của SKU |
+| variant_id | string | Optional; nếu có = ảnh riêng của variant |
 | sort_order | int | Default 0; ảnh có sort_order nhỏ nhất = ảnh đại diện |
 
 **Response 201**: Tạo ảnh thành công
@@ -377,14 +377,14 @@
 ## Inventory Management
 
 ### POST /seller/inventory/adjust
-**Điều chỉnh tồn kho theo SKU**
+**Điều chỉnh tồn kho theo variant**
 
 **Quyền truy cập**: JWT Required (SELLER - owner)
 
 **Request Body**:
 ```json
 {
-  "sku_code": "NK-AIR-RED-XL",
+  "variant_code": "NK-AIR-RED-XL",
   "delta": -5,
   "reason": "Hàng bị hỏng trong kho"
 }
@@ -395,9 +395,9 @@
 **Kafka Events**:
 ```json
 {
-  "topic": "sku.stock_updated",
+  "topic": "variant.stock_updated",
   "payload": {
-    "sku_id": "507f1f77bcf86cd799439013",
+    "variant_id": "507f1f77bcf86cd799439013",
     "product_id": "507f1f77bcf86cd799439012",
     "seller_id": 5,
     "delta": -5,
@@ -409,30 +409,30 @@
 **Error Responses**:
 | Status | Mô tả |
 |--------|-------|
-| 422 | stock_available âm hoặc sku_code không hợp lệ |
+| 422 | stock_available âm hoặc variant_code không hợp lệ |
 
 ---
 
-### GET /seller/inventory/{skuCode}/logs
+### GET /seller/inventory/{variantCode}/logs
 **Lịch sử điều chỉnh tồn kho**
 
 **Quyền truy cập**: JWT Required (SELLER - owner)
 
-**Response 200**: Audit log nhập/xuất/điều chỉnh theo SKU
+**Response 200**: Audit log nhập/xuất/điều chỉnh theo variant
 
 ---
 
 ## Inventory Query
 
-### GET /inventory/{skuCode}
-**Kiểm tra tồn kho theo SKU**
+### GET /inventory/{variantCode}
+**Kiểm tra tồn kho theo variant**
 
 **Quyền truy cập**: JWT Required
 
 **Response 200**:
 ```json
 {
-  "sku_code": "NK-AIR-RED-XL",
+  "variant_code": "NK-AIR-RED-XL",
   "stock_total": 100,
   "stock_locked": 5,
   "stock_available": 95
@@ -442,11 +442,11 @@
 **Error Responses**:
 | Status | Mô tả |
 |--------|-------|
-| 404 | SKU không tồn tại |
+| 404 | Variant không tồn tại |
 
 ---
 
-### PUT /inventory/{skuCode}/restock
+### PUT /inventory/{variantCode}/restock
 **Nhập thêm hàng (Seller)**
 
 **Quyền truy cập**: JWT Required (SELLER - owner)
@@ -467,7 +467,7 @@
 {
   "topic": "inventory.adjusted",
   "payload": {
-    "sku_id": "507f1f77bcf86cd799439013",
+    "variant_id": "507f1f77bcf86cd799439013",
     "product_id": "507f1f77bcf86cd799439012",
     "seller_id": 5,
     "quantity_added": 50,
@@ -479,7 +479,7 @@
 **Error Responses**:
 | Status | Mô tả |
 |--------|-------|
-| 422 | sku_code không hợp lệ hoặc quantity không hợp lệ |
+| 422 | variant_code không hợp lệ hoặc quantity không hợp lệ |
 
 ---
 
@@ -599,7 +599,7 @@
       "items": [
         {
           "cart_item_id": 201,
-          "sku_code": "NK-AIR-RED-XL",
+          "variant_code": "NK-AIR-RED-XL",
           "product_id": "507f1f77bcf86cd799439012",
           "product_name": "Áo Thun Nike Air",
           "variant_name": "Đỏ / XL",
@@ -623,7 +623,7 @@
       "items": [
         {
           "cart_item_id": 202,
-          "sku_code": "AD-ULTRA-BLK-10",
+          "variant_code": "AD-ULTRA-BLK-10",
           "product_id": "507f1f77bcf86cd799439013",
           "product_name": "Giày Adidas Ultraboost",
           "variant_name": "Đen / EU 10",
@@ -663,7 +663,7 @@
 **Request Body**:
 ```json
 {
-  "sku_code": "NK-AIR-RED-XL",
+  "variant_code": "NK-AIR-RED-XL",
   "quantity": 2,
   "fs_item_id": null
 }
@@ -672,7 +672,7 @@
 **Validation Rules**:
 | Field | Type | Rules |
 |-------|------|-------|
-| sku_code | string | Phải tồn tại; Unique |
+| variant_code | string | Phải tồn tại; Unique |
 | quantity | integer | > 0; ≤ 1000 |
 | fs_item_id | long | Optional; nếu có phải là Flash Sale item APPROVED |
 
@@ -680,7 +680,7 @@
 ```json
 {
   "cart_item_id": 201,
-  "sku_code": "NK-AIR-RED-XL",
+  "variant_code": "NK-AIR-RED-XL",
   "product_name": "Áo Thun Nike Air",
   "quantity": 2,
   "unit_price": 350000,
@@ -696,7 +696,7 @@
   "topic": "cart.item_added",
   "payload": {
     "user_id": 42,
-    "sku_code": "NK-AIR-RED-XL",
+    "variant_code": "NK-AIR-RED-XL",
     "quantity": 2,
     "timestamp": "2026-04-15T10:00:00Z"
   }
@@ -707,7 +707,7 @@
 | Status | Mô tả |
 |--------|-------|
 | 409 | Vượt giới hạn Trust Score tier hoặc vượt Flash Sale limit_per_user |
-| 422 | SKU hết hàng hoặc không tồn tại |
+| 422 | Variant hết hàng hoặc không tồn tại |
 
 ---
 
@@ -779,9 +779,9 @@
 | /seller/products/{id}/unpublish | POST | JWT (SELLER) |
 | /seller/products/{id} | DELETE | JWT (SELLER) |
 | /seller/inventory/adjust | POST | JWT (SELLER) |
-| /seller/inventory/{sku}/logs | GET | JWT (SELLER) |
-| /inventory/{sku} | GET | JWT |
-| /inventory/{sku}/restock | PUT | JWT (SELLER) |
+| /seller/inventory/{variant}/logs | GET | JWT (SELLER) |
+| /inventory/{variant} | GET | JWT |
+| /inventory/{variant}/restock | PUT | JWT (SELLER) |
 | /categories | GET | Public |
 | /admin/categories | POST | JWT (ADMIN) |
 | /admin/categories/{id} | PUT | JWT (ADMIN) |

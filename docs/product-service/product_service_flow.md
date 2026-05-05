@@ -30,9 +30,9 @@ API Gateway
 ```
 Seller POST /products
   │
-  ├── Validate input (name, category_id, ít nhất 1 SKU)
+  ├── Validate input (name, category_id, ít nhất 1 product_variant)
   ├── Tạo bản ghi product (status = 'inactive')
-  ├── Tạo các bản ghi SKU tương ứng
+  ├── Tạo các bản ghi product_variant tương ứng
   ├── Upload ảnh → MinIO → lưu URL vào product_image
   │
   │
@@ -42,39 +42,39 @@ Seller POST /products
               → Search Service lập index document mới
 ```
 
-### 1.2 Seller cập nhật giá SKU
+### 1.2 Seller cập nhật giá product_variant
 
 ```
-Seller PATCH /skus/:id  { price: 180000 }
+Seller PATCH /variants/:id  { price: 180000 }
   │
-  ├── Lưu sku.price = 180000
-  ├── Ghi sku.price_updated_at = NOW()
+  ├── Lưu product_variant.price = 180000
+  ├── Ghi product_variant.price_updated_at = NOW()
   │
   ├── Tính lại product.status theo logic:
-  │     active_count, out_of_stock_count của tất cả SKU
+  │     active_count, out_of_stock_count của tất cả product_variant
   │     → Cập nhật product.status trong cùng transaction
   │
-  ├── Async → Kafka topic: sku.price_updated
+  ├── Async → Kafka topic: variant.price_updated
   │           → Search Service cập nhật document (price, min_price)
   │
   └── [KHÔNG update cart_item ngay — Lazy strategy]
       Khách hàng sẽ thấy thay đổi khi mở lại giỏ hàng
 ```
 
-### 1.3 Seller cập nhật tồn kho / trạng thái SKU
+### 1.3 Seller cập nhật tồn kho / trạng thái product_variant
 
 ```
-Seller PATCH /skus/:id  { status: 'inactive' | stock_quantity: 0 }
+Seller PATCH /variants/:id  { status: 'inactive' | stock_quantity: 0 }
   │
-  ├── Lưu thay đổi vào sku
-  ├── Cập nhật Redis: SET stock:{sku_id} = stock_quantity mới
+  ├── Lưu thay đổi vào product_variant
+  ├── Cập nhật Redis: SET stock:{variant_id} = stock_quantity mới
   ├── Tính lại product.status (cùng transaction)
   │
-  ├── [Nếu SKU hết hàng hoặc ngừng bán]
+  ├── [Nếu variant hết hàng hoặc ngừng bán]
   │     KHÔNG can thiệp/update trực tiếp vào bảng cart_item (Lazy Evaluation).
-  │     (Tùy chọn) Async → Notification Service → push gửi cảnh báo cho khách đang có SKU này trong giỏ hàng.
+  │     (Tùy chọn) Async → Notification Service → push gửi cảnh báo cho khách đang có variant này trong giỏ hàng.
   │
-  └── Async → Kafka topic: sku.stock_updated
+  └── Async → Kafka topic: variant.stock_updated
               → Search Service cập nhật stock_status trong document
 ```
 
@@ -135,7 +135,7 @@ Khách GET /products/:slug
   └── Product Service (gọi trực tiếp, không qua Search Service)
         │
         ├── SELECT product WHERE slug = :slug AND status IN ('active', 'out_of_stock')
-        ├── SELECT sku WHERE product_id = :id (tất cả SKU, kể cả out_of_stock)
+        ├── SELECT product_variant WHERE product_id = :id (tất cả variant, kể cả out_of_stock)
         └── SELECT product_image WHERE product_id = :id ORDER BY sort_order
 ```
 
@@ -146,9 +146,9 @@ Khách GET /products/:slug
 ### 3.1 Thêm vào giỏ hàng
 
 ```
-Khách POST /cart/items  { sku_id, quantity }
+Khách POST /cart/items  { variant_id, quantity }
   │
-  ├── Đọc sku từ Redis (hoặc DB nếu cache miss):
+  ├── Đọc product_variant từ Redis (hoặc DB nếu cache miss):
   │     stock_quantity, price, status, variant_attributes
   │
   ├── [Soft check — KHÔNG trừ tồn kho]
@@ -159,9 +159,9 @@ Khách POST /cart/items  { sku_id, quantity }
   │     → Trả lỗi "Chỉ còn X sản phẩm"
   │
   ├── UPSERT cart_item:
-  │     price_snapshot = sku.price (tại thời điểm này)
-  │     sku_name_snapshot = product.name + variant info
-  │     sku_image_snapshot = sku.image_url
+  │     price_snapshot = product_variant.price (tại thời điểm này)
+  │     variant_name_snapshot = product.name + variant info
+  │     variant_image_snapshot = product_variant.image_url
   │
   └── Trả về cart_item mới
 ```
@@ -176,13 +176,13 @@ Khách GET /cart
         ├── SELECT cart_items WHERE cart_id = :id
         │
         ├── Với mỗi cart_item:
-        │     Đọc data sku hiện tại (batch query, 1 lần từ Redis/DB)
+        │     Đọc data product_variant hiện tại (batch query, 1 lần từ Redis/DB)
         │     Thực hiện Lazy Evaluation:
-        │       sku.price != cart_item.price_snapshot? (giá thay đổi / hết sale)
+        │       product_variant.price != cart_item.price_snapshot? (giá thay đổi / hết sale)
         │         → item.has_price_change = true, kèm giá mới
-        │       sku.stock_quantity == 0?
+        │       product_variant.stock_quantity == 0?
         │         → item.out_of_stock = true
-        │       sku.status != 'active'? (ngừng bán, bị ẩn)
+        │       product_variant.status != 'active'? (ngừng bán, bị ẩn)
         │         → item.is_unavailable = true
         │
         └── Trả về response cart với đầy đủ enriched data (transient states):
@@ -192,9 +192,9 @@ Khách GET /cart
 ### 3.3 Cập nhật số lượng trong giỏ hàng
 
 ```
-Khách PATCH /cart/items/:sku_id  { quantity }
+Khách PATCH /cart/items/:variant_id  { quantity }
   │
-  ├── Đọc sku từ Redis/DB để validate tồn kho và status
+  ├── Đọc product_variant từ Redis/DB để validate tồn kho và status
   ├── Nếu vượt tồn kho hoặc inactive → trả 409
   └── UPDATE cart_item.quantity
 ```
@@ -202,7 +202,7 @@ Khách PATCH /cart/items/:sku_id  { quantity }
 ### 3.4 Xóa item khỏi giỏ hàng
 
 ```
-Khách DELETE /cart/items/:sku_id
+Khách DELETE /cart/items/:variant_id
   │
   └── Xóa cart_item tương ứng
 ```
@@ -232,18 +232,18 @@ Khách POST /checkout/preview  { cart_item_ids[] }
   │
   └── Product Service
         │
-        ├── Batch load tất cả SKU liên quan
+        ├── Batch load tất cả product_variant liên quan
   ├── Check preview session:
   │     Nếu tồn tại `checkout_preview:{customer_id}`
   │       → Trả 409: preview_in_use
   ├── Validate từng item (Bắt chặn thay đổi do nán lại giỏ hàng):
             │     Khách bấm Checkout nhưng nán lại Cart quá lâu nên giá/stock thay đổi?
             │     Check:
-            │       sku.status != 'active' HOẶC sku.stock_quantity == 0
+            │       product_variant.status != 'active' HOẶC product_variant.stock_quantity == 0
             │         → Error: Có sản phẩm hết hàng hoặc ngừng bán.
-            │       sku.stock_quantity < cart_item.quantity
+            │       product_variant.stock_quantity < cart_item.quantity
             │         → Error: Sản phẩm không còn đủ số lượng.
-            │       sku.price != cart_item.price_snapshot
+            │       product_variant.price != cart_item.price_snapshot
             │         → Error: Có sản phẩm thay đổi giá hoặc hết Flash Sale.
             │
             │     Nếu BẤT KỲ check nào fail:
@@ -278,20 +278,20 @@ Khách POST /checkout/place-order  { items[], payment_method, address_id, previe
   │     Sai lệch → Trả lỗi 409 + danh sách item lỗi
   │
   ├── [LỚP 1 — Redis Atomic, xử lý nhanh, loại bỏ request thừa sớm]
-  │     Với mỗi SKU trong order:
-  │       result = Redis DECRBY stock:{sku_id} quantity
+  │     Với mỗi product_variant trong order:
+  │       result = Redis DECRBY stock:{variant_id} quantity
   │       result < 0?
-  │         → Redis INCRBY stock:{sku_id} quantity  (hoàn trả)
+  │         → Redis INCRBY stock:{variant_id} quantity  (hoàn trả)
   │         → Rollback toàn bộ DECRBY đã thực hiện
   │         → Trả lỗi 409: "Sản phẩm X vừa hết hàng"
   │
   ├── [LỚP 2 — DB Optimistic Lock, đảm bảo tính toàn vẹn]
   │     BEGIN TRANSACTION
-  │       Với mỗi SKU:
-  │         UPDATE sku
+  │       Với mỗi product_variant:
+  │         UPDATE product_variant
   │         SET stock_quantity = stock_quantity - :qty,
   │             version = version + 1
-  │         WHERE id = :sku_id
+  │         WHERE id = :variant_id
   │           AND stock_quantity >= :qty
   │           AND version = :expected_version
   │         → rows_affected = 0?
@@ -312,7 +312,7 @@ Khách POST /checkout/place-order  { items[], payment_method, address_id, previe
   │
   └── [Consume order.failed]
         UPDATE stock_reservation SET status = 'released'
-        Redis INCRBY stock:{sku_id} quantity  (hoàn trả)
+        Redis INCRBY stock:{variant_id} quantity  (hoàn trả)
         Async → Notification Service báo khách
 
   └── Xóa preview key: DEL checkout_preview:{customer_id}
@@ -328,17 +328,17 @@ Scheduler chạy mỗi 1 phút:
   Với mỗi reservation hết hạn:
     BEGIN TRANSACTION
       UPDATE stock_reservation SET status = 'released'
-      -- Do tồn kho đã bị trừ thẳng ở bảng sku lúc đặt hàng (Lớp 2), 
+      -- Do tồn kho đã bị trừ thẳng ở bảng product_variant lúc đặt hàng (Lớp 2),
       -- nên khi đơn bị hủy/quá hạn, ta bắt buộc phải cộng hoàn trả lại:
-      UPDATE sku SET stock_quantity = stock_quantity + quantity
-                   WHERE id = sku_id
-                   
+      UPDATE product_variant SET stock_quantity = stock_quantity + quantity
+                   WHERE id = variant_id
+
       -- Phục hồi trạng thái Product nếu trước đó vì đơn này mà bị đánh dấu hiển thị hết hàng
       UPDATE product SET status = 'active'
-                   WHERE id = (SELECT product_id FROM sku WHERE id = sku_id) 
+                   WHERE id = (SELECT product_id FROM product_variant WHERE id = variant_id)
                    AND status = 'out_of_stock'
 
-      Redis INCRBY stock:{sku_id} quantity
+      Redis INCRBY stock:{variant_id} quantity
     COMMIT
 
 ### 4.5 Job đồng bộ tồn kho DB sang Redis (Self-healing & Cold Data)
@@ -347,11 +347,11 @@ Scheduler chạy mỗi 1 phút:
 
 ```
 Scheduler chạy mỗi 5 phút (Reconciliation Job):
-  Batch load tất cả SKU đang 'active' trên database.
-  
-  Với mỗi SKU:
-    Cập nhật đè cứng tồn kho thực lên: SET stock:{sku_id} = sku.stock_quantity
-    Gán TTL vòng đời cho key: EXPIRE stock:{sku_id} 3600 (1 tiếng)
+  Batch load tất cả product_variant đang 'active' trên database.
+
+  Với mỗi product_variant:
+    Cập nhật đè cứng tồn kho thực lên: SET stock:{variant_id} = product_variant.stock_quantity
+    Gán TTL vòng đời cho key: EXPIRE stock:{variant_id} 3600 (1 tiếng)
 ```
 
 Kiến trúc này giúp:
@@ -370,14 +370,14 @@ Mỗi khi có thay đổi quan trọng trong Product Service:
 Search Service consume và cập nhật Elasticsearch:
 
 Event: product.created / product.updated
-  → Upsert document theo SKU-first pattern
-  → Mỗi SKU của product = 1 document riêng trong ES
+  → Upsert document theo product_variant-first pattern
+  → Mỗi product_variant của product = 1 document riêng trong ES
 
-Event: sku.price_updated
-  → Update document của SKU đó: price, original_price
-  → Update min_price của các SKU khác trong product nếu cần
+Event: variant.price_updated
+  → Update document của variant đó: price, original_price
+  → Update min_price của các variant khác trong product nếu cần
 
-Event: sku.stock_updated
+Event: variant.stock_updated
   → Update stock_status: 'in_stock' | 'out_of_stock'
 
 Event: product.inactive

@@ -2,7 +2,7 @@
 
 ## Tổng quan
 
-Product Service quản lý toàn bộ vòng đời của sản phẩm trong marketplace: từ lúc seller tạo sản phẩm, qua kiểm duyệt, đến khi hiển thị cho khách hàng mua. Service này cũng tích hợp giỏ hàng (cart) để tránh phức tạp khi seller thay đổi giá SKU ảnh hưởng đến dữ liệu hiển thị cho khách.
+Product Service quản lý toàn bộ vòng đời của sản phẩm trong marketplace: từ lúc seller tạo sản phẩm, qua kiểm duyệt, đến khi hiển thị cho khách hàng mua. Service này cũng tích hợp giỏ hàng (cart) để tránh phức tạp khi seller thay đổi giá product_variant ảnh hưởng đến dữ liệu hiển thị cho khách.
 
 ---
 
@@ -11,12 +11,12 @@ Product Service quản lý toàn bộ vòng đời của sản phẩm trong mark
 ```
 CATEGORY (cây đa cấp, tự tham chiếu)
     └── PRODUCT (nhiều product thuộc 1 category)
-            ├── SKU (nhiều biến thể của 1 product)
+            ├── PRODUCT_VARIANT (nhiều biến thể của 1 product)
             │     └── STOCK_RESERVATION (giữ chỗ tồn kho khi checkout)
-            └── PRODUCT_IMAGE (ảnh product + ảnh theo SKU)
+            └── PRODUCT_IMAGE (ảnh product + ảnh theo product_variant)
 
 CART
-    └── CART_ITEM (FK sang SKU)
+    └── CART_ITEM (FK sang product_variant)
 ```
 
 ---
@@ -56,7 +56,7 @@ CREATE INDEX idx_category_slug ON category(slug);
 
 ### 2. PRODUCT
 
-Đại diện cho một sản phẩm ở cấp độ tổng quan. Một product có thể có nhiều biến thể (SKU). Khách hàng nhìn thấy Product trước, sau đó mới đi vào chọn SKU cụ thể.
+Đại diện cho một sản phẩm ở cấp độ tổng quan. Một product có thể có nhiều biến thể (product_variant). Khách hàng nhìn thấy Product trước, sau đó mới đi vào chọn product_variant cụ thể.
 
 ```sql
 CREATE TABLE product (
@@ -83,13 +83,13 @@ CREATE INDEX idx_product_attributes ON product USING GIN(attributes);
 
 | Giá trị | Ý nghĩa |
 |---|---|
-| `active` | Đang bán bình thường — toàn bộ SKU còn ít nhất 1 cái active (còn hàng) |
-| `out_of_stock` | Tất cả SKU đều hết hàng (`stock_quantity = 0`), vẫn hiển thị trang detail |
+| `active` | Đang bán bình thường — toàn bộ product_variant còn ít nhất 1 cái active (còn hàng) |
+| `out_of_stock` | Tất cả product_variant đều hết hàng (`stock_quantity = 0`), vẫn hiển thị trang detail |
 | `inactive` | Seller tự ẩn sản phẩm tạm thời |
 
-**Logic cập nhật `status` product theo SKU (chạy trong application layer, cùng transaction với update SKU):**
+**Logic cập nhật `status` product theo product_variant (chạy trong application layer, cùng transaction với update product_variant):**
 
-**Product.status** phải được tính lại trong cùng transaction với bất kỳ thay đổi nào trên SKU (cập nhật stock, thay đổi status SKU, thêm/xóa SKU).
+**Product.status** phải được tính lại trong cùng transaction với bất kỳ thay đổi nào trên product_variant (cập nhật stock, thay đổi status variant, thêm/xóa product_variant).
 
 
 #### Trường `attributes` — ví dụ theo ngành hàng
@@ -125,15 +125,15 @@ Khác với `attributes`, `description` là **rich text / HTML** do seller soạ
 
 ---
 
-### 3. SKU (Stock Keeping Unit)
+### 3. PRODUCT_VARIANT (Stock Keeping Unit)
 
-Biến thể cụ thể của product. Mỗi SKU có giá, tồn kho và bộ thuộc tính biến thể riêng. Đây là đơn vị thực sự được thêm vào giỏ hàng và mua.
+Biến thể cụ thể của product. Mỗi product_variant có giá, tồn kho và bộ thuộc tính biến thể riêng. Đây là đơn vị thực sự được thêm vào giỏ hàng và mua.
 
 ```sql
-CREATE TABLE sku (
+CREATE TABLE product_variant (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id          UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
-    sku_code            VARCHAR(100) UNIQUE,  -- Mã SKU nội bộ của seller
+    variant_code        VARCHAR(100) UNIQUE,  -- Mã variant nội bộ của seller
     variant_name        VARCHAR(255),         -- Tên nhóm biến thể
     variant_attributes  JSONB,               -- Giá trị biến thể cụ thể
     price               DECIMAL(18,2) NOT NULL,
@@ -141,16 +141,16 @@ CREATE TABLE sku (
     stock_quantity      INT NOT NULL DEFAULT 0,
     status              VARCHAR(50) NOT NULL DEFAULT 'active',
     version             INT NOT NULL DEFAULT 1,              -- Optimistic Lock phiên bản
-    image_url           TEXT,                -- Ảnh đại diện nhanh cho SKU
+    image_url           TEXT,                -- Ảnh đại diện nhanh cho variant
     price_updated_at    TIMESTAMP,           -- Dùng để so sánh với cart snapshot
     created_at          TIMESTAMP DEFAULT NOW(),
     updated_at          TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_sku_product ON sku(product_id);
-CREATE INDEX idx_sku_status ON sku(status);
-CREATE INDEX idx_sku_price ON sku(price);
-CREATE INDEX idx_sku_variant_attributes ON sku USING GIN(variant_attributes);
+CREATE INDEX idx_variant_product ON product_variant(product_id);
+CREATE INDEX idx_variant_status ON product_variant(status);
+CREATE INDEX idx_variant_price ON product_variant(price);
+CREATE INDEX idx_variant_attributes ON product_variant USING GIN(variant_attributes);
 ```
 
 #### Trường `status` — các giá trị hợp lệ
@@ -163,31 +163,31 @@ CREATE INDEX idx_sku_variant_attributes ON sku USING GIN(variant_attributes);
 
 #### Trường `variant_name` và `variant_attributes` — ví dụ cụ thể
 
-Một product áo thun có 4 SKU (2 màu × 2 size):
+Một product áo thun có 4 product_variant (2 màu × 2 size):
 
 ```
-SKU 1:
+product_variant 1:
   variant_name       = "Màu sắc, Size"
   variant_attributes = { "color": "Đen", "size": "M" }
   price              = 150000
   stock_quantity     = 10
   status             = "active"
 
-SKU 2:
+product_variant 2:
   variant_name       = "Màu sắc, Size"
   variant_attributes = { "color": "Đen", "size": "L" }
   price              = 150000
   stock_quantity     = 5
   status             = "active"
 
-SKU 3:
+product_variant 3:
   variant_name       = "Màu sắc, Size"
   variant_attributes = { "color": "Trắng", "size": "M" }
   price              = 160000
   stock_quantity     = 0
   status             = "out_of_stock"
 
-SKU 4:
+product_variant 4:
   variant_name       = "Màu sắc, Size"
   variant_attributes = { "color": "Trắng", "size": "L" }
   price              = 160000
@@ -195,42 +195,42 @@ SKU 4:
   status             = "active"
 ```
 
-Frontend nhận danh sách SKU, group theo key của `variant_attributes` để render matrix chọn biến thể. Khi khách chọn "Trắng + M" → map sang SKU 3 → `stock_quantity = 0` → disable nút mua và hiển thị "Hết hàng".
+Frontend nhận danh sách product_variant, group theo key của `variant_attributes` để render matrix chọn biến thể. Khi khách chọn "Trắng + M" → map sang product_variant 3 → `stock_quantity = 0` → disable nút mua và hiển thị "Hết hàng".
 
 #### Trường `original_price`
 
 Nếu `original_price` có giá trị và `price < original_price`, frontend hiển thị giạch chéo giá gốc và giá sale. Đây là cơ chế **flash sale / giảm giá thông thường**. Seller tự set 2 trường này.
 
-> **Flash sale** là chương trình giảm giá theo thời gian — seller set `price` thấp hơn `original_price` trong khoảng thời gian nhất định. Khác với **mã giảm giá (voucher/coupon)** — voucher được áp dụng ở bước checkout và thuộc về Order/Promotion Service, không thay đổi `price` của SKU.
+> **Flash sale** là chương trình giảm giá theo thời gian — seller set `price` thấp hơn `original_price` trong khoảng thời gian nhất định. Khác với **mã giảm giá (voucher/coupon)** — voucher được áp dụng ở bước checkout và thuộc về Order/Promotion Service, không thay đổi `price` của product_variant.
 
 #### Trường `price_updated_at`
 
-Được ghi lại mỗi khi seller thay đổi `price`. Khi khách mở lại giỏ hàng, so sánh trực tiếp `sku.price` với `cart_item.price_snapshot`; nếu lệch thì cảnh báo giá đã thay đổi. `price_updated_at` dùng để audit thay đổi giá.
+Được ghi lại mỗi khi seller thay đổi `price`. Khi khách mở lại giỏ hàng, so sánh trực tiếp `product_variant.price` với `cart_item.price_snapshot`; nếu lệch thì cảnh báo giá đã thay đổi. `price_updated_at` dùng để audit thay đổi giá.
 
 ---
 
 ### 4. PRODUCT_IMAGE
 
-Ảnh của product và ảnh theo từng SKU (biến thể). Một product có thể có ảnh chung (gallery) và ảnh riêng cho từng màu sắc/biến thể.
+Ảnh của product và ảnh theo từng product_variant (biến thể). Một product có thể có ảnh chung (gallery) và ảnh riêng cho từng màu sắc/biến thể.
 
 ```sql
 CREATE TABLE product_image (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
-    sku_id     UUID REFERENCES sku(id) ON DELETE SET NULL,  -- NULL = ảnh chung của product
+    variant_id UUID REFERENCES product_variant(id) ON DELETE SET NULL,  -- NULL = ảnh chung của product
     url        TEXT NOT NULL,   -- URL trỏ đến MinIO / object storage
     sort_order INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_product_image_product ON product_image(product_id);
-CREATE INDEX idx_product_image_sku ON product_image(sku_id);
+CREATE INDEX idx_product_image_variant ON product_image(variant_id);
 ```
 
 | Trường | Vai trò | Ghi chú |
 |---|---|---|
-| `sku_id = NULL` | Ảnh chung của product | Hiển thị ở trang chủ, gallery mặc định trong Product Detail |
-| `sku_id = <id>` | Ảnh riêng của biến thể | Hiển thị khi khách chọn biến thể tương ứng trong Product Detail |
+| `variant_id = NULL` | Ảnh chung của product | Hiển thị ở trang chủ, gallery mặc định trong Product Detail |
+| `variant_id = <id>` | Ảnh riêng của biến thể | Hiển thị khi khách chọn biến thể tương ứng trong Product Detail |
 | `sort_order = 0` | Ảnh đại diện (thumbnail) | Dùng cho listing page, sort_order nhỏ nhất = ảnh chính |
 | `url` | URL file trên MinIO | Binary không lưu trong DB, chỉ lưu URL |
 
@@ -238,12 +238,12 @@ CREATE INDEX idx_product_image_sku ON product_image(sku_id);
 
 ### 5. STOCK_RESERVATION
 
-Giữ chỗ tồn kho khi khách bắt đầu thanh toán (sau khi bấm "Đặt hàng" ở Checkout Preview). Thay vì trừ thẳng `sku.stock_quantity`, tạo bản ghi reservation có TTL để đảm bảo tồn kho không bị oversell trong thời gian xử lý payment.
+Giữ chỗ tồn kho khi khách bắt đầu thanh toán (sau khi bấm "Đặt hàng" ở Checkout Preview). Thay vì trừ thẳng `product_variant.stock_quantity`, tạo bản ghi reservation có TTL để đảm bảo tồn kho không bị oversell trong thời gian xử lý payment.
 
 ```sql
 CREATE TABLE stock_reservation (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    sku_id     UUID NOT NULL REFERENCES sku(id),
+    variant_id UUID NOT NULL REFERENCES product_variant(id),
     order_id   UUID NOT NULL,   -- ID từ Order Service, không FK cứng
     quantity   INT NOT NULL,
     status     VARCHAR(50) NOT NULL DEFAULT 'pending',
@@ -252,7 +252,7 @@ CREATE TABLE stock_reservation (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_reservation_sku ON stock_reservation(sku_id);
+CREATE INDEX idx_reservation_variant ON stock_reservation(variant_id);
 CREATE INDEX idx_reservation_order ON stock_reservation(order_id);
 CREATE INDEX idx_reservation_status ON stock_reservation(status);
 CREATE INDEX idx_reservation_expires ON stock_reservation(expires_at);
@@ -271,8 +271,8 @@ CREATE INDEX idx_reservation_expires ON stock_reservation(expires_at);
 ```
 Khách bấm "Đặt hàng"
   → Tạo stock_reservation (status=pending, expires_at = NOW() + 15min)
-  → Redis DECRBY stock:{sku_id} quantity   [Lớp 1]
-  → UPDATE sku SET stock = stock - qty WHERE stock >= qty AND version = N  [Lớp 2]
+  → Redis DECRBY stock:{variant_id} quantity   [Lớp 1]
+  → UPDATE product_variant SET stock = stock - qty WHERE stock >= qty AND version = N  [Lớp 2]
   → rows_affected = 0? → Rollback, Redis INCR, trả lỗi hết hàng
 
 Payment thành công
@@ -281,8 +281,8 @@ Payment thành công
 
 Payment thất bại / timeout (job cleanup)
   → stock_reservation.status = 'released'
-  → Redis INCR stock:{sku_id} quantity
-  → UPDATE sku SET stock = stock + quantity (nếu cần sync lại DB)
+  → Redis INCR stock:{variant_id} quantity
+  → UPDATE product_variant SET stock = stock + quantity (nếu cần sync lại DB)
 ```
 
 **Job cleanup** chạy định kỳ (mỗi 1–5 phút) để release các reservation đã quá `expires_at` mà vẫn còn `status = pending`.
@@ -291,7 +291,7 @@ Payment thất bại / timeout (job cleanup)
 
 ### 6. CART
 
-Giỏ hàng của khách. Tích hợp vào Product Service để tránh phức tạp cross-service khi seller thay đổi giá SKU — thay đổi giá và đọc giỏ hàng nằm trong cùng một service.
+Giỏ hàng của khách. Tích hợp vào Product Service để tránh phức tạp cross-service khi seller thay đổi giá product_variant — thay đổi giá và đọc giỏ hàng nằm trong cùng một service.
 
 ```sql
 CREATE TABLE cart (
@@ -320,38 +320,38 @@ Từng sản phẩm trong giỏ hàng. Lưu snapshot giá tại thời điểm t
 CREATE TABLE cart_item (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cart_id             UUID NOT NULL REFERENCES cart(id) ON DELETE CASCADE,
-    sku_id              UUID NOT NULL REFERENCES sku(id),
+    variant_id          UUID NOT NULL REFERENCES product_variant(id),
     quantity            INT NOT NULL DEFAULT 1,
 
     -- Snapshot tại thời điểm thêm vào giỏ
     price_snapshot      DECIMAL(18,2) NOT NULL,
-    sku_name_snapshot   VARCHAR(500),   -- Tên + variant để hiển thị kể cả SKU bị xóa
-    sku_image_snapshot  TEXT,
+    variant_name_snapshot   VARCHAR(500),   -- Tên + variant để hiển thị kể cả variant bị xóa
+    variant_image_snapshot  TEXT,
 
     created_at          TIMESTAMP DEFAULT NOW(),
     updated_at          TIMESTAMP DEFAULT NOW(),
 
-    UNIQUE(cart_id, sku_id)  -- Mỗi SKU chỉ xuất hiện 1 lần trong cart
+    UNIQUE(cart_id, variant_id)  -- Mỗi variant chỉ xuất hiện 1 lần trong cart
 );
 
 CREATE INDEX idx_cart_item_cart ON cart_item(cart_id);
-CREATE INDEX idx_cart_item_sku ON cart_item(sku_id);
+CREATE INDEX idx_cart_item_variant ON cart_item(variant_id);
 ```
 
 | Trường | Vai trò | Ghi chú |
 |---|---|---|
-| `price_snapshot` | Giá SKU tại lúc thêm vào giỏ | Dùng để so sánh với `sku.price` hiện tại (Lazy calculation). Nếu khác, yêu cầu user confirm và update lại snapshot. |
-| `sku_name_snapshot` | Tên + biến thể lưu lại | Hiển thị được kể cả khi SKU bị discontinued |
+| `price_snapshot` | Giá variant tại lúc thêm vào giỏ | Dùng để so sánh với `product_variant.price` hiện tại (Lazy calculation). Nếu khác, yêu cầu user confirm và update lại snapshot. |
+| `variant_name_snapshot` | Tên + biến thể lưu lại | Hiển thị được kể cả khi variant bị discontinued |
 
 **Chiến lược cập nhật giỏ hàng theo cơ chế Lazy Evaluation:**
-Thay vì theo dõi và đẩy cập nhật từ backend vào DB mỗi khi trạng thái SKU đổi, giỏ hàng sẽ tính toán real-time (on-the-fly) khi có request.
+Thay vì theo dõi và đẩy cập nhật từ backend vào DB mỗi khi trạng thái variant đổi, giỏ hàng sẽ tính toán real-time (on-the-fly) khi có request.
 
 | Loại thay đổi (từ Seller) | Cách xử lý (tại Giỏ hàng) |
 |---|---|
-| Thay đổi giá / Flash sale hết hạn | **Pull (Get Cart)**: Tính toán so sánh `sku.price` và `cart_item.price_snapshot`. Nếu lệch, trả flag cảnh báo qua API để UI hiển thị. |
-| SKU hết hàng | **Pull (Get Cart)**: Tính `sku.stock_quantity == 0`, trả flag `out_of_stock` qua API. |
-| SKU bị inactive | **Pull (Get Cart)**: Tính `sku.status != 'active'`, trả flag `unavailable` qua API. |
-| SKU có hàng lại / Active lại | **Pull (Get Cart)**: Do fetch real-time, dữ liệu trả về bình thường, tự động gỡ cảnh báo trên UI. |
+| Thay đổi giá / Flash sale hết hạn | **Pull (Get Cart)**: Tính toán so sánh `product_variant.price` và `cart_item.price_snapshot`. Nếu lệch, trả flag cảnh báo qua API để UI hiển thị. |
+| Variant hết hàng | **Pull (Get Cart)**: Tính `product_variant.stock_quantity == 0`, trả flag `out_of_stock` qua API. |
+| Variant bị inactive | **Pull (Get Cart)**: Tính `product_variant.status != 'active'`, trả flag `unavailable` qua API. |
+| Variant có hàng lại / Active lại | **Pull (Get Cart)**: Do fetch real-time, dữ liệu trả về bình thường, tự động gỡ cảnh báo trên UI. |
 | Block tại bước Checkout | **Validate Strict**: Bắt buộc kiểm tra lại toàn bộ trạng thái (giá, tồn kho, active) trước khi vào Checkout Preview. Nếu có thay đổi (do khách nán lại ở giỏ quá lâu), block lập tức, trả lỗi yêu cầu reload lại giỏ hàng chứ không cho vào preview. |
 
 ---
