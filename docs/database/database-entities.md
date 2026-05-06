@@ -1,6 +1,6 @@
 # E-Commerce Database Schema
 
-**Ngày cập nhật:** 2026-05-03
+**Ngày cập nhật:** 2026-05-06
 
 ---
 
@@ -17,8 +17,6 @@
 9. [Infrastructure & Messaging](#11-infrastructure--messaging)
 10. [Search Index](#12-search-index)
 11. [AI Chat Support](#13-ai-chat-support)
-
----
 
 ---
 
@@ -42,7 +40,6 @@ Lưu trữ tại **MinIO** (object storage), bucket `products-media`. Mỗi sả
 
 Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 
-
 | Cột          | Kiểu      | Ghi chú                 |
 | ------------ | --------- | ----------------------- |
 | `id`         | BIGSERIAL | Primary Key, ID tự tăng |
@@ -57,7 +54,6 @@ Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 | `created_at` | TIMESTAMP | Thời điểm tạo           |
 | `updated_at` | TIMESTAMP | Cập nhật cuối           |
 
-
 **Ràng buộc:** `username`, `email`, `phone` đều là UNIQUE
 
 **Index:** `idx_users_role` ON users(role)
@@ -67,7 +63,6 @@ Bảng người dùng cơ bản (dùng chung cho Buyer, Seller, Admin)
 ### ROLES
 
 Vai trò người dùng (multi-role support từ V1)
-
 
 | Cột          | Kiểu      | Ghi chú                               |
 | ------------ | --------- | ------------------------------------- |
@@ -85,14 +80,12 @@ Vai trò người dùng (multi-role support từ V1)
 
 Hồ sơ Buyer (1:1 với USERS)
 
-
 | Cột          | Kiểu      | Ghi chú               |
 | ------------ | --------- | --------------------- |
 | `id`         | BIGSERIAL | Primary Key           |
 | `user_id`    | BIGINT    | FK → USERS.id, UNIQUE |
 | `created_at` | TIMESTAMP | Thời điểm tạo         |
 | `updated_at` | TIMESTAMP | Cập nhật cuối         |
-
 
 ---
 
@@ -100,14 +93,12 @@ Hồ sơ Buyer (1:1 với USERS)
 
 Hồ sơ Seller (1:1 với USERS, bắt buộc KYC Stripe)
 
-
 | Cột          | Kiểu      | Ghi chú               |
 | ------------ | --------- | --------------------- |
 | `id`         | BIGSERIAL | Primary Key           |
 | `user_id`    | BIGINT    | FK → USERS.id, UNIQUE |
 | `created_at` | TIMESTAMP | Thời điểm tạo         |
 | `updated_at` | TIMESTAMP | Cập nhật cuối         |
-
 
 ---
 
@@ -115,7 +106,6 @@ Hồ sơ Seller (1:1 với USERS, bắt buộc KYC Stripe)
 
 Hồ sơ Admin (1:1 với USERS)
 
-
 | Cột          | Kiểu      | Ghi chú               |
 | ------------ | --------- | --------------------- |
 | `id`         | BIGSERIAL | Primary Key           |
@@ -123,13 +113,11 @@ Hồ sơ Admin (1:1 với USERS)
 | `created_at` | TIMESTAMP | Thời điểm tạo         |
 | `updated_at` | TIMESTAMP | Cập nhật cuối         |
 
-
 ---
 
 ### ADDRESSES
 
 Địa chỉ giao hàng (dùng chung cho Buyer và Seller)
-
 
 | Cột            | Kiểu      | Ghi chú                       |
 | -------------- | --------- | ----------------------------- |
@@ -142,17 +130,15 @@ Hồ sơ Admin (1:1 với USERS)
 | `created_at`   | TIMESTAMP | Thời điểm tạo                 |
 | `updated_at`   | TIMESTAMP | Cập nhật cuối                 |
 
-
 ---
 
-## 5. Catalog - Categories & Products
+## 3. Catalog - Categories & Products
 
 ### MG_CATEGORIES (MongoDB)
 
 Danh mục sản phẩm (hỗ trợ phân cấp)
 
-
-| Cột          | Kiểu      | Ghi chí                             |
+| Cột          | Kiểu      | Ghi chú                             |
 | ------------ | --------- | ----------------------------------- |
 | `id`         | VARCHAR   | PK, Mongo ObjectId                  |
 | `name`       | VARCHAR   | Tên danh mục                        |
@@ -162,15 +148,13 @@ Danh mục sản phẩm (hỗ trợ phân cấp)
 | `created_at` | TIMESTAMP | Thời điểm tạo                       |
 | `updated_at` | TIMESTAMP | Cập nhật cuối                       |
 
-
 ---
 
 ### MG_PRODUCTS (MongoDB)
 
 Sản phẩm (do Seller đăng)
 
-
-| Cột             | Kiểu      | Ghi chí                       |
+| Cột             | Kiểu      | Ghi chú                       |
 | --------------- | --------- | ----------------------------- |
 | `id`            | VARCHAR   | PK, Mongo ObjectId            |
 | `seller_id`     | BIGINT    | FK → SELLERS.id               |
@@ -185,15 +169,13 @@ Sản phẩm (do Seller đăng)
 | `created_at`    | TIMESTAMP | Thời điểm tạo                 |
 | `updated_at`    | TIMESTAMP | Cập nhật cuối                 |
 
-
 ---
 
 ### MG_PRODUCT_IMAGES
 
 Liên kết hình ảnh sản phẩm
 
-
-| Cột          | Kiểu      | Ghi chí                     |
+| Cột          | Kiểu      | Ghi chú                     |
 | ------------ | --------- | --------------------------- |
 | `id`         | BIGSERIAL | Primary Key                 |
 | `product_id` | VARCHAR   | FK → MG_PRODUCTS.id         |
@@ -201,15 +183,13 @@ Liên kết hình ảnh sản phẩm
 | `is_main`    | BOOLEAN   | Ảnh chính (default: false)  |
 | `sort_order` | INT       | Thứ tự sắp xếp (default: 0) |
 
-
 ---
 
 ### MG_PRODUCT_VARIANTS (MongoDB)
 
 Phân loại sản phẩm (size, màu, etc.)
 
-
-| Cột          | Kiểu      | Ghi chí                     |
+| Cột          | Kiểu      | Ghi chú                     |
 | ------------ | --------- | --------------------------- |
 | `id`         | VARCHAR   | PK, Mongo ObjectId          |
 | `product_id` | VARCHAR   | FK → MG_PRODUCTS.id         |
@@ -220,15 +200,13 @@ Phân loại sản phẩm (size, màu, etc.)
 | `created_at` | TIMESTAMP | Thời điểm tạo               |
 | `updated_at` | TIMESTAMP | Cập nhật cuối               |
 
-
 ---
 
 ### MG_INVENTORIES (MongoDB)
 
 Quản lý tồn kho theo SKU
 
-
-| Cột                    | Kiểu      | Ghi chí                                   |
+| Cột                    | Kiểu      | Ghi chú                                   |
 | ---------------------- | --------- | ----------------------------------------- |
 | `id`                   | VARCHAR   | PK, Mongo ObjectId                        |
 | `sku_code`             | VARCHAR   | Unique, FK → MG_PRODUCT_VARIANTS.sku_code |
@@ -239,17 +217,15 @@ Quản lý tồn kho theo SKU
 | `stock_flash_reserved` | INT       | Số lượng khóa cho Flash Sale đã duyệt     |
 | `updated_at`           | TIMESTAMP | Cập nhật cuối                             |
 
-
 ---
 
-## 6. Cart
+## 4. Cart
 
 ### MG_CARTS (MongoDB)
 
 Giỏ hàng (1:1 với CUSTOMERS)
 
-
-| Cột           | Kiểu      | Ghi chí                   |
+| Cột           | Kiểu      | Ghi chú                   |
 | ------------- | --------- | ------------------------- |
 | `id`          | VARCHAR   | PK, Mongo ObjectId        |
 | `customer_id` | BIGINT    | FK → CUSTOMERS.id, UNIQUE |
@@ -257,15 +233,13 @@ Giỏ hàng (1:1 với CUSTOMERS)
 | `created_at`  | TIMESTAMP | Thời điểm tạo             |
 | `updated_at`  | TIMESTAMP | Thời điểm cập nhật        |
 
-
 ---
 
 ### MG_CART_ITEMS (MongoDB)
 
 Chi tiết giỏ hàng
 
-
-| Cột              | Kiểu      | Ghi chí                     |
+| Cột              | Kiểu      | Ghi chú                     |
 | ---------------- | --------- | --------------------------- |
 | `id`             | VARCHAR   | PK, Mongo ObjectId          |
 | `cart_id`        | VARCHAR   | FK → MG_CARTS.id            |
@@ -277,17 +251,15 @@ Chi tiết giỏ hàng
 | `quantity`       | INT       | Số lượng                    |
 | `added_at`       | TIMESTAMP | Thời điểm thêm              |
 
-
 ---
 
-## 7. Flash Sales
+## 5. Flash Sales
 
 ### FS_SESSIONS
 
 Session Flash Sale (theo khoảng thời gian)
 
-
-| Cột          | Kiểu      | Ghi chí                   |
+| Cột          | Kiểu      | Ghi chú                   |
 | ------------ | --------- | ------------------------- |
 | `id`         | BIGSERIAL | Primary Key               |
 | `name`       | VARCHAR   | Tên flash sale session    |
@@ -298,15 +270,13 @@ Session Flash Sale (theo khoảng thời gian)
 | `created_at` | TIMESTAMP | Thời điểm tạo             |
 | `updated_at` | TIMESTAMP | Cập nhật cuối             |
 
-
 ---
 
 ### FS_ITEMS
 
 Sản phẩm tham gia Flash Sale
 
-
-| Cột              | Kiểu      | Ghi chí                                   |
+| Cột              | Kiểu      | Ghi chú                                   |
 | ---------------- | --------- | ----------------------------------------- |
 | `id`             | BIGSERIAL | Primary Key                               |
 | `session_id`     | BIGINT    | FK → FS_SESSIONS.id                       |
@@ -320,32 +290,30 @@ Sản phẩm tham gia Flash Sale
 | `created_at`     | TIMESTAMP | Thời điểm tạo                             |
 | `updated_at`     | TIMESTAMP | Cập nhật cuối                             |
 
-
 ---
 
 ### FS_REMINDERS
 
 Nhắc nhở Flash Sale
 
-
-| Cột           | Kiểu      | Ghi chí             |
+| Cột           | Kiểu      | Ghi chú             |
 | ------------- | --------- | ------------------- |
 | `id`          | BIGSERIAL | Primary Key         |
 | `customer_id` | BIGINT    | FK → CUSTOMERS.id   |
 | `session_id`  | BIGINT    | FK → FS_SESSIONS.id |
 | `created_at`  | TIMESTAMP | Thời điểm tạo       |
 
-
 ---
 
-## 8. Orders
+## 6. Orders
+
+> **Giải thích `order_code`:** `order_code` là mã hiển thị đơn hàng (public display code) dành cho khách hàng và người bán, có dạng dễ đọc như `DH20260506-1A2B3C`. Mã này khác với trường `id` (BIGSERIAL) chỉ dùng nội bộ. `order_code` đảm bảo tính duy nhất và thân thiện khi tra cứu, xuất hiện trên giao diện, email và tin nhắn.
 
 ### PARENT_ORDERS
 
 Đơn hàng tổng (nhóm các đơn từ Seller khác nhau)
 
-
-| Cột           | Kiểu      | Ghi chí                    |
+| Cột           | Kiểu      | Ghi chú                    |
 | ------------- | --------- | -------------------------- |
 | `id`          | BIGSERIAL | Primary Key                              |
 | `customer_id` | BIGINT    | FK → CUSTOMERS.id                        |
@@ -355,33 +323,33 @@ Nhắc nhở Flash Sale
 | `created_at`  | TIMESTAMP | Thời điểm tạo                            |
 | `updated_at`  | TIMESTAMP | Cập nhật cuối                            |
 
-
 ---
 
 ### ORDERS
 
 Đơn hàng chi tiết (từng Seller)
 
-
-| Cột                 | Kiểu      | Ghi chí                                                                                      |
+| Cột                 | Kiểu      | Ghi chú                                                                                      |
 | ------------------- | --------- | -------------------------------------------------------------------------------------------- |
 | `id`                | BIGSERIAL | Primary Key                                                                                  |
 | `parent_order_id`   | BIGINT    | FK → PARENT_ORDERS.id                                                                        |
 | `seller_id`         | BIGINT    | FK → SELLERS.id                                                                              |
-| `order_code`        | VARCHAR   | Unique, mã hiển thị                                                                          |
+| `order_code`        | VARCHAR   | Unique, mã hiển thị đơn hàng (xem giải thích phía trên)                                      |
 | `customer_id`       | BIGINT    | FK → CUSTOMERS.id                                                                            |
 | `total_amt`         | DECIMAL   | Tổng tiền trước khuyến mãi                                                                   |
 | `final_amt`         | DECIMAL   | Số tiền thanh toán cuối                                                                      |
 | `status`            | VARCHAR   | PENDING | PAID | SHIPPING | DELIVERED | RETURNED | REFUNDED | PARTIALLY_REFUNDED | CANCELLED |
 | `cancelled_by`      | VARCHAR   | BUYER | SELLER | SYSTEM                                                                      |
 | `cancel_reason`     | TEXT      | Lý do hủy                                                                                    |
-| `is_flash_sale`     | BOOLEAN   | Từ Flash Sale hay không                                                                      |
 | `shipping_address`  | JSONB     | Snapshot địa chỉ giao hàng                                                                   |
-| `tracking_number`   | VARCHAR   | Mã vận đơn                                                                                   |
 | `shipping_deadline` | TIMESTAMP | Hạn cập nhật mã vận đơn (created_at + 3 ngày)                                                |
+| `paid_at`           | TIMESTAMP | Thời điểm thanh toán thành công                                                              |
+| `shipped_at`        | TIMESTAMP | Thời điểm seller xác nhận đã giao hàng (tất cả item có tracking)                             |
+| `delivered_at`      | TIMESTAMP | Thời điểm giao hàng thành công đến tay khách                                                 |
 | `created_at`        | TIMESTAMP | Thời điểm tạo                                                                                |
 | `updated_at`        | TIMESTAMP | Cập nhật cuối                                                                                |
 
+> **Lưu ý:** Đã dời cột `tracking_number` xuống bảng `ORDER_ITEMS` để hỗ trợ giao hàng từng phần (mỗi item/món hàng có thể có mã vận đơn riêng). `shipped_at` được cập nhật khi tất cả item đã có tracking, `delivered_at` khi toàn bộ đơn hoàn tất.
 
 ---
 
@@ -389,8 +357,7 @@ Nhắc nhở Flash Sale
 
 Chi tiết sản phẩm trong đơn hàng
 
-
-| Cột                 | Kiểu      | Ghi chí                     |
+| Cột                 | Kiểu      | Ghi chú                     |
 | ------------------- | --------- | --------------------------- |
 | `id`                | BIGSERIAL | Primary Key                 |
 | `order_id`          | BIGINT    | FK → ORDERS.id              |
@@ -400,21 +367,20 @@ Chi tiết sản phẩm trong đơn hàng
 | `image_snapshot`    | VARCHAR   | Ảnh snapshot                |
 | `price_snapshot`    | DECIMAL   | Đơn giá snapshot            |
 | `quantity`          | INT       | Số lượng mua                |
-| `refunded_quantity` | INT       | Số lượng đã hoàn            |
 | `fs_item_id`        | BIGINT    | FK → FS_ITEMS.id, nullable  |
+| `tracking_number`   | VARCHAR   | Mã vận đơn cho món hàng     |
+| `carrier`           | VARCHAR   | Đơn vị vận chuyển (VD: GHTK, Viettel Post) |
 | `created_at`        | TIMESTAMP | Thời điểm tạo               |
-
 
 ---
 
-## 9. Payments & Transfers
+## 7. Payments & Transfers
 
 ### SELLER_STRIPE_ACCOUNTS
 
 KYC Stripe cho Seller
 
-
-| Cột                         | Kiểu      | Ghi chí                                   |
+| Cột                         | Kiểu      | Ghi chú                                   |
 | --------------------------- | --------- | ----------------------------------------- |
 | `id`                        | BIGSERIAL | Primary Key                               |
 | `seller_id`                 | BIGINT    | FK → SELLERS.id, UNIQUE                   |
@@ -429,15 +395,13 @@ KYC Stripe cho Seller
 | `created_at`                | TIMESTAMP | Thời điểm tạo                             |
 | `updated_at`                | TIMESTAMP | Cập nhật cuối                             |
 
-
 ---
 
 ### TRANSACTIONS
 
 Giao dịch thanh toán (dùng Stripe hoặc VNPAY)
 
-
-| Cột                      | Kiểu      | Ghi chí                                          |
+| Cột                      | Kiểu      | Ghi chú                                          |
 | ------------------------ | --------- | ------------------------------------------------ |
 | `id`                     | BIGSERIAL | Primary Key                                      |
 | `parent_order_id`        | BIGINT    | FK → PARENT_ORDERS.id                            |
@@ -452,19 +416,18 @@ Giao dịch thanh toán (dùng Stripe hoặc VNPAY)
 | `created_at`             | TIMESTAMP | Thời điểm tạo                                    |
 | `updated_at`             | TIMESTAMP | Cập nhật cuối                                    |
 
-
 ---
 
 ### SELLER_TRANSFERS
 
 Transfer tiền cho Seller sau khi DELIVERED (delayed payout flow: platform giữ tiền → chờ hết hạn hoàn hàng → trừ phí sàn → chuyển khoản seller)
 
-
 | Cột                      | Kiểu       | Ghi chú                                               |
 | ------------------------ | ---------- | ----------------------------------------------------- |
 | `id`                     | BIGSERIAL  | Primary Key                                           |
 | `order_id`               | BIGINT     | FK → ORDERS.id (sub-order)                            |
 | `seller_id`              | BIGINT     | FK → SELLERS.id                                       |
+| `transaction_id`         | BIGINT     | FK → TRANSACTIONS.id, liên kết trực tiếp giao dịch gốc|
 | `transfer_amount`        | DECIMAL    | Số tiền transfer (gross, chưa trừ phí sàn)            |
 | `stripe_transfer_id`     | VARCHAR    | Stripe Transfer ID (dùng cho Reversal)                |
 | `delivered_at`           | TIMESTAMP  | Thời điểm xác nhận giao hàng                          |
@@ -480,7 +443,7 @@ Transfer tiền cho Seller sau khi DELIVERED (delayed payout flow: platform gi�
 
 > **UNIQUE (order_id):** Mỗi order chỉ được transfer một lần — ràng buộc này ngăn duplicate transfer do job chạy lại hoặc retry không idempotent, tránh trả tiền gấp đôi cho seller.
 
-
+> **transaction_id:** Cho phép truy xuất trực tiếp giao dịch gốc mà không cần join qua ORDERS rồi PARENT_ORDERS. Trường này bắt buộc phải có để hỗ trợ reversal và đối soát nhanh.
 
 ---
 
@@ -488,8 +451,7 @@ Transfer tiền cho Seller sau khi DELIVERED (delayed payout flow: platform gi�
 
 Phiếu hoàn tiền
 
-
-| Cột                  | Kiểu      | Ghi chí                                           |
+| Cột                  | Kiểu      | Ghi chú                                           |
 | -------------------- | --------- | ------------------------------------------------- |
 | `id`                 | BIGSERIAL | Primary Key                                       |
 | `transaction_id`     | BIGINT    | FK → TRANSACTIONS.id                              |
@@ -511,15 +473,13 @@ Phiếu hoàn tiền
 | `created_at`         | TIMESTAMP | Thời điểm tạo                                     |
 | `updated_at`         | TIMESTAMP | Cập nhật cuối                                     |
 
-
 ---
 
 ### REFUND_ITEMS
 
 Chi tiết hoàn tiền (từng sản phẩm)
 
-
-| Cột                      | Kiểu      | Ghi chí                            |
+| Cột                      | Kiểu      | Ghi chú                            |
 | ------------------------ | --------- | ---------------------------------- |
 | `id`                     | BIGSERIAL | Primary Key                        |
 | `refund_id`              | BIGINT    | FK → REFUNDS.id                    |
@@ -529,19 +489,18 @@ Chi tiết hoàn tiền (từng sản phẩm)
 | `item_reason`            | VARCHAR   | Lý do hoàn riêng                   |
 | `status`                 | VARCHAR   | PENDING | SUCCESS | FAILED         |
 | `return_tracking_number` | VARCHAR   | Mã vận đơn hoàn hàng               |
+| `carrier`                | VARCHAR   | Đơn vị vận chuyển trả hàng         |
 | `returned_at`            | TIMESTAMP | Thời điểm Seller xác nhận nhận lại |
-
 
 ---
 
-## 10. Notifications
+## 8. Notifications
 
 ### MG_NOTIFICATIONS (MongoDB)
 
 Thông báo cho Buyer, Seller, Admin
 
-
-| Cột          | Kiểu      | Ghi chí                           |
+| Cột          | Kiểu      | Ghi chú                           |
 | ------------ | --------- | --------------------------------- |
 | `id`         | VARCHAR   | PK, Mongo ObjectId                |
 | `user_id`    | BIGINT    | FK → USERS.id                     |
@@ -552,17 +511,15 @@ Thông báo cho Buyer, Seller, Admin
 | `is_read`    | BOOLEAN   | Đã đọc hay chưa                   |
 | `created_at` | TIMESTAMP | Thời điểm tạo (TTL Index 90 ngày) |
 
-
 ---
 
-## 11. Infrastructure & Messaging
+## 9. Infrastructure & Messaging
 
 ### OUTBOX_EVENTS
 
 Event Outbox Pattern (cho eventual consistency)
 
-
-| Cột            | Kiểu      | Ghi chí                      |
+| Cột            | Kiểu      | Ghi chú                      |
 | -------------- | --------- | ---------------------------- |
 | `id`           | BIGSERIAL | Primary Key                  |
 | `topic`        | VARCHAR   | Tên topic/event              |
@@ -573,15 +530,13 @@ Event Outbox Pattern (cho eventual consistency)
 | `created_at`   | TIMESTAMP | Thời điểm tạo                |
 | `updated_at`   | TIMESTAMP | Cập nhật cuối                |
 
-
 ---
 
 ### FAILED_EVENTS
 
 Lưu trữ event/task lỗi để xử lý thủ công
 
-
-| Cột             | Kiểu      | Ghi chí                                         |
+| Cột             | Kiểu      | Ghi chú                                         |
 | --------------- | --------- | ----------------------------------------------- |
 | `id`            | BIGSERIAL | Primary Key                                     |
 | `topic_or_task` | VARCHAR   | Tên topic hoặc task                             |
@@ -592,32 +547,28 @@ Lưu trữ event/task lỗi để xử lý thủ công
 | `created_at`    | TIMESTAMP | Thời điểm tạo                                   |
 | `updated_at`    | TIMESTAMP | Cập nhật cuối                                   |
 
-
 ---
 
 ### SHEDLOCK
 
 Distributed Lock cho scheduled jobs (ShedLock)
 
-
-| Cột          | Kiểu      | Ghi chí                   |
+| Cột          | Kiểu      | Ghi chú                   |
 | ------------ | --------- | ------------------------- |
 | `name`       | VARCHAR   | Primary Key, tên lock     |
 | `lock_until` | TIMESTAMP | Thời điểm hết lock        |
 | `locked_at`  | TIMESTAMP | Thời điểm bắt đầu lock    |
 | `locked_by`  | VARCHAR   | Node/thread đang giữ lock |
 
-
 ---
 
-## 12. Search Index
+## 10. Search Index
 
 ### ES_PRODUCTS_INDEX (Elasticsearch)
 
 Đánh chỉ mục sản phẩm cho tìm kiếm
 
-
-| Cột               | Kiểu      | Ghi chí                      |
+| Cột               | Kiểu      | Ghi chú                      |
 | ----------------- | --------- | ---------------------------- |
 | `id`              | VARCHAR   | Mongo ObjectId — keyword     |
 | `name`            | TEXT      | Tên sản phẩm — text          |
@@ -637,107 +588,29 @@ Distributed Lock cho scheduled jobs (ShedLock)
 | `created_at`      | TIMESTAMP | Thời điểm tạo — date         |
 | `updated_at`      | TIMESTAMP | Cập nhật cuối — date         |
 
-
 ---
 
-## Các Tính Năng Chính
-
-### 3. Flash Sales
-
-- **Sessions**: Khoảng thời gian Flash Sale
-- **Items**: Sản phẩm tham gia với giá & tồn kho riêng
-- **Reminders**: Buyer có thể nhắc nhở
-- **Stock Management**: Tách biệt tồn kho Flash vs Regular
-
-### 4. Orders & Fulfillment
-
-- **Parent Orders**: Nhóm đơn hàng từ nhiều Seller
-- **Sub Orders**: Từng đơn từ Seller (xử lý riêng)
-- **Shipping Deadline**: Tracking JOB-13b phát hiện giao hàng trễ
-- **Soft Cancellation**: Lưu vết ai hủy (BUYER/SELLER/SYSTEM)
-
-### 5. Payments & Refunds
-
-- **Stripe Integration**: KYC Seller + Express Account
-- **Optimistic Locking**: Tránh race condition
-- **Refund Workflow**: FULL/PARTIAL với RTS (Return to Sender)
-- **Seller Transfers**: Tự động transfer sau DELIVERED
-
-### 6. Catalog & Search
-
-- **MongoDB**: Products/Categories/Variants/Inventories
-- **Elasticsearch**: Đánh chỉ mục full-text search
-- **Dynamic Attributes**: Hỗ trợ thuộc tính linh hoạt
-- **Soft Delete**: Sản phẩm xóa không mất dữ liệu
-
----
-
-## Ràng Buộc & Relationships
-
-### Primary Keys
-
-- **PostgreSQL Tables**: BIGSERIAL (PostgreSQL) hoặc UUID
-- **MongoDB Collections**: ObjectId (VARCHAR)
-
-### Foreign Keys
-
-- Relationships được định nghĩa rõ ràng (ref: > hoặc ref: -)
-- UNIQUE constraints cho 1:1 relationships
-
-### Optimistic Locking
-
-- **version** column: Tăng mỗi update để tránh race condition
-- Dùng cho: USERS, ORDERS, FS_ITEMS, TRANSACTIONS
-
-### Soft Deletes
-
-- **deleted_at**: TIMESTAMP NULL để keep audit trail
-- Tables: MG_PRODUCTS, FS_SESSIONS, USERS (implicit via status)
-
----
-
-## Kiểu Dữ Liệu
-
-
-| Kiểu      | Mô tả                           |
-| --------- | ------------------------------- |
-| BIGSERIAL | 64-bit auto-increment integer   |
-| VARCHAR   | Chuỗi ký tự biến độ dài         |
-| TEXT      | Chuỗi dài (mô tả, lý do, etc.)  |
-| INT       | 32-bit integer                  |
-| DECIMAL   | Số thập phân (tiền, điểm)       |
-| BOOLEAN   | TRUE/FALSE                      |
-| TIMESTAMP | Thời gian (YYYY-MM-DD HH:MM:SS) |
-| UUID      | Unique identifier (128-bit)     |
-| JSONB     | JSON binary (PostgreSQL)        |
-
-
----
-
-## 13. AI Chat Support
+## 11. AI Chat Support
 
 ### CHAT_SESSIONS
 
 Vòng đời một cuộc trò chuyện AI
 
-
 | Cột               | Kiểu        | Ghi chú                               |
 | ----------------- | ----------- | ------------------------------------- |
 | `id`              | UUID        | Primary Key, gen_random_uuid()        |
-| `user_id`         | VARCHAR(36) | NOT NULL, chủ sở hữu session          |
+| `user_id`         | BIGINT      | FK → USERS.id, chủ sở hữu session     |
 | `status`          | ENUM        | ACTIVE | CLOSED | EXPIRED             |
 | `context_summary` | TEXT        | Tóm tắt nén khi history > 50 messages |
 | `created_at`      | TIMESTAMPTZ | Thời điểm tạo                         |
 | `updated_at`      | TIMESTAMPTZ | Cập nhật cuối                         |
 | `closed_at`       | TIMESTAMPTZ | Thời điểm đóng                        |
 
-
 ---
 
 ### CHAT_MESSAGES
 
 Lịch sử hội thoại đầy đủ (gồm TOOL_CALL và TOOL_RESULT)
-
 
 | Cột           | Kiểu         | Ghi chú                                                          |
 | ------------- | ------------ | ---------------------------------------------------------------- |
@@ -750,20 +623,18 @@ Lịch sử hội thoại đầy đủ (gồm TOOL_CALL và TOOL_RESULT)
 | `tokens_used` | INT          | Chỉ có với ASSISTANT messages                                    |
 | `created_at`  | TIMESTAMPTZ  | Thời điểm tạo                                                    |
 
-
 ---
 
 ### PENDING_CONFIRMATIONS
 
 Human-in-the-loop cho action Mức 3
 
-
 | Cột           | Kiểu        | Ghi chú                                                 |
 | ------------- | ----------- | ------------------------------------------------------- |
 | `id`          | UUID        | Primary Key, chính là confirm token                     |
 | `session_id`  | UUID        | FK → CHAT_SESSIONS.id                                   |
 | `message_id`  | UUID        | FK → CHAT_MESSAGES.id                                   |
-| `user_id`     | VARCHAR(36) | NOT NULL                                                |
+| `user_id`     | BIGINT      | FK → USERS.id, NOT NULL                                 |
 | `action_type` | ENUM        | CANCEL_ORDER | UPDATE_PROFILE | DELETE_ACCOUNT | CUSTOM |
 | `payload`     | JSONB       | Dữ liệu để thực thi sau khi confirmed                   |
 | `status`      | ENUM        | PENDING | CONFIRMED | REJECTED | EXPIRED                |
@@ -771,20 +642,18 @@ Human-in-the-loop cho action Mức 3
 | `created_at`  | TIMESTAMPTZ | Thời điểm tạo                                           |
 | `resolved_at` | TIMESTAMPTZ | Thời điểm xử lý                                         |
 
-
 ---
 
 ### TOOL_CALL_LOGS
 
 Audit trail bất biến (chỉ INSERT, không UPDATE/DELETE) — Partition by month
 
-
 | Cột            | Kiểu         | Ghi chú                              |
 | -------------- | ------------ | ------------------------------------ |
 | `id`           | UUID         | Primary Key, gen_random_uuid()       |
 | `session_id`   | UUID         | FK → CHAT_SESSIONS.id                |
 | `message_id`   | UUID         | FK → CHAT_MESSAGES.id                |
-| `user_id`      | VARCHAR(36)  | NOT NULL                             |
+| `user_id`      | BIGINT       | FK → USERS.id, NOT NULL              |
 | `tool_name`    | VARCHAR(100) | Tên tool được gọi                    |
 | `input_params` | JSONB        | Tham số đầu vào                      |
 | `output`       | JSONB        | Kết quả trả về                       |
@@ -793,13 +662,11 @@ Audit trail bất biến (chỉ INSERT, không UPDATE/DELETE) — Partition by m
 | `risk_level`   | SMALLINT     | 1 / 2 / 3                            |
 | `created_at`   | TIMESTAMPTZ  | Thời điểm tạo                        |
 
-
 ---
 
 ### OUTBOX_EVENTS (AI Chat)
 
 Event Outbox Pattern cho Kafka fallback khi publish thất bại
-
 
 | Cột             | Kiểu         | Ghi chú                              |
 | --------------- | ------------ | ------------------------------------ |
@@ -812,13 +679,11 @@ Event Outbox Pattern cho Kafka fallback khi publish thất bại
 | `created_at`    | TIMESTAMPTZ  | Thời điểm tạo                        |
 | `processed_at`  | TIMESTAMPTZ  | Thời điểm xử lý                      |
 
-
 > Partial index: `WHERE status = 'PENDING'` để query nhanh các event chưa xử lý.
 
 ---
 
 ### Redis Keys (AI Chat)
-
 
 | Key                   | TTL     | Mục đích                                  |
 | --------------------- | ------- | ----------------------------------------- |
@@ -828,7 +693,6 @@ Event Outbox Pattern cho Kafka fallback khi publish thất bại
 | `pending:{confirmId}` | 5 phút  | Fast lookup khi user bấm confirm          |
 | `buf:{sessionId}`     | 10 phút | Buffer 20 SP từ PageIndex cho "Xem thêm"  |
 | `tool:cache:{hash}`   | 60s     | Cache kết quả Tool đọc (Mức 1)            |
-
 
 ---
 
@@ -853,10 +717,10 @@ Event Outbox Pattern cho Kafka fallback khi publish thất bại
 - **Outbox Pattern**: OUTBOX_EVENTS + FAILED_EVENTS cho eventual consistency
 - **ShedLock**: Distributed lock cho scheduled jobs
 - **MongoDB**: Cart, Categories, Products, Variants, Inventories, Notifications
-- **PostgreSQL**: Users, Orders, Payments
+- **PostgreSQL**: Users, Orders, Payments, AI Chat
 - **Elasticsearch**: Full-text search cho sản phẩm
 - **MinIO**: Lưu trữ ảnh (URLs trong IMAGES table)
 
 ---
 
-*Tài liệu này được sinh ra từ DBML schema ngày 2026-04-29*
+*Tài liệu này được cập nhật ngày 2026-05-06*
