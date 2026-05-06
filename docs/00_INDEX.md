@@ -79,8 +79,6 @@ docs/
     │   ├── 02_API_ai_chat.md    AI Chat API specification
     │   ├── 01_technical_module.md  AI Chat technical module docs
     │   └── 03_database_tables.md   AI Chat database tables
-    ├── worker-service/
-    │   └── 03_database_tables.md   Worker service database tables
     ├── flashsale-service/
     │   ├── 02_API_flash_sale_service.md  Flash sale session API
     │   ├── 03_database_tables.md         Flash sale database tables
@@ -143,9 +141,7 @@ docs/
 │   ├── 01_technical_module.md      AI Chat technical module
 │   ├── 03_database_tables.md       AI Chat database tables
 │   └── KAFKA_EVENTS.md            AI Chat Kafka events (7 topics)
-├── services/worker-service/
-│   ├── KAFKA_EVENTS.md            Worker Kafka events
-│   └── 03_database_tables.md      Worker database tables
+├── services/admin-service/       (merged → identity-service)
 
 #### Kafka Event Docs (Per-Service)
 
@@ -159,7 +155,6 @@ docs/
 ├── services/payment-service/KAFKA_EVENTS.md         payment.*, refund.*, stripe.*
 ├── services/flashsale-service/KAFKA_EVENTS.md       flash_sale.*
 ├── services/notification-service/KAFKA_EVENTS.md    consumer-only (20+ topics)
-├── services/worker-service/KAFKA_EVENTS.md          flash_sale.reminder, outbox pattern
 ├── services/ai-chat-service/KAFKA_EVENTS.md         ai_chat.*, tool_call.*
 └── messaging/11_KAFKA_REQUEST_REPLY.md             6 request-reply pairs
 ```
@@ -186,7 +181,6 @@ docs/
 | 16 | api/README.md | ~400 | API overview |
 | — | services/identity-service/02_API_identity_service.md | ~750 | Identity API |
 | — | services/product-service/02_API_product_service.md | ~650 | Product API |
-| — | services/product-service/product_service_api.md | ~300 | Product API deep-dive |
 | — | services/product-service/product_service_flow.md | ~200 | Product service workflows |
 | — | services/product-service/product_service_ui_logic.md | ~150 | Product UI logic |
 | — | services/product-service/03_database_tables.md | ~130 | Product MongoDB tables |
@@ -199,7 +193,6 @@ docs/
 | — | services/ai-chat-service/02_API_ai_chat.md | ~150 | AI Chat API spec |
 | — | services/ai-chat-service/01_technical_module.md | ~200 | AI Chat technical module |
 | — | services/ai-chat-service/03_database_tables.md | ~80 | AI Chat DB tables |
-| — | services/worker-service/03_database_tables.md | ~30 | Worker DB tables |
 | — | architecture/diagrams/00_service_architecture.md | ~200 | C4 Container diagrams |
 | — | architecture/diagrams/01_erd_compact.md | ~150 | Compact ERD overview |
 
@@ -215,7 +208,6 @@ docs/
 | Payment Service | 8082 | PostgreSQL + Axon | Stripe, payments |
 | Order Service | 8083 | PostgreSQL + Axon | Orders, checkout, RTS |
 | Flashsale Service | 8085 | PostgreSQL + Axon | Flash sales, Redis |
-| Worker Service | 8086 | PostgreSQL + Axon | Outbox, failed events, DLQ |
 | Product Service | 8090 | MongoDB | Products, cart, variants |
 | Search Service | 8091 | Elasticsearch | Full-text search |
 | Notification Service | 8092 | MongoDB | SSE, real-time notifications |
@@ -319,4 +311,4 @@ docs/
 
 **Last Updated**: 2026-05-05
 **Documentation Version**: v5.5
-**Total Documents**: 42
+**Total Documents**: 38

@@ -132,12 +132,12 @@ public class IdentityDevDataLoader implements CommandLineRunner {
 
             jdbcTemplate.update(
                 "INSERT INTO identity.users (id, username, email, phone, password, full_name,"
-                    + " status, version, created_at, updated_at)"
-                    + " VALUES (?,?,?,?,?,?,?,?,?,?)"
+                    + " status, created_at, updated_at)"
+                    + " VALUES (?,?,?,?,?,?,?,?,?)"
                     + " ON CONFLICT (id) DO NOTHING",
                 u.getId(), u.getUsername(), u.getEmail(), u.getPhone(), u.getPassword(),
                 u.getFullName(), u.getStatus(),
-                u.getVersion(), Timestamp.valueOf(u.getCreatedAt()), Timestamp.valueOf(u.getUpdatedAt()));
+                Timestamp.valueOf(u.getCreatedAt()), Timestamp.valueOf(u.getUpdatedAt()));
         }
 
         // Reset sequence to max(id) so future auto-generated IDs don't conflict

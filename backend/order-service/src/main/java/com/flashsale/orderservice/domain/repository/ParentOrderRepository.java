@@ -14,8 +14,6 @@ public interface ParentOrderRepository extends JpaRepository<ParentOrder, Long> 
 
     Optional<ParentOrder> findByIdAndCustomerId(Long id, Long customerId);
 
-    Optional<ParentOrder> findByOrderCode(String orderCode);
-
     /**
      * Pessimistic lock on ParentOrder during payment confirmation/failure.
      * Required because ParentOrder has @Version (optimistic locking) and may be

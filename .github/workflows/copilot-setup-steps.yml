@@ -49,7 +49,7 @@ jobs:
           echo "=== Backend Services ==="
           for svc in discovery-service api-gateway identity-service product-service \
                      order-service payment-service flashsale-service \
-                     search-service notification-service worker-service; do
+                     search-service notification-service chat-service; do
             if [ -f "backend/$svc/pom.xml" ]; then
               echo "  [OK] $svc"
             else
@@ -136,7 +136,7 @@ jobs:
           echo "=== All Backend Services ==="
           for svc in discovery-service api-gateway identity-service product-service \
                      order-service payment-service flashsale-service \
-                     search-service notification-service worker-service; do
+                     search-service notification-service chat-service; do
             if [ -f "$svc/pom.xml" ]; then
               version=$(mvn help:evaluate -f "$svc/pom.xml" -Dexpression=project.version -q -DforceStdout 2>/dev/null)
               echo "  [OK] $svc  (v$version)"
@@ -263,7 +263,7 @@ jobs:
           echo "=== Backend Dockerfiles ==="
           for svc in discovery-service api-gateway identity-service product-service \
                      order-service payment-service flashsale-service \
-                     search-service notification-service worker-service; do
+                     search-service notification-service chat-service; do
             for variant in Dockerfile Dockerfile.dev Dockerfile.prod; do
               if [ -f "backend/$svc/$variant" ]; then
                 echo "  [OK] $svc/$variant"
@@ -430,7 +430,7 @@ jobs:
           echo "║  flashsale-service   :8085  (Axon: Flash Sales, Inventory)   ║"
           echo "║  search-service      :8086  (Elasticsearch, product search)   ║"
           echo "║  notification-service:8087  (Email, SMS notifications)       ║"
-          echo "║  worker-service      :8088  (Scheduled tasks, outbox)        ║"
+          echo "║  chat-service        :8093  (AI Chat, OpenAI, human-in-the-loop) ║"
           echo "║                                                              ║"
           echo "╠══════════════════════════════════════════════════════════════╣"
           echo "║  QUICK START COMMANDS                                        ║"

@@ -152,11 +152,11 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      - name: Upload worker-service JAR
+      - name: Upload chat-service JAR
         uses: actions/upload-artifact@v4
         with:
-          name: jar-worker-service
-          path: backend/worker-service/target/*.jar
+          name: jar-chat-service
+          path: backend/chat-service/target/*.jar
           retention-days: 1
           if-no-files-found: error
 
@@ -226,7 +226,7 @@ jobs:
           flashsale-service,
           search-service,
           notification-service,
-          worker-service,
+          chat-service,
           customer-app,
           seller-app,
           admin-app,
@@ -284,7 +284,7 @@ jobs:
         id: ctx
         run: |
           case "${{ matrix.service }}" in
-            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|worker-service)
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|chat-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
               echo "file=./backend/${{ matrix.service }}/Dockerfile.prod" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}/${{ matrix.service }}" >> $GITHUB_OUTPUT
@@ -534,7 +534,7 @@ jobs:
           JVM_OPTS_PRODUCT=-Xms512m -Xmx1g -XX:+UseG1GC
           JVM_OPTS_SEARCH=-Xms512m -Xmx1g -XX:+UseG1GC
           JVM_OPTS_NOTIFICATION=-Xms256m -Xmx512m -XX:+UseG1GC
-          JVM_OPTS_WORKER=-Xms512m -Xmx1g -XX:+UseG1GC
+          JVM_OPTS_CHAT=-Xms512m -Xmx1g -XX:+UseG1GC
 
           # ---- [I] Frontend ----
           # Browser sends /api/v1/... → reverse-proxy/per-app nginx forwards
@@ -651,7 +651,7 @@ jobs:
                  ES_JAVA_OPTS \
                  JVM_OPTS_COMMON JVM_OPTS_GATEWAY JVM_OPTS_IDENTITY \
                  JVM_OPTS_PAYMENT JVM_OPTS_ORDER JVM_OPTS_FLASHSALE \
-                 JVM_OPTS_PRODUCT JVM_OPTS_SEARCH JVM_OPTS_NOTIFICATION JVM_OPTS_WORKER \
+                 JVM_OPTS_PRODUCT JVM_OPTS_SEARCH JVM_OPTS_NOTIFICATION JVM_OPTS_CHAT \
                  VITE_API_URL NEXT_PUBLIC_API_URL NEXT_PUBLIC_WS_URL
           log_info "Pulling all images..."
           docker-compose -f docker-compose.yml -f docker-compose.prod-pulled.yml pull

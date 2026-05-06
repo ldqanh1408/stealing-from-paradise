@@ -67,7 +67,6 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | [services/payment-service/KAFKA_EVENTS.md](services/payment-service/KAFKA_EVENTS.md) | payment.*, refund.*, stripe.* events |
 | [services/flashsale-service/KAFKA_EVENTS.md](services/flashsale-service/KAFKA_EVENTS.md) | flash_sale.* session & item events |
 | [services/notification-service/KAFKA_EVENTS.md](services/notification-service/KAFKA_EVENTS.md) | Consumer-only (20+ topics, SSE output) |
-| [services/worker-service/KAFKA_EVENTS.md](services/worker-service/KAFKA_EVENTS.md) | flash_sale.reminder, outbox pattern |
 | [services/ai-chat-service/KAFKA_EVENTS.md](services/ai-chat-service/KAFKA_EVENTS.md) | ai_chat.*, tool_call.* events |
 | [messaging/11_KAFKA_REQUEST_REPLY.md](messaging/11_KAFKA_REQUEST_REPLY.md) | 6 request-reply pairs with full cycle diagrams |
 
@@ -83,7 +82,6 @@ The primary entry point is **[00_INDEX.md](00_INDEX.md)** which contains the com
 | Payment Service | 8082 | PostgreSQL + Axon | Stripe, payments |
 | Order Service | 8083 | PostgreSQL + Axon | Orders, checkout, RTS |
 | Flashsale Service | 8085 | PostgreSQL + Axon | Flash sales, Redis |
-| Worker Service | 8086 | PostgreSQL + Axon | Outbox, failed events |
 | Product Service | 8090 | MongoDB | Products, cart, variants |
 | Search Service | 8091 | Elasticsearch | Full-text search |
 | Notification Service | 8092 | MongoDB | SSE, real-time notifications |
@@ -137,7 +135,7 @@ Authorization: Bearer <jwt_token>
 - **Asynchronous**: Kafka Events
 - **Shared Cache**: Redis
 - **Service Discovery**: Eureka
-- **Event Store**: Axon Server (for order, payment, flashsale, worker services)
+- **Event Store**: Axon Server (for order, payment, flashsale services)
 
 ---
 
@@ -145,12 +143,12 @@ Authorization: Bearer <jwt_token>
 
 | Metric | Value |
 |--------|-------|
-| **Backend Services** | 11 (+ common-lib) |
+| **Backend Services** | 10 (+ common-lib) |
 | **Frontend Apps** | 3 |
 | **API Endpoints** | 100+ |
 | **Kafka Topics** | 47 (35 event + 12 request-reply) |
 | **Cronjobs** | 17 |
-| **Documentation Files** | 35 |
+| **Documentation Files** | 34 |
 | **Authentication** | JWT (RS256) |
 
 ---
@@ -178,7 +176,6 @@ backend/
 ├── payment-service/       (Stripe Connect — 8082)
 ├── order-service/        (Orders, checkout, RTS — 8083)
 ├── flashsale-service/    (Flash sales — 8085)
-├── worker-service/        (Outbox, DLQ — 8086)
 ├── product-service/       (Products, cart — 8090)
 ├── search-service/       (Elasticsearch — 8091)
 ├── notification-service/  (SSE — 8092)

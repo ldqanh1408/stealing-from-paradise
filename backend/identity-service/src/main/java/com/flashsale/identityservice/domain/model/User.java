@@ -3,7 +3,6 @@ package com.flashsale.identityservice.domain.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -39,10 +38,6 @@ public class User implements UserDetails {
     @Column(name = "full_name")
     private String fullName;
     private String status;
-
-    @Version
-    @Default
-    private Integer version = 0;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

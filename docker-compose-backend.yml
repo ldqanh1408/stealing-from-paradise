@@ -125,6 +125,7 @@ services:
     ports: ["${PORT_ORDER:-8083}:8083"]
     env_file: .env
     environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
       - DB_HOST=${DB_HOST}
       - DB_NAME=${DB_NAME}
@@ -136,9 +137,9 @@ services:
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_ORDER}
     depends_on:
-      postgres: { condition: service_started }
+      postgres: { condition: service_healthy }
       kafka: { condition: service_started }
-      axonserver: { condition: service_started }
+      axonserver: { condition: service_healthy }
     networks: [*network]
 
   flashsale-service:
@@ -246,29 +247,29 @@ services:
       axonserver: { condition: service_started }
     networks: [*network]
 
-  worker-service:
+  chat-service:
     build:
-      context: ./backend/worker-service
+      context: ./backend/chat-service
       dockerfile: Dockerfile.dev
-    container_name: fs-worker
+    container_name: fs-chat
     restart: unless-stopped
-    ports: ["${PORT_WORKER:-8086}:8086"]
+    ports: ["${PORT_CHAT:-8093}:8093"]
     env_file: .env
     environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME=${DB_NAME}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - MONGO_HOST=${MONGO_HOST}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - DB_NAME_CHAT=${DB_NAME_CHAT:-fs_chat}
       - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
-      - JVM_OPTS=${JVM_OPTS_WORKER}
+      - JVM_OPTS=${JVM_OPTS_CHAT}
+      - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
     depends_on:
-      postgres: { condition: service_started }
+      mongo: { condition: service_started }
       kafka: { condition: service_started }
-      axonserver: { condition: service_started }
     networks: [*network]
 
 networks:
