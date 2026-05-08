@@ -18,9 +18,10 @@ API Gateway
   │                 ├──[Async / Kafka]──► Product Service (thông báo session started/ended)
   │                 │                        │
   │                 │                        ├──[Async / Kafka]──► Search Service (sync flash sale price)
-  │                 │                  
   │                 │
-  │                 └──[Read/Write]────► PostgreSQL + Redis
+  │                 ├──[Read/Write]────► PostgreSQL + Redis (scheduled triggers)
+  │                 │                        │
+  │                 │                        └── Redis ZSET: flash_sale:triggers
   │
   └──[Sync]──► Search Service (tìm kiếm sản phẩm flash sale)
 ```
@@ -29,6 +30,11 @@ API Gateway
 - **Flash Sale Service**: Nắm thông tin `% giảm giá` của từng product trong session
 - **Product Service**: Nắm `giá gốc SKU`, tính toán `flash_price = sku_price * (1 - discount/100)`, sau đó bắn event cho Search Service
 - **Search Service**: Nhận data đã hoàn chỉnh, update Elasticsearch để hiển thị
+
+**Nguyên tắc Trigger không độ trễ:**
+- Sử dụng **Redis Sorted Set (ZSET)** để lưu các trigger theo Unix timestamp
+- **Độ trễ ≈ 0ms** thay vì độ trễ tối đa 1 phút như cron job
+- Redis Worker liên tục đọc và trigger ngay khi đến thời điểm
 
 ---
 
@@ -148,47 +154,101 @@ Seller GET /my-registrations?session_id=:id
 
 ## 3. Luồng Session hoạt động
 
-### 3.1 Session chuyển sang ACTIVE (Scheduled Job)
+### 3.0. Redis Trigger Data Structure
 
 ```
-Cron Job: Mỗi phút kiểm tra fs_sessions
-  │
-  FOR EACH session WHERE status = 'UPCOMING' AND start_time <= NOW():
-  │
-  ├── Cập nhật fs_sessions.status = 'ACTIVE'
-  │
-  ├── [Async] Kafka topic: flash_sale.session_started
-  │     → Product Service nhận event
-  │       ├── Lấy danh sách fs_items trong session
-  │       ├── Với mỗi fs_item:
-  │       │     ├── Query product_variant để lấy sku_price
-  │       │     └── Tính price = original_price * (1 - discount_applied / 100)
-  │       ├── [Async] Kafka topic: flash_sale.price_sync
-  │       │     → Search Service update Elasticsearch
-  │       │
-  │       
-  │
+Redis Sorted Set: flash_sale:triggers
+  ├── Score: Unix timestamp (milliseconds)
+  └── Member: JSON string
+        {
+          "type": "session_start" | "session_end",
+          "session_id": 1
+        }
+
+VD: Khi admin tạo session (start_time=08:00, end_time=10:00)
+    ZADD flash_sale:triggers 1715304000000 '{"type":"session_start","session_id":1}'
+    ZADD flash_sale:triggers 1715311200000 '{"type":"session_end","session_id":1}'
 ```
 
-### 3.2 Session kết thúc (Scheduled Job)
+### 3.1. Admin tạo Session (Đăng ký triggers vào Redis)
 
 ```
-Cron Job: Mỗi phút kiểm tra fs_sessions
+Admin POST /admin/sessions
+  {
+    "name": "Flash Sale 8h sáng",
+    "start_time": "2026-05-10 08:00:00",
+    "end_time": "2026-05-10 10:00:00"
+  }
   │
-  FOR EACH session WHERE status = 'ACTIVE' AND end_time <= NOW():
+  ├── Validate input
+  ├── Tính registration_deadline = start_time - 15 minutes
   │
-  ├── Cập nhật fs_sessions.status = 'ENDED'
+  ├── Tạo bản ghi fs_sessions:
+  │     status = 'UPCOMING'
+  │     registration_deadline = 07:45
   │
-  ├── [Async] Kafka topic: flash_sale.session_ended
-  │     → Product Service nhận event
-  │       ├── Lấy danh sách fs_items trong session
-  │       ├── [Async] Kafka topic: flash_sale.price_sync (reset price)
-  │       │     → Search Service update: flash_price = original_price, has_discount = false
-  │       │
-  │       └── [Async] Kafka topic: flash_sale.notify_ended
-  │           
+  ├── Đăng ký trigger vào Redis:
+  │     ZADD flash_sale:triggers <start_time_unix_ms> '{"type":"session_start","session_id":<id>}'
+  │     ZADD flash_sale:triggers <end_time_unix_ms> '{"type":"session_end","session_id":<id>}'
   │
+  └── Return 201 {
+         id: 1,
+         name: "Flash Sale 8h sáng",
+         start_time: "08:00",
+         end_time: "10:00",
+         registration_deadline: "07:45",
+         status: "UPCOMING"
+       }
 ```
+
+### 3.2. Redis Worker — Trigger Session ACTIVE (độ trễ ≈ 0ms)
+
+```
+Redis Worker (Background Process)
+  │
+  ├── Loop forever:
+  │     │
+  │     ├── ZRANGEBYSCORE flash_sale:triggers -inf <current_timestamp_ms> LIMIT 0 10
+  │     │     (Lấy tất cả trigger có score <= NOW)
+  │     │
+  │     └── FOR EACH trigger:
+  │           │
+  │           ├── ZREM flash_sale:triggers <trigger>  (Xóa khỏi ZSET)
+  │           │
+  │           ├── IF type = "session_start":
+  │           │     │
+  │           │     ├── UPDATE fs_sessions SET status = 'ACTIVE' WHERE id = <session_id>
+  │           │     │
+  │           │     ├── [Async] Kafka topic: flash_sale.session_started
+  │           │     │     → Product Service nhận event
+  │           │     │       ├── Lấy danh sách fs_items trong session
+  │           │     │       ├── Với mỗi fs_item:
+  │           │     │       │     ├── Query product_variant để lấy sku_price
+  │           │     │       │     └── Tính price = original_price * (1 - discount_applied / 100)
+  │           │     │       ├── [Async] Kafka topic: flash_sale.price_sync
+  │           │     │             → Search Service update Elasticsearch
+  │           │     │
+  │           │
+  │           └── IF type = "session_end":
+  │                 │
+  │                 ├── UPDATE fs_sessions SET status = 'ENDED' WHERE id = <session_id>
+  │                 │
+  │                 ├── [Async] Kafka topic: flash_sale.session_ended
+  │                 │     → Product Service nhận event
+  │                 │       ├── Lấy danh sách fs_items trong session
+  │                 │       ├── [Async] Kafka topic: flash_sale.price_sync (reset price)
+  │                 │       │     → Search Service update: flash_price = original_price
+  │                 │       │
+  │                 └── [Async] Kafka topic: flash_sale.notify_ended
+```
+
+**Ưu điểm so với Cron Job:**
+| Cron Job | Redis Trigger |
+|----------|---------------|
+| Độ trễ tối đa 60 giây | Độ trễ ≈ 0ms |
+| Check mỗi 60 giây | Trigger chính xác vào thời điểm |
+| Xử lý nhiều session cùng lúc (lãng phí) | Chỉ xử lý đúng session cần trigger |
+| Cần lock để tránh duplicate | Atomic ZPOPMIN đảm bảo single execution |
 
 ---
 
@@ -310,10 +370,11 @@ Cron Job: Mỗi phút kiểm tra fs_sessions
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│  KHI SESSION CHUYỂN SANG ACTIVE                                                     │
+│  KHI SESSION CHUYỂN SANG ACTIVE (Redis Trigger — độ trễ ≈ 0ms)                   │
 │                                                                                     │
-│  Cron Job                                                                          │
+│  Redis Worker                                                                       │
 │      │                                                                              │
+│      │ ZRANGEBYSCORE flash_sale:triggers -inf <now> LIMIT 0 10                    │
 │      ▼                                                                              │
 │  ┌──────────────────────────────┐                                                    │
 │  │  Flash Sale Service          │                                                    │
@@ -336,17 +397,14 @@ Cron Job: Mỗi phút kiểm tra fs_sessions
 │  │    - original_price          │                                                    │
 │  │    - has_discount = true    │                                                    │
 │  └──────────────────────────────┘                                                    │
-│                                                                                                 │
-│  ┌──────────────────────────────┐                                                    │
-│                         │
-│  └──────────────────────────────┘                                                    │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│  KHI SESSION KẾT THÚC                                                                │
+│  KHI SESSION KẾT THÚC (Redis Trigger — độ trễ ≈ 0ms)                                │
 │                                                                                     │
-│  Cron Job                                                                          │
+│  Redis Worker                                                                       │
 │      │                                                                              │
+│      │ ZRANGEBYSCORE flash_sale:triggers -inf <now> LIMIT 0 10                      │
 │      ▼                                                                              │
 │  ┌──────────────────────────────┐                                                    │
 │  │  Flash Sale Service          │                                                    │
@@ -366,3 +424,75 @@ Cron Job: Mỗi phút kiểm tra fs_sessions
 │  └──────────────────────────────┘                                                    │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 8. Redis Trigger — Chi tiết Implementation
+
+### 8.1 Redis Key Structure
+
+```
+Key: flash_sale:triggers
+Type: Sorted Set (ZSET)
+```
+
+| Key | Score | Member |
+|-----|-------|--------|
+| `flash_sale:triggers` | Unix timestamp (ms) | `{"type":"session_start","session_id":1}` |
+| `flash_sale:triggers` | Unix timestamp (ms) | `{"type":"session_end","session_id":1}` |
+
+### 8.2 Operations
+
+```redis
+-- Khi admin tạo session (start=08:00, end=10:00)
+ZADD flash_sale:triggers 1715304000000 '{"type":"session_start","session_id":1}'
+ZADD flash_sale:triggers 1715311200000 '{"type":"session_end","session_id":1}'
+
+-- Khi Redis Worker chạy (đọc trigger đến hạn)
+ZRANGEBYSCORE flash_sale:triggers -inf 1715304000000 LIMIT 0 10
+
+-- Sau khi xử lý xong (atomic)
+ZREM flash_sale:triggers '{"type":"session_start","session_id":1}'
+```
+
+### 8.3 Redis Worker Pseudocode
+
+```python
+import redis
+import time
+import json
+
+r = redis.Redis(host='localhost', port=6379, db=0)
+
+while True:
+    # Lấy tất cả trigger có score <= NOW
+    current_ts_ms = int(time.time() * 1000)
+    triggers = r.zrangebyscore('flash_sale:triggers', '-inf', current_ts_ms, start=0, num=10)
+
+    for trigger_json in triggers:
+        trigger = json.loads(trigger_json)
+
+        # Atomic remove (tránh double process)
+        removed = r.zrem('flash_sale:triggers', trigger_json)
+        if not removed:
+            continue  # Đã được process bởi worker khác
+
+        session_id = trigger['session_id']
+
+        if trigger['type'] == 'session_start':
+            activate_session(session_id)
+        elif trigger['type'] == 'session_end':
+            end_session(session_id)
+
+    # Sleep ngắn để tránh CPU spam, nhưng vẫn responsive
+    time.sleep(0.1)  # 100ms = độ trễ tối đa 100ms thay vì 60s
+```
+
+### 8.4 So sánh độ trễ
+
+| Phương pháp | Độ trễ tối đa | Độ chính xác |
+|-------------|---------------|--------------|
+| Cron 1 phút | 60,000ms | ±30 giây |
+| Redis Trigger (sleep 100ms) | **100ms** | ±50ms |
+| Redis Blocking `BZPOPMIN` | **0ms** | Chính xác |
+
