@@ -94,6 +94,8 @@ PUT /skus
       "has_discount":   { "type": "boolean" },
       "discount_pct":   { "type": "integer" },
 
+      "flash_session_id": { "type": "keyword" },
+
       "stock_status":   { "type": "keyword" },
 
       "product_status": { "type": "keyword" },
@@ -149,6 +151,8 @@ Một product áo thun có 4 SKU → tạo ra 4 documents trong Elasticsearch:
   "original_price": 200000,
   "has_discount":   true,
   "discount_pct":   25,
+
+  "flash_session_id": "1",
 
   "stock_status":   "in_stock",
 
@@ -337,7 +341,7 @@ GET /skus/_search
 
 ### Khi nào Search Service cập nhật document?
 
-Product Service publish event lên Kafka, Search Service consume và reindex:
+**Nguồn event từ Product Service:**
 
 ```
 Event: product.created
@@ -360,6 +364,28 @@ Event: product.banned / product.inactive
 
 Event: sku.deleted
   → Delete document của SKU đó
+```
+
+**Nguồn event từ Flash Sale Service (qua Product Service):**
+
+```
+Event: flash_sale.price_sync (action=activate)
+  → Product Service đã tính sẵn flash_price = sku_price * (1 - discount/100)
+  → Search Service nhận event đã có đầy đủ data
+  → Update document:
+      - price = flash_price (giá flash sale)
+      - original_price = sku_price (giá gốc)
+      - has_discount = true
+      - discount_pct = discount_applied
+      - flash_session_id = session_id
+
+Event: flash_sale.price_sync (action=deactivate)
+  → Search Service nhận event reset price
+  → Update document:
+      - price = original_price
+      - has_discount = false
+      - discount_pct = 0
+      - flash_session_id = null
 ```
 
 ### Partial update thay vì reindex toàn bộ
@@ -396,19 +422,66 @@ POST /skus/_update/sku-001
 Khi có sự kiện flash sale (hàng nghìn request đồng thời), cần đảm bảo document trong ES đã được cập nhật giá mới trước giờ mở bán:
 
 ```
-Job Pre-warm (T-10 phút):
-  1. Seller đã cập nhật price/original_price cho SKU flash sale trong DB
-  2. Product Service publish event: sku.flash_sale_started
-  3. Search Service nhận event → bulk update các document SKU:
-       price = giá flash sale
-       original_price = giá gốc
-       has_discount = true
-       discount_pct = % giảm
-  4. Redis pre-warm stock (song song): SET stock:{sku_id} = stock_quantity
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  PRE-WARM FLOW (T-15 phút → T+0)                                                  │
+│                                                                                     │
+│  T-15 phút: Cron Job kiểm tra session sắp bắt đầu                                │
+│      │                                                                              │
+│      ▼                                                                              │
+│  ┌──────────────────────────────┐                                                    │
+│  │  Flash Sale Service          │                                                    │
+│  │  Publish: flash_sale.        │                                                    │
+│  │    session_started           │                                                    │
+│  └──────────────┬───────────────┘                                                    │
+│                 ▼                                                                     │
+│  ┌──────────────────────────────┐                                                    │
+│  │  Product Service             │  TÍNH TOÁN:                                        │
+│  │                              │    Với mỗi fs_item:                              │
+│  │  Query fs_items              │      - Lấy sku_price từ product_variant           │
+│  │  Query product_variants     │      - price = original_price *                   │
+│  │                              │        (1 - discount_applied / 100)               │
+│  │  Tính flash_price          │                                                    │
+│  └──────────────┬───────────────┘                                                    │
+│                 │                                                                     │
+│                 ▼                                                                     │
+│  ┌──────────────────────────────┐                                                    │
+│  │  Search Service              │  UPDATE ES (bulk):                                │
+│  │                              │    - price = price                          │
+│  │  Bulk update SKUs            │    - original_price = original_price                   │
+│  │                              │    - has_discount = true                           │
+│  │                              │    - discount_pct                                 │
+│  └──────────────┬───────────────┘                                                    │
+│                 │                                                                     │
+│                 ▼                                                                     │
+│  ┌──────────────────────────────┐                                                    │
+│  │  Redis Pre-warm              │  SET stock:{sku_id} = stock_quantity             │
+│  └──────────────────────────────┘                                                    │
+│                                                                                     │
+│  T+0: Session ACTIVE → Buyer có thể mua ngay với giá flash sale                    │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 
-Sau khi flash sale kết thúc:
-  Product Service publish: sku.flash_sale_ended
-  Search Service bulk update: price = original_price, has_discount = false
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│  POST-FLASH SALE (T_end)                                                           │
+│                                                                                     │
+│  T_end: Cron Job kiểm tra session kết thúc                                         │
+│      │                                                                              │
+│      ▼                                                                              │
+│  ┌──────────────────────────────┐                                                    │
+│  │  Flash Sale Service          │                                                    │
+│  │  Publish: flash_sale.        │                                                    │
+│  │    session_ended             │                                                    │
+│  └──────────────┬───────────────┘                                                    │
+│                 ▼                                                                     │
+│  ┌──────────────────────────────┐                                                    │
+│  │  Product Service             │  Reset price                                      │
+│  └──────────────┬───────────────┘                                                    │
+│                 ▼                                                                     │
+│  ┌──────────────────────────────┐                                                    │
+│  │  Search Service              │  UPDATE ES:                                       │
+│  │                              │    - price = original_price                       │
+│  │  Bulk reset SKUs             │    - has_discount = false                         │
+│  └──────────────────────────────┘    - discount_pct = 0                             │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

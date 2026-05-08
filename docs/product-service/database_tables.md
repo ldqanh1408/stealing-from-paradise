@@ -235,11 +235,13 @@ CREATE INDEX idx_product_image_variant ON product_image(variant_id);
 
 Giữ chỗ tồn kho khi khách bắt đầu thanh toán (sau khi bấm "Đặt hàng" ở Checkout Preview). Thay vì trừ thẳng `product_variant.stock_quantity`, tạo bản ghi reservation có TTL để đảm bảo tồn kho không bị oversell trong thời gian xử lý payment.
 
+Sử dụng `session_id` thay vì `order_id` để liên kết với Order Service. `session_id` được tạo từ đầu checkout và gắn với order sau khi Order Service tạo order thành công.
+
 ```sql
 CREATE TABLE stock_reservation (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     variant_id UUID NOT NULL REFERENCES product_variant(id),
-    order_id   UUID NOT NULL,   -- ID từ Order Service, không FK cứng
+    session_id VARCHAR(100) NOT NULL,   -- Checkout session ID, dùng để trace sau này
     quantity   INT NOT NULL,
     status     VARCHAR(50) NOT NULL DEFAULT 'pending',
     expires_at TIMESTAMP NOT NULL,  -- Thường NOW() + 15 phút
@@ -248,7 +250,7 @@ CREATE TABLE stock_reservation (
 );
 
 CREATE INDEX idx_reservation_variant ON stock_reservation(variant_id);
-CREATE INDEX idx_reservation_order ON stock_reservation(order_id);
+CREATE INDEX idx_reservation_session ON stock_reservation(session_id);
 CREATE INDEX idx_reservation_status ON stock_reservation(status);
 CREATE INDEX idx_reservation_expires ON stock_reservation(expires_at);
 ```
@@ -265,10 +267,12 @@ CREATE INDEX idx_reservation_expires ON stock_reservation(expires_at);
 
 ```
 Khách bấm "Đặt hàng"
-  → Tạo stock_reservation (status=pending, expires_at = NOW() + 15min)
+  → Tạo stock_reservation (status=pending, expires_at = NOW() + 15min, session_id = checkout_session_id)
   → Redis DECRBY stock:{variant_id} quantity   [Lớp 1]
   → UPDATE product_variant SET stock = stock - qty WHERE stock >= qty AND version = N  [Lớp 2]
   → rows_affected = 0? → Rollback, Redis INCR, trả lỗi hết hàng
+  → Gọi Order Service với session_id
+  → Order Service tạo order gắn với session_id
 
 Payment thành công
   → stock_reservation.status = 'confirmed'

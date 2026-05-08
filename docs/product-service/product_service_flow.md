@@ -16,10 +16,22 @@ API Gateway
   │                 │
   │                 ├──[Async / Kafka]──► Search Service (sync document)
   │                 ├──[Async / Kafka]──► Notification Service (cảnh báo giá, hết hàng)
-  │                 └──[Read/Write]────► PostgreSQL + Redis
+  │                 │
+  │                 └──[Async / Kafka]──► Notification Service (flash sale notification)
+  │
+  ├──[Async / Kafka]──► Product Service ◄──[Async / Kafka]── Flash Sale Service
+  │                          │                                    (session started/ended)
+  │                          │
+  │                          ├──[Async / Kafka]──► Search Service (flash sale price sync)
+  │                          └──[Async / Kafka]──► Notification Service (flash sale notification)
   │
   └──[Sync]──► Search Service (tìm kiếm, browse listing)
 ```
+
+**Nguyên tắc ownership Flash Sale:**
+- **Flash Sale Service**: Nắm `% giảm giá`, trigger events khi session started/ended
+- **Product Service**: Nắm `giá gốc SKU`, tính `flash_price = sku_price * (1 - discount/100)`, publish cho Search Service
+- **Search Service**: Nhận data đã hoàn chỉnh, update Elasticsearch
 
 ---
 
@@ -231,7 +243,7 @@ Khách POST /checkout/preview  { cart_item_ids[] }
         │
         ├── Batch load tất cả product_variant liên quan
   ├── Check preview session:
-  │     Nếu tồn tại `checkout_preview:{customer_id}`
+  │     Nếu tồn tại `checkout_session:{customer_id}`
   │       → Trả 409: preview_in_use
   ├── Validate từng item (Bắt chặn thay đổi do nán lại giỏ hàng):
             │     Khách bấm Checkout nhưng nán lại Cart quá lâu nên giá/stock thay đổi?
@@ -248,9 +260,9 @@ Khách POST /checkout/preview  { cart_item_ids[] }
             │       FRONTEND BẮT BUỘC THÔNG BÁO CHI TIẾT LỖI CHO KHÁCH HÀNG VÀ YÊU CẦU HỌ RELOAD LẠI GIỎ HÀNG (Khách update snapshot thì mới qua bước này).
             │
             └── Nếu MỌI YÊU CẦU đều PASS (Data real-time matching perfect):
-                  Tạo preview token + TTL 10 phút:
-                    SET checkout_preview:{customer_id} = {preview_token} EX 600
-                  Trả về preview_token + expires_at
+                  Tạo checkout session_id + TTL 15 phút:
+                    SET checkout_session:{customer_id} = {session_id} EX 900
+                  Trả về session_id + expires_at
                   Cho phép trả về Preview order với giá mới. Khách có thể đi tiếp sang bước Đặt Hàng.
 ```
 
@@ -259,17 +271,17 @@ Khách POST /checkout/preview  { cart_item_ids[] }
 ```
 Khách DELETE /checkout/preview
   │
-  └── DEL checkout_preview:{customer_id}
+  └── DEL checkout_session:{customer_id}
 ```
 
 ### 4.3 Luồng Đặt hàng — xử lý concurrency 2 lớp
 
 ```
-Khách POST /checkout/place-order  { items[], payment_method, address_id, preview_token }
+Khách POST /checkout/place-order  { items[], payment_method, address_id, session_id }
   │
-  ├── Validate preview_token:
-  │     checkout_preview:{customer_id} không tồn tại hoặc token không khớp?
-  │       → Trả lỗi 409: preview_expired
+  ├── Validate session_id:
+  │     checkout_session:{customer_id} không tồn tại hoặc session_id không khớp?
+  │       → Trả lỗi 409: session_expired
   │
   ├── Re-validate tất cả items (status/stock/price) trước khi lock
   │     Sai lệch → Trả lỗi 409 + danh sách item lỗi và bắt buộc khách hàng thoát session đặt hàng này (hủy preview)
@@ -296,25 +308,36 @@ Khách POST /checkout/place-order  { items[], payment_method, address_id, previe
   │             → Redis INCRBY (hoàn trả)
   │             → Trả lỗi 409 (conflict hoặc hết hàng thật)
   │
-  │       INSERT stock_reservation (status='pending', expires_at=NOW()+15min)
+  │       INSERT stock_reservation (
+  │         variant_id,
+  │         session_id = :session_id,   -- Dùng session_id thay vì order_id
+  │         quantity,
+  │         status = 'pending',
+  │         expires_at = NOW() + 15min
+  │       )
   │     COMMIT
   │
-  ├── Gọi Order Service [Sync] để tạo order và tiến hành payment
+  ├── Gọi Order Service [Sync] để tạo order:
+  │     Request: { items[], payment_method, address_id, session_id }
+  │     Order Service tạo order gắn với session_id
   │
   ├── Order Service xử lý payment (async)
-  │     → Emit Kafka: order.confirmed / order.failed
+  │     → Emit Kafka: order.confirmed / order.failed (chứa session_id)
   │
-  ├── [Consume order.confirmed]
+  ├── [Consume order.confirmed — session_id trong message]
   │     UPDATE stock_reservation SET status = 'confirmed'
+  │     WHERE session_id = :session_id
   │
-  └── [Consume order.failed]
+  └── [Consume order.failed — session_id trong message]
         UPDATE stock_reservation SET status = 'released'
+              WHERE session_id = :session_id
         UPDATE product_variant SET stock = stock + quantity
+              WHERE id IN (SELECT variant_id FROM stock_reservation WHERE session_id = :session_id)
         Phục hồi trạng thái Product nếu trước đó vì đơn này mà bị đánh dấu hiển thị hết hàng
         Redis INCRBY stock:{variant_id} quantity  (hoàn trả)
         Async → Notification Service báo khách
 
-  └── Xóa preview key: DEL checkout_preview:{customer_id}
+  └── Xóa session key: DEL checkout_session:{customer_id}
 ```
 
 ### 4.4 Job cleanup reservation hết hạn
@@ -362,12 +385,46 @@ Kiến trúc này giúp:
 
 ## 5. Luồng đồng bộ sang Search Service
 
+### 5.1 Product Service consume event từ Flash Sale Service
+
 ```
-Mỗi khi có thay đổi quan trọng trong Product Service:
-  → Publish event lên Kafka
+Flash Sale Service publish event:
+  Kafka: flash_sale.session_started / flash_sale.session_ended
+    → Product Service nhận event
 
-Search Service consume và cập nhật Elasticsearch:
+Product Service xử lý:
+  1. Lấy danh sách fs_items trong session (gọi Flash Sale Service qua REST)
+  2. Với mỗi fs_item:
+       ├── Query product_variant để lấy sku_price
+       └── Tính price = original_price * (1 - discount_applied / 100)
+  3. Publish event sang Search Service
+```
 
+### 5.2 Product Service publish event cho Search Service
+
+```
+Product Service publish event lên Kafka:
+
+Event: flash_sale.price_sync (action=activate)
+  → Search Service nhận event
+  → Update Elasticsearch document:
+      - price = price (bảng product_variant)
+      - original_price = original_price (bảng product_variant)
+      - has_discount = true
+      - discount_pct = discount_applied
+      - flash_session_id = session_id
+
+Event: flash_sale.price_sync (action=deactivate)
+  → Search Service nhận event
+  → Update Elasticsearch document:
+      - price = original_price
+      - has_discount = false
+      - flash_session_id = null
+```
+
+### 5.3 Các event khác của Product Service
+
+```
 Event: product.created / product.updated
   → Upsert document theo product_variant-first pattern
   → Mỗi product_variant của product = 1 document riêng trong ES

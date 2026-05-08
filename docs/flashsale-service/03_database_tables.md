@@ -2,7 +2,7 @@
 
 > Stack: PostgreSQL
 > Cập nhật: 2026-05-08
-> Model: Admin-Centralized + Snapshot Pricing
+> Model: Admin-Centralized + Dynamic Price Calculation + Auto-Approve Registration
 
 ---
 
@@ -10,17 +10,20 @@
 
 ```
 FS_SESSIONS
-     ├
      │
-     └── FS_ITEMS (Seller đăng ký SKU, Admin duyệt)
+     └── FS_ITEMS (Seller đăng ký PRODUCT — TỰ ĐỘNG DUYỆT)
               │
-              └── SNAPSHOT giá tại thời điểm duyệt — KHÔNG recalculate
+              └── Lưu discount_applied (%)
+                  └── Giá flash sale tính DYNAMIC khi buyer mua (SKU price - discount%)
 ```
 
 **Nguyên tắc:**
-1. Admin tạo session + set discount rules theo category
-2. Seller đăng ký SKU tham gia
-3. Giá được SNAPSHOT tại thời điểm Admin duyệt — không thay đổi trong suốt session
+1. Admin tạo session
+2. Seller đăng ký **PRODUCT** trước thời hạn đăng ký
+3. **Registration deadline = start_time - 15 minutes** (VD: 8:00 - 15 phút = 7:45)
+4. **Trước 7:45** → Được đăng ký | **Từ 7:45 đến 8:00** → Không được đăng ký
+5. Seller đăng ký → **TỰ ĐỘNG DUYỆT** với discount của session
+6. **Giá flash sale tính DYNAMIC** khi buyer mua: `flash_price = SKU_price * (1 - discount_applied / 100)`
 
 ---
 
@@ -29,126 +32,148 @@ Session Flash Sale (theo khoảng thời gian)
 
 ```sql
 CREATE TABLE fs_sessions (
-    id          BIGSERIAL PRIMARY KEY,
-    name        VARCHAR(255) NOT NULL,
-    start_time  TIMESTAMP NOT NULL,
-    end_time    TIMESTAMP NOT NULL,
-    status      VARCHAR(20) NOT NULL DEFAULT 'UPCOMING',
-    deleted_at  TIMESTAMP,
-    created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at  TIMESTAMP DEFAULT NOW(),
+    id                    BIGSERIAL PRIMARY KEY,
+    name                  VARCHAR(255) NOT NULL,
+    start_time            TIMESTAMP NOT NULL,
+    end_time              TIMESTAMP NOT NULL,
+    registration_deadline TIMESTAMP NOT NULL,  -- auto-calculated: start_time - 15 minutes
+
+
+    status                VARCHAR(20) NOT NULL DEFAULT 'UPCOMING',
+    deleted_at            TIMESTAMP,
+    created_at            TIMESTAMP DEFAULT NOW(),
+    updated_at            TIMESTAMP DEFAULT NOW(),
 
     CONSTRAINT chk_status CHECK (status IN ('UPCOMING', 'ACTIVE', 'ENDED')),
-    CONSTRAINT chk_time CHECK (end_time > start_time)
+    CONSTRAINT chk_time CHECK (end_time > start_time),
+    CONSTRAINT chk_registration_deadline CHECK (registration_deadline < start_time),
+    CONSTRAINT chk_discount CHECK (discount_percentage > 0 AND discount_percentage <= 100)
 );
 
 CREATE INDEX idx_fs_sessions_status ON fs_sessions(status);
 CREATE INDEX idx_fs_sessions_time ON fs_sessions(start_time, end_time);
+CREATE INDEX idx_fs_sessions_registration_deadline ON fs_sessions(registration_deadline);
 ```
+
+| Cột | Kiểu | Ghi chú |
+|-----|------|---------|
+| `id` | BIGSERIAL | Primary Key |
+| `name` | VARCHAR | Tên session (VD: "Flash Sale 8h sáng") |
+| `start_time` | TIMESTAMP | Thời gian bắt đầu flash sale |
+| `end_time` | TIMESTAMP | Thời gian kết thúc flash sale |
+| `registration_deadline` | TIMESTAMP | **Deadline đăng ký = start_time - 15 minutes** |
+| `status` | VARCHAR | UPCOMING / ACTIVE / ENDED |
+| `deleted_at` | TIMESTAMP | Soft delete |
+| `created_at` | TIMESTAMP | Thời tạo |
+| `updated_at` | TIMESTAMP | Cập nhật cuối |
 
 ---
 
 ## FS_ITEMS
-Sản phẩm tham gia Flash Sale — Snapshot giá tại thời điểm duyệt
+Sản phẩm tham gia Flash Sale — **TỰ ĐỘNG DUYỆT** khi seller đăng ký
 
 ```sql
 CREATE TABLE fs_items (
-    id                      BIGSERIAL PRIMARY KEY,
-    session_id              BIGINT NOT NULL REFERENCES fs_sessions(id),
-    sku_code                VARCHAR(100) NOT NULL,
+    id                BIGSERIAL PRIMARY KEY,
+    session_id        BIGINT NOT NULL REFERENCES fs_sessions(id),
+    product_id        UUID NOT NULL,                    -- PRODUCT (không phải SKU)
 
-    -- Snapshot giá tại thời điểm đăng ký
-    original_price_snapshot DECIMAL(18,2) NOT NULL,  -- Giá gốc tại T+0
-    flash_price             DECIMAL(18,2) NOT NULL, -- GIÁ CỐ ĐỊNH (snapshot)
+    -- Chỉ lưu discount %, giá tính DYNAMIC khi buyer mua
+    discount_applied  DECIMAL(5,2) NOT NULL,             -- VD: 20.00 = 20%
 
-    -- Discount đã duyệt (để hiển thị "Giảm X%")
-    discount_applied       DECIMAL(5,2),            -- VD: 10.00 = 10%
-
-    -- Quản lý
-    seller_id               UUID NOT NULL,          -- ID từ Seller/User Service
-    status                  VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    admin_note              TEXT,                   -- Ghi chú khi duyệt/từ chối
-    rejected_reason         TEXT,
+    -- Thông tin seller
+    seller_id         UUID NOT NULL,
 
     -- Timestamps
-    approved_at             TIMESTAMP,              -- Thời điểm duyệt (snapshot price locked)
-    created_at              TIMESTAMP DEFAULT NOW(),
-    updated_at              TIMESTAMP DEFAULT NOW(),
+    registered_at     TIMESTAMP DEFAULT NOW(),           -- Thời điểm đăng ký
+    created_at        TIMESTAMP DEFAULT NOW(),
+    updated_at        TIMESTAMP DEFAULT NOW(),
 
     -- Constraints
-    UNIQUE(session_id, sku_code),
-    CONSTRAINT chk_flash_price CHECK (flash_price > 0),
-    CONSTRAINT chk_flash_stock CHECK (flash_stock >= 0),
-    CONSTRAINT chk_sold_qty CHECK (sold_qty >= 0 AND sold_qty <= flash_stock)
+    UNIQUE(session_id, product_id),
+    CONSTRAINT chk_discount_applied CHECK (discount_applied > 0)
 );
 
 CREATE INDEX idx_fs_items_session ON fs_items(session_id);
-CREATE INDEX idx_fs_items_sku ON fs_items(sku_code);
-CREATE INDEX idx_fs_items_status ON fs_items(status);
+CREATE INDEX idx_fs_items_product ON fs_items(product_id);
 CREATE INDEX idx_fs_items_seller ON fs_items(seller_id);
-CREATE INDEX idx_fs_items_category ON fs_items(category_id);
 ```
 
 | Cột | Kiểu | Ghi chú |
 |-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
 | `session_id` | BIGINT | FK → FS_SESSIONS.id |
-| `sku_code` | VARCHAR | SKU tham gia flash sale |
-| `original_price_snapshot` | DECIMAL | Giá gốc tại thời điểm đăng ký (snapshot — không thay đổi) |
-| `flash_price` | DECIMAL | **Giá flash sale CỐ ĐỊNH** — snapshot tại thời điểm duyệt |
-| `discount_applied` | DECIMAL | % giảm đã duyệt (VD: 10.00 = 10%) |
+| `product_id` | UUID | **PRODUCT** tham gia flash sale |
+| `discount_applied` | DECIMAL | **% giảm** — giá tính dynamic khi buyer mua |
 | `seller_id` | UUID | ID seller đăng ký |
-| `status` | VARCHAR | PENDING → APPROVED → REJECTED|
-| `admin_note` | TEXT | Ghi chú khi duyệt |
-| `rejected_reason` | TEXT | Lý do từ chối |
-| `approved_at` | TIMESTAMP | Thời điểm duyệt — **giá được lock tại đây** |
+| `registered_at` | TIMESTAMP | Thời điểm đăng ký |
 | `created_at` | TIMESTAMP | Thời điểm đăng ký |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
 ---
 
-## Luồng snapshot giá
+## Luồng Registration Window
 
 ```
-T+0: Seller đăng ký SKU
-     → Lấy product_variant.price → lưu vào original_price_snapshot
-     → fs_items.status = PENDING
+VD: Session bắt đầu lúc 8:00, registration_deadline = 7:45
 
-T+1: Admin duyệt
-     → flash_price được SET = GIÁ CỐ ĐỊNH
-     → approved_at = NOW()
-     → fs_items.status = APPROVED
-     → Giá KHÔNG thay đổi dù seller có sửa price sau này
+◄──────────────────────────────────────────────►
+│          SELLER ĐƯỢC ĐĂNG KÝ                 │
 
-T+2: Session ACTIVE
-     → Buyer mua với flash_price (đã lock)
-
-T+3: Session ENDED
-     → fs_items không còn hiệu lực
-     → product_variant trở về giá thường
+                                    7:45 ─────────── 8:00
+                                         │               │
+                                         │    KHÔNG ĐƯỢC
+                                         │    ĐĂNG KÝ
+                                         │
+                                    registration_deadline
+                                         (7:45)
+                                         start_time
+                                          (8:00)
 ```
+
+**Quy tắc:**
+- `registration_deadline = start_time - 15 minutes` (VD: 8:00 - 15 phút = **7:45**)
+- **Được đăng ký:** `NOW() < registration_deadline` (trước 7:45)
+- **Không được đăng ký:** `NOW() >= registration_deadline` (từ 7:45 trở đi)
 
 ---
 
-## Luồng trạng thái
+## Luồng Dynamic Price Calculation
+
+```
+T+0: Seller đăng ký PRODUCT (trước 7:45)
+     → discount_applied = session.discount_percentage (VD: 20%)
+     → registered_at = NOW()  (TỰ ĐỘNG APPROVED)
+     → KHÔNG lưu flash_price vào DB
+
+T+1: Session ACTIVE (8:00)
+     → Buyer chọn SKU của product
+     → flash_price = SKU.price * (1 - discount_applied / 100)
+     → Buyer mua với flash_price đã tính
+
+T+2: Session ENDED (10:00)
+     → fs_items không còn hiệu lực
+     → product trở về giá thường
+```
+
+**Ví dụ khi Buyer mua:**
+- SKU.price = 250,000 VND
+- fs_items.discount_applied = 20%
+- flash_price = 250,000 * 0.8 = **200,000 VND**
+
+---
+
+## Luồng trạng thái (Đơn giản hóa)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  FS_ITEMS Status Flow                                        │
 │                                                              │
-│  ┌─────────┐    Seller submit     ┌──────────┐              │
-│  │ (new)   │ ──────────────────→  │ PENDING  │              │
-│  └─────────┘                      └─────┬────┘              │
-│                                        │                     │
-│                        ┌───────────────┼                      │
-│                        ↓               ↓                      │
-│                 ┌──────────┐   ┌──────────┐                   │
-│                 │ APPROVED │   │ REJECTED │                   │
-│                 └──────────┘   └──────────┘                   │
+│  ┌─────────────┐    Seller đăng ký    ┌──────────────────┐  │
+│  │   (new)     │ ──────────────────→  │ APPROVED (tự động)│ │
+│  └─────────────┘                      └──────────────────┘  │
 │                                                              │
-│  NOTE: Sau APPROVED, KHÔNG thể chuyển sang CANCELLED        │
-│        trong cùng session (chỉ ENDED tự động khi hết hạn)   │
+│  NOTE: Không có PENDING/REJECTED                            │
+│        Seller đăng ký thành công = Được duyệt ngay          │
 └──────────────────────────────────────────────────────────────┘
 ```
-
-
