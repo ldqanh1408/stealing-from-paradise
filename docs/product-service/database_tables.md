@@ -142,7 +142,6 @@ CREATE TABLE product_variant (
     status              VARCHAR(50) NOT NULL DEFAULT 'active',
     version             INT NOT NULL DEFAULT 1,              -- Optimistic Lock phiên bản
     image_url           TEXT,                -- Ảnh đại diện nhanh cho variant
-    price_updated_at    TIMESTAMP,           -- Dùng để so sánh với cart snapshot
     created_at          TIMESTAMP DEFAULT NOW(),
     updated_at          TIMESTAMP DEFAULT NOW()
 );
@@ -202,10 +201,6 @@ Frontend nhận danh sách product_variant, group theo key của `variant_attrib
 Nếu `original_price` có giá trị và `price < original_price`, frontend hiển thị giạch chéo giá gốc và giá sale. Đây là cơ chế **flash sale / giảm giá thông thường**. Seller tự set 2 trường này.
 
 > **Flash sale** là chương trình giảm giá theo thời gian — seller set `price` thấp hơn `original_price` trong khoảng thời gian nhất định. Khác với **mã giảm giá (voucher/coupon)** — voucher được áp dụng ở bước checkout và thuộc về Order/Promotion Service, không thay đổi `price` của product_variant.
-
-#### Trường `price_updated_at`
-
-Được ghi lại mỗi khi seller thay đổi `price`. Khi khách mở lại giỏ hàng, so sánh trực tiếp `product_variant.price` với `cart_item.price_snapshot`; nếu lệch thì cảnh báo giá đã thay đổi. `price_updated_at` dùng để audit thay đổi giá.
 
 ---
 
@@ -282,7 +277,7 @@ Payment thành công
 Payment thất bại / timeout (job cleanup)
   → stock_reservation.status = 'released'
   → Redis INCR stock:{variant_id} quantity
-  → UPDATE product_variant SET stock = stock + quantity (nếu cần sync lại DB)
+  → UPDATE product_variant SET stock = stock + quantity
 ```
 
 **Job cleanup** chạy định kỳ (mỗi 1–5 phút) để release các reservation đã quá `expires_at` mà vẫn còn `status = pending`.

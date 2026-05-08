@@ -48,7 +48,6 @@ Seller POST /products
 Seller PATCH /variants/:id  { price: 180000 }
   │
   ├── Lưu product_variant.price = 180000
-  ├── Ghi product_variant.price_updated_at = NOW()
   │
   ├── Tính lại product.status theo logic:
   │     active_count, out_of_stock_count của tất cả product_variant
@@ -72,7 +71,7 @@ Seller PATCH /variants/:id  { status: 'inactive' | stock_quantity: 0 }
   │
   ├── [Nếu variant hết hàng hoặc ngừng bán]
   │     KHÔNG can thiệp/update trực tiếp vào bảng cart_item (Lazy Evaluation).
-  │     (Tùy chọn) Async → Notification Service → push gửi cảnh báo cho khách đang có variant này trong giỏ hàng.
+  │  
   │
   └── Async → Kafka topic: variant.stock_updated
               → Search Service cập nhật stock_status trong document
@@ -120,8 +119,8 @@ Khách GET /products?category=ao-thun&sort=popular&page=1
         │     → Đại diện là SKU giá thấp nhất, còn hàng
         │
         └── Trả về danh sách card:
-              { product_id, product_name, min_price, thumbnail_url,
-                avg_rating, sold_count, seller_name }
+              { product_id, product_name, price, thumbnail_url,
+                sold_count, seller_name }
 ```
 
 > **Trang chủ và mọi màn hình listing đều do Search Service phục vụ.**
@@ -194,8 +193,6 @@ Khách GET /cart
 ```
 Khách PATCH /cart/items/:variant_id  { quantity }
   │
-  ├── Đọc product_variant từ Redis/DB để validate tồn kho và status
-  ├── Nếu vượt tồn kho hoặc inactive → trả 409
   └── UPDATE cart_item.quantity
 ```
 
@@ -248,7 +245,7 @@ Khách POST /checkout/preview  { cart_item_ids[] }
             │
             │     Nếu BẤT KỲ check nào fail:
             │       → Trả HTTP 409 Conflict/Error kèm JSON mô tả item lỗi.
-            │       FRONTEND BẮT BUỘC RELOAD LẠI GIỎ HÀNG để khách xem lại thông báo. (Khách update snapshot thì mới qua bước này).
+            │       FRONTEND BẮT BUỘC THÔNG BÁO CHI TIẾT LỖI CHO KHÁCH HÀNG VÀ YÊU CẦU HỌ RELOAD LẠI GIỎ HÀNG (Khách update snapshot thì mới qua bước này).
             │
             └── Nếu MỌI YÊU CẦU đều PASS (Data real-time matching perfect):
                   Tạo preview token + TTL 10 phút:
@@ -275,7 +272,7 @@ Khách POST /checkout/place-order  { items[], payment_method, address_id, previe
   │       → Trả lỗi 409: preview_expired
   │
   ├── Re-validate tất cả items (status/stock/price) trước khi lock
-  │     Sai lệch → Trả lỗi 409 + danh sách item lỗi
+  │     Sai lệch → Trả lỗi 409 + danh sách item lỗi và bắt buộc khách hàng thoát session đặt hàng này (hủy preview)
   │
   ├── [LỚP 1 — Redis Atomic, xử lý nhanh, loại bỏ request thừa sớm]
   │     Với mỗi product_variant trong order:
@@ -312,6 +309,8 @@ Khách POST /checkout/place-order  { items[], payment_method, address_id, previe
   │
   └── [Consume order.failed]
         UPDATE stock_reservation SET status = 'released'
+        UPDATE product_variant SET stock = stock + quantity
+        Phục hồi trạng thái Product nếu trước đó vì đơn này mà bị đánh dấu hiển thị hết hàng
         Redis INCRBY stock:{variant_id} quantity  (hoàn trả)
         Async → Notification Service báo khách
 
@@ -338,8 +337,8 @@ Scheduler chạy mỗi 1 phút:
                    WHERE id = (SELECT product_id FROM product_variant WHERE id = variant_id)
                    AND status = 'out_of_stock'
 
-      Redis INCRBY stock:{variant_id} quantity
     COMMIT
+    Redis INCRBY stock:{variant_id} quantity
 
 ### 4.5 Job đồng bộ tồn kho DB sang Redis (Self-healing & Cold Data)
 
