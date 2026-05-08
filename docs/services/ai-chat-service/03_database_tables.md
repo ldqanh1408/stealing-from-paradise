@@ -1,7 +1,7 @@
 # AI Chat Service — Database Tables
 
-> Stack: PostgreSQL · Redis  
-> Cập nhật: 2026-05-03
+> Stack: PostgreSQL · Redis
+> Cập nhật: 2026-05-06
 
 ---
 
@@ -9,22 +9,23 @@
 
 ```sql
 CREATE TYPE session_status   AS ENUM ('ACTIVE', 'CLOSED', 'EXPIRED');
-CREATE TYPE message_role     AS ENUM ('USER', 'ASSISTANT', 'TOOL_CALL', 'TOOL_RESULT');
-CREATE TYPE confirm_status   AS ENUM ('PENDING', 'CONFIRMED', 'REJECTED', 'EXPIRED');
-CREATE TYPE confirm_action   AS ENUM ('CANCEL_ORDER', 'UPDATE_PROFILE', 'DELETE_ACCOUNT', 'CUSTOM');
+CREATE TYPE message_role    AS ENUM ('USER', 'ASSISTANT', 'TOOL_CALL', 'TOOL_RESULT');
+CREATE TYPE confirm_status  AS ENUM ('PENDING', 'CONFIRMED', 'REJECTED', 'EXPIRED');
+CREATE TYPE confirm_action  AS ENUM ('CANCEL_ORDER', 'UPDATE_PROFILE', 'DELETE_ACCOUNT', 'CUSTOM');
 CREATE TYPE tool_call_status AS ENUM ('SUCCESS', 'FAILED', 'BLOCKED', 'TIMEOUT');
-CREATE TYPE outbox_status    AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
+CREATE TYPE outbox_status   AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
 ```
 
 ---
 
 ## CHAT_SESSIONS
+
 Vòng đời một cuộc trò chuyện AI
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | UUID | Primary Key, gen_random_uuid() |
-| `user_id` | VARCHAR(36) | NOT NULL, chủ sở hữu session |
+| `user_id` | BIGINT | FK → USERS.id, NOT NULL |
 | `status` | session_status | ACTIVE (default) \| CLOSED \| EXPIRED |
 | `context_summary` | TEXT | Tóm tắt nén khi history > 50 messages |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() |
@@ -38,10 +39,11 @@ Vòng đời một cuộc trò chuyện AI
 ---
 
 ## CHAT_MESSAGES
-Lịch sử hội thoại đầy đủ
+
+Lịch sử hội thoại đầy đủ (gồm TOOL_CALL và TOOL_RESULT)
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | UUID | Primary Key, gen_random_uuid() |
 | `session_id` | UUID | FK → CHAT_SESSIONS.id, NOT NULL |
 | `role` | message_role | USER \| ASSISTANT \| TOOL_CALL \| TOOL_RESULT |
@@ -59,14 +61,15 @@ Lịch sử hội thoại đầy đủ
 ---
 
 ## PENDING_CONFIRMATIONS
+
 Human-in-the-loop cho action Mức 3
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | UUID | Primary Key, chính là confirm token |
 | `session_id` | UUID | FK → CHAT_SESSIONS.id, NOT NULL |
 | `message_id` | UUID | FK → CHAT_MESSAGES.id, NOT NULL |
-| `user_id` | VARCHAR(36) | NOT NULL |
+| `user_id` | BIGINT | FK → USERS.id, NOT NULL |
 | `action_type` | confirm_action | CANCEL_ORDER \| UPDATE_PROFILE \| DELETE_ACCOUNT \| CUSTOM |
 | `payload` | JSONB | NOT NULL, dữ liệu để thực thi sau khi confirmed |
 | `status` | confirm_status | PENDING (default) \| CONFIRMED \| REJECTED \| EXPIRED |
@@ -82,14 +85,15 @@ Human-in-the-loop cho action Mức 3
 ---
 
 ## TOOL_CALL_LOGS
+
 Audit trail bất biến — Partition by month
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | UUID | Primary Key, gen_random_uuid() |
 | `session_id` | UUID | FK → CHAT_SESSIONS.id |
 | `message_id` | UUID | FK → CHAT_MESSAGES.id |
-| `user_id` | VARCHAR(36) | NOT NULL |
+| `user_id` | BIGINT | FK → USERS.id, NOT NULL |
 | `tool_name` | VARCHAR(100) | NOT NULL |
 | `input_params` | JSONB | NOT NULL |
 | `output` | JSONB | Kết quả trả về |
@@ -107,10 +111,11 @@ Audit trail bất biến — Partition by month
 ---
 
 ## OUTBOX_EVENTS (AI Chat)
+
 Event Outbox Pattern cho Kafka fallback
 
 | Cột | Kiểu | Ghi chú |
-|-----|------|--------|
+|-----|------|---------|
 | `id` | UUID | Primary Key, gen_random_uuid() |
 | `event_type` | VARCHAR(100) | NOT NULL |
 | `payload` | JSONB | NOT NULL |
@@ -149,8 +154,9 @@ FOR UPDATE SKIP LOCKED;
 ## Entity Relationship
 
 ```
-chat_sessions 1──N chat_messages
-chat_sessions 1──N pending_confirmations
-chat_sessions 1──N tool_call_logs
-chat_messages 1──N pending_confirmations
+CHAT_SESSIONS 1──N CHAT_MESSAGES
+CHAT_SESSIONS 1──N PENDING_CONFIRMATIONS
+CHAT_SESSIONS 1──N TOOL_CALL_LOGS
+CHAT_MESSAGES 1──N PENDING_CONFIRMATIONS
+CHAT_MESSAGES 1──N TOOL_CALL_LOGS
 ```

@@ -1,6 +1,6 @@
 # Kafka Events — Payment Service (incl. Refund)
 
-**Service**: payment-service — Port 8085  
+**Service**: payment-service — Port 8082  
 **Pattern**: Axon CQRS/ES  
 **Last Updated**: 2026-05-04
 

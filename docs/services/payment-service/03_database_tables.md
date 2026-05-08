@@ -1,12 +1,13 @@
 # Payment Service — Database Tables
 
-> Stack: PostgreSQL · Axon  
-> Quản lý bởi: Flyway migrations (`V1__init_transactions_refunds.sql` → `V8__add_payout_fields_to_seller_transfers.sql`)  
-> Cập nhật: 2026-05-05
+> Stack: PostgreSQL · Axon
+> Quản lý bởi: Flyway migrations
+> Cập nhật: 2026-05-06
 
 ---
 
 ## SELLER_STRIPE_ACCOUNTS
+
 KYC Stripe cho Seller
 
 | Cột | Kiểu | Ghi chú |
@@ -27,6 +28,7 @@ KYC Stripe cho Seller
 ---
 
 ## TRANSACTIONS
+
 Giao dịch thanh toán (dùng Stripe)
 
 | Cột | Kiểu | Ghi chú |
@@ -47,31 +49,38 @@ Giao dịch thanh toán (dùng Stripe)
 ---
 
 ## SELLER_TRANSFERS
-Transfer tiền cho Seller — delayed payout flow (platform giữ tiền → chờ hết hạn hoàn hàng → trừ phí sàn → chuyển khoản seller)
+
+Transfer tiền cho Seller sau khi DELIVERED (delayed payout flow: platform giữ tiền → chờ hết hạn hoàn hàng → trừ phí sàn → chuyển khoản seller)
 
 | Cột | Kiểu | Ghi chú |
 |-----|------|---------|
 | `id` | BIGSERIAL | Primary Key |
-| `order_id` | BIGINT | FK → ORDERS.id |
+| `order_id` | BIGINT | FK → ORDERS.id (sub-order) |
 | `seller_id` | BIGINT | FK → SELLERS.id |
+| `transaction_id` | BIGINT | FK → TRANSACTIONS.id, liên kết trực tiếp giao dịch gốc |
 | `transfer_amount` | DECIMAL | Số tiền transfer (gross, chưa trừ phí sàn) |
 | `stripe_transfer_id` | VARCHAR | Stripe Transfer ID (dùng cho Reversal) |
-| `delivered_at` | TIMESTAMP | Thời điểm xác nhận giao hàng (V8) |
-| `payout_eligible_at` | TIMESTAMP | Thời điểm có thể chuyển tiền = delivered + 7 ngày (V8) |
-| `platform_commission_amt` | DECIMAL | Phí sàn khấu trừ, 5% transfer_amount (V8) |
-| `payout_at` | TIMESTAMP | Thời gian thực hiện payout (V8) |
-| `payout_retry_count` | INTEGER | Số lần thử lại payout, mặc định 0 (V8) |
+| `delivered_at` | TIMESTAMP | Thời điểm xác nhận giao hàng |
+| `payout_eligible_at` | TIMESTAMP | Thời điểm có thể chuyển tiền (delivered + 7 ngày) |
+| `platform_commission_amt` | DECIMAL | Phí sàn khấu trừ (5% của transfer_amount) |
+| `payout_at` | TIMESTAMP | Thời gian thực hiện payout |
+| `payout_retry_count` | INTEGER | Số lần thử lại payout (default 0) |
 | `status` | VARCHAR | PENDING \| AWAITING_DELIVERY \| RETURN_WINDOW \| READY_FOR_PAYOUT \| PAID_OUT \| FAILED \| SKIPPED \| REFUNDED \| REVERSED \| PARTIALLY_REVERSED |
 | `created_at` | TIMESTAMP | Thời điểm tạo |
 | `updated_at` | TIMESTAMP | Cập nhật cuối |
 
-**Status flow:** PENDING → AWAITING_DELIVERY (payment success) → RETURN_WINDOW (order delivered) → READY_FOR_PAYOUT (cron claim) → PAID_OUT (Stripe Transfer). Refund trong return window → REFUNDED (không cần reversal). Refund sau payout → REVERSED (có Stripe Transfer reversal).
+> **Status flow:** PENDING → AWAITING_DELIVERY (payment success) → RETURN_WINDOW (order delivered) → READY_FOR_PAYOUT (cron claim) → PAID_OUT (Stripe Transfer created). Refund trong return window → REFUNDED (không cần reversal vì tiền chưa rời platform). Refund sau payout → REVERSED (có Stripe Transfer reversal).
 
-**Index:** `idx_seller_transfers_order_id` ON seller_transfers(order_id); `idx_st_payout_eligible` ON seller_transfers(status, payout_eligible_at) (V8)
+> **UNIQUE (order_id):** Mỗi order chỉ được transfer một lần — ràng buộc này ngăn duplicate transfer do job chạy lại hoặc retry không idempotent, tránh trả tiền gấp đôi cho seller.
+
+> **transaction_id:** Cho phép truy xuất trực tiếp giao dịch gốc mà không cần join qua ORDERS rồi PARENT_ORDERS. Trường này bắt buộc phải có để hỗ trợ reversal và đối soát nhanh.
+
+**Index:** `idx_seller_transfers_order_id` ON seller_transfers(order_id); `idx_st_payout_eligible` ON seller_transfers(status, payout_eligible_at)
 
 ---
 
 ## REFUNDS
+
 Phiếu hoàn tiền
 
 | Cột | Kiểu | Ghi chú |
@@ -99,6 +108,7 @@ Phiếu hoàn tiền
 ---
 
 ## REFUND_ITEMS
+
 Chi tiết hoàn tiền (từng sản phẩm)
 
 | Cột | Kiểu | Ghi chú |
@@ -111,6 +121,7 @@ Chi tiết hoàn tiền (từng sản phẩm)
 | `item_reason` | VARCHAR | Lý do hoàn riêng |
 | `status` | VARCHAR | PENDING \| SUCCESS \| FAILED |
 | `return_tracking_number` | VARCHAR | Mã vận đơn hoàn hàng |
+| `carrier` | VARCHAR | Đơn vị vận chuyển trả hàng |
 | `return_evidence_images` | JSONB | Mảng ảnh bằng chứng hoàn hàng (MinIO) |
 | `returned_at` | TIMESTAMP | Thời điểm Seller xác nhận nhận lại |
 
@@ -118,9 +129,10 @@ Chi tiết hoàn tiền (từng sản phẩm)
 
 ## Axon Saga Tables
 
-> Các bảng infrastructure do Axon Framework quản lý, được tạo bởi `V2__add_axon_saga_tables.sql`.
+> Các bảng infrastructure do Axon Framework quản lý, được tạo bởi migration.
 
 ### TOKEN_ENTRY
+
 Lưu vết tiến độ của Axon TrackingEventProcessor
 
 | Cột | Kiểu | Ghi chú |
@@ -135,6 +147,7 @@ Lưu vết tiến độ của Axon TrackingEventProcessor
 **PK:** (processor_name, segment)
 
 ### SAGA_ENTRY
+
 Lưu trạng thái Saga
 
 | Cột | Kiểu | Ghi chú |
@@ -145,6 +158,7 @@ Lưu trạng thái Saga
 | `serialized_saga` | BYTEA | Serialized Saga state |
 
 ### ASSOCIATION_VALUE_ENTRY
+
 Ánh xạ giữa Saga và các định danh (orderId, paymentId, …)
 
 | Cột | Kiểu | Ghi chú |
@@ -165,6 +179,7 @@ Lưu trạng thái Saga
 > Payment service maintain local copy phục vụ outbox pattern riêng.
 
 ### OUTBOX_EVENTS
+
 Event Outbox Pattern (cho eventual consistency)
 
 | Cột | Kiểu | Ghi chú |
@@ -181,6 +196,7 @@ Event Outbox Pattern (cho eventual consistency)
 ---
 
 ### FAILED_EVENTS
+
 Lưu trữ event/task lỗi để xử lý thủ công
 
 | Cột | Kiểu | Ghi chú |
@@ -197,6 +213,7 @@ Lưu trữ event/task lỗi để xử lý thủ công
 ---
 
 ### SHEDLOCK
+
 Distributed Lock cho scheduled jobs (ShedLock)
 
 | Cột | Kiểu | Ghi chú |

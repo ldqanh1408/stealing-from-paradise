@@ -431,7 +431,7 @@ sequenceDiagram
     FE_S->>GW: PUT /api/v1/orders/{id}/tracking
     GW->>ORD: UpdateTrackingRequest<br>(tracking_number, carrier)
     ORD->>ORD: Check order.status=PAID
-    ORD->>ORD: UPDATE ORDERS<br>status=SHIPPING<br>tracking_number
+    ORD->>ORD: UPDATE ORDERS<br>status=SHIPPING<br>tracking_number per ORDER_ITEM
     ORD->>KFK: Publish order.shipped
     KFK->>NTF: Gửi thông báo Buyer
     KFK->>IDT: Identity: order.shipped
@@ -528,7 +528,7 @@ sequenceDiagram
     participant NTF as notification-service
 
     Note over Seller,PAY: ĐƠN BỊ HOÀN VỀ (shipper gọi 3 lần không nghe)
-    Seller->>FE_S: Nhấn "Xác nhận hàng hoàn về"<br>(upload ảnh bằng chứng bắt buộc)
+    Seller->>FE_S: Nhấn "Xác nhận hàng hoàn về"
     FE_S->>GW: POST /api/v1/orders/{id}/return-to-sender
     GW->>ORD: RTSRequest<br>(return_tracking_number,<br>evidence_images[])
     ORD->>ORD: Validate order.status=SHIPPING

@@ -1,6 +1,6 @@
 # Kafka Events — Order Service
 
-**Service**: order-service — Port 8087  
+**Service**: order-service — Port 8083  
 **Pattern**: Axon CQRS/ES + Saga  
 **Last Updated**: 2026-05-04
 

@@ -1,6 +1,6 @@
 # Kafka Events — Flash Sale Service
 
-**Service**: flashsale-service — Port 8086  
+**Service**: flashsale-service — Port 8085  
 **Pattern**: Axon CQRS/ES + Redis Lua  
 **Last Updated**: 2026-05-04
 

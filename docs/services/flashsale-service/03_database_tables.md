@@ -1,11 +1,12 @@
 # Flash Sale Service — Database Tables
 
 > Stack: PostgreSQL
-> Cập nhật: 2026-05-05
+> Cập nhật: 2026-05-06
 
 ---
 
 ## FS_SESSIONS
+
 Session Flash Sale (theo khoảng thời gian)
 
 | Cột | Kiểu | Ghi chú |
@@ -22,6 +23,7 @@ Session Flash Sale (theo khoảng thời gian)
 ---
 
 ## FS_ITEMS
+
 Sản phẩm tham gia Flash Sale
 
 | Cột | Kiểu | Ghi chú |
@@ -41,6 +43,7 @@ Sản phẩm tham gia Flash Sale
 ---
 
 ## FS_REMINDERS
+
 Nhắc nhở Flash Sale
 
 | Cột | Kiểu | Ghi chú |

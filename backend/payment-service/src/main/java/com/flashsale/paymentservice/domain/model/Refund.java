@@ -33,6 +33,9 @@ public class Refund {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @JdbcTypeCode(SqlTypes.UUID)
     @Column(name = "group_ref")
     private UUID groupRef;

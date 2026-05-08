@@ -175,32 +175,61 @@ tx.setStripePiId(pi.getId());
 transactionRepository.save(tx);
 ```
 
-### 4.3 Multi-Vendor Transfer (After Payment)
+### 4.3 Delayed Payout — Transfer After Delivery
+
+> **CRITICAL — Delayed Payout Flow:** Stripe Transfers to sellers happen AFTER `order.delivered`, NOT immediately after payment success. This is the standard marketplace model: platform collects payment → holds funds → ships confirmed → releases to seller.
 
 When `payment_intent.succeeded` fires:
+- Stripe **does NOT** transfer to sellers yet
+- Payment Service creates `SELLER_TRANSFER` records with `status = AWAITING_DELIVERY`
+
+When `order.delivered` fires (via Kafka):
+- Payment Service transitions `SELLER_TRANSFER.status` → `RETURN_WINDOW`
+- After 7-day return window, cron claims it → `READY_FOR_PAYOUT`
+- Then creates Stripe Transfer → `PAID_OUT`
 
 ```java
-// For each seller with PENDING transfer:
-for (SellerTransfer st : sellerTransferRepository.findAllByParentOrderId(parentOrderId)) {
-    // Skip sellers without active Stripe account
-    if (sellerAccount == null || !chargesEnabled) {
-        st.setStatus("SKIPPED");
-        continue;
-    }
+// payment_intent.succeeded — NOT the transfer step
+Transaction tx = transactionRepository.findByParentOrderId(parentOrderId).orElse(null);
+tx.setStatus("SUCCESS");
+txRepository.save(tx);
 
-    // Transfer net amount to seller
-    TransferCreateParams params = TransferCreateParams.builder()
-        .setAmount(toStripeAmount(st.getNetAmount()))
-        .setCurrency("vnd")
-        .setDestination(sellerAccount.getStripeAccountId())
-        .setSourceTransaction(latestChargeId)  // guaranteed funds
+// Create SellerTransfer records (NOT executed yet — awaiting delivery)
+for (OrderSummary order : orders) {
+    SellerTransfer st = SellerTransfer.builder()
+        .orderId(order.getOrderId())
+        .sellerId(order.getSellerId())
+        .transactionId(tx.getId())
+        .transferAmount(order.getAmount())  // gross amount
+        .platformCommissionAmt(order.getAmount().multiply(PLATFORM_FEE))  // 5%
+        .status("AWAITING_DELIVERY")
         .build();
-    Transfer transfer = Transfer.create(params);
-
-    st.setStripeTransferId(transfer.getId());
-    st.setStatus("SUCCEEDED");
+    sellerTransferRepository.save(st);
 }
+
+// Kafka → payment.success → OrderService marks orders PAID
+// → await order.delivered event for transfer trigger
 ```
+
+```java
+// order.delivered Kafka consumer — THE transfer step
+SellerTransfer st = sellerTransferRepository.findById(orderId).orElseThrow();
+st.setStatus("RETURN_WINDOW");
+st.setDeliveredAt(now());
+// After 7 days (cron) → READY_FOR_PAYOUT → PAID_OUT (Stripe Transfer)
+```
+
+**Status Flow:**
+```
+PENDING → AWAITING_DELIVERY (payment success)
+       → RETURN_WINDOW (order delivered, 7-day return window)
+       → READY_FOR_PAYOUT (cron claims, via payout_eligible_at)
+       → PAID_OUT (Stripe Transfer created)
+       → FAILED / SKIPPED / REFUNDED / REVERSED / PARTIALLY_REVERSED
+```
+
+> Refund BEFORE payout: `REFUNDED` (no Stripe reversal needed — money never left platform)
+> Refund AFTER payout: `REVERSED` (Stripe Transfer reversal required)
 
 ### 4.4 Fee Calculation
 
@@ -287,7 +316,7 @@ Stripe webhooks are delivered at-least-once. The system handles duplicate events
 │   └─→ PaymentService.handleStripeWebhook()                                    │
 │       ├─ payment_intent.succeeded:                                           │
 │       │   ├─ Transaction.status = SUCCESS                                    │
-│       │   ├─ Create Stripe Transfers to sellers                              │
+│       │   ├─ Create SellerTransfer records (status = AWAITING_DELIVERY)     │
 │       │   └─ Kafka: payment.success                                          │
 │       │       └─→ ParentOrderPaymentSaga.onPaymentSucceeded()                │
 │       │           ├─ Update all sub-orders to PAID                           │
@@ -304,7 +333,7 @@ Stripe webhooks are delivered at-least-once. The system handles duplicate events
 │                       └─→ OrderProcessingSaga.onOrderCancelledEvent()       │
 │                           ├─ Cancel deadline                                 │
 │                           ├─ Kafka: order.cancelled                          │
-│                           │   ├─→ CartService: restore items                │
+│                           │   ├─→ ProductService: restore items                │
 │                           │   └─→ NotificationService: notify             │
 │                           └─ @EndSaga                                       │
 └─────────────────────────────────────────────────────────────────────────────┘

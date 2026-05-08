@@ -141,6 +141,12 @@ services:
       kafka: { condition: service_started }
       axonserver: { condition: service_healthy }
     networks: [*network]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -s http://localhost:8083/actuator/health > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
 
   flashsale-service:
     build:

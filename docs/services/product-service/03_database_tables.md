@@ -1,12 +1,13 @@
 # Product Service — Database Tables
 
 > Stack: PostgreSQL · MongoDB · Elasticsearch
-> Cập nhật: 2026-05-05
+> Cập nhật: 2026-05-06
 
 ---
 
 ## IMAGES (PostgreSQL)
-Lưu trữ metadata ảnh sản phẩm và avatar
+
+Lưu trữ metadata ảnh sản phẩm và avatar trên MinIO
 
 | Cột | Kiểu | Ghi chú |
 |-----|------|---------|
@@ -22,6 +23,7 @@ Lưu trữ metadata ảnh sản phẩm và avatar
 ---
 
 ## MG_CATEGORIES (MongoDB)
+
 Danh mục sản phẩm (hỗ trợ phân cấp)
 
 | Cột | Kiểu | Ghi chí |
@@ -37,6 +39,7 @@ Danh mục sản phẩm (hỗ trợ phân cấp)
 ---
 
 ## MG_PRODUCTS (MongoDB)
+
 Sản phẩm (do Seller đăng)
 
 | Cột | Kiểu | Ghi chí |
@@ -56,7 +59,8 @@ Sản phẩm (do Seller đăng)
 
 ---
 
-## MG_PRODUCT_IMAGES
+## MG_PRODUCT_IMAGES (PostgreSQL)
+
 Liên kết hình ảnh sản phẩm
 
 | Cột | Kiểu | Ghi chí |
@@ -70,6 +74,7 @@ Liên kết hình ảnh sản phẩm
 ---
 
 ## MG_PRODUCT_VARIANTS (MongoDB)
+
 Phân loại sản phẩm (size, màu, etc.)
 
 | Cột | Kiểu | Ghi chí |
@@ -86,6 +91,7 @@ Phân loại sản phẩm (size, màu, etc.)
 ---
 
 ## MG_INVENTORIES (MongoDB)
+
 Quản lý tồn kho theo SKU
 
 | Cột | Kiểu | Ghi chí |
@@ -93,6 +99,7 @@ Quản lý tồn kho theo SKU
 | `id` | VARCHAR | PK, Mongo ObjectId |
 | `sku_code` | VARCHAR | Unique, FK → MG_PRODUCT_VARIANTS.sku_code |
 | `product_id` | VARCHAR | FK → MG_PRODUCTS.id |
+| `stock_total` | INT | Tổng tồn kho |
 | `stock_locked` | INT | Số lượng đang giữ chỗ (PENDING/PAID) |
 | `stock_available` | INT | Số lượng còn có thể bán |
 | `stock_flash_reserved` | INT | Số lượng khóa cho Flash Sale đã duyệt |
@@ -101,6 +108,7 @@ Quản lý tồn kho theo SKU
 ---
 
 ## MG_CARTS (MongoDB)
+
 Giỏ hàng (1:1 với CUSTOMERS)
 
 | Cột | Kiểu | Ghi chí |
@@ -114,6 +122,7 @@ Giỏ hàng (1:1 với CUSTOMERS)
 ---
 
 ## MG_CART_ITEMS (MongoDB)
+
 Chi tiết giỏ hàng
 
 | Cột | Kiểu | Ghi chí |
@@ -124,5 +133,6 @@ Chi tiết giỏ hàng
 | `sku_code` | VARCHAR | Mã SKU |
 | `fs_item_id` | BIGINT | FK → FS_ITEMS.id, nullable |
 | `price_snapshot` | DECIMAL | Giá tại thời điểm thêm vào |
+| `is_selected` | BOOLEAN | Chọn để checkout (mặc định TRUE) |
 | `quantity` | INT | Số lượng |
 | `added_at` | TIMESTAMP | Thời điểm thêm |

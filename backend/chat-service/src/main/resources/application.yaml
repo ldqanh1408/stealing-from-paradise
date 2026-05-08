@@ -1,3 +1,15 @@
 spring:
   application:
     name: chat-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+  mongodb:
+    host: ${MONGO_HOST:localhost}
+    port: 27017
+    database: ${DB_NAME_CHAT:fs_chat}
+    username: ${MONGO_INITDB_ROOT_USERNAME}
+    password: ${MONGO_INITDB_ROOT_PASSWORD}
+    authentication-database: admin
