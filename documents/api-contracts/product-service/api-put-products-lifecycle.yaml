@@ -1,0 +1,219 @@
+openapi: "3.0.3"
+info:
+  title: Product Service - Product Lifecycle
+  description: >
+    Seller product lifecycle operations: submit for review, publish, and unpublish.
+    All endpoints require SELLER role and product ownership.
+    Product Service (Port 8090).
+  version: "5.4.0"
+servers:
+  - url: http://localhost:8090/api/v1
+    description: Local development
+paths:
+  /seller/products/{productId}/submit:
+    post:
+      operationId: submitForReview
+      summary: Submit product for admin review
+      description: >
+        Changes product status to PENDING and notifies admins for review.
+        Product must have at least one valid variant.
+        Emits product.pending_review Kafka event.
+        Referenced by FR-PRODUCT-005.
+      tags:
+        - Product Lifecycle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Product UUID to submit
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Empty body accepted
+      responses:
+        "200":
+          description: Product submitted for review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LifecycleResponse"
+              example:
+                product_id: "507f1f77bcf86cd799439012"
+                status: "PENDING"
+                message: "Product submitted for review"
+        "401":
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the product owner or not a SELLER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Product incomplete or has no valid variants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "VALIDATION_ERROR"
+                message: "Product missing required data or has no valid variants"
+
+  /seller/products/{productId}/publish:
+    post:
+      operationId: publishProduct
+      summary: Publish product for sale
+      description: >
+        Makes product visible on storefront. Sets status to active.
+        Only allowed for APPROVED products.
+        Emits product.published Kafka event for search indexing.
+        Referenced by FR-PRODUCT-006.
+      tags:
+        - Product Lifecycle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Product UUID to publish
+      responses:
+        "200":
+          description: Product published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LifecycleResponse"
+              example:
+                product_id: "507f1f77bcf86cd799439012"
+                status: "active"
+                message: "Product published successfully"
+        "401":
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the product owner or not a SELLER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Product not in APPROVED status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /seller/products/{productId}/unpublish:
+    post:
+      operationId: unpublishProduct
+      summary: Unpublish product from storefront
+      description: >
+        Hides product from storefront while preserving data.
+        Sets status to inactive. Does not affect existing orders.
+        Referenced by FR-PRODUCT-007.
+      tags:
+        - Product Lifecycle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Product UUID to unpublish
+      responses:
+        "200":
+          description: Product unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LifecycleResponse"
+              example:
+                product_id: "507f1f77bcf86cd799439012"
+                status: "inactive"
+                message: "Product unpublished"
+        "401":
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the product owner or not a SELLER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT from Identity Service
+
+  schemas:
+    LifecycleResponse:
+      type: object
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          example: "507f1f77bcf86cd799439012"
+        status:
+          type: string
+          enum: [PENDING, active, inactive]
+          description: New product status
+        message:
+          type: string
+          description: Human-readable status message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message

@@ -378,16 +378,8 @@ SET revoked_token:{jti} = 1 EX 900
 
 ---
 
-## Seller Registration
+## Seller 
 
-### POST /users/me/roles/seller
-**Đăng ký trở thành Seller**
-
-**Quyền truy cập**: JWT Required (BUYER role)
-
-**Request Body**: (không có body)
-
-**Response 200**: Đăng ký Seller thành công
 
 ---
 
@@ -516,16 +508,6 @@ Các admin endpoints được route từ API Gateway dưới prefix `/admin/**` 
 
 ---
 
-### Failed Events Management
-
-#### GET /admin/failed-events
-**Danh sách events thất bại (DLQ)**. Query: status (PENDING|DEAD|RESOLVED), topic_or_task, page, size
-
-#### POST /admin/failed-events/{eventId}/retry
-**Retry thủ công event thất bại — Tags**: Re-publish vào Kafka
-
-#### POST /admin/failed-events/{eventId}/resolve
-**Đánh dấu event đã xử lý thủ công**
 
 ---
 
@@ -545,7 +527,6 @@ Các admin endpoints được route từ API Gateway dưới prefix `/admin/**` 
 | /users/me/addresses/{id} | PUT | JWT |
 | /users/me/addresses/{id} | DELETE | JWT |
 | /auth/register/seller | POST | Public |
-| /users/me/roles/seller | POST | JWT (BUYER) |
 | /users/me/change-password | POST | JWT |
 
 ---

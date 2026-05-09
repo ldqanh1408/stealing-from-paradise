@@ -1,0 +1,273 @@
+openapi: "3.0.3"
+info:
+  title: Flash Sale Purchase API
+  description: |
+    High-concurrency flash sale purchase endpoint using Redis Lua atomic scripts.
+    Service: flashsale-service (port :8085)
+    Base URL: /api/v1
+    Concurrency target: 50k+ req/s
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8085/api/v1
+    description: Local development
+
+paths:
+  /flash-sales/{sessionId}/buy:
+    post:
+      summary: Purchase Flash Sale Item (Redis Lua)
+      description: |
+        Processes a flash sale purchase atomically via Redis Lua script.
+        Prevents oversell under high concurrency (50k+ req/s).
+        
+        The Lua script performs atomic:
+        - Stock availability check
+        - Per-user purchase limit check
+        - Stock decrement
+        - User purchase count increment
+        - Order creation
+        - Kafka event publication
+        
+        Dynamic price calculation (BR-FLASHSALE-008):
+        flash_price = sku.price * (1 - discount_applied / 100)
+      operationId: purchaseFlashSaleItem
+      tags:
+        - Purchase
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Flash sale session ID (must be ACTIVE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRequest'
+            example:
+              fs_item_id: 1001
+              quantity: 2
+              address_id: 7
+      responses:
+        '201':
+          description: Purchase successful, order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseResponse'
+              example:
+                order_id: 1002
+                order_code: "OR-20260415-1002"
+                fs_item_id: 1001
+                quantity: 2
+                flash_price: 189999
+                total: 379998
+                status: "PENDING"
+                is_flash_sale: true
+                timeout_at: "2026-04-15T20:10:00Z"
+                message: "Order created. Pay within 10 minutes."
+        '400':
+          description: |
+            Bad request — possible causes:
+            - LIMIT_EXCEEDED: User exceeded per-user purchase limit
+            - SESSION_NOT_ACTIVE: Session is not ACTIVE
+            - PRODUCT_NOT_IN_FLASH_SALE: Item not found in session
+            - INVALID_QUANTITY: Requested quantity <= 0
+            - INVALID_ADDRESS: Address does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                limit_exceeded:
+                  value:
+                    error: "LIMIT_EXCEEDED"
+                    message: "Purchase limit per user exceeded"
+                session_not_active:
+                  value:
+                    error: "SESSION_NOT_ACTIVE"
+                    message: "Flash sale is not currently active"
+                product_not_found:
+                  value:
+                    error: "PRODUCT_NOT_IN_FLASH_SALE"
+                    message: "Product is not part of this flash sale session"
+        '401':
+          description: Unauthorized — invalid or missing JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "UNAUTHORIZED"
+                message: "Valid JWT required"
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "SESSION_NOT_FOUND"
+                message: "Flash sale session does not exist"
+        '409':
+          description: Sold out — stock exhausted (Redis atomic check)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "SOLD_OUT"
+                message: "Item is sold out"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PurchaseRequest:
+      type: object
+      required:
+        - fs_item_id
+        - quantity
+        - address_id
+      properties:
+        fs_item_id:
+          type: integer
+          format: int64
+          description: ID of the registered flash sale item (fs_items.id)
+          example: 1001
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity to purchase. Must be <= per-user limit.
+          example: 2
+        address_id:
+          type: integer
+          format: int64
+          description: Shipping address ID for the order
+          example: 7
+
+    PurchaseResponse:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+          description: Created order ID
+          example: 1002
+        order_code:
+          type: string
+          description: Human-readable order code
+          example: "OR-20260415-1002"
+        fs_item_id:
+          type: integer
+          format: int64
+          description: The purchased flash sale item ID
+          example: 1001
+        quantity:
+          type: integer
+          description: Quantity purchased
+          example: 2
+        flash_price:
+          type: number
+          format: decimal
+          description: |
+            Flash price per unit, calculated dynamically:
+            flash_price = sku.price * (1 - discount_applied / 100)
+          example: 189999
+        total:
+          type: number
+          format: decimal
+          description: Total amount (flash_price * quantity)
+          example: 379998
+        status:
+          type: string
+          enum: [PENDING]
+          description: Order status
+          example: "PENDING"
+        is_flash_sale:
+          type: boolean
+          description: Always true for this endpoint
+          example: true
+        timeout_at:
+          type: string
+          format: date-time
+          description: Payment deadline (created_at + 10 minutes)
+          example: "2026-04-15T20:10:00Z"
+        message:
+          type: string
+          description: Human-readable confirmation
+          example: "Order created. Pay within 10 minutes."
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: |
+            Machine-readable error code. Possible values:
+            - SOLD_OUT
+            - LIMIT_EXCEEDED
+            - SESSION_NOT_ACTIVE
+            - SESSION_NOT_FOUND
+            - PRODUCT_NOT_IN_FLASH_SALE
+            - INVALID_QUANTITY
+            - INVALID_ADDRESS
+            - UNAUTHORIZED
+          example: "SOLD_OUT"
+        message:
+          type: string
+          description: Human-readable error description
+          example: "Item is sold out"
+
+tags:
+  - name: Purchase
+    description: Flash sale purchase — Redis Lua atomic, 50k+ req/s
+
+x-flashsale:
+  redis_lua_script: |
+    -- Atomic flash sale purchase
+    local stock_key = KEYS[1]   -- flash_sale:stock:{fs_item_id}
+    local limit_key = KEYS[2]   -- flash_sale:user:{session_id}:{user_id}
+    local quantity = tonumber(ARGV[1])
+    local limit = tonumber(ARGV[2])
+    
+    local stock = tonumber(redis.call('GET', stock_key) or '0')
+    if stock < quantity then
+      return {err = 'SOLD_OUT'}
+    end
+    
+    local user_count = tonumber(redis.call('GET', limit_key) or '0')
+    if user_count + quantity > limit then
+      return {err = 'LIMIT_EXCEEDED'}
+    end
+    
+    redis.call('DECRBY', stock_key, quantity)
+    redis.call('INCRBY', limit_key, quantity)
+    
+    redis.call('PUBLISH', 'flash_sale.item_purchased',
+      string.format('{"fs_item_id":%s,"quantity":%d}', KEYS[1], quantity))
+    
+    return {ok = 'SUCCESS'}
+  kafka_events:
+    produced:
+      - topic: flash_sale.item_purchased
+        trigger: Successful Redis Lua purchase
+        consumers:
+          - Product Service (Inventory update)
+  business_rules:
+    - BR-FLASHSALE-005: Redis Lua atomic buy
+    - BR-FLASHSALE-008: Dynamic flash price calculation
+  functional_requirements:
+    - FR-FLASHSALE-009: Purchase via Redis Lua
+    - FR-FLASHSALE-010: Dynamic flash price
+  use_cases:
+    - UC-FLASHSALE-005: Purchase flash item

@@ -1,399 +1,244 @@
-# Product Service — Luồng hoạt động
+# Product Service — Logic hiển thị giao diện người dùng
 
-## Tổng quan kiến trúc
+## 1. Trang chủ — Card sản phẩm
 
-Product Service giao tiếp với các service khác theo nguyên tắc:
-- **Đồng bộ (Sync / REST hoặc gRPC):** Khi cần trả kết quả ngay cho người dùng (load trang, validate checkout)
-- **Bất đồng bộ (Async / Message Queue):** Khi thay đổi không cần phản hồi ngay (cập nhật giá, sync Search Service, gửi notification)
+Card sản phẩm ở trang chủ hiển thị ở **Product level** (không phải product_variant level), nhưng các giá trị số liệu lấy từ tập hợp product_variant.
+
+### Dữ liệu hiển thị trên card
 
 ```
-Client
-  │
-  ▼
-API Gateway
-  │
-  ├──[Sync]──► Product Service ◄──[Sync]── Order Service (xác nhận payment)
-  │                 │
-  │                 ├──[Async / Kafka]──► Search Service (sync document)
-  │                 ├──[Async / Kafka]──► Notification Service (cảnh báo giá, hết hàng)
-  │                 └──[Read/Write]────► PostgreSQL + Redis
-  │
-  └──[Sync]──► Search Service (tìm kiếm, browse listing)
+┌─────────────────────────────┐
+│  [Thumbnail ảnh product]    │  ← product_image WHERE variant_id IS NULL
+│                             │    AND sort_order = 0 (ảnh đại diện)
+│  Tên sản phẩm               │  ← product.name
+│                             │
+│  Từ 150.000đ                │  ← MIN(product_variant.price) WHERE product_variant.status = 'active'
+│                             │    Hiển thị "Từ X" nếu có nhiều mức giá
+│  Đã bán 3.4k                │  ← sold_count (từ Search document)
+│                             │
+│  [Badge: FLASH SALE -30%]   │  ← Hiển thị nếu có product_variant: price < original_price
+└─────────────────────────────┘
+```
+
+### Logic badge trạng thái
+
+| Điều kiện | Badge hiển thị |
+|---|---|
+| `product.status = 'out_of_stock'` | "Hết hàng" (màu xám) |
+| Có ít nhất 1 product_variant: `price < original_price` | "SALE" hoặc phần trăm giảm |
+| `product.status = 'inactive'` | Không hiển thị card (ẩn khỏi listing) |
+| `sold_count > threshold` | "Bán chạy" hoặc "Phổ biến" |
+
+---
+
+## 2. Trang Product Detail
+
+### 2.1 Phần ảnh sản phẩm
+
+```
+Logic hiển thị ảnh:
+
+Mặc định (chưa chọn biến thể):
+  Hiển thị gallery từ product_image WHERE variant_id IS NULL
+  Sắp xếp theo sort_order ASC
+  Ảnh đầu tiên (sort_order nhỏ nhất) = ảnh chính lớn
+
+Khi khách chọn biến thể (ví dụ chọn màu Đỏ):
+  Kiểm tra product_image WHERE variant_id = :selected_variant_id
+  → Có ảnh variant? → Swap sang ảnh của variant đó
+  → Không có? → Giữ nguyên gallery product
+```
+
+### 2.2 Phần giá
+
+```
+Hiển thị giá theo product_variant đang được chọn:
+
+Nếu product_variant.original_price IS NOT NULL và product_variant.price < product_variant.original_price:
+  Hiển thị: [~~original_price~~]  [price]  [-X%]
+  Ví dụ:    ~~200.000đ~~  150.000đ  -25%
+
+Nếu không có original_price:
+  Hiển thị: [price]
+  Ví dụ:    150.000đ
+
+Khi chưa chọn biến thể (product level):
+  Hiển thị: "Từ [min_price]đ"
+  = MIN(product_variant.price) WHERE product_variant.status IN ('active', 'out_of_stock')
+```
+
+### 2.3 Phần chọn biến thể
+
+```
+Dữ liệu: tất cả product_variant của product (kể cả out_of_stock)
+  [{ id, variant_attributes, price, stock_quantity, status }]
+
+Frontend group theo key của variant_attributes:
+
+"Màu sắc":  [Đen ✓]  [Trắng]  [Đỏ - hết hàng (disabled)]
+"Size":     [S]  [M ✓]  [L]  [XL]
+
+Mỗi option:
+  active + stock > 0  → Bình thường, có thể chọn
+  out_of_stock        → Hiển thị nhưng disable, có thể có gạch chéo
+  inactive            → Ẩn hoàn toàn (không hiển thị với khách)
+
+Khi chọn kết hợp biến thể:
+  Map sang product_variant cụ thể dựa trên variant_attributes
+  → Cập nhật giá hiển thị
+  → Cập nhật ảnh (nếu variant có ảnh riêng)
+  → Cập nhật trạng thái nút mua
+```
+
+### 2.4 Phần thông tin sản phẩm — 2 tab
+
+```
+Tab "Chi tiết sản phẩm" ← product.attributes (JSON key-value)
+  Render thành bảng:
+  ┌─────────────┬──────────────────┐
+  │ Chất liệu   │ 100% Cotton      │
+  │ Xuất xứ     │ Việt Nam         │
+  │ Phong cách  │ Casual           │
+  │ Giặt ủi     │ Máy giặt ≤30°C   │
+  └─────────────┴──────────────────┘
+
+Tab "Mô tả sản phẩm" ← product.description (Rich text / HTML)
+  Render HTML trực tiếp, có thể có hình ảnh, tiêu đề, danh sách
+```
+
+### 2.5 Phần điều chỉnh số lượng và nút hành động
+
+```
+Khi khách tăng/giảm số lượng:
+  [−]  [3]  [+]
+
+  Giới hạn trên = product_variant.stock_quantity (đọc real-time hoặc từ cache)
+  Nếu quantity = stock_quantity → disable nút [+]
+  Hiển thị: "Còn X sản phẩm" nếu stock_quantity <= 5 (ngưỡng cảnh báo)
+
+Trạng thái các nút:
+
+  product_variant.status = 'active' và stock_quantity > 0:
+    [Thêm vào giỏ hàng]  [Mua ngay]  — cả 2 enable
+
+  product_variant.status = 'out_of_stock':
+    [Hết hàng] — disable
+    Có thể hiển thị thêm: [Thông báo khi có hàng]
+
+  Chưa chọn đủ biến thể:
+    [Chọn phân loại hàng] — disable, nhắc chọn variant
+
+Bấm "Thêm vào giỏ hàng":
+  → Soft check tồn kho (đọc Redis/DB)
+  → Nếu OK: UPSERT cart_item với price_snapshot = product_variant.price hiện tại
+  → Hiển thị toast "Đã thêm vào giỏ hàng"
+
+Bấm "Mua ngay":
+  → Tương tự thêm vào giỏ nhưng điều hướng thẳng vào Checkout Preview
+  → Không qua màn hình giỏ hàng
 ```
 
 ---
 
-## 1. Luồng Seller quản lý sản phẩm
+## 3. Trang Giỏ hàng
 
-### 1.1 Tạo sản phẩm mới
-
-```
-Seller POST /products
-  │
-  ├── Validate input (name, category_id, ít nhất 1 product_variant)
-  ├── Tạo bản ghi product (status = 'inactive')
-  ├── Tạo các bản ghi product_variant tương ứng
-  ├── Upload ảnh → MinIO → lưu URL vào product_image
-  │
-  │
-  └── 
-    └── product.status = 'active'
-        Async → Kafka topic: product.created
-              → Search Service lập index document mới
-```
-
-### 1.2 Seller cập nhật giá product_variant
+### 3.1 Hiển thị từng item
 
 ```
-Seller PATCH /variants/:id  { price: 180000 }
-  │
-  ├── Lưu product_variant.price = 180000
-  ├── Ghi product_variant.price_updated_at = NOW()
-  │
-  ├── Tính lại product.status theo logic:
-  │     active_count, out_of_stock_count của tất cả product_variant
-  │     → Cập nhật product.status trong cùng transaction
-  │
-  ├── Async → Kafka topic: variant.price_updated
-  │           → Search Service cập nhật document (price, min_price)
-  │
-  └── [KHÔNG update cart_item ngay — Lazy strategy]
-      Khách hàng sẽ thấy thay đổi khi mở lại giỏ hàng
+┌──────────────────────────────────────────────┐
+│ [Ảnh variant]  Áo thun nam cổ tròn              │
+│            Màu: Đen | Size: M                │ ← variant_name_snapshot
+│                                              │
+│            ~~200.000đ~~  150.000đ            │ ← Nếu giá thay đổi:
+│            ⚠ Giá đã thay đổi                │   hiển thị giá mới + warning
+│                                              │
+│            [−] [2] [+]              Xóa      │
+└──────────────────────────────────────────────┘
 ```
 
-### 1.3 Seller cập nhật tồn kho / trạng thái product_variant
+### 3.2 Các trạng thái cảnh báo
+
+| Trạng thái |
+|---|---|
+| Runtime check: `product_variant.price != price_snapshot`
+| Runtime check: `product_variant.status = 'inactive'`
+| Runtime check: `product_variant.stock_quantity = 0`
+Hiển thị cảnh báo chung: "Dữ liệu giỏ hàng đã thay đổi, vui lòng xem lại dữ liệu mới nhất"
+
+### 3.3 Logic kiểm tra khi mở giỏ hàng
 
 ```
-Seller PATCH /variants/:id  { status: 'inactive' | stock_quantity: 0 }
-  │
-  ├── Lưu thay đổi vào product_variant
-  ├── Cập nhật Redis: SET stock:{variant_id} = stock_quantity mới
-  ├── Tính lại product.status (cùng transaction)
-  │
-  ├── [Nếu variant hết hàng hoặc ngừng bán]
-  │     KHÔNG can thiệp/update trực tiếp vào bảng cart_item (Lazy Evaluation).
-  │     (Tùy chọn) Async → Notification Service → push gửi cảnh báo cho khách đang có variant này trong giỏ hàng.
-  │
-  └── Async → Kafka topic: variant.stock_updated
-              → Search Service cập nhật stock_status trong document
-```
+Mỗi khi khách mở trang giỏ hàng:
+  Batch fetch data của các product_variant liên quan từ Redis/DB (Lazy load).
 
-### 1.4 Seller cập nhật thông tin sản phẩm
+  Với mỗi item API kiểm tra on-the-fly:
+    Nếu product_variant.price != cart_item.price_snapshot (Lệch giá, sale kết thúc...):
+      → Tính trả JSON attribute để UI hiển thị cảnh báo từ Z -> Y đ. Khách bấm cập nhật giỏ để confirm Y đ.
 
-```
-Seller PATCH /products/:id  { name, description, attributes, status }
-  │
-  ├── Cập nhật product fields
-  ├── Nếu status = 'inactive' → ẩn khỏi listing
-  │
-  └── Async → Kafka topic: product.updated / product.inactive
-        → Search Service cập nhật document
-```
+    Nếu product_variant.stock_quantity == 0 HOẶC status != 'active':
+      → API trả về cờ disable tương ứng. UI mờ item, bỏ tick checkbox đi. (Khách có hàng lại thì lại hiện lên).
 
-### 1.5 Seller quản lý ảnh sản phẩm
-
-```
-Seller POST /products/:id/images
-  │
-  ├── Upload ảnh → MinIO → lưu URL vào product_image
-  └── Trả về danh sách ảnh mới nhất
-
-Seller DELETE /products/:id/images/:image_id
-  │
-  └── Xóa product_image theo id
+  Tổng tiền = SUM (giá có đánh dấu tick chọn checkbox x quantity).
 ```
 
 ---
 
-## 2. Luồng khách hàng xem sản phẩm
+## 4. Trang Checkout
 
-### 2.1 Trang chủ / Browse listing
-
-```
-Khách GET /products?category=ao-thun&sort=popular&page=1
-  │
-  └── API Gateway → Search Service (KHÔNG qua Product Service)
-        │
-        ├── Elasticsearch query: filter category, sort by score/sales
-        ├── Field collapsing theo product_id
-        │     → Mỗi product chỉ hiển thị 1 card
-        │     → Đại diện là SKU giá thấp nhất, còn hàng
-        │
-        └── Trả về danh sách card:
-              { product_id, product_name, min_price, thumbnail_url,
-                avg_rating, sold_count, seller_name }
-```
-
-> **Trang chủ và mọi màn hình listing đều do Search Service phục vụ.**
-> Product Service chỉ được gọi khi vào trang chi tiết sản phẩm hoặc các thao tác write.
-
-### 2.2 Trang Product Detail
+### 4.1 Giai đoạn 1: Checkout Preview
 
 ```
-Khách GET /products/:slug
-  │
-  └── Product Service (gọi trực tiếp, không qua Search Service)
-        │
-        ├── SELECT product WHERE slug = :slug AND status IN ('active', 'out_of_stock')
-        ├── SELECT product_variant WHERE product_id = :id (tất cả variant, kể cả out_of_stock)
-        └── SELECT product_image WHERE product_id = :id ORDER BY sort_order
+Hiển thị:
+  - Danh sách sản phẩm 
+  - Địa chỉ giao hàng
+  - Voucher / Payment Method / Total.
+
+**Giai đoạn trước khi vào màn hình này (Bấm Checkout ở Giỏ)**:
+  Khi khách bấm "Check out" sau khi nán lại trang giỏ hàng quá lâu (vd bị afk lúc flash sale diễn ra).
+  API /checkout/preview bắn lên Backend. Backend check real-time:
+  - Giá lệch (product_variant.price != price_snapshot)
+  - Số lượng hụt, hết hàng
+  - Inactive.
+  Nếu GẶP LỖI: API bắn 409 Conflict.
+  ➔ FE chặn load Preview => Quăng popup "Dữ liệu giỏ hàng vừa thay đổi, vui lòng update", tự refresh lại giỏ. Khách phải nhấn lại Checkout khi data đồng bộ.
+  Nếu đã có preview session: API bắn 409 preview_in_use. FE hiển thị thông báo và không mở thêm preview.
+  Nếu OK: API trả preview_token + expires_at (TTL 10 phút) để dùng khi place-order.
+  *** CHƯA lock tồn kho ở bước này ***
 ```
 
----
-
-## 3. Luồng Giỏ hàng
-
-### 3.1 Thêm vào giỏ hàng
+### 4.2 Giai đoạn 2: Xác nhận đặt hàng
 
 ```
-Khách POST /cart/items  { variant_id, quantity }
-  │
-  ├── Đọc product_variant từ Redis (hoặc DB nếu cache miss):
-  │     stock_quantity, price, status, variant_attributes
-  │
-  ├── [Soft check — KHÔNG trừ tồn kho]
-  │     stock_quantity = 0 hoặc status != 'active'?
-  │       → Trả lỗi "Sản phẩm không còn hàng"
-  │
-  ├── quantity > stock_quantity?
-  │     → Trả lỗi "Chỉ còn X sản phẩm"
-  │
-  ├── UPSERT cart_item:
-  │     price_snapshot = product_variant.price (tại thời điểm này)
-  │     variant_name_snapshot = product.name + variant info
-  │     variant_image_snapshot = product_variant.image_url
-  │
-  └── Trả về cart_item mới
-```
-
-### 3.2 Mở giỏ hàng (lazy price check)
-
-```
-Khách GET /cart
-  │
-  └── Product Service
-        │
-        ├── SELECT cart_items WHERE cart_id = :id
-        │
-        ├── Với mỗi cart_item:
-        │     Đọc data product_variant hiện tại (batch query, 1 lần từ Redis/DB)
-        │     Thực hiện Lazy Evaluation:
-        │       product_variant.price != cart_item.price_snapshot? (giá thay đổi / hết sale)
-        │         → item.has_price_change = true, kèm giá mới
-        │       product_variant.stock_quantity == 0?
-        │         → item.out_of_stock = true
-        │       product_variant.status != 'active'? (ngừng bán, bị ẩn)
-        │         → item.is_unavailable = true
-        │
-        └── Trả về response cart với đầy đủ enriched data (transient states):
-            (Không ghi chép xuống DB để tránh bottleneck)
-```
-
-### 3.3 Cập nhật số lượng trong giỏ hàng
-
-```
-Khách PATCH /cart/items/:variant_id  { quantity }
-  │
-  ├── Đọc product_variant từ Redis/DB để validate tồn kho và status
-  ├── Nếu vượt tồn kho hoặc inactive → trả 409
-  └── UPDATE cart_item.quantity
-```
-
-### 3.4 Xóa item khỏi giỏ hàng
-
-```
-Khách DELETE /cart/items/:variant_id
-  │
-  └── Xóa cart_item tương ứng
-```
-
----
-
-## 4. Luồng Checkout và xử lý Concurrency
-
-### 4.1 Tổng quan 2 giai đoạn checkout (giống Shopee)
-
-```
-Giai đoạn 1: Checkout Preview
-  Khách xem lại đơn hàng, chọn địa chỉ
-  → KHÔNG lock tồn kho
-  → Validate lại số lượng (soft check) để cảnh báo nếu hết hàng
-
-Giai đoạn 2: Đặt hàng (bấm "Đặt hàng")
+Khách bấm "Đặt hàng":
   → Bắt đầu lock tồn kho (tạo stock_reservation)
   → Xử lý payment
-  → Confirm hoặc release reservation
-```
 
-### 4.2 Luồng Checkout Preview
+Nếu preview_token hết hạn:
+  → API trả 409 preview_expired
+  → FE chuyển về giỏ hàng và yêu cầu preview lại
 
-```
-Khách POST /checkout/preview  { cart_item_ids[] }
-  │
-  └── Product Service
-        │
-        ├── Batch load tất cả product_variant liên quan
-  ├── Check preview session:
-  │     Nếu tồn tại `checkout_preview:{customer_id}`
-  │       → Trả 409: preview_in_use
-  ├── Validate từng item (Bắt chặn thay đổi do nán lại giỏ hàng):
-            │     Khách bấm Checkout nhưng nán lại Cart quá lâu nên giá/stock thay đổi?
-            │     Check:
-            │       product_variant.status != 'active' HOẶC product_variant.stock_quantity == 0
-            │         → Error: Có sản phẩm hết hàng hoặc ngừng bán.
-            │       product_variant.stock_quantity < cart_item.quantity
-            │         → Error: Sản phẩm không còn đủ số lượng.
-            │       product_variant.price != cart_item.price_snapshot
-            │         → Error: Có sản phẩm thay đổi giá hoặc hết Flash Sale.
-            │
-            │     Nếu BẤT KỲ check nào fail:
-            │       → Trả HTTP 409 Conflict/Error kèm JSON mô tả item lỗi.
-            │       FRONTEND BẮT BUỘC RELOAD LẠI GIỎ HÀNG để khách xem lại thông báo. (Khách update snapshot thì mới qua bước này).
-            │
-            └── Nếu MỌI YÊU CẦU đều PASS (Data real-time matching perfect):
-                  Tạo preview token + TTL 10 phút:
-                    SET checkout_preview:{customer_id} = {preview_token} EX 600
-                  Trả về preview_token + expires_at
-                  Cho phép trả về Preview order với giá mới. Khách có thể đi tiếp sang bước Đặt Hàng.
-```
+Trong thời gian chờ payment (tối đa 15 phút):
+  Hiển thị màn hình chờ hoặc redirect sang cổng thanh toán
+  stock_reservation.status = 'pending'
+  Tồn kho đã được trừ trong Redis và DB
 
-### 4.2.1 Hủy preview (giải phóng session)
+Payment thành công:
+  → stock_reservation.status = 'confirmed'
+  → Điều hướng sang trang "Đặt hàng thành công"
 
-```
-Khách DELETE /checkout/preview
-  │
-  └── DEL checkout_preview:{customer_id}
-```
-
-### 4.3 Luồng Đặt hàng — xử lý concurrency 2 lớp
-
-```
-Khách POST /checkout/place-order  { items[], payment_method, address_id, preview_token }
-  │
-  ├── Validate preview_token:
-  │     checkout_preview:{customer_id} không tồn tại hoặc token không khớp?
-  │       → Trả lỗi 409: preview_expired
-  │
-  ├── Re-validate tất cả items (status/stock/price) trước khi lock
-  │     Sai lệch → Trả lỗi 409 + danh sách item lỗi
-  │
-  ├── [LỚP 1 — Redis Atomic, xử lý nhanh, loại bỏ request thừa sớm]
-  │     Với mỗi product_variant trong order:
-  │       result = Redis DECRBY stock:{variant_id} quantity
-  │       result < 0?
-  │         → Redis INCRBY stock:{variant_id} quantity  (hoàn trả)
-  │         → Rollback toàn bộ DECRBY đã thực hiện
-  │         → Trả lỗi 409: "Sản phẩm X vừa hết hàng"
-  │
-  ├── [LỚP 2 — DB Optimistic Lock, đảm bảo tính toàn vẹn]
-  │     BEGIN TRANSACTION
-  │       Với mỗi product_variant:
-  │         UPDATE product_variant
-  │         SET stock_quantity = stock_quantity - :qty,
-  │             version = version + 1
-  │         WHERE id = :variant_id
-  │           AND stock_quantity >= :qty
-  │           AND version = :expected_version
-  │         → rows_affected = 0?
-  │             → ROLLBACK
-  │             → Redis INCRBY (hoàn trả)
-  │             → Trả lỗi 409 (conflict hoặc hết hàng thật)
-  │
-  │       INSERT stock_reservation (status='pending', expires_at=NOW()+15min)
-  │     COMMIT
-  │
-  ├── Gọi Order Service [Sync] để tạo order và tiến hành payment
-  │
-  ├── Order Service xử lý payment (async)
-  │     → Emit Kafka: order.confirmed / order.failed
-  │
-  ├── [Consume order.confirmed]
-  │     UPDATE stock_reservation SET status = 'confirmed'
-  │
-  └── [Consume order.failed]
-        UPDATE stock_reservation SET status = 'released'
-        Redis INCRBY stock:{variant_id} quantity  (hoàn trả)
-        Async → Notification Service báo khách
-
-  └── Xóa preview key: DEL checkout_preview:{customer_id}
-```
-
-### 4.4 Job cleanup reservation hết hạn
-
-```
-Scheduler chạy mỗi 1 phút:
-  SELECT * FROM stock_reservation
-  WHERE status = 'pending' AND expires_at < NOW()
-
-  Với mỗi reservation hết hạn:
-    BEGIN TRANSACTION
-      UPDATE stock_reservation SET status = 'released'
-      -- Do tồn kho đã bị trừ thẳng ở bảng product_variant lúc đặt hàng (Lớp 2),
-      -- nên khi đơn bị hủy/quá hạn, ta bắt buộc phải cộng hoàn trả lại:
-      UPDATE product_variant SET stock_quantity = stock_quantity + quantity
-                   WHERE id = variant_id
-
-      -- Phục hồi trạng thái Product nếu trước đó vì đơn này mà bị đánh dấu hiển thị hết hàng
-      UPDATE product SET status = 'active'
-                   WHERE id = (SELECT product_id FROM product_variant WHERE id = variant_id)
-                   AND status = 'out_of_stock'
-
-      Redis INCRBY stock:{variant_id} quantity
-    COMMIT
-
-### 4.5 Job đồng bộ tồn kho DB sang Redis (Self-healing & Cold Data)
-
-Để phòng hờ trường hợp hệ thống sập gây "mất tồn kho ảo" (Microservice crash lúc vừa trừ DECRBY xong nhưng chưa lưu log vào DB), hệ thống áp dụng cơ chế Self-healing lấy Database làm Source of Truth:
-
-```
-Scheduler chạy mỗi 5 phút (Reconciliation Job):
-  Batch load tất cả product_variant đang 'active' trên database.
-
-  Với mỗi product_variant:
-    Cập nhật đè cứng tồn kho thực lên: SET stock:{variant_id} = product_variant.stock_quantity
-    Gán TTL vòng đời cho key: EXPIRE stock:{variant_id} 3600 (1 tiếng)
-```
-
-Kiến trúc này giúp:
-- **Tự chữa lành**: Mọi sai lệch, request ma kẹt trong Redis sẽ bị "ủi phẳng" và sửa sai cứ điều đặn sau 5 phút, giữ tỉ lệ Oversell/Memory leak ở mức 0.
-- **Chống tràn RAM (OOM)**: Với TTL 1 tiếng, thiết kế tự thu gọn tiết kiệm RAM cho máy chủ Redis khi tự động dọn dẹp các key `stock` của các sản phẩm ế, "nhường" tài nguyên cho Flash sale.
+Payment thất bại:
+  → stock_reservation.status = 'released'
+  → Tồn kho hoàn trả
+  → Hiển thị thông báo lỗi, cho phép thử lại hoặc chọn phương thức khác
 ```
 
 ---
 
-## 5. Luồng đồng bộ sang Search Service
+## 6. Tóm tắt logic hiển thị ảnh theo context
 
-```
-Mỗi khi có thay đổi quan trọng trong Product Service:
-  → Publish event lên Kafka
-
-Search Service consume và cập nhật Elasticsearch:
-
-Event: product.created / product.updated
-  → Upsert document theo product_variant-first pattern
-  → Mỗi product_variant của product = 1 document riêng trong ES
-
-Event: variant.price_updated
-  → Update document của variant đó: price, original_price
-  → Update min_price của các variant khác trong product nếu cần
-
-Event: variant.stock_updated
-  → Update stock_status: 'in_stock' | 'out_of_stock'
-
-Event: product.inactive
-  → Delete hoặc mark is_active=false tất cả document của product đó
-```
-
----
-
-## 7. Tóm tắt — Ai gọi Product Service vs Search Service
-
-| Hành động | Service xử lý | Lý do |
+| Context | Nguồn ảnh | Logic |
 |---|---|---|
-| Trang chủ, browse, gợi ý | Search Service | Cần scoring, aggregation nhanh |
-| Tìm kiếm, lọc kết quả | Search Service | Full-text, facets |
-| Trang Product Detail | Product Service | Cần data đầy đủ, chính xác, real-time |
-| Seller tạo/sửa sản phẩm | Product Service | Write operation |
-| Thêm vào giỏ hàng | Product Service | Cần validate tồn kho real-time |
-| Checkout Preview | Product Service | Validate giá và tồn kho |
-| Đặt hàng | Product Service | Lock tồn kho, tạo reservation |
+| Card trang chủ / listing | `product_image` | `variant_id IS NULL AND sort_order = MIN` |
+| Product Detail — gallery mặc định | `product_image` | `variant_id IS NULL ORDER BY sort_order` |
+| Product Detail — sau khi chọn màu | `product_image` | `variant_id = selected_variant_id`, fallback về product images nếu không có |
+| Cart item | `cart_item.variant_image_snapshot` | Snapshot lưu lại, không phụ thuộc product còn tồn tại không |
