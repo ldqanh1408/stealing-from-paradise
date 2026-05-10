@@ -1,0 +1,89 @@
+openapi: "3.0.3"
+info:
+  title: Product Service - Public Category Listing
+  description: |
+    Public endpoint lấy danh sách tất cả danh mục sản phẩm.
+    Base URL: `/api/v1`
+    Service: product-service (Port 8090)
+  version: "5.4.0"
+
+servers:
+  - url: https://api.marketplace.vn/api/v1
+    description: Production
+  - url: http://localhost:8090/api/v1
+    description: Local development
+
+paths:
+  /categories:
+    get:
+      operationId: getAllCategories
+      summary: Lấy danh sách tất cả danh mục
+      description: |
+        Trả về toàn bộ cây danh mục sản phẩm (không phân trang).
+        Endpoint công khai, không yêu cầu xác thực.
+        Dùng để hiển thị menu danh mục và breadcrumb.
+      tags: [Categories]
+      responses:
+        "200":
+          description: Danh sách danh mục
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListResponse"
+
+components:
+  schemas:
+    CategoryItem:
+      type: object
+      required: [category_id, name, slug, level]
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          maxLength: 255
+          example: "Ao Thun Nam"
+        slug:
+          type: string
+          maxLength: 255
+          example: "ao-thun-nam"
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: NULL = danh mục gốc
+          example: "507f1f77bcf86cd799439010"
+        level:
+          type: integer
+          description: Độ sâu trong cây danh mục (0 = gốc)
+          example: 2
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-14T09:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-15T10:00:00Z"
+
+    CategoryListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryItem"
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        message:
+          type: string

@@ -49,6 +49,9 @@ Generated: 2026-05-09
 | JOB-06 | 0 2 * * * | Failed events cleanup (> 30d) | FAILED_EVENTS |
 | JOB-12 | 0 3 * * * | ShedLock stale lock cleanup | SHEDLOCK |
 | JOB-15 | 0 */1 * * * | Nullify expired Stripe onboarding URLs (> 24h) | SELLER_STRIPE_ACCOUNTS |
+| **JOB-23** | **0 */5 * * * * (every 5 min)** | **PayoutScheduler — process seller payouts after return window expiry (batch 100)** | **SELLER_TRANSFERS** |
+
+> **⚠️ AUDIT NOTE (2026-05-10):** Java source audit reveals only JOB-23 (PayoutScheduler) has an actual `@Scheduled` annotation in the codebase. The other 14 jobs (JOB-01 through JOB-22) have NO corresponding `@Scheduled` in Java. They may be implemented via external scheduling (K8s CronJob, separate scheduler service) or are not yet implemented. See CONTRADICTIONS.md #19, #33, #34.
 
 #### notification-service (:8092)
 

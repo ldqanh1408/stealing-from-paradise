@@ -1,0 +1,109 @@
+openapi: "3.0.3"
+info:
+  title: Identity Service - POST /admin/users/{userId}/lock
+  description: Admin lock a user account
+  version: "5.4"
+servers:
+  - url: http://localhost:8081/api/v1
+    description: Identity Service (local)
+paths:
+  /admin/users/{userId}/lock:
+    post:
+      operationId: lockUser
+      summary: Khóa tài khoản người dùng
+      description: >
+        Locks a user account by an admin. Requires ADMIN role.
+        Locked accounts cannot authenticate or perform any action.
+        Referenced by UC-IDENTITY-006, FR-IDENTITY-013, BR-IDENTITY-003.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID to lock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  description: Reason for locking the account
+              example:
+                reason: "Violation of terms of service"
+      responses:
+        "200":
+          description: User account locked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+              example:
+                success: true
+                message: "User account locked successfully"
+        "400":
+          description: Validation failure (reason missing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden, requires ADMIN role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: User account already locked (ALREADY_LOCKED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "ALREADY_LOCKED"
+                message: "User account is already locked"
+                status_code: 409
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        status_code:
+          type: integer

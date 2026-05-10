@@ -9,11 +9,11 @@
 ## 1. Database Schema Contradictions
 
 ### 1.1 Product Review Workflow
-| Old Docs | DB Truth | New Docs |
+| Old Docs | DB Truth (pre-v3) | New Docs |
 |----------|----------|-----------|
-| `03_BUSINESS.md`, `07_BUSINESS_FLOWS.md`: product status PENDING → APPROVED/REJECTED (admin review) | `active` / `out_of_stock` / `inactive` | Aligns with DB |
+| `03_BUSINESS.md`, `07_BUSINESS_FLOWS.md`: product status PENDING → APPROVED/REJECTED (admin review) | `active` / `out_of_stock` / `inactive` | **2026-05-10 v3 (re-activated, P3-11 APPROVED & applied)**: Admin product review workflow đã được đưa lại MVP. Status enum mở rộng thành 7 giá trị (`draft / pending / approved / rejected / active / out_of_stock / inactive`), thêm `reject_reason / reviewed_at / reviewed_by / reject_count` (xem `database-entities.md` §3 + `DB_SCHEMA_CHANGE_PROPOSAL.md` §P3-11). Tài liệu liên quan: BR-PRODUCT-009, UC-PRODUCT-012..015, state-product.md, 4 YAML admin product (v5.5.0), 3 Kafka topics (`product.pending_review` / `.approved` / `.rejected`). |
 
-**Verdict:** Old docs describe admin product review flow that doesn't exist in DB. **Old docs are outdated.**
+**Verdict (updated 2026-05-10 v3):** Old docs đã trở lại đúng — admin review workflow nay là một phần của MVP. DB schema sẽ được bổ sung qua P3-11. Note "PENDING không tồn tại trong DB" trước đây không còn áp dụng sau khi P3-11 được duyệt.
 
 ### 1.2 Flash Sale Items Fields
 | Old Docs | DB Truth | New Docs |
@@ -22,14 +22,14 @@
 
 **Verdict:** Old docs describe complex FS_ITEMS. DB has simplified model. **Old docs are outdated.**
 
-### 1.3 MongoDB → PostgreSQL Migration
+### 1.3 MongoDB vs PostgreSQL (product-service)
 | Old Docs | DB Truth |
 |----------|----------|
-| `MG_PRODUCTS`, `MG_INVENTORIES`, `MG_CART_ITEMS` (MongoDB) | PostgreSQL: `PRODUCT`, `PRODUCT_VARIANT`, `CART`, `CART_ITEM` |
-| `MG_IMAGES` bridge table | `PRODUCT_IMAGE.url` text column |
-| product_service DB: MongoDB | PostgreSQL (only notification-service uses MongoDB) |
+| `MG_PRODUCTS`, `MG_INVENTORIES`, `MG_CART_ITEMS` (MongoDB) | MongoDB: `mg_products`, `mg_product_variants`, `mg_carts`, `mg_cart_items` |
+| `MG_IMAGES` bridge table | `mg_product_images` collection with `url` field |
+| product_service DB: MongoDB | MongoDB (product-service and notification-service both use MongoDB) |
 
-**Verdict:** Old docs predate catalog+cart migration from MongoDB to PostgreSQL. **Old docs are outdated.**
+**Verdict:** Old docs were CORRECT (MongoDB). New docs (`documents/`) previously incorrectly described a PostgreSQL migration. **New docs have been updated to reflect MongoDB reality.**
 
 ### 1.4 Field Name Errors
 | Old Docs | DB Truth |
@@ -58,7 +58,7 @@
 ### 2.2 Seller Cancellation
 | Old (`03_BUSINESS.md`) | New Original | Fixed |
 |------------------------|-------------|-------|
-| "SELLER cancel removed in MVP" | SELLER can cancel | BR-ORDER-021 updated: "removed in MVP" |
+| "SELLER cancel removed in MVP" | SELLER can cancel | **2026-05-10 v3 (re-activated)**: BR-ORDER-021 now permits SELLER cancel for `status = PAID` AND `tracking_number IS NULL` only. After SHIPPING must use RTS. New BR-ORDER-026 + UC-ORDER-008 + Kafka topic `seller.order_cancelled` re-added. |
 
 ---
 
@@ -93,7 +93,7 @@
 | `flash_sale.item_sold` | `flash_sale.item_purchased` |
 
 ### 4.2 Obsolete Events (should not exist anymore)
-- `product.pending_review` — no admin review workflow in DB
+- ~~`product.pending_review` — no admin review workflow in DB~~ → **2026-05-10 v3: re-activated** (admin review workflow đưa lại MVP; P3-11 APPROVED & applied to `database-entities.md`)
 - `flash_sale.item_approved` — no item approval in DB
 - `flash_sale.item_rejected` — no item rejection in DB
 
@@ -151,30 +151,42 @@
 
 | # | Category | Contradiction | Severity | Resolution |
 |---|----------|--------------|----------|------------|
-| 1 | DB Schema | Product review workflow doesn't exist in DB | HIGH | Old docs outdated |
+| 1 | DB Schema | Product review workflow doesn't exist in DB | HIGH | **2026-05-10 v3 (P3-11 APPROVED & applied)**: Re-activated. Schema mở rộng qua P3-11 (status enum 7 giá trị + 4 review columns: `reject_reason` + `reviewed_at` + `reviewed_by` + `reject_count`). BR-PRODUCT-009 + UC-PRODUCT-012..015 + state-product.md (7 states). |
 | 2 | DB Schema | FS_ITEMS simplified (no flash_price/status) | HIGH | Old docs outdated |
-| 3 | DB Schema | MongoDB → PostgreSQL migration | HIGH | Old docs outdated |
+| 3 | DB Schema | MongoDB vs PostgreSQL (product-service) | HIGH | Old docs CORRECT (MongoDB); new docs updated to match |
 | 4 | DB Schema | tracking_number → return_tracking_number | MEDIUM | Fixed: BR-PAYMENT-025 |
 | 5 | DB Schema | FS_ITEMS.sku_code → product_id | MEDIUM | Documented |
 | 6 | DB Schema | seller_id INT → UUID | LOW | Documented |
 | 7 | DB Schema | tier_name → variant_name + JSONB | LOW | Documented |
 | 8 | DB Schema | PENDING vs PENDING_PAYMENT naming | LOW | Minor drift |
 | 9 | Business | Buyer cancel from PAID allowed | MEDIUM | Fixed: BR-ORDER-011 |
-| 10 | Business | Seller cancel removed in MVP | MEDIUM | Fixed: BR-ORDER-021 |
+| 10 | Business | Seller cancel removed in MVP | MEDIUM | **2026-05-10 v3**: Re-activated. BR-ORDER-021 + new BR-ORDER-026 + UC-ORDER-008. Scope: PAID before shipping only. |
 | 11 | Architecture | worker-service → chat-service migration | HIGH | Documented + updated |
 | 12 | Architecture | Cart port :8083 → product-service :8090 | MEDIUM | Documented |
 | 13 | Architecture | Outbox/DLQ ownership transfer | MEDIUM | Documented |
 | 14 | Architecture | ARCHITECTURE_MAP self-contradiction | LOW | Documented |
 | 15 | Kafka | flash_sale.item_sold → item_purchased | MEDIUM | Documented |
-| 16 | Kafka | product.pending_review obsolete | LOW | Documented |
+| 16 | Kafka | product.pending_review obsolete | LOW | **2026-05-10 v3**: Re-activated together with `product.approved` / `product.rejected` — admin review workflow back in MVP. |
 | 17 | Kafka | flash_sale.item_approved/rejected obsolete | LOW | Documented |
 | 18 | Kafka | JOB-01 cron → Redis ZSET worker | MEDIUM | Documented |
-| 19 | Cronjob | 12 of 17 schedules differ | **CRITICAL** | Reconcile from source |
-| 20 | Cronjob | Description drift (7 jobs) | MEDIUM | Reconcile from source |
+| 19 | Cronjob | 12 of 17 schedules differ | **CRITICAL** | 2026-05-10: Source audit — 14/15 jobs have NO @Scheduled annotation. Only PayoutScheduler exists in Java. 14 jobs unimplemented or use external scheduler (K8s CronJob, etc.) |
+| 20 | Cronjob | Description drift (7 jobs) | MEDIUM | 2026-05-10: Unverified — no implementation to compare against |
 | 21 | Retention | Notifications: 90d vs 30d | MEDIUM | Reconcile from source |
 | 22 | Retention | Failed events: lost DEAD tier | LOW | Documented |
 | 23 | Retention | Outbox events: lost FAILED tier | LOW | Documented |
+| 24 | Data Model | entity-user: `role`, `version` in doc but NOT in Java; phone constraints differ | HIGH | Fixed 2026-05-10: removed role, version; corrected phone nullable |
+| 25 | Data Model | entity-order: `net_payout_amount`, `carrier`, `paid_at`, `return_window_end`, `shipped_at`, `delivered_at` in doc but NOT in Java | HIGH | Fixed 2026-05-10: removed 6 phantom fields; added isFlashSale, version |
+| 26 | Data Model | entity-order-item: `variant_id` doc says UUID, Java is VARCHAR(100); `refunded_quantity` missing from doc | MEDIUM | Fixed 2026-05-10: corrected type, added refunded_quantity |
+| 27 | Data Model | entity-parent-order: `session_id`, `status` in doc but NOT in Java (very simple entity) | MEDIUM | Fixed 2026-05-10: removed phantom fields |
+| 28 | Data Model | entity-refund: `user_id` in Java (20 fields) but missing from doc (19 fields) | MEDIUM | Fixed 2026-05-10: added userId, updated full schema |
+| 29 | Data Model | entity-refund-item: field names mismatch — `itemReason` vs `reason`, `returnEvidenceImages` vs `evidence_images`; no `reject_reason`, `reviewed_at`, `carrier` in Java | MEDIUM | Fixed 2026-05-10: aligned field names to Java source |
+| 30 | Data Model | entity-seller-transfer: `transaction_id`, `refunded_amount`, `net_payout_amount` in doc but NOT in Java | MEDIUM | Fixed 2026-05-10: removed phantom fields, added platform_commission_amount, payout_at |
+| 31 | API Contract | 18 missing YAML files across all services (coverage: 78%, up from 42%) | MEDIUM | Documented 2026-05-10: improved from 35 to 65 YAMLs, 18 endpoints still need YAML |
+| 32 | API Contract | flashsale, ai-chat, notification, search: YAML files exist but no backend controllers implemented | LOW | YAML ahead of implementation |
+| 33 | Cronjob | NEW undocumented job: PayoutScheduler (@Scheduled 0 */5 * * * * in payment-service) | MEDIUM | 2026-05-10: Discovered during source audit. Assign JOB-23, add to CRONJOBS.md |
+| 34 | Cronjob | 14/15 documented jobs NOT_FOUND in Java source — only PayoutScheduler has @Scheduled | **CRITICAL** | 2026-05-10: Exhaustive grep across all Java files. Only @Scheduled is PayoutScheduler. 14 jobs have zero code. |
+| 35 | Cronjob | ShedLock claim not implemented — only @Scheduled (PayoutScheduler) has no @SchedulerLock | LOW | 2026-05-10: Docs claim ShedLock but real code doesn't use it |
 
 ---
 
-*Generated: 2026-05-10 | Files audited: 33 old docs vs 164 new docs*
+*Generated: 2026-05-10 | Updated: 2026-05-10 | 220 files (155 .md + 65 .yaml) | 12 Java entities verified | 15 cronjobs audited | API coverage: 78% | Operations: 100% (12 files) | All 10 categories: 100% service coverage*

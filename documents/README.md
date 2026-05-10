@@ -1,7 +1,12 @@
 # Stealing-from-Paradise — Micro-Documentation
 **Source of Truth:** database-entities.md (unchanged)
-**Generated:** 2026-05-09
+**Generated:** 2026-05-10
 **Format:** Micro-documentation — one file per concept
+
+> **MVP planning (2026-05-10):**
+> - [`MVP_ANALYSIS.md`](./MVP_ANALYSIS.md) — Phân tích gap API/Event/Data-model cho MVP.
+> - [`DB_SCHEMA_CHANGE_PROPOSAL.md`](./DB_SCHEMA_CHANGE_PROPOSAL.md) — Đề xuất sửa `database-entities.md` (chờ duyệt).
+> - [`CONTRADICTIONS.md`](./CONTRADICTIONS.md) — Mâu thuẫn đã ghi nhận.
 
 ## Directory Map
 
@@ -9,11 +14,40 @@
 documents/
 ├── README.md                          ← You are here
 ├── overview/
-│   └── ARCHITECTURE.md                System architecture, services, tech stack
+│   ├── ARCHITECTURE.md                System architecture, services, tech stack
+│   ├── FLOWS.md                       Cross-service flow diagrams
+│   ├── identity-service/              Service architecture overview
+│   ├── product-service/               Service architecture overview
+│   ├── flashsale-service/             Service architecture overview
+│   ├── order-service/                 Service architecture overview
+│   ├── payment-service/               Service architecture overview
+│   ├── notification-service/          Service architecture overview
+│   ├── search-service/                Service architecture overview
+│   └── ai-chat-service/               Service architecture overview
 ├── messaging/
-│   └── KAFKA_CATALOG.md               47 Kafka topics, event flows, request-reply
+│   ├── KAFKA_CATALOG.md               47 Kafka topics, event flows, request-reply
+│   ├── KAFKA_REQUEST_REPLY.md         Request-reply patterns
+│   ├── identity-service/              KAFKA_EVENTS.md
+│   ├── product-service/               KAFKA_EVENTS.md
+│   ├── flashsale-service/             KAFKA_EVENTS.md
+│   ├── order-service/                 KAFKA_EVENTS.md
+│   ├── payment-service/               KAFKA_EVENTS.md
+│   ├── notification-service/          KAFKA_EVENTS.md
+│   ├── search-service/                KAFKA_EVENTS.md
+│   └── ai-chat-service/               KAFKA_EVENTS.md
 ├── operations/
-│   └── CRONJOBS.md                    17 cronjobs, retention policies
+│   ├── CRONJOBS.md                    17 cronjobs + JOB-23 (audited 2026-05-10)
+│   ├── API_URLS.md                    Complete API URL reference
+│   ├── ENVIRONMENT_VARIABLES.md       Environment variables for all services
+│   ├── RUNNING_GUIDE.md              How to run the platform
+│   ├── identity-service/             OPERATIONS.md
+│   ├── product-service/              OPERATIONS.md
+│   ├── flashsale-service/            OPERATIONS.md
+│   ├── order-service/                OPERATIONS.md
+│   ├── payment-service/              OPERATIONS.md
+│   ├── notification-service/         OPERATIONS.md
+│   ├── search-service/               OPERATIONS.md
+│   └── ai-chat-service/              OPERATIONS.md
 ├── data-models/
 │   ├── identity-service/              entity-user, entity-role, entity-customer, entity-seller, entity-admin, entity-address
 │   ├── product-service/               entity-category, entity-product, entity-product-variant, entity-product-image, entity-stock-reservation, entity-cart, entity-cart-item
@@ -34,7 +68,7 @@ documents/
 │   └── ai-chat-service/               br-ai-chat.md
 ├── srs/fr/
 │   ├── identity-service/              fr-auth.md
-│   ├── product-service/               fr-catalog.md, fr-cart.md
+│   ├── product-service/               fr-catalog.md, fr-cart.md, fr-product-ui.md
 │   ├── flashsale-service/             fr-flash-sale.md
 │   ├── order-service/                 fr-order.md
 │   ├── payment-service/               fr-payment.md
@@ -51,14 +85,14 @@ documents/
 │   ├── search-service/                uc-001 through uc-003
 │   └── ai-chat-service/               uc-001 through uc-003
 ├── api-contracts/
-│   ├── identity-service/              api-post-auth-register.yaml, api-post-auth-login.yaml, api-get-addresses.yaml
-│   ├── product-service/               api-get-products.yaml, api-post-products.yaml, api-get-cart.yaml, api-post-cart-items.yaml, api-post-variants.yaml
-│   ├── flashsale-service/             api-post-flash-sales.yaml, api-get-flash-sales.yaml, api-post-flash-sales-buy.yaml
-│   ├── order-service/                 api-post-orders-checkout.yaml, api-get-orders.yaml, api-put-orders-ship.yaml, api-post-orders-return.yaml
-│   ├── payment-service/               api-post-stripe-onboarding-start.yaml, api-post-stripe-webhook.yaml, api-post-refunds.yaml, api-put-refunds-approve.yaml
-│   ├── notification-service/          api-get-notifications.yaml, api-put-notifications-read.yaml
-│   ├── search-service/                api-get-search.yaml
-│   └── ai-chat-service/               api-post-chat-messages.yaml
+│   ├── identity-service/              14 YAML files (auth, users, addresses)
+│   ├── product-service/               8 YAML files (products, variants, categories, cart, inventory)
+│   ├── flashsale-service/             3 YAML files (sessions, buy)
+│   ├── order-service/                 18 YAML files (orders, checkout, refunds, returns, seller dashboard)
+│   ├── payment-service/               12 YAML files (stripe onboarding, payments, refunds, admin)
+│   ├── notification-service/          2 YAML files (notifications, read)
+│   ├── search-service/                1 YAML file (search)
+│   └── ai-chat-service/               1 YAML file (chat messages)
 ├── state-diagrams/
 │   ├── identity-service/              state-user.md
 │   ├── product-service/               state-product.md, state-stock-reservation.md, state-cart.md
@@ -95,8 +129,8 @@ documents/
 | Table Group | Service | Tables |
 |-------------|---------|--------|
 | identity | identity-service | users, roles, customers, sellers, admins, addresses |
-| catalog | product-service | category, product, product_variant, product_image, stock_reservation |
-| cart | product-service | cart, cart_item |
+| catalog | product-service | mg_categories, mg_products, mg_product_variants, mg_product_images, mg_stock_reservations (MongoDB) |
+| cart | product-service | mg_carts, mg_cart_items (MongoDB) |
 | flash_sale | flashsale-service | fs_sessions, fs_items, fs_reminders |
 | orders | order-service | parent_orders, orders, order_items |
 | payments | payment-service | seller_stripe_accounts, transactions, seller_transfers, refunds, refund_items |

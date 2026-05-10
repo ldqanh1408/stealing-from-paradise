@@ -1,8 +1,8 @@
-# BR-ORDER-010 to BR-ORDER-025: Order Lifecycle Business Rules
+# BR-ORDER-010 to BR-ORDER-026: Order Lifecycle Business Rules
 
-**Stable IDs:** BR-ORDER-010 through BR-ORDER-025
+**Stable IDs:** BR-ORDER-010 through BR-ORDER-026
 **Domain:** Order Lifecycle (8-state transitions)
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-10 (BR-ORDER-021 reactivated SELLER cancel; added BR-ORDER-026)
 
 ---
 
@@ -51,21 +51,23 @@ CANCELLED (terminal for PENDING/PAID)                              │
 
 **Rule:** Order can be cancelled from PENDING or PAID status (PAID cancellation only before seller ships).
 
-| Actor | BUYER |
-|-------|-------|
+| Actor | BUYER hoặc SELLER |
+|-------|-------------------|
 | Trigger | POST /orders/{id}/cancel |
-| Precondition | `orders.status IN (PENDING, PAID)` AND user is the order customer |
-| Postcondition | `orders.status = CANCELLED`, `cancelled_by = BUYER`, `cancel_reason = {reason}` |
-| Side Effect | Stock released via `inventory.adjusted`, `order.cancelled` Kafka event |
+| Precondition (BUYER) | `orders.status IN (PENDING, PAID)` AND user is the order customer |
+| Precondition (SELLER) | `orders.status = PAID` AND user is the order seller (BR-ORDER-021) |
+| Postcondition | `orders.status = CANCELLED`, `cancelled_by = BUYER\|SELLER`, `cancel_reason = {reason}` |
+| Side Effect | Stock released via `inventory.adjusted`, `order.cancelled` Kafka event; nếu SELLER hủy thêm `seller.order_cancelled` (BR-ORDER-026) |
 
-**Kafka Event Produced:** `order.cancelled`
+**Kafka Event Produced:** `order.cancelled` (luôn); `seller.order_cancelled` (khi `cancelled_by = SELLER`).
 
 **Error:**
 | Status | Condition |
 |--------|-----------|
 | 409 | Order not in PENDING or PAID status |
 | 409 | Order is PAID and seller has already shipped (SHIPPING or beyond) |
-| 403 | User not the order owner |
+| 409 | SELLER cố hủy đơn ở trạng thái PENDING (chỉ BUYER mới hủy được PENDING) |
+| 403 | User not the order owner (không phải buyer cũng không phải seller) |
 
 ---
 
@@ -229,10 +231,14 @@ CANCELLED (terminal for PENDING/PAID)                              │
 | Cancelled By | Allowed | Condition |
 |-------------|---------|-----------|
 | BUYER | Yes | `orders.status IN (PENDING, PAID)` AND user is customer AND seller has not shipped |
-| SELLER | No | Seller cancellation removed in MVP |
-| SYSTEM | Yes | Payment timeout (JOB-13) or shipping deadline exceeded |
+| SELLER | Yes | `orders.status = PAID` AND user is the order's seller (BR-ORDER-026) |
+| SYSTEM | Yes | Payment timeout (JOB-13/JOB-22) hoặc shipping deadline exceeded |
 
-**Note:** Old docs (03_BUSINESS.md v5.5) state SELLER cancellation was "removed in MVP." This is the canonical rule.
+**Forbidden cases:**
+- SELLER không được hủy đơn ở `PENDING` (đơn chưa thanh toán — buyer tự hủy hoặc system auto-cancel).
+- SELLER không được hủy đơn ở `SHIPPING` hoặc sau đó — phải dùng RTS (BR-ORDER-016).
+
+**Note:** Cập nhật 2026-05-10: SELLER cancellation đã được **đưa lại MVP** (override quyết định trước đây). Use case xem UC-ORDER-008.
 
 ---
 
@@ -285,12 +291,48 @@ CANCELLED (terminal for PENDING/PAID)                              │
 
 ---
 
+## BR-ORDER-026: Seller Cancel Order (PAID, before SHIPPING)
+
+**Rule:** Khi seller không thể fulfill đơn đã thanh toán, có thể hủy với lý do; system tự refund toàn bộ và release tồn kho.
+
+| Actor | SELLER |
+|-------|--------|
+| Trigger | POST /orders/{id}/cancel với `reason` (bắt buộc) |
+| Precondition | `orders.status = PAID` AND `seller_id = current_user` AND `tracking_number IS NULL` (chưa ship) |
+| Postcondition | `orders.status = CANCELLED`, `cancelled_by = SELLER`, `cancel_reason = {reason}` |
+| Side Effect 1 | Emit `order.cancelled` (Product Service release stock; Identity audit) |
+| Side Effect 2 | Emit `seller.order_cancelled` (Payment Service trigger full refund; Notification gửi buyer) |
+| Side Effect 3 | Tăng counter `seller_cancel_count` của seller (để Admin theo dõi seller bị hủy nhiều) — *tracking outside DB scope, MVP không bắt buộc* |
+
+**Refund chain:**
+- `seller.order_cancelled` → Payment Service tạo full refund tự động (không cần admin duyệt) — `refund.type = FULL`, `reason = SELLER_CANCEL`.
+- Khi Stripe refund hoàn tất, Payment Service emit `refund.rts_completed`-tương đương để Order Service cập nhật `orders.status = REFUNDED` (giữ trạng thái CANCELLED nếu đã ở đó — tùy implementation, *clarify in code*).
+
+**Required Inputs:**
+| Field | Type | Required | Note |
+|-------|------|----------|------|
+| `reason` | string | Yes | min 10 chars (e.g. "Hết hàng do seller", "Sai mô tả") |
+| `note` | string | No | ≤1000 chars |
+
+**Error:**
+| Status | Condition |
+|--------|-----------|
+| 409 | Order not in PAID status |
+| 409 | `tracking_number` đã set (đã ship — phải dùng RTS) |
+| 403 | Not the order's seller |
+| 422 | `reason` thiếu hoặc quá ngắn |
+
+**Notification:** NOTIF-ORDER-CANCELLED-BY-SELLER (xem br-notification.md).
+
+---
+
 ## Cross-References
 
 - **ENTITY-ORDER-001:** [PARENT_ORDERS](../../data-models/order-service/entity-parent-order.md)
 - **ENTITY-ORDER-002:** [ORDERS](../../data-models/order-service/entity-order.md)
 - **BR:** [br-checkout.md](br-checkout.md)
 - **UC-003:** [uc-003-cancel-order.md](../../use-cases/order-service/uc-003-cancel-order.md)
+- **UC-008:** [uc-008-seller-cancel-order.md](../../use-cases/order-service/uc-008-seller-cancel-order.md)
 - **UC-004:** [uc-004-ship-order.md](../../use-cases/order-service/uc-004-ship-order.md)
 - **UC-005:** [uc-005-confirm-delivery.md](../../use-cases/order-service/uc-005-confirm-delivery.md)
 - **UC-006:** [uc-006-request-return.md](../../use-cases/order-service/uc-006-request-return.md)

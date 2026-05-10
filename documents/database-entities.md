@@ -1,4 +1,4 @@
-# E-Commerce Database Schema (Cập nhật 2026-05-09)
+# E-Commerce Database Schema (Cập nhật 2026-05-10)
 
 ## Mục lục
 1. [Media & Images](#1-media--images)
@@ -124,20 +124,28 @@ Danh mục đa cấp – tự tham chiếu.
 
 ### PRODUCT
 
-| Cột          | Kiểu      | Ghi chú |
-|--------------|-----------|---------|
-| `id`         | UUID      | PK |
-| `category_id`| UUID      | FK → category.id |
-| `seller_id`  | UUID      | (không FK cứng) |
-| `name`       | VARCHAR(500) | |
-| `slug`       | VARCHAR(500) | UNIQUE |
-| `description`| TEXT      | Rich text / HTML |
-| `attributes` | JSONB     | Thuộc tính dạng key-value |
-| `status`     | VARCHAR(50) | active / out_of_stock / inactive |
-| `created_at` | TIMESTAMP | |
-| `updated_at` | TIMESTAMP | |
+> **2026-05-10 (P3-11 applied)**: Status enum mở rộng thành 7 giá trị, bổ sung 4 cột admin review (`reject_reason`, `reviewed_at`, `reviewed_by`, `reject_count`), thêm partial index `idx_products_status_pending`. Xem `DB_SCHEMA_CHANGE_PROPOSAL.md §P3-11`.
 
-**Index:** idx_product_category, idx_product_seller, idx_product_status, idx_product_slug, GIN on attributes
+| Cột           | Kiểu          | Ghi chú |
+|---------------|---------------|---------|
+| `id`          | UUID          | PK |
+| `category_id` | UUID          | FK → category.id |
+| `seller_id`   | UUID          | (không FK cứng) |
+| `name`        | VARCHAR(500)  | |
+| `slug`        | VARCHAR(500)  | UNIQUE |
+| `description` | TEXT          | Rich text / HTML |
+| `attributes`  | JSONB         | Thuộc tính dạng key-value |
+| `status`      | VARCHAR(50)   | NOT NULL DEFAULT 'draft'; CHECK IN (draft, pending, approved, rejected, active, out_of_stock, inactive) |
+| `reject_reason` | TEXT        | NULLABLE — lý do admin reject (≥10 chars khi set) |
+| `reviewed_at` | TIMESTAMP     | NULLABLE — thời điểm approve/reject gần nhất |
+| `reviewed_by` | BIGINT        | NULLABLE, FK soft → users.id (admin) |
+| `reject_count`| INT           | NOT NULL DEFAULT 0 — 3-strike resubmit limit (BR-PRODUCT-009.8) |
+| `created_at`  | TIMESTAMP     | |
+| `updated_at`  | TIMESTAMP     | |
+
+**Index:** idx_product_category, idx_product_seller, idx_product_status, idx_product_slug, GIN on attributes, **idx_products_status_pending** (partial: `WHERE status='pending'`, sorts by `created_at` for FIFO admin queue)
+
+**Backfill plan (P3-11)**: Sản phẩm hiện có (`active` / `out_of_stock` / `inactive`) coi như đã `approved` trước workflow tồn tại — `reviewed_at` để NULL, `reviewed_by` để NULL, `reject_count = 0`. Không downtime (toàn bộ cột mới NULLABLE / có DEFAULT).
 
 ### PRODUCT_VARIANT
 
@@ -288,6 +296,7 @@ Danh mục đa cấp – tự tham chiếu.
 | `session_id`     | VARCHAR(100)  | FK → stock_reservation.session_id, UNIQUE |
 | `total_amt`      | DECIMAL(18,2) | |
 | `final_amt`      | DECIMAL(18,2) | |
+| `currency`       | VARCHAR(3)    | NOT NULL DEFAULT 'VND' |
 | `status`         | VARCHAR(50)   | PENDING_PAYMENT / PAID / CANCELLED |
 | `created_at`     | TIMESTAMP     | |
 | `updated_at`     | TIMESTAMP     | |
@@ -377,24 +386,27 @@ Danh mục đa cấp – tự tham chiếu.
 
 ### SELLER_TRANSFERS
 
-| Cột                     | Kiểu      |
-|-------------------------|-----------|
-| `id`                    | BIGSERIAL |
-| `order_id`              | BIGINT    |
-| `seller_id`             | BIGINT    |
-| `transaction_id`        | BIGINT    |
-| `transfer_amount`       | DECIMAL   |
-| `refunded_amount`       | DECIMAL   |
-| `stripe_transfer_id`    | VARCHAR   |
-| `delivered_at`          | TIMESTAMP |
-| `net_payout_amount`     | DECIMAL   |
-| `payout_eligible_at`    | TIMESTAMP |
-| `platform_commission_amt`| DECIMAL  |
-| `payout_at`             | TIMESTAMP |
-| `payout_retry_count`    | INTEGER   |
-| `status`                | VARCHAR   |
-| `created_at`            | TIMESTAMP |
-| `updated_at`            | TIMESTAMP |
+| Cột                     | Kiểu          | Ghi chú |
+|-------------------------|---------------|---------|
+| `id`                    | BIGSERIAL     | PK |
+| `order_id`              | BIGINT        | FK → orders.id |
+| `seller_id`             | BIGINT        | FK → sellers.id |
+| `transaction_id`        | BIGINT        | FK → transactions.id |
+| `transfer_amount`       | DECIMAL       | |
+| `refunded_amount`       | DECIMAL       | |
+| `stripe_transfer_id`    | VARCHAR       | |
+| `stripe_payout_id`      | VARCHAR(100)  | Stripe Payout ID khi giải ngân |
+| `delivered_at`          | TIMESTAMP     | |
+| `net_payout_amount`     | DECIMAL       | |
+| `payout_eligible_at`    | TIMESTAMP     | |
+| `platform_commission_amt`| DECIMAL      | |
+| `payout_at`             | TIMESTAMP     | |
+| `payout_retry_count`    | INTEGER       | |
+| `status`                | VARCHAR       | ELIGIBLE / IN_TRANSIT / PAID / FAILED / RETRYING |
+| `failure_code`          | VARCHAR(50)   | Mã lỗi Stripe khi payout fail (nullable) |
+| `failure_reason`        | TEXT          | Mô tả lỗi payout (nullable) |
+| `created_at`            | TIMESTAMP     | |
+| `updated_at`            | TIMESTAMP     | |
 
 ### REFUNDS
 
@@ -436,16 +448,17 @@ Danh mục đa cấp – tự tham chiếu.
 
 ### MG_NOTIFICATIONS (vẫn dùng MongoDB)
 
-| Cột          | Kiểu      |
-|--------------|-----------|
-| `id`         | VARCHAR   |
-| `user_id`    | BIGINT    |
-| `title`      | VARCHAR   |
-| `body`       | TEXT      |
-| `type`       | VARCHAR   |
-| `metadata`   | JSONB     |
-| `is_read`    | BOOLEAN   |
-| `created_at` | TIMESTAMP |
+| Cột          | Kiểu      | Ghi chú |
+|--------------|-----------|---------|
+| `id`         | VARCHAR   | PK |
+| `user_id`    | BIGINT    | |
+| `title`      | VARCHAR   | |
+| `body`       | TEXT      | |
+| `type`       | VARCHAR   | |
+| `metadata`   | JSONB     | |
+| `is_read`    | BOOLEAN   | |
+| `read_at`    | TIMESTAMP | NULLABLE — thời điểm đánh dấu đã đọc |
+| `created_at` | TIMESTAMP | |
 
 ---
 
@@ -497,7 +510,48 @@ Kiến trúc **SKU-first** với field collapsing theo `product_id`.
 
 ## 11. AI Chat Support
 
-(giữ nguyên toàn bộ bảng chat_sessions, chat_messages, pending_confirmations, tool_call_logs, outbox_events_ai như thiết kế cũ, không thay đổi)
+Bảng `chat_sessions`, `chat_messages` giữ nguyên như thiết kế cũ. Bỏ bảng `outbox_events_ai` (không sử dụng).
+
+### PENDING_CONFIRMATIONS
+
+Lưu các thao tác sensitive (e.g. add-to-cart từ AI) đang chờ buyer xác nhận trước khi thực thi.
+
+| Cột               | Kiểu          | Ghi chú |
+|-------------------|---------------|---------|
+| `id`              | UUID          | PK |
+| `session_id`      | UUID          | FK → chat_sessions.id |
+| `user_id`         | BIGINT        | FK → users.id |
+| `tool_name`       | VARCHAR(100)  | Tên tool sẽ thực thi (e.g. `add_to_cart`) |
+| `tool_arguments`  | JSONB         | Tham số tool đã chuẩn hóa |
+| `summary`         | TEXT          | Mô tả ngắn cho buyer xác nhận |
+| `status`          | VARCHAR(20)   | PENDING / CONFIRMED / REJECTED / EXPIRED |
+| `expires_at`      | TIMESTAMP     | Hết hạn tự động (e.g. NOW() + 5 phút) |
+| `confirmed_at`    | TIMESTAMP     | NULLABLE |
+| `created_at`      | TIMESTAMP     | |
+| `updated_at`      | TIMESTAMP     | |
+
+**Index:** idx_pending_confirmations_session, idx_pending_confirmations_user, idx_pending_confirmations_status, idx_pending_confirmations_expires
+
+### TOOL_CALL_LOGS
+
+Audit log mọi lần AI gọi tool (thành công/thất bại) để debug và phân tích.
+
+| Cột            | Kiểu          | Ghi chú |
+|----------------|---------------|---------|
+| `id`           | BIGSERIAL     | PK |
+| `session_id`   | UUID          | FK → chat_sessions.id |
+| `message_id`   | UUID          | FK → chat_messages.id (nullable) |
+| `user_id`      | BIGINT        | FK → users.id |
+| `tool_name`    | VARCHAR(100)  | |
+| `arguments`    | JSONB         | Tham số gốc từ LLM |
+| `result`       | JSONB         | Kết quả trả về (rút gọn nếu lớn) |
+| `status`       | VARCHAR(20)   | SUCCESS / ERROR / TIMEOUT |
+| `error_code`   | VARCHAR(50)   | NULLABLE |
+| `error_message`| TEXT          | NULLABLE |
+| `latency_ms`   | INT           | Thời gian thực thi |
+| `created_at`   | TIMESTAMP     | |
+
+**Index:** idx_tool_call_logs_session, idx_tool_call_logs_user, idx_tool_call_logs_tool, idx_tool_call_logs_status, idx_tool_call_logs_created_at
 
 ---
 
@@ -513,8 +567,19 @@ Kiến trúc **SKU-first** với field collapsing theo `product_id`.
 | **payments**   | seller_stripe_accounts, transactions, seller_transfers, refunds, refund_items |
 | **notifications** | mg_notifications (MongoDB)                  |
 | **search**     | Elasticsearch index `skus`                     |
-| **ai_chat**    | chat_sessions, chat_messages, pending_confirmations, tool_call_logs, outbox_events_ai |
+| **ai_chat**    | chat_sessions, chat_messages, pending_confirmations, tool_call_logs |
 
 ---
 
-*Cập nhật ngày: 2026-05-09*
+*Cập nhật ngày: 2026-05-10*
+
+---
+
+## Lịch sử thay đổi
+
+### 2026-05-10 (theo DB_SCHEMA_CHANGE_PROPOSAL.md)
+- **PARENT_ORDERS**: thêm cột `currency VARCHAR(3) NOT NULL DEFAULT 'VND'` (P1-06).
+- **SELLER_TRANSFERS**: thêm `stripe_payout_id`, `failure_code`, `failure_reason`; bổ sung enum status `ELIGIBLE / IN_TRANSIT / PAID / FAILED / RETRYING` (P1-08).
+- **MG_NOTIFICATIONS**: thêm cột `read_at TIMESTAMP NULLABLE` (P2-09).
+- **AI Chat**: bổ sung schema chi tiết cho `pending_confirmations` và `tool_call_logs`; **bỏ** bảng `outbox_events_ai` (P0-05 modified).
+- **Catalog**: xác nhận đã dùng PostgreSQL — không thay đổi schema (P0-01 confirmed).

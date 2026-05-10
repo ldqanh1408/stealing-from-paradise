@@ -1,7 +1,8 @@
 # ENTITY-PRODUCT-003: PRODUCT_VARIANT
 
 > **Service**: product-service (Port 8090)
-> **Schema**: catalog
+> **Database**: MongoDB
+> **Collection**: mg_product_variants
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 3
 
 ---
@@ -16,19 +17,19 @@ erDiagram
     PRODUCT_VARIANT ||--o{ PRODUCT_IMAGE : "variant_id"
 
     PRODUCT_VARIANT {
-        uuid id PK
-        uuid product_id FK "CASCADE"
-        varchar variant_code UK
-        varchar variant_name
-        jsonb variant_attributes
-        decimal price "18,2 NOT NULL"
-        decimal original_price "18,2"
-        int stock_quantity "DEFAULT 0"
-        varchar status "active/out_of_stock/inactive"
-        int version "DEFAULT 1, optimistic lock"
-        text image_url
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid product_id "reference"
+        string variant_code UK
+        string variant_name
+        object variant_attributes
+        numberdecimal price "NOT NULL"
+        numberdecimal original_price
+        numberint stock_quantity "DEFAULT 0"
+        string status "active/out_of_stock/inactive"
+        numberint version "DEFAULT 1, optimistic lock"
+        string image_url
+        isodate created_at
+        isodate updated_at
     }
 ```
 
@@ -36,21 +37,21 @@ erDiagram
 
 ## Data Dictionary
 
-| # | Column | Type | Constraints | Meaning |
+| # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
-| 1 | `id` | UUID | PK, DEFAULT gen_random_uuid() | Unique variant (SKU) identifier |
-| 2 | `product_id` | UUID | FK REFERENCES product(id) ON DELETE CASCADE, NOT NULL | Parent product |
-| 3 | `variant_code` | VARCHAR(100) | UNIQUE | Internal seller SKU code (e.g., "NK-AIR-RED-XL"); 3-50 chars, alphanumeric+dash |
-| 4 | `variant_name` | VARCHAR(255) | NULLABLE | Group label for variant dimension (e.g., "Mau sac, Size") |
-| 5 | `variant_attributes` | JSONB | NULLABLE | Concrete variant values (e.g., `{"color":"Den","size":"M"}`) |
-| 6 | `price` | DECIMAL(18,2) | NOT NULL | Current sale price in VND; > 0, max 9,999,999,999 |
-| 7 | `original_price` | DECIMAL(18,2) | NULLABLE | Original/strikethrough price for discount display |
-| 8 | `stock_quantity` | INT | NOT NULL, DEFAULT 0 | Available inventory count |
-| 9 | `status` | VARCHAR(50) | NOT NULL, DEFAULT 'active' | Variant lifecycle: `active`, `out_of_stock`, `inactive` |
-| 10 | `version` | INT | NOT NULL, DEFAULT 1 | Optimistic lock for concurrent stock updates |
-| 11 | `image_url` | TEXT | NULLABLE | Quick variant image URL (from MinIO) |
-| 12 | `created_at` | TIMESTAMP | DEFAULT NOW() | Row creation timestamp |
-| 13 | `updated_at` | TIMESTAMP | DEFAULT NOW() | Last modification timestamp |
+| 1 | `_id` | ObjectId | PK, auto-generated | Unique variant (SKU) identifier |
+| 2 | `product_id` | ObjectId | NOT NULL, application-level reference | Parent product. No CASCADE; deletion handled in application layer. |
+| 3 | `variant_code` | String | Unique | Internal seller SKU code (e.g., "NK-AIR-RED-XL"); 3-50 chars, alphanumeric+dash |
+| 4 | `variant_name` | String | NULLABLE | Group label for variant dimension (e.g., "Mau sac, Size") |
+| 5 | `variant_attributes` | Object | NULLABLE | Concrete variant values (e.g., `{"color":"Den","size":"M"}`) |
+| 6 | `price` | NumberDecimal | NOT NULL | Current sale price in VND; > 0, max 9,999,999,999 |
+| 7 | `original_price` | NumberDecimal | NULLABLE | Original/strikethrough price for discount display |
+| 8 | `stock_quantity` | NumberInt | NOT NULL, DEFAULT 0 | Available inventory count |
+| 9 | `status` | String | NOT NULL, DEFAULT 'active' | Variant lifecycle: `active`, `out_of_stock`, `inactive` |
+| 10 | `version` | NumberInt | NOT NULL, DEFAULT 1 | Optimistic lock for concurrent stock updates; enforced at application layer |
+| 11 | `image_url` | String | NULLABLE | Quick variant image URL (from MinIO) |
+| 12 | `created_at` | ISODate | Auto-set | Document creation timestamp |
+| 13 | `updated_at` | ISODate | Auto-set | Last modification timestamp |
 
 ### `status` Values
 
@@ -75,12 +76,12 @@ Frontend groups by `variant_attributes` keys to render the selection matrix.
 
 ## Indexes
 
-| Index Name | Columns | Type | Purpose |
+| Index Name | Fields | Type | Purpose |
 |------------|---------|------|---------|
-| `idx_variant_product` | `product_id` | B-tree | List all variants of a product |
-| `idx_variant_status` | `status` | B-tree | Filter active/inactive variants |
-| `idx_variant_price` | `price` | B-tree | Sort/filter by price range |
-| `idx_variant_attributes` | `variant_attributes` | GIN | Search by variant attribute values |
+| `idx_variant_product` | `{ product_id: 1 }` | B-tree | List all variants of a product |
+| `idx_variant_status` | `{ status: 1 }` | B-tree | Filter active/inactive variants |
+| `idx_variant_price` | `{ price: 1 }` | B-tree | Sort/filter by price range |
+| `idx_variant_attributes` | `{ variant_attributes: "text" }` | Text | Search by variant attribute values |
 
 ---
 

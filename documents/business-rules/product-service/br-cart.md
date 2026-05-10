@@ -10,7 +10,7 @@
 
 | Rule | Detail |
 |------|--------|
-| Uniqueness | `UNIQUE(customer_id)` on `cart` table |
+| Uniqueness | Unique index on `customer_id` in `mg_carts` collection |
 | Lazy creation | Cart is created on first `POST /cart/items` call |
 | Status | Currently always `active` |
 | Cart clearing | `DELETE /cart` removes all items and resets the cart |
@@ -21,7 +21,7 @@
 
 | Rule | Detail |
 |------|--------|
-| Constraint | `UNIQUE(cart_id, variant_id)` on `cart_item` table |
+| Constraint | Unique compound index on `{ cart_id, variant_id }` in `mg_cart_items` collection |
 | UPSERT behavior | If variant already in cart, `POST /cart/items` increments quantity instead of creating duplicate |
 | Quantity cap | quantity > 0 and <= 1000 per API validation |
 

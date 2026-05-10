@@ -3,33 +3,29 @@
 **Stable ID:** ENTITY-ORDER-001
 **Table:** `parent_orders`
 **Schema:** PostgreSQL (order-service, port 8083)
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-10 (verified against Java source)
 
 ---
 
 ## ERD (Entity-Relationship Diagram)
 
 ```
-┌──────────────────┐       ┌──────────────────────────┐
-│    CUSTOMERS      │       │   STOCK_RESERVATION       │
-│──────────────────│       │──────────────────────────│
-│ id (BIGSERIAL PK)│       │ id (UUID PK)             │
-└────────┬─────────┘       │ session_id (VARCHAR 100)  │
-         │                 └────────────┬─────────────┘
-         │ FK                          │ FK (UNIQUE)
-         ▼                             ▼
+┌──────────────────┐
+│    CUSTOMERS      │
+│──────────────────│
+│ id (BIGSERIAL PK)│
+└────────┬─────────┘
+         │ FK
+         ▼
 ┌──────────────────────────────────────────────────────────┐
 │                    PARENT_ORDERS                          │
 │──────────────────────────────────────────────────────────│
 │ id            BIGSERIAL PK                                │
-│ customer_id   BIGINT FK → customers.id                    │
-│ session_id    VARCHAR(100) FK →                           │
-│               stock_reservation.session_id UNIQUE          │
-│ total_amt     DECIMAL(18,2)                               │
-│ final_amt     DECIMAL(18,2)                               │
-│ status        VARCHAR(50)                                 │
-│ created_at    TIMESTAMP                                   │
-│ updated_at    TIMESTAMP                                   │
+│ customer_id   BIGINT FK → customers.id NOT NULL           │
+│ total_amt     DECIMAL(18,2) NOT NULL                      │
+│ final_amt     DECIMAL(18,2) NOT NULL                      │
+│ created_at    TIMESTAMP NOT NULL                          │
+│ updated_at    TIMESTAMP NOT NULL                          │
 └───────────────────────┬──────────────────────────────────┘
                         │ 1:N
                         ▼
@@ -50,37 +46,20 @@
 |---|--------|------|-------------|-------------|
 | 1 | `id` | BIGSERIAL | PK, NOT NULL | Auto-increment primary key |
 | 2 | `customer_id` | BIGINT | FK → customers.id, NOT NULL | Buyer who placed the order |
-| 3 | `session_id` | VARCHAR(100) | FK → stock_reservation.session_id, UNIQUE, NOT NULL | Checkout reservation session; one parent per session |
-| 4 | `total_amt` | DECIMAL(18,2) | NOT NULL | Sum of all sub-order total_amt before platform adjustments |
-| 5 | `final_amt` | DECIMAL(18,2) | NOT NULL | Actual amount charged to buyer via Stripe |
-| 6 | `status` | VARCHAR(50) | NOT NULL, CHECK(status IN ('PENDING_PAYMENT','PAID','CANCELLED')) | Parent order lifecycle status |
-| 7 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Order creation timestamp |
-| 8 | `updated_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Last modification timestamp |
+| 3 | `total_amt` | DECIMAL(18,2) | NOT NULL | Sum of all sub-order total_amt |
+| 4 | `final_amt` | DECIMAL(18,2) | NOT NULL | Actual amount charged to buyer via Stripe |
+| 5 | `created_at` | TIMESTAMP | NOT NULL | Order creation timestamp |
+| 6 | `updated_at` | TIMESTAMP | NOT NULL | Last modification timestamp |
 
-### Status Transitions
-
-```
-PENDING_PAYMENT ──┬──▶ PAID
-                  │
-                  └──▶ CANCELLED
-```
-
-| Status | Description | Trigger |
-|--------|-------------|---------|
-| `PENDING_PAYMENT` | Awaiting Stripe payment confirmation | POST /orders/checkout |
-| `PAID` | Payment confirmed by Stripe webhook | Consumed `payment.success` Kafka event |
-| `CANCELLED` | All sub-orders cancelled or payment timeout | All sub-orders CANCELLED or JOB-13 auto-cancel |
+Note: ParentOrder is a simple aggregate root. It does NOT contain `session_id`, `status`, or `payment_method` fields. Payment status is tracked at the sub-order (orders) level via `orders.status`. The checkout session (`stock_reservation.session_id`) is managed via the Product Service, not stored here.
 
 ---
 
 ## Indexes
 
-| Index Name | Columns | Type | Purpose |
-|------------|---------|------|---------|
-| `parent_orders_pkey` | `id` | PRIMARY KEY B-tree | Primary key lookup |
-| `idx_parent_orders_customer` | `customer_id` | B-tree | List buyer's parent orders |
-| `idx_parent_orders_session` | `session_id` | UNIQUE B-tree | Lookup by checkout session; enforce 1:1 |
-| `idx_parent_orders_status` | `status` | B-tree | Filter by payment status |
+| Index Name | Columns | Purpose |
+|------------|---------|---------|
+| `parent_orders_pkey` | `id` | Primary key lookup |
 
 ---
 
@@ -89,7 +68,6 @@ PENDING_PAYMENT ──┬──▶ PAID
 | From | To | Cardinality | On Delete |
 |------|----|-------------|-----------|
 | `parent_orders.customer_id` | `customers.id` | N:1 | RESTRICT |
-| `parent_orders.session_id` | `stock_reservation.session_id` | 1:1 | RESTRICT |
 | `orders.parent_order_id` | `parent_orders.id` | 1:N | RESTRICT |
 
 ---
@@ -98,10 +76,9 @@ PENDING_PAYMENT ──┬──▶ PAID
 
 | Rule ID | Rule |
 |---------|------|
-| BR-ORDER-001 | One parent order per checkout session (enforced by UNIQUE session_id) |
+| BR-ORDER-001 | One parent order per checkout (multi-vendor orders grouped) |
 | BR-ORDER-002 | `parent_order.final_amt` = SUM(all sub-orders.final_amt) |
-| BR-ORDER-003 | `parent_order.status` transitions: PENDING_PAYMENT → PAID or PENDING_PAYMENT → CANCELLED |
-| BR-ORDER-004 | Parent order CANCELLED only when ALL sub-orders are CANCELLED |
+| BR-ORDER-003 | Parent order lifecycle tracked via sub-order status aggregation |
 
 ---
 
@@ -112,5 +89,4 @@ PENDING_PAYMENT ──┬──▶ PAID
 - **BR:** [br-checkout.md](../../business-rules/order-service/br-checkout.md)
 - **BR:** [br-order-lifecycle.md](../../business-rules/order-service/br-order-lifecycle.md)
 - **API:** [api-post-orders-checkout.yaml](../../api-contracts/order-service/api-post-orders-checkout.yaml)
-- **State:** [state-order.md](../../state-diagrams/order-service/state-order.md)
 - **Traceability:** [traceability-matrix.md](../../traceability/order-service/traceability-matrix.md)

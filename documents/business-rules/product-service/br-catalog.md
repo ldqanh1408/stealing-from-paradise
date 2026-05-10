@@ -1,8 +1,9 @@
-# BR-PRODUCT-001 through BR-PRODUCT-008: Catalog Business Rules
+# BR-PRODUCT-001 through BR-PRODUCT-009: Catalog Business Rules
 
 > **Service**: product-service (Port 8090)
-> **Domain**: Catalog -- Categories, Products, Variants, Images, Stock
+> **Domain**: Catalog -- Categories, Products, Variants, Images, Stock, Admin Review
 > **Source**: 03_database_tables.md, product_service_ui_logic.md, 02_API_product_service.md
+> **Last Updated**: 2026-05-10 (v3 — added BR-PRODUCT-009 admin review workflow; P3-11 APPROVED & applied)
 
 ---
 
@@ -33,18 +34,23 @@
 
 ## BR-PRODUCT-003: Product Status Transitions
 
+> **Note (2026-05-10 v3):** Status enum expanded to 7 values once P3-11 is approved: `draft / pending / approved / rejected / active / out_of_stock / inactive`. Below covers the post-approval (publish-time) subset; pre-approval flow lives in **BR-PRODUCT-009**.
+
 | From | To | Trigger | Constraint |
 |------|-----|---------|------------|
+| `approved` | `active` | Seller calls `POST /seller/products/{id}/publish` | First-time publish (right after admin approve) |
 | `active` | `out_of_stock` | All variants reach `stock_quantity = 0` | Automatic; computed in same transaction as variant update |
 | `out_of_stock` | `active` | Any variant restocked to `stock_quantity > 0` | Automatic |
 | `active` | `inactive` | Seller calls `POST /seller/products/{id}/unpublish` | Manual |
-| `inactive` | `active` | Seller calls `POST /seller/products/{id}/publish` | Manual |
+| `inactive` | `active` | Seller calls `POST /seller/products/{id}/publish` | Manual (re-publish) |
 | `out_of_stock` | `inactive` | Seller calls `POST /seller/products/{id}/unpublish` | Manual |
 
-**Product status is derived from variant states.** After any variant change (stock, status, add/delete), the product `status` is recomputed:
+**Product status is derived from variant states (only when in `active`/`out_of_stock` subset).** After any variant change (stock, status, add/delete), the product `status` is recomputed:
 - Has >=1 active variant with stock > 0 -> `active`
 - All variants have stock = 0 -> `out_of_stock` (still visible)
 - Seller manually disabled -> `inactive`
+
+`draft / pending / approved / rejected` are NEVER auto-derived — they are set explicitly by submit / approve / reject actions (see BR-PRODUCT-009).
 
 ---
 
@@ -63,12 +69,12 @@
 | Rule | Detail |
 |------|--------|
 | Stock never negative | `stock_quantity` cannot go below 0; validated in application layer |
-| Optimistic lock | `version` column prevents lost updates on concurrent stock mutations |
+| Optimistic lock | `version` field prevents lost updates on concurrent stock mutations; enforced at application layer |
 | Stock adjustment | `POST /seller/inventory/adjust` with `delta` (can be negative for deductions) |
 | Restock | `PUT /inventory/{skuCode}/restock` adds quantity with reason audit log |
 
 **IF** `stock_quantity - requested < 0` **THEN** reject with 422 "Insufficient stock".
-**IF** `UPDATE ... WHERE version = N` returns 0 rows **THEN** retry or return 409 "Concurrent modification detected".
+**IF** optimistic lock check on `version` field fails **THEN** retry or return 409 "Concurrent modification detected".
 
 ---
 
@@ -108,6 +114,57 @@
 
 ---
 
+## BR-PRODUCT-009: Admin Product Review Workflow
+
+> **Status:** Re-activated 2026-05-10 v3. **P3-11 APPROVED & applied** — DB schema (status enum 7 values + `reject_reason` + `reviewed_at` + `reviewed_by` + `reject_count`) is live in `database-entities.md` §3.
+
+### Lifecycle
+
+```
+draft ──submit──▶ pending ──approve──▶ approved ──publish──▶ active
+                     │
+                     └──reject──▶ rejected ──seller edits──▶ draft (resubmit)
+```
+
+### Rules
+
+| # | Rule |
+|---|------|
+| 009.1 | New product creation lands in `draft`. Seller can edit freely (no review). |
+| 009.2 | `submitForReview` (`POST /seller/products/{id}/submit`) requires: at least 1 valid variant with stock > 0, ≥1 image, leaf category, name+description non-empty. Otherwise 422. Transitions `draft → pending`. |
+| 009.3 | While `pending`, the product is **locked** — seller cannot edit (force resubmit by admin reject). |
+| 009.4 | Only users with role=ADMIN may call `approve` / `reject` / list-pending endpoints. Non-admin → 403. |
+| 009.5 | `approve` (`POST /admin/products/{id}/approve`) sets status=`approved`, reviewed_at=NOW(), reviewed_by=admin_user_id, reject_reason=NULL. Emits `product.approved`. |
+| 009.6 | `reject` (`POST /admin/products/{id}/reject`) requires `reason` ≥10 chars (else 422). Sets status=`rejected`, reject_reason=reason, reviewed_at=NOW(), reviewed_by=admin_user_id. Emits `product.rejected`. |
+| 009.7 | Approved product is NOT live. Seller must call `publish` (BR-PRODUCT-003) to move `approved → active`. |
+| 009.8 | Resubmit loop: `rejected` product becomes editable again — saving any field transitions it back to `draft`. From there seller may submit again. **Limit: 3 rejections** per product. After the 3rd reject, seller is locked and must contact admin. |
+| 009.9 | Reject reason and reviewer metadata MUST be persisted to DB (`products.reject_reason`, `products.reviewed_at`, `products.reviewed_by`, `products.reject_count`) — required for audit, for displaying the rejection notice to the seller, and for enforcing the 3-strike limit (009.8). |
+| 009.10 | Search re-indexing fires when `approved → active` (Search Service consumer for `product.activated` triggers ES upsert) and when `active → inactive`/`out_of_stock` (de-index or visibility flag). Pre-publish states (`draft`/`pending`/`approved`/`rejected`) are NEVER indexed in shopper-facing search. |
+| 009.11 | Admin SLA: `pending` queue should be processed within 24h. Older items get an internal alert (out of scope for MVP — tracked via dashboard). |
+| 009.12 | Backfill: existing products in `active`/`out_of_stock`/`inactive` at the time P3-11 is applied are grandfathered as previously-approved (no `reviewed_by` set; `reviewed_at` optional). |
+
+### Forbidden Transitions
+
+| From | To | Reason |
+|------|----|--------|
+| `draft` | `active` | Must pass admin review |
+| `draft` | `approved` | Must be `pending` first |
+| `pending` | any non-admin state | Locked during review |
+| `rejected` | `pending` | Must edit + resubmit |
+| `rejected` | `approved` | Must be re-reviewed |
+
+### Error Codes
+
+| HTTP | Code | Trigger |
+|------|------|---------|
+| 401 | UNAUTHORIZED | Missing/invalid JWT |
+| 403 | FORBIDDEN | Not admin (approve/reject/list-pending) or not seller-owner (submit) |
+| 404 | PRODUCT_NOT_FOUND | productId does not exist |
+| 409 | INVALID_STATE | submit when not draft; approve/reject when not pending |
+| 422 | VALIDATION_FAILED | submit with missing fields; reject reason <10 chars; resubmit-limit exceeded |
+
+---
+
 ## Cross-References
 
 | Ref ID | Entity | 
@@ -123,3 +180,8 @@
 | UC-PRODUCT-005 | Upload images |
 | UC-PRODUCT-006 | Manage stock |
 | UC-PRODUCT-007 | Reserve stock |
+| UC-PRODUCT-012 | Submit Product for Review (seller) |
+| UC-PRODUCT-013 | List Pending Products (admin) |
+| UC-PRODUCT-014 | Approve Product (admin) |
+| UC-PRODUCT-015 | Reject Product (admin) |
+| P3-11 | DB schema proposal (extends `products.status` enum + adds reviewer columns) |

@@ -1,6 +1,22 @@
 ## Kafka Events Catalog
 Service: platform
-Generated: 2026-05-09
+Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
+
+> **2026-05-10 MVP changes** (xem `MVP_ANALYSIS.md` §3):
+>
+> **NEW events** (5):
+> - `stock.reservation.expired` (product → order, notification) — MUST
+> - `order.payment_timeout` (order → order self, notification) — MUST
+> - `stock.reservation.confirmed` / `released` (product, audit) — SHOULD
+> - `seller.transfer.eligible` / `paid_out` / `failed` (payment → notification) — SHOULD
+>
+> **OBSOLETE events** (xóa khỏi catalog):
+> - `flash_sale.item_approved`, `flash_sale.item_rejected` — auto-approve
+> - `flash_sale.item_sold` — đã đổi tên thành `flash_sale.item_purchased`
+>
+> **RE-ACTIVATED events** (đính chính 2026-05-10 v3 — xem `MVP_ANALYSIS.md`):
+> - `seller.order_cancelled` (order → payment, notification, product) — MUST cho workflow seller cancel. ✅ Documented + UC-008 + BR-026 hoàn thành.
+> - `product.pending_review`, `product.approved`, `product.rejected` (product → notification, search) — MUST cho workflow admin review. ✅ Documented in product KAFKA_EVENTS.md + P3-11 đã APPROVED 2026-05-10 → áp dụng vào `database-entities.md` §3 (status enum 7 giá trị + 4 cột reviewer).
 
 ### Overview
 
@@ -18,10 +34,10 @@ Generated: 2026-05-09
 
 | Service | Produces | Consumes |
 |---------|----------|----------|
-| identity-service | account.*, seller.*, product.approved, product.rejected | order.delivered, order.cancelled, refund.admin_approved |
-| product-service | product.*, category.*, inventory.* | order.created, order.cancelled, flash_sale.* |
-| order-service | order.*, seller.order_cancelled | payment.*, refund.* |
-| payment-service | payment.*, refund.*, stripe.* | order.returned |
+| identity-service | account.*, seller.* | order.delivered, order.cancelled, refund.admin_approved |
+| product-service | product.* (incl. pending_review, approved, rejected), category.*, inventory.*, stock.reservation.* | order.created, order.cancelled, flash_sale.* |
+| order-service | order.*, order.payment_timeout, seller.order_cancelled | payment.*, refund.*, stock.reservation.expired |
+| payment-service | payment.*, refund.*, stripe.*, seller.transfer.* | order.returned |
 | flashsale-service | flash_sale.* | — |
 | search-service | — (consumer-only) | product.*, category.*, inventory.* |
 | notification-service | — (consumer-only) | 20+ topics from all services |
@@ -136,7 +152,7 @@ public void onPaymentSuccess(PaymentSuccessEvent event) {
 **Flash Sale Flow:**
 ```
 [FlashSale] flash_sale.session_started → [Notification] open session
-[FlashSale] flash_sale.item_sold → [Product] update inventory
+[FlashSale] flash_sale.item_purchased → [Product] update inventory
 [FlashSale] flash_sale.session_ended → [Notification] close session
                                      → [Product] clear expired cart items
 ```

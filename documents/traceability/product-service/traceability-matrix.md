@@ -1,8 +1,8 @@
 # Traceability Matrix: Product Service
 
 > **Service**: product-service (Port 8090)
-> **Last Updated**: 2026-05-09
-> **Schema**: catalog + cart
+> **Last Updated**: 2026-05-10 (v3 — admin review workflow re-activated; P3-11 APPROVED & applied)
+> **Schema**: catalog + cart + admin review
 
 ---
 
@@ -11,9 +11,9 @@
 | Prefix | Range | Domain |
 |--------|-------|--------|
 | ENTITY-PRODUCT | 001-007 | Data models |
-| BR-PRODUCT | 001-012 | Business rules |
-| FR-PRODUCT | 001-022 | Functional requirements |
-| UC-PRODUCT | 001-011 | Use cases |
+| BR-PRODUCT | 001-012 | Business rules (incl. BR-009 admin review) |
+| FR-PRODUCT | 001-026 | Functional requirements (FR-023..026 = admin review) |
+| UC-PRODUCT | 001-015 | Use cases (UC-012..015 = admin review) |
 
 ---
 
@@ -43,6 +43,10 @@
 | FR-PRODUCT-020 | Clear entire cart | ENTITY-006 |
 | FR-PRODUCT-021 | Cart integrity at checkout | ENTITY-007 |
 | FR-PRODUCT-022 | Cart cleanup on events | ENTITY-006, ENTITY-007 |
+| FR-PRODUCT-023 | Seller submits product for review | ENTITY-002 |
+| FR-PRODUCT-024 | Admin lists pending products | ENTITY-002 |
+| FR-PRODUCT-025 | Admin approves product | ENTITY-002 |
+| FR-PRODUCT-026 | Admin rejects product with reason | ENTITY-002 |
 
 ---
 
@@ -72,6 +76,10 @@
 | FR-PRODUCT-020 | -- |
 | FR-PRODUCT-021 | BR-011, BR-012 |
 | FR-PRODUCT-022 | -- |
+| FR-PRODUCT-023 | BR-009 |
+| FR-PRODUCT-024 | BR-009 |
+| FR-PRODUCT-025 | BR-009, BR-003 |
+| FR-PRODUCT-026 | BR-009 |
 
 ---
 
@@ -90,6 +98,21 @@
 | UC-PRODUCT-009 | Add to cart (customer) | FR-017 |
 | UC-PRODUCT-010 | Update cart item (customer) | FR-018 |
 | UC-PRODUCT-011 | Remove from cart (customer) | FR-019 |
+| UC-PRODUCT-012 | Submit product for review (seller) | FR-023 |
+| UC-PRODUCT-013 | List pending products (admin) | FR-024 |
+| UC-PRODUCT-014 | Approve product (admin) | FR-025 |
+| UC-PRODUCT-015 | Reject product (admin) | FR-026 |
+
+---
+
+## UC ↔ API ↔ Kafka (admin review workflow — re-activated v3)
+
+| UC ID | API Contract | Kafka Event | Notification Template |
+|-------|--------------|-------------|------------------------|
+| UC-PRODUCT-012 | `api-put-products-lifecycle.yaml` (`submitForReview`) | `product.pending_review` | NOTIF-PRODUCT-PENDING-REVIEW |
+| UC-PRODUCT-013 | `api-get-admin-products-pending.yaml` | — (read-only) | — |
+| UC-PRODUCT-014 | `api-post-admin-products-approve.yaml` | `product.approved` | NOTIF-PRODUCT-APPROVED |
+| UC-PRODUCT-015 | `api-post-admin-products-reject.yaml` | `product.rejected` | NOTIF-PRODUCT-REJECTED |
 
 ---
 
@@ -97,7 +120,7 @@
 
 | State Diagram | Entity | Transitions Triggered By |
 |---------------|--------|--------------------------|
-| state-product.md | ENTITY-002 | UC-003, UC-006, BR-003 |
+| state-product.md | ENTITY-002 | UC-003, UC-006, UC-012, UC-013, UC-014, UC-015, BR-003, BR-009 |
 | state-stock-reservation.md | ENTITY-005 | UC-007, BR-007, BR-008 |
 | state-cart.md | ENTITY-006 | UC-008, UC-009, FR-022 |
 
@@ -108,7 +131,7 @@
 | Entity ID | Entity Name | Business Rule IDs |
 |-----------|-------------|-------------------|
 | ENTITY-PRODUCT-001 | CATEGORY | BR-001, BR-002 |
-| ENTITY-PRODUCT-002 | PRODUCT | BR-002, BR-003 |
+| ENTITY-PRODUCT-002 | PRODUCT | BR-002, BR-003, BR-009 |
 | ENTITY-PRODUCT-003 | PRODUCT_VARIANT | BR-004, BR-005, BR-008 |
 | ENTITY-PRODUCT-004 | PRODUCT_IMAGE | BR-006 |
 | ENTITY-PRODUCT-005 | STOCK_RESERVATION | BR-007, BR-008 |
@@ -156,6 +179,10 @@
 | UC-PRODUCT-009 | `use-cases/product-service/uc-009-add-to-cart.md` |
 | UC-PRODUCT-010 | `use-cases/product-service/uc-010-update-cart-item.md` |
 | UC-PRODUCT-011 | `use-cases/product-service/uc-011-remove-from-cart.md` |
+| UC-PRODUCT-012 | `use-cases/product-service/uc-012-submit-product-review.md` |
+| UC-PRODUCT-013 | `use-cases/product-service/uc-013-list-pending-products.md` |
+| UC-PRODUCT-014 | `use-cases/product-service/uc-014-approve-product.md` |
+| UC-PRODUCT-015 | `use-cases/product-service/uc-015-reject-product.md` |
 
 ### API Contracts
 | File |
@@ -165,6 +192,10 @@
 | `api-contracts/product-service/api-get-cart.yaml` |
 | `api-contracts/product-service/api-post-cart-items.yaml` |
 | `api-contracts/product-service/api-post-variants.yaml` |
+| `api-contracts/product-service/api-put-products-lifecycle.yaml` (incl. `submitForReview`) |
+| `api-contracts/product-service/api-get-admin-products-pending.yaml` |
+| `api-contracts/product-service/api-post-admin-products-approve.yaml` |
+| `api-contracts/product-service/api-post-admin-products-reject.yaml` |
 
 ### State Diagrams
 | File |

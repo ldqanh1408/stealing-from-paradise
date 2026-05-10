@@ -11,7 +11,7 @@ Service: platform
 | SVC-004 | payment-service | 8082 | PostgreSQL + Axon | CQRS/ES | Stripe Connect, multi-vendor splits, refunds |
 | SVC-005 | order-service | 8083 | PostgreSQL + Axon | CQRS/ES + Saga | Checkout, order lifecycle, RTS |
 | SVC-006 | flashsale-service | 8085 | PostgreSQL + Axon + Redis | CQRS/ES | Flash sale sessions, Redis Lua atomic buy |
-| SVC-007 | product-service | 8090 | PostgreSQL | JPA | Catalog, variants, cart, images (MinIO) |
+| SVC-007 | product-service | 8090 | MongoDB | Traditional | Catalog, variants, cart, images (MinIO) |
 | SVC-008 | search-service | 8091 | Elasticsearch | Traditional | Full-text search, VN text analysis |
 | SVC-009 | notification-service | 8092 | MongoDB | Traditional | SSE real-time notifications |
 | SVC-010 | ai-chat-service | 8093 | PostgreSQL | Traditional | AI chat, tool calls, human-in-the-loop |
@@ -20,8 +20,8 @@ Service: platform
 
 | Component | Port | Used By | Purpose |
 |-----------|------|---------|---------|
-| PostgreSQL | 5432 | identity, payment, order, flashsale, product, ai-chat | Primary relational store |
-| MongoDB | 27017 | notification | Document store |
+| PostgreSQL | 5432 | identity, payment, order, flashsale, ai-chat | Primary relational store |
+| MongoDB | 27017 | product, notification | Document store |
 | Redis | 6379 | flashsale, identity, api-gateway | Session cache, Lua atomic ops, JWT blocklist |
 | Elasticsearch | 9200 | search | Full-text product index |
 | MinIO | 9000/9001 | product | Object storage (product images) |

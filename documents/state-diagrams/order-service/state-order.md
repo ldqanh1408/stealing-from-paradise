@@ -2,7 +2,7 @@
 
 **Stable ID:** STATE-ORDER-001
 **Domain:** Order Lifecycle (8 States)
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-10 (transition #14 reactivated with `seller.order_cancelled`)
 
 ---
 
@@ -52,7 +52,7 @@
 | 11 | DELIVERED | PARTIALLY_REFUNDED | Admin approves partial refund | ADMIN | UC-ORDER-006 | BR-ORDER-019 | `refund.admin_approved` |
 | 12 | SHIPPING | REFUNDED | Admin approves full refund (buyer request) | ADMIN | UC-ORDER-006 | BR-ORDER-018 | `refund.admin_approved` |
 | 13 | PAID | REFUNDED | Admin approves full refund (buyer request) | ADMIN | UC-ORDER-006 | BR-ORDER-018 | `refund.admin_approved` |
-| 14 | PAID | CANCELLED | Seller cancels before shipping (edge case) | SELLER | UC-ORDER-003 | BR-ORDER-011 | `seller.order_cancelled` |
+| 14 | PAID | CANCELLED | Seller cancels (out-of-stock / cannot fulfill) before tracking_number set | SELLER | UC-ORDER-008 | BR-ORDER-011, BR-ORDER-021, BR-ORDER-026 | `order.cancelled` + `seller.order_cancelled` |
 
 ---
 

@@ -1,16 +1,18 @@
 # UC-ORDER-003: Cancel Order (Buyer)
 
 **Stable ID:** UC-ORDER-003
-**Actor:** BUYER (or SELLER)
+**Actor:** BUYER
 **Priority:** P0 (Critical)
 **API:** POST /orders/{id}/cancel
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-10
+
+> **Note:** Seller cancellation is now a separate use case — see [UC-ORDER-008](./uc-008-seller-cancel-order.md). This UC covers BUYER cancellation only.
 
 ---
 
 ## Brief Description
 
-Buyer cancels an order that is still in PENDING status. Seller may also cancel. System releases reserved stock and notifies relevant parties.
+Buyer cancels their own order while still cancellable (PENDING or PAID before shipped). System releases reserved stock and notifies the seller.
 
 ---
 
@@ -18,9 +20,10 @@ Buyer cancels an order that is still in PENDING status. Seller may also cancel. 
 
 | # | Condition |
 |---|-----------|
-| P1 | User is authenticated (JWT with role=BUYER or SELLER) |
-| P2 | `orders.status` = PENDING |
-| P3 | User is the order owner (buyer = customer_id, or seller = seller_id) |
+| P1 | User is authenticated (JWT with role=BUYER) |
+| P2 | `orders.status` IN (PENDING, PAID) |
+| P3 | If status=PAID, seller has not shipped (`tracking_number IS NULL`) |
+| P4 | User is the order's buyer (`customer_id = current_user`) |
 
 ---
 
@@ -31,7 +34,7 @@ Buyer cancels an order that is still in PENDING status. Seller may also cancel. 
 | 1 | Buyer | Requests POST /orders/{id}/cancel with {reason, note} |
 | 2 | System | Verifies order exists (404 if not) |
 | 3 | System | Verifies user is order owner (403 if not) |
-| 4 | System | Checks order.status == PENDING (409 if not) |
+| 4 | System | Checks order.status IN (PENDING, PAID) AND tracking_number IS NULL if PAID (409 otherwise) |
 | 5 | System | Updates ORDERS: status=CANCELLED, cancelled_by=BUYER, cancel_reason=reason |
 | 6 | System | Releases reserved stock via `inventory.adjusted` Kafka event |
 | 7 | System | Produces `order.cancelled` Kafka event |
@@ -57,28 +60,21 @@ Buyer cancels an order that is still in PENDING status. Seller may also cancel. 
 
 ## Alternative Flows
 
-### A1: Order Not in PENDING Status
+### A1: Order Not in Cancellable Status
 
 | Step | Action |
 |------|--------|
-| A1.1 | order.status is PAID, SHIPPING, etc. |
-| A1.2 | System returns 409 "Order cannot be cancelled in current status" |
+| A1.1 | order.status NOT IN (PENDING, PAID), or PAID but tracking_number set |
+| A1.2 | System returns 409 "Order cannot be cancelled in current status" — buyer must request RTS instead |
 
-### A2: Seller Cancels
-
-| Step | Action |
-|------|--------|
-| A2.1 | Seller requests cancel with reason |
-| A2.2 | Same validation: status=PENDING, seller is owner |
-| A2.3 | cancelled_by set to SELLER |
-| A2.4 | Produces `seller.order_cancelled` (in addition to `order.cancelled`) |
-
-### A3: Unauthorized
+### A2: Unauthorized
 
 | Step | Action |
 |------|--------|
-| A3.1 | User is neither buyer nor seller of order |
-| A3.2 | System returns 403 |
+| A2.1 | User is not the order's buyer (`customer_id != current_user`) |
+| A2.2 | System returns 403 |
+
+> Seller cancellation is handled by [UC-ORDER-008](./uc-008-seller-cancel-order.md), not this UC.
 
 ---
 
@@ -87,10 +83,11 @@ Buyer cancels an order that is still in PENDING status. Seller may also cancel. 
 | # | Condition |
 |---|-----------|
 | Q1 | orders.status = CANCELLED |
-| Q2 | orders.cancelled_by = BUYER (or SELLER) |
+| Q2 | orders.cancelled_by = BUYER |
 | Q3 | Stock released back to product_variant.stock_quantity |
 | Q4 | `order.cancelled` Kafka event published |
-| Q5 | Buyer notified via Notification Service |
+| Q5 | Seller notified via Notification Service |
+| Q6 | If status was PAID, refund initiated via Payment Service |
 
 ---
 
@@ -98,8 +95,10 @@ Buyer cancels an order that is still in PENDING status. Seller may also cancel. 
 
 | Topic | Payload Key Fields |
 |-------|-------------------|
-| `order.cancelled` | order_id, parent_order_id, user_id, seller_id, cancelled_by, cancel_reason, total_amount |
+| `order.cancelled` | order_id, parent_order_id, customer_id, seller_id, cancelled_by=BUYER, cancel_reason, total_amount |
 | `inventory.adjusted` | variant_id, quantity_delta (+N, release) |
+
+> Buyer cancel does NOT emit `seller.order_cancelled`. That topic is reserved for seller-initiated cancel (UC-008).
 
 ---
 
@@ -110,4 +109,5 @@ Buyer cancels an order that is still in PENDING status. Seller may also cancel. 
 | Business Rules | BR-ORDER-011, BR-ORDER-021, BR-ORDER-025 |
 | Functional Requirements | FR-ORDER-008 |
 | Entities | ENTITY-ORDER-002 |
-| State | state-order.md (PENDING → CANCELLED transition) |
+| State | state-order.md (PENDING → CANCELLED, PAID → CANCELLED transitions) |
+| Related UC | [UC-ORDER-008 Seller Cancel Order](./uc-008-seller-cancel-order.md) |

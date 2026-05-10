@@ -2,7 +2,7 @@
 
 > Generated: 2026-05-10
 > Source of truth: `docs/database/database-entities.md` (2026-05-09)
-> Storage: PostgreSQL (catalog, cart, orders, payments, flash_sale, identity, ai_chat), MongoDB (notifications only), Elasticsearch (search index)
+> Storage: MongoDB (catalog, cart, notifications), PostgreSQL (orders, payments, flash_sale, identity, ai_chat), Elasticsearch (search index)
 
 ```mermaid
 erDiagram
@@ -66,37 +66,37 @@ erDiagram
         timestamp updated_at
     }
 
-    %% ==================== CATALOG DOMAIN (PostgreSQL) ====================
+    %% ==================== CATALOG DOMAIN (MongoDB) ====================
     CATEGORY ||--o{ CATEGORY : "self: parent_id"
     CATEGORY ||--o{ PRODUCT : "category_id"
 
     CATEGORY {
-        uuid id PK "gen_random_uuid()"
-        uuid parent_id FK "self-ref, NULL=root"
-        varchar name "255, NOT NULL"
-        varchar slug UK "255"
-        text description
-        text image_url
-        int sort_order "DEFAULT 0"
+        objectid _id PK
+        objectid parent_id "self-ref, NULL=root"
+        string name "NOT NULL"
+        string slug UK
+        string description
+        string image_url
+        numberint sort_order "DEFAULT 0"
         boolean is_active "DEFAULT TRUE"
-        timestamp created_at
-        timestamp updated_at
+        isodate created_at
+        isodate updated_at
     }
 
     PRODUCT ||--o{ PRODUCT_VARIANT : "product_id CASCADE"
     PRODUCT ||--o{ PRODUCT_IMAGE : "product_id CASCADE"
 
     PRODUCT {
-        uuid id PK
-        uuid category_id FK
-        uuid seller_id "no hard FK"
-        varchar name "500"
-        varchar slug UK "500"
-        text description "rich text/HTML"
-        jsonb attributes
-        varchar status "active/out_of_stock/inactive"
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid category_id "reference"
+        objectid seller_id "reference, no hard FK"
+        string name
+        string slug UK
+        string description "rich text/HTML"
+        object attributes
+        string status "active/out_of_stock/inactive"
+        isodate created_at
+        isodate updated_at
     }
 
     PRODUCT_VARIANT ||--o{ STOCK_RESERVATION : "variant_id"
@@ -104,62 +104,62 @@ erDiagram
     PRODUCT_VARIANT ||--o{ PRODUCT_IMAGE : "variant_id SET NULL"
 
     PRODUCT_VARIANT {
-        uuid id PK
-        uuid product_id FK "CASCADE"
-        varchar variant_code UK "100"
-        varchar variant_name "255"
-        jsonb variant_attributes
-        decimal price "18,2 NOT NULL"
-        decimal original_price "18,2"
-        int stock_quantity "DEFAULT 0"
-        varchar status "active/out_of_stock/inactive"
-        int version "DEFAULT 1, optimistic lock"
-        text image_url
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid product_id "reference"
+        string variant_code UK
+        string variant_name
+        object variant_attributes
+        numberdecimal price "NOT NULL"
+        numberdecimal original_price
+        numberint stock_quantity "DEFAULT 0"
+        string status "active/out_of_stock/inactive"
+        numberint version "DEFAULT 1, optimistic lock"
+        string image_url
+        isodate created_at
+        isodate updated_at
     }
 
     PRODUCT_IMAGE {
-        uuid id PK
-        uuid product_id FK "CASCADE"
-        uuid variant_id FK "SET NULL, NULL=product-level"
-        text url "MinIO URL"
-        int sort_order "DEFAULT 0"
-        timestamp created_at
+        objectid _id PK
+        objectid product_id "reference"
+        objectid variant_id "reference, NULL=product-level"
+        string url "MinIO URL"
+        numberint sort_order "DEFAULT 0"
+        isodate created_at
     }
 
     STOCK_RESERVATION {
-        uuid id PK
-        uuid variant_id FK
-        varchar session_id "checkout session, 100"
-        int quantity
-        varchar status "pending/confirmed/released"
-        timestamp expires_at "NOW()+15min"
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid variant_id "reference"
+        string session_id "checkout session"
+        numberint quantity
+        string status "pending/confirmed/released"
+        isodate expires_at "NOW()+15min, TTL index"
+        isodate created_at
+        isodate updated_at
     }
 
-    %% ==================== CART DOMAIN (PostgreSQL) ====================
+    %% ==================== CART DOMAIN (MongoDB) ====================
     CART ||--o{ CART_ITEM : "cart_id CASCADE"
 
     CART {
-        uuid id PK
-        uuid customer_id UK "1 customer = 1 cart"
-        varchar status "active"
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid customer_id UK "1 customer = 1 cart"
+        string status "active"
+        isodate created_at
+        isodate updated_at
     }
 
     CART_ITEM {
-        uuid id PK
-        uuid cart_id FK "CASCADE"
-        uuid variant_id FK
-        int quantity "DEFAULT 1"
-        decimal price_snapshot "18,2"
-        varchar variant_name_snapshot "500"
-        text variant_image_snapshot
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid cart_id "reference"
+        objectid variant_id "reference"
+        numberint quantity "DEFAULT 1"
+        numberdecimal price_snapshot
+        string variant_name_snapshot
+        string variant_image_snapshot
+        isodate created_at
+        isodate updated_at
     }
 
     %% ==================== FLASH SALE DOMAIN ====================
@@ -445,8 +445,8 @@ erDiagram
 | Domain | Database | Service | Port |
 |--------|----------|---------|------|
 | Identity | PostgreSQL | identity-service | 8081 |
-| Catalog | PostgreSQL | product-service | 8090 |
-| Cart | PostgreSQL | product-service | 8090 |
+| Catalog | MongoDB | product-service | 8090 |
+| Cart | MongoDB | product-service | 8090 |
 | Flash Sale | PostgreSQL | flashsale-service | 8085 |
 | Orders | PostgreSQL | order-service | 8083 |
 | Payments | PostgreSQL | payment-service | 8082 |
@@ -459,7 +459,7 @@ erDiagram
 
 ## Cross-Domain References
 
-| Table.Column | References |
+| Collection.Field | References |
 |-------------|------------|
 | PRODUCT.category_id | CATEGORY.id |
 | PRODUCT.seller_id | Identity.SELLERS.id (soft ref) |

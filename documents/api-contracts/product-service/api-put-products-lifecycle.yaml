@@ -1,12 +1,27 @@
+# ============================================================
+# RE-ACTIVATED 2026-05-10 v3 — full lifecycle back in MVP scope.
+# P3-11 APPROVED 2026-05-10 — status enum (7 values) + reviewer columns applied
+# per database-entities.md §3 + DB_SCHEMA_CHANGE_PROPOSAL.md §P3-11.
+# Xem MVP_ANALYSIS.md §2.3 (đính chính v3) và BR-PRODUCT-009.
+# ============================================================
 openapi: "3.0.3"
 info:
   title: Product Service - Product Lifecycle
   description: >
-    Seller product lifecycle operations: submit for review, publish, and unpublish.
+    Seller product lifecycle operations across 7 states:
+    `draft -> pending -> approved -> active <-> inactive`, `pending -> rejected -> draft`.
+
+    Endpoints:
+    - `submitForReview` (draft -> pending): emit `product.pending_review`
+    - `publish` (approved|inactive -> active): emit `product.activated`
+    - `unpublish` (active -> inactive): emit `product.deactivated`
+
     All endpoints require SELLER role and product ownership.
     Product Service (Port 8090).
-  version: "5.4.0"
+  version: "5.5.0"
 servers:
+  - url: https://api.marketplace.vn/api/v1
+    description: Production
   - url: http://localhost:8090/api/v1
     description: Local development
 paths:
@@ -44,10 +59,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LifecycleResponse"
+                $ref: "#/components/schemas/SubmitResponse"
               example:
                 product_id: "507f1f77bcf86cd799439012"
-                status: "PENDING"
+                status: "pending"
+                submitted_at: "2026-05-10T10:00:00Z"
+                reject_count: 0
                 message: "Product submitted for review"
         "401":
           description: Missing or invalid JWT
@@ -67,15 +84,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-        "422":
-          description: Product incomplete or has no valid variants
+        "409":
+          description: Product not in `draft` or `rejected` state (e.g. already pending or active)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
-                error: "VALIDATION_ERROR"
-                message: "Product missing required data or has no valid variants"
+                error: "INVALID_STATE"
+                code: "INVALID_STATE"
+                message: "Product đang chờ admin duyệt, không thể submit lại"
+        "422":
+          description: Product incomplete (missing variant/stock/image/category) OR resubmit limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missingData:
+                  summary: Missing required data
+                  value:
+                    error: "VALIDATION_FAILED"
+                    code: "VALIDATION_FAILED"
+                    message: "Product thiếu variant/ảnh/category — vui lòng bổ sung trước khi submit"
+                resubmitLimit:
+                  summary: 3-strike limit reached
+                  value:
+                    error: "RESUBMIT_LIMIT_EXCEEDED"
+                    code: "RESUBMIT_LIMIT_EXCEEDED"
+                    message: "Đã bị từ chối 3 lần, vui lòng liên hệ admin"
 
   /seller/products/{productId}/publish:
     post:
@@ -83,8 +120,8 @@ paths:
       summary: Publish product for sale
       description: >
         Makes product visible on storefront. Sets status to active.
-        Only allowed for APPROVED products.
-        Emits product.published Kafka event for search indexing.
+        Only allowed for APPROVED or INACTIVE (re-publish) products.
+        Emits `product.activated` Kafka event for search indexing.
         Referenced by FR-PRODUCT-006.
       tags:
         - Product Lifecycle
@@ -128,11 +165,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Product not in APPROVED status
+          description: Product not in `approved` or `inactive` status (cannot publish from `draft`/`pending`/`rejected`)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "INVALID_STATE"
+                code: "INVALID_STATE"
+                message: "Chỉ sản phẩm đã được duyệt (approved) hoặc đã unpublish (inactive) mới có thể publish"
 
   /seller/products/{productId}/unpublish:
     post:
@@ -183,6 +224,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Product not in `active` or `out_of_stock` status (cannot unpublish from `draft`/`pending`/`approved`/`rejected`/`inactive`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "INVALID_STATE"
+                code: "INVALID_STATE"
+                message: "Chỉ sản phẩm đang bán (active/out_of_stock) mới có thể unpublish"
 
 components:
   securitySchemes:
@@ -195,6 +246,7 @@ components:
   schemas:
     LifecycleResponse:
       type: object
+      required: [product_id, status]
       properties:
         product_id:
           type: string
@@ -202,18 +254,38 @@ components:
           example: "507f1f77bcf86cd799439012"
         status:
           type: string
-          enum: [PENDING, active, inactive]
-          description: New product status
+          enum: [draft, pending, approved, rejected, active, out_of_stock, inactive]
+          description: New product status (one of the 7-state enum after P3-11)
         message:
           type: string
           description: Human-readable status message
 
+    SubmitResponse:
+      allOf:
+        - $ref: "#/components/schemas/LifecycleResponse"
+        - type: object
+          required: [submitted_at, reject_count]
+          properties:
+            submitted_at:
+              type: string
+              format: date-time
+              description: Timestamp when seller submitted for review (sets products.submitted_at)
+            reject_count:
+              type: integer
+              description: Cumulative reject count carried over from prior cycles (0 for first submit; max 3 per BR-PRODUCT-009.8)
+              minimum: 0
+              maximum: 3
+
     ErrorResponse:
       type: object
+      required: [error]
       properties:
         error:
           type: string
-          description: Error code
+          description: Short error label (legacy field)
+        code:
+          type: string
+          description: Machine-readable error code (e.g. INVALID_STATE, VALIDATION_FAILED, RESUBMIT_LIMIT_EXCEEDED)
         message:
           type: string
-          description: Human-readable error message
+          description: Human-readable error message (Vietnamese)

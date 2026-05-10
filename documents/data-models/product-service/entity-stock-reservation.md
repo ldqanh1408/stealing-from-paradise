@@ -1,7 +1,8 @@
 # ENTITY-PRODUCT-005: STOCK_RESERVATION
 
 > **Service**: product-service (Port 8090)
-> **Schema**: catalog
+> **Database**: MongoDB
+> **Collection**: mg_stock_reservations
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 5
 
 ---
@@ -13,14 +14,14 @@ erDiagram
     PRODUCT_VARIANT ||--o{ STOCK_RESERVATION : "variant_id"
 
     STOCK_RESERVATION {
-        uuid id PK
-        uuid variant_id FK
-        varchar session_id "checkout session"
-        int quantity
-        varchar status "pending/confirmed/released"
-        timestamp expires_at "NOW()+15min"
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid variant_id "reference"
+        string session_id "checkout session"
+        numberint quantity
+        string status "pending/confirmed/released"
+        isodate expires_at "NOW()+15min"
+        isodate created_at
+        isodate updated_at
     }
 ```
 
@@ -28,27 +29,28 @@ erDiagram
 
 ## Data Dictionary
 
-| # | Column | Type | Constraints | Meaning |
+| # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
-| 1 | `id` | UUID | PK, DEFAULT gen_random_uuid() | Unique reservation identifier |
-| 2 | `variant_id` | UUID | FK REFERENCES product_variant(id), NOT NULL | Reserved variant (SKU) |
-| 3 | `session_id` | VARCHAR(100) | NOT NULL | Checkout session ID; links to Order Service's `parent_orders.session_id` |
-| 4 | `quantity` | INT | NOT NULL | Number of units reserved |
-| 5 | `status` | VARCHAR(50) | NOT NULL, DEFAULT 'pending' | Reservation lifecycle: `pending`, `confirmed`, `released` |
-| 6 | `expires_at` | TIMESTAMP | NOT NULL | TTL = NOW() + 15 minutes; cleanup job releases expired pending reservations |
-| 7 | `created_at` | TIMESTAMP | DEFAULT NOW() | Row creation timestamp |
-| 8 | `updated_at` | TIMESTAMP | DEFAULT NOW() | Last modification timestamp |
+| 1 | `_id` | ObjectId | PK, auto-generated | Unique reservation identifier |
+| 2 | `variant_id` | ObjectId | NOT NULL, application-level reference | Reserved variant (SKU) |
+| 3 | `session_id` | String | NOT NULL | Checkout session ID; links to Order Service's `parent_orders.session_id` |
+| 4 | `quantity` | NumberInt | NOT NULL | Number of units reserved |
+| 5 | `status` | String | NOT NULL, DEFAULT 'pending' | Reservation lifecycle: `pending`, `confirmed`, `released` |
+| 6 | `expires_at` | ISODate | NOT NULL | TTL = NOW() + 15 minutes; MongoDB TTL index auto-removes expired pending reservations |
+| 7 | `created_at` | ISODate | Auto-set | Document creation timestamp |
+| 8 | `updated_at` | ISODate | Auto-set | Last modification timestamp |
 
 ---
 
 ## Indexes
 
-| Index Name | Columns | Type | Purpose |
+| Index Name | Fields | Type | Purpose |
 |------------|---------|------|---------|
-| `idx_reservation_variant` | `variant_id` | B-tree | Check active reservations for a given variant |
-| `idx_reservation_session` | `session_id` | B-tree | Lookup by checkout session |
-| `idx_reservation_status` | `status` | B-tree | Filter by status (e.g., pending cleanup) |
-| `idx_reservation_expires` | `expires_at` | B-tree | Cleanup job: find expired `pending` reservations |
+| `idx_reservation_variant` | `{ variant_id: 1 }` | B-tree | Check active reservations for a given variant |
+| `idx_reservation_session` | `{ session_id: 1 }` | B-tree | Lookup by checkout session |
+| `idx_reservation_status` | `{ status: 1 }` | B-tree | Filter by status (e.g., pending cleanup) |
+| `idx_reservation_expires` | `{ expires_at: 1 }` | TTL | MongoDB TTL index with `expireAfterSeconds: 0`; auto-deletes documents when `expires_at` passes |
+| `idx_reservation_cleanup` | `{ status: 1, expires_at: 1 }` | B-tree | Cleanup job: find expired `pending` reservations not yet cleaned by TTL |
 
 ---
 
@@ -58,9 +60,9 @@ erDiagram
 1. Customer clicks "Dat hang"
    -> INSERT stock_reservation (status=pending, expires_at=NOW()+15min)
    -> Redis: DECRBY stock:{variant_id} {quantity}
-   -> DB: UPDATE product_variant SET stock_quantity = stock_quantity - {quantity}
-          WHERE stock_quantity >= {quantity} AND version = N
-   -> rows_affected = 0? -> Rollback, return "out of stock"
+   -> DB: Update product_variant field stock_quantity = stock_quantity - {quantity}
+          with optimistic lock check on version field
+   -> Update fails? -> Rollback, return "out of stock"
 
 2. Payment succeeds
    -> UPDATE stock_reservation SET status = 'confirmed'
@@ -69,11 +71,11 @@ erDiagram
 3. Payment fails / timeout
    -> UPDATE stock_reservation SET status = 'released'
    -> Redis: INCR stock:{variant_id} {quantity}
-   -> DB: UPDATE product_variant SET stock_quantity = stock_quantity + {quantity}
+   -> DB: Update product_variant field stock_quantity = stock_quantity + {quantity}
 
-4. Cleanup job (runs every 1-5 min)
-   -> Find all reservations WHERE status = 'pending' AND expires_at < NOW()
-   -> Release each (step 3)
+4. TTL index + cleanup job
+   -> TTL index on expires_at auto-deletes expired documents
+   -> Cleanup job (runs every 1-5 min) handles stock restoration for expired pending reservations
 ```
 
 ---

@@ -1,7 +1,8 @@
 # ENTITY-PRODUCT-007: CART_ITEM
 
 > **Service**: product-service (Port 8090)
-> **Schema**: cart
+> **Database**: MongoDB
+> **Collection**: mg_cart_items
 > **Source**: database-entities.md Section 4, 03_database_tables.md Section 7
 
 ---
@@ -10,19 +11,19 @@
 
 ```mermaid
 erDiagram
-    CART ||--o{ CART_ITEM : "cart_id CASCADE"
+    CART ||--o{ CART_ITEM : "cart_id"
     PRODUCT_VARIANT ||--o{ CART_ITEM : "variant_id"
 
     CART_ITEM {
-        uuid id PK
-        uuid cart_id FK "CASCADE"
-        uuid variant_id FK
-        int quantity "DEFAULT 1"
-        decimal price_snapshot "18,2"
-        varchar variant_name_snapshot "500"
-        text variant_image_snapshot
-        timestamp created_at
-        timestamp updated_at
+        objectid _id PK
+        objectid cart_id "reference"
+        objectid variant_id "reference"
+        numberint quantity "DEFAULT 1"
+        numberdecimal price_snapshot
+        string variant_name_snapshot
+        string variant_image_snapshot
+        isodate created_at
+        isodate updated_at
     }
 ```
 
@@ -30,28 +31,29 @@ erDiagram
 
 ## Data Dictionary
 
-| # | Column | Type | Constraints | Meaning |
+| # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
-| 1 | `id` | UUID | PK, DEFAULT gen_random_uuid() | Unique cart item identifier |
-| 2 | `cart_id` | UUID | FK REFERENCES cart(id) ON DELETE CASCADE, NOT NULL | Parent cart |
-| 3 | `variant_id` | UUID | FK REFERENCES product_variant(id), NOT NULL | The SKU in the cart |
-| 4 | `quantity` | INT | NOT NULL, DEFAULT 1 | Desired quantity; > 0 and <= 1000 per API validation |
-| 5 | `price_snapshot` | DECIMAL(18,2) | NOT NULL | Price at time of adding to cart; used for change detection |
-| 6 | `variant_name_snapshot` | VARCHAR(500) | NULLABLE | Cached variant name for display even if variant is deleted |
-| 7 | `variant_image_snapshot` | TEXT | NULLABLE | Cached image URL for display even if image is removed |
-| 8 | `created_at` | TIMESTAMP | DEFAULT NOW() | When item was added to cart |
-| 9 | `updated_at` | TIMESTAMP | DEFAULT NOW() | Last quantity/price update |
+| 1 | `_id` | ObjectId | PK, auto-generated | Unique cart item identifier |
+| 2 | `cart_id` | ObjectId | NOT NULL, application-level reference | Parent cart |
+| 3 | `variant_id` | ObjectId | NOT NULL, application-level reference | The SKU in the cart |
+| 4 | `quantity` | NumberInt | NOT NULL, DEFAULT 1 | Desired quantity; > 0 and <= 1000 per API validation |
+| 5 | `price_snapshot` | NumberDecimal | NOT NULL | Price at time of adding to cart; used for change detection |
+| 6 | `variant_name_snapshot` | String | NULLABLE | Cached variant name for display even if variant is deleted |
+| 7 | `variant_image_snapshot` | String | NULLABLE | Cached image URL for display even if image is removed |
+| 8 | `created_at` | ISODate | Auto-set | When item was added to cart |
+| 9 | `updated_at` | ISODate | Auto-set | Last quantity/price update |
 
-**Unique Constraint**: `UNIQUE(cart_id, variant_id)` -- each variant appears at most once per cart.
+**Unique Compound Index**: `{ cart_id: 1, variant_id: 1 }` (unique) -- each variant appears at most once per cart.
 
 ---
 
 ## Indexes
 
-| Index Name | Columns | Type | Purpose |
+| Index Name | Fields | Type | Purpose |
 |------------|---------|------|---------|
-| `idx_cart_item_cart` | `cart_id` | B-tree | Fetch all items for a given cart |
-| `idx_cart_item_variant` | `variant_id` | B-tree | Find carts containing a specific variant |
+| `idx_cart_item_cart` | `{ cart_id: 1 }` | B-tree | Fetch all items for a given cart |
+| `idx_cart_item_variant` | `{ variant_id: 1 }` | B-tree | Find carts containing a specific variant |
+| `idx_cart_item_cart_variant` | `{ cart_id: 1, variant_id: 1 }` | Unique B-tree | Enforces one entry per variant per cart; enables UPSERT |
 
 ---
 

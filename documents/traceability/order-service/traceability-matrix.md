@@ -2,7 +2,7 @@
 
 **Document ID:** TRACE-ORDER-001
 **Service:** order-service (port 8083)
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-05-10 (UC-ORDER-008 Seller Cancel re-activated; BR-ORDER-026 + `seller.order_cancelled` added)
 
 ---
 
@@ -17,7 +17,8 @@
 | FR-ORDER-005 | Buyer Order Listing | — | UC-ORDER-002 | ENTITY-002 | api-get-orders.yaml | — |
 | FR-ORDER-006 | Order Detail | — | UC-ORDER-002 | ENTITY-002,003 | api-get-orders.yaml | — |
 | FR-ORDER-007 | Parent Order Detail | — | UC-ORDER-002 | ENTITY-001,002 | — | — |
-| FR-ORDER-008 | Buyer Cancel Order | BR-011,021,025 | UC-ORDER-003 | ENTITY-002 | api-post-orders-return.yaml | PENDING→CANCELLED |
+| FR-ORDER-008 | Buyer Cancel Order | BR-011,021,025 | UC-ORDER-003 | ENTITY-002 | api-post-orders-cancel.yaml | PENDING→CANCELLED, PAID→CANCELLED |
+| FR-ORDER-008b | Seller Cancel Order (PAID, pre-ship) | BR-011,021,026 | UC-ORDER-008 | ENTITY-002 | api-post-orders-cancel.yaml | PAID→CANCELLED |
 | FR-ORDER-009 | Seller Update Tracking | BR-ORDER-013 | UC-ORDER-004 | ENTITY-002 | api-put-orders-ship.yaml | PAID→SHIPPING |
 | FR-ORDER-010 | Buyer Confirm Delivery | BR-ORDER-014 | UC-ORDER-005 | ENTITY-002 | api-put-orders-ship.yaml | SHIPPING→DELIVERED |
 | FR-ORDER-011 | Auto-Confirm Delivery (JOB-22) | BR-ORDER-015 | — | ENTITY-002 | — | SHIPPING→DELIVERED |
@@ -37,7 +38,8 @@
 |-------|----------|-------|--------|-----|-------------|
 | UC-ORDER-001 | Checkout | BUYER | FR-001,002,003,004 | POST /orders/checkout | → PENDING |
 | UC-ORDER-002 | View Orders | BUYER | FR-005,006,007 | GET /orders, /orders/{id}, /orders/parent/{id} | None (read) |
-| UC-ORDER-003 | Cancel Order | BUYER/SELLER | FR-ORDER-008 | POST /orders/{id}/cancel | PENDING→CANCELLED |
+| UC-ORDER-003 | Cancel Order (Buyer) | BUYER | FR-ORDER-008 | POST /orders/{id}/cancel | PENDING→CANCELLED, PAID→CANCELLED |
+| UC-ORDER-008 | Cancel Order (Seller) | SELLER | FR-ORDER-008b | POST /orders/{id}/cancel | PAID→CANCELLED (tracking_number IS NULL) |
 | UC-ORDER-004 | Ship Order | SELLER | FR-ORDER-009 | PUT /orders/{id}/tracking | PAID→SHIPPING |
 | UC-ORDER-005 | Confirm Delivery | BUYER | FR-010,011 | POST /orders/{id}/confirm-received | SHIPPING→DELIVERED |
 | UC-ORDER-006 | Request Return | BUYER/SELLER | FR-012,013 | POST /orders/{id}/return-to-sender, POST /orders/{id}/refunds | SHIPPING→RETURNED, DELIVERED→REFUNDED |
@@ -59,7 +61,7 @@
 | BR-ORDER-008 | Checkout idempotency | ENTITY-001 | — |
 | BR-ORDER-009 | Kafka event on checkout | — | → PENDING |
 | BR-ORDER-010 | PENDING→PAID | ENTITY-002 | PENDING→PAID |
-| BR-ORDER-011 | PENDING→CANCELLED | ENTITY-002 | PENDING→CANCELLED |
+| BR-ORDER-011 | PENDING/PAID→CANCELLED (buyer or seller per BR-021) | ENTITY-002 | PENDING→CANCELLED, PAID→CANCELLED |
 | BR-ORDER-012 | Auto-cancel (JOB-13) | ENTITY-002 | PENDING→CANCELLED |
 | BR-ORDER-013 | PAID→SHIPPING | ENTITY-002 | PAID→SHIPPING |
 | BR-ORDER-014 | SHIPPING→DELIVERED (buyer) | ENTITY-002 | SHIPPING→DELIVERED |
@@ -69,11 +71,12 @@
 | BR-ORDER-018 | DELIVERED→REFUNDED | ENTITY-002 | DELIVERED→REFUNDED |
 | BR-ORDER-019 | DELIVERED→PARTIALLY_REFUNDED | ENTITY-002 | DELIVERED→PARTIALLY_REFUNDED |
 | BR-ORDER-020 | RETURNED→REFUNDED (auto) | ENTITY-002 | RETURNED→REFUNDED |
-| BR-ORDER-021 | Cancellation actor rules | ENTITY-002 | — |
+| BR-ORDER-021 | Cancellation actor rules (BUYER: PENDING/PAID; SELLER: PAID + tracking_number IS NULL) | ENTITY-002 | — |
 | BR-ORDER-022 | RTS vs Buyer Refund | ENTITY-002 | — |
 | BR-ORDER-023 | Parent status sync | ENTITY-001,002 | — |
 | BR-ORDER-024 | Immutable shipping snapshot | ENTITY-002 | — |
 | BR-ORDER-025 | Stock reservation release | ENTITY-003 | — |
+| BR-ORDER-026 | Seller cancel — full refund + reason ≥10 chars + emit `seller.order_cancelled` | ENTITY-002 | PAID→CANCELLED |
 
 ---
 
@@ -89,7 +92,8 @@
 | api-get-orders.yaml | GET | /sellers/me/dashboard | SELLER | UC-ORDER-007 |
 | api-put-orders-ship.yaml | PUT | /orders/{id}/tracking | SELLER | UC-ORDER-004 |
 | api-put-orders-ship.yaml | POST | /orders/{id}/confirm-received | BUYER | UC-ORDER-005 |
-| api-post-orders-return.yaml | POST | /orders/{id}/cancel | BUYER\|SELLER | UC-ORDER-003 |
+| api-post-orders-cancel.yaml | POST | /orders/{id}/cancel | BUYER | UC-ORDER-003 |
+| api-post-orders-cancel.yaml | POST | /orders/{id}/cancel | SELLER | UC-ORDER-008 |
 | api-post-orders-return.yaml | POST | /orders/{id}/return-to-sender | SELLER | UC-ORDER-006 |
 | api-post-orders-return.yaml | POST | /orders/{id}/refunds | BUYER | UC-ORDER-006 |
 | api-post-orders-return.yaml | POST | /orders/parent/{id}/refund | BUYER | UC-ORDER-006 |
@@ -104,7 +108,8 @@
 | `order.paid` | order-service | — | PENDING→PAID |
 | `order.shipped` | order-service | notification-service | PAID→SHIPPING |
 | `order.delivered` | order-service | payment-service, notification-service | SHIPPING→DELIVERED |
-| `order.cancelled` | order-service | product-service, notification-service | PENDING→CANCELLED |
+| `order.cancelled` | order-service | product-service (release stock), identity-service (audit), notification-service | PENDING→CANCELLED, PAID→CANCELLED |
+| `seller.order_cancelled` | order-service (only when cancelled_by=SELLER) | payment-service (auto-refund), notification-service (buyer apology), product-service (idempotent stock release) | PAID→CANCELLED |
 | `order.returned` | order-service | payment-service, product-service, notification-service | SHIPPING→RETURNED |
 | `order.auto_cancelled` | order-service (JOB-13) | product-service, notification-service | PENDING→CANCELLED |
 | `order.checkout_completed` | order-service | product-service (cart) | → PENDING |
@@ -122,11 +127,11 @@
 | Entity | entity-parent-order.md, entity-order.md, entity-order-item.md | 3 |
 | Business Rules | br-checkout.md, br-order-lifecycle.md | 2 |
 | Functional Requirements | fr-order.md | 1 |
-| Use Cases | uc-001..007 | 7 |
-| API Contracts | api-post-orders-checkout.yaml, api-get-orders.yaml, api-put-orders-ship.yaml, api-post-orders-return.yaml | 4 |
+| Use Cases | uc-001..008 | 8 |
+| API Contracts | api-post-orders-checkout.yaml, api-get-orders.yaml, api-put-orders-ship.yaml, api-post-orders-return.yaml, api-post-orders-cancel.yaml | 5 |
 | State Diagrams | state-order.md | 1 |
 | Traceability | traceability-matrix.md | 1 |
-| **Total** | | **19** |
+| **Total** | | **21** |
 
 ---
 
