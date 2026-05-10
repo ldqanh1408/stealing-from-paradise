@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"D:\\\\dev\\\\stealing-from-paradise\\\\documents\\\\data-models\\\\entity-database-entities.md\"}",
+  "error": "File does not exist. Note: your current working directory is D:\\dev\\stealing-from-paradise.",
+  "timestamp": "2026-05-10T11:10:35.411Z",
+  "retry_count": 1
+}
