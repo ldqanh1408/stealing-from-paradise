@@ -1,4 +1,4 @@
-# BR-PRODUCT-009 through BR-PRODUCT-012: Cart Business Rules
+# BR-PRODUCT-010 through BR-PRODUCT-013: Cart Business Rules
 
 > **Service**: product-service (Port 8090)
 > **Domain**: Cart -- Cart and Cart Items
@@ -6,7 +6,7 @@
 
 ---
 
-## BR-PRODUCT-009: One Cart Per Customer
+## BR-PRODUCT-010: One Cart Per Customer
 
 | Rule | Detail |
 |------|--------|
@@ -17,7 +17,7 @@
 
 ---
 
-## BR-PRODUCT-010: Cart Item Uniqueness (Per Variant)
+## BR-PRODUCT-011: Cart Item Uniqueness (Per Variant)
 
 | Rule | Detail |
 |------|--------|
@@ -30,7 +30,7 @@
 
 ---
 
-## BR-PRODUCT-011: Price Snapshot Rules
+## BR-PRODUCT-012: Price Snapshot Rules
 
 | Rule | Detail |
 |------|--------|
@@ -44,7 +44,7 @@
 
 ---
 
-## BR-PRODUCT-012: Quantity Limits and Stock Validation
+## BR-PRODUCT-013: Quantity Limits and Stock Validation
 
 | Rule | Detail |
 |------|--------|
@@ -80,3 +80,4 @@
 | UC-PRODUCT-010 | Update cart item |
 | UC-PRODUCT-011 | Remove from cart |
 | FR-PRODUCT-016 through 022 | Cart functional requirements |
+| STATE-PRODUCT-002 | [state-cart.md](../../state-diagrams/product-service/state-cart.md) |

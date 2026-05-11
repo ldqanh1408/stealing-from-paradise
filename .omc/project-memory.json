@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1778346586606,
+  "lastScanned": 1778434172260,
   "projectRoot": "D:\\dev\\stealing-from-paradise",
   "techStack": {
     "languages": [],
@@ -39,7 +39,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1778346586592,
+      "lastAccessed": 1778434172242,
       "keyFiles": [
         "docker-compose.infra-only.yml",
         "docker-compose.yml",
@@ -50,17 +50,30 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 2,
-      "lastAccessed": 1778346586593,
+      "lastAccessed": 1778434172242,
       "keyFiles": [
         "00_INDEX.md",
         "README.md"
+      ]
+    },
+    "documents": {
+      "path": "documents",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1778434172243,
+      "keyFiles": [
+        "10_ENVIRONMENT_VARIABLES.md",
+        "CONTRADICTIONS.md",
+        "database-entities.md",
+        "DB_SCHEMA_CHANGE_PROPOSAL.md",
+        "MVP_ANALYSIS.md"
       ]
     },
     "frontend": {
       "path": "frontend",
       "purpose": null,
       "fileCount": 8,
-      "lastAccessed": 1778346586593,
+      "lastAccessed": 1778434172243,
       "keyFiles": [
         "docker compose.yml",
         "package-lock.json",
@@ -71,7 +84,7 @@
       "path": "nginx",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1778346586593,
+      "lastAccessed": 1778434172243,
       "keyFiles": [
         "docker-compose.prod-pulled.yml",
         "docker-entrypoint.sh",
@@ -83,14 +96,14 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 0,
-      "lastAccessed": 1778346586593,
+      "lastAccessed": 1778434172243,
       "keyFiles": []
     },
     "docs\\api": {
       "path": "docs\\api",
       "purpose": "API routes",
       "fileCount": 1,
-      "lastAccessed": 1778346586594,
+      "lastAccessed": 1778434172244,
       "keyFiles": [
         "README.md"
       ]
@@ -99,15 +112,21 @@
       "path": "docs\\services",
       "purpose": "Business logic services",
       "fileCount": 0,
-      "lastAccessed": 1778346586594,
+      "lastAccessed": 1778434172244,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
       "path": "documents\\CONTRADICTIONS.md",
+      "accessCount": 23,
+      "lastAccessed": 1778481487179,
+      "type": "file"
+    },
+    {
+      "path": "documents\\database-entities.md",
       "accessCount": 18,
-      "lastAccessed": 1778432152808,
+      "lastAccessed": 1778481419877,
       "type": "file"
     },
     {
@@ -117,22 +136,46 @@
       "type": "file"
     },
     {
-      "path": "documents\\database-entities.md",
-      "accessCount": 16,
-      "lastAccessed": 1778432152875,
+      "path": "documents\\data-models\\product-service\\entity-product.md",
+      "accessCount": 17,
+      "lastAccessed": 1778480992731,
       "type": "file"
     },
     {
-      "path": "documents\\data-models\\product-service\\entity-product.md",
-      "accessCount": 16,
-      "lastAccessed": 1778432568691,
+      "path": "documents\\System Analyst and Software Architect.md",
+      "accessCount": 10,
+      "lastAccessed": 1778481017449,
       "type": "file"
     },
     {
       "path": "",
-      "accessCount": 6,
-      "lastAccessed": 1778432146185,
+      "accessCount": 10,
+      "lastAccessed": 1778481433444,
       "type": "directory"
+    },
+    {
+      "path": "documents\\README.md",
+      "accessCount": 5,
+      "lastAccessed": 1778481420378,
+      "type": "file"
+    },
+    {
+      "path": "documents\\data-models\\product-service\\entity-category.md",
+      "accessCount": 4,
+      "lastAccessed": 1778481477235,
+      "type": "file"
+    },
+    {
+      "path": "documents\\data-models\\product-service\\entity-product-variant.md",
+      "accessCount": 4,
+      "lastAccessed": 1778481554660,
+      "type": "file"
+    },
+    {
+      "path": "documents\\data-models\\product-service\\entity-product-image.md",
+      "accessCount": 4,
+      "lastAccessed": 1778481560017,
+      "type": "file"
     },
     {
       "path": "backend\\docker-compose.yml",
@@ -150,6 +193,12 @@
       "path": "docker-compose-backend.yml",
       "accessCount": 3,
       "lastAccessed": 1778080398342,
+      "type": "file"
+    },
+    {
+      "path": "documents\\data-models\\identity-service\\entity-user.md",
+      "accessCount": 3,
+      "lastAccessed": 1778481023652,
       "type": "file"
     },
     {
@@ -198,12 +247,6 @@
       "path": "documents\\api-contracts\\product-service\\api-get-categories.yaml",
       "accessCount": 2,
       "lastAccessed": 1778410416335,
-      "type": "file"
-    },
-    {
-      "path": "documents\\README.md",
-      "accessCount": 2,
-      "lastAccessed": 1778410806834,
       "type": "file"
     },
     {
@@ -327,21 +370,9 @@
       "type": "file"
     },
     {
-      "path": "documents\\System Analyst and Software Architect.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409916808,
-      "type": "file"
-    },
-    {
       "path": "documents\\overview\\FLOWS.md",
       "accessCount": 1,
       "lastAccessed": 1778409988122,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\identity-service\\entity-user.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409994596,
       "type": "file"
     },
     {
@@ -357,27 +388,9 @@
       "type": "file"
     },
     {
-      "path": "documents\\data-models\\product-service\\entity-category.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409994953,
-      "type": "file"
-    },
-    {
       "path": "documents\\data-models\\identity-service\\entity-address.md",
       "accessCount": 1,
       "lastAccessed": 1778409995002,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\product-service\\entity-product-image.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409995133,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\product-service\\entity-product-variant.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409995254,
       "type": "file"
     },
     {

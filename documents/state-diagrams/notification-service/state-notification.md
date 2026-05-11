@@ -1,4 +1,6 @@
-# ST-NOTIF-001: Notification State Machine
+# State Diagram: Notification
+
+**Stable ID:** `STATE-NOTIFICATION-001`
 
 > **Service**: notification-service (Port 8092)
 > **Entity**: MG_NOTIFICATIONS

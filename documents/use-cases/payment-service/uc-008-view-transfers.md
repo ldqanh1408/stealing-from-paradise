@@ -21,7 +21,7 @@
 | Step | Actor/System | Action |
 |------|-------------|--------|
 | 1 | Seller | Calls GET `/seller/payments/transfers` with optional filters |
-| 2 | System | Queries SELLER_TRANSFERS WHERE `seller_id` = authenticated seller |
+| 2 | System | Queries SELLER_TRANSFERS WHERE `seller_id` = authenticated seller (→ ENTITY-PAYMENT-003) |
 | 3 | System | Applies optional filters: status, from_date, to_date |
 | 4 | System | Paginates results (page, size) |
 | 5 | System | Returns list of transfer records with status, amounts, dates |
@@ -33,7 +33,7 @@
 | Step | Actor/System | Action |
 |------|-------------|--------|
 | 1 | Seller | Calls GET `/seller/payments/balance` |
-| 2 | System | Aggregates SELLER_TRANSFERS by status |
+| 2 | System | Aggregates SELLER_TRANSFERS by status (→ ENTITY-PAYMENT-003) |
 | 3 | System | Calculates: `pending_balance` (RETURN_WINDOW + READY_FOR_PAYOUT), `available_balance` (PAID_OUT), `total_earned` (all non-refunded) |
 | 4 | System | Returns `{ pending_balance, available_balance, total_earned }` |
 
@@ -44,7 +44,7 @@
 | Step | Actor/System | Action |
 |------|-------------|--------|
 | 1 | Seller | Calls GET `/seller/payments/stripe-dashboard` |
-| 2 | System | Looks up `express_dashboard_url` from SELLER_STRIPE_ACCOUNTS |
+| 2 | System | Looks up `express_dashboard_url` from SELLER_STRIPE_ACCOUNTS (→ ENTITY-PAYMENT-001) |
 | 3 | System | If URL missing/expired, calls Stripe API to create new login link |
 | 4 | System | Returns `{ dashboard_url }` |
 

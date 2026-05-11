@@ -1,6 +1,6 @@
 # Running Guide
 
-> **Source**: docs/operations/09_RUNNING.md (2026-04-24)
+> **Source**: documents/operations/RUNNING_GUIDE.md (2026-05-11)
 > **Entry Script**: flashsale-build.ps1
 > **Generated**: 2026-05-10
 
@@ -36,9 +36,12 @@ REDIS_PASSWORD=<strong-password>
 MONGO_INITDB_ROOT_PASSWORD=<strong-password>
 MINIO_ACCESS_KEY=<your-access-key>
 MINIO_SECRET_KEY=<your-secret-key>
+ELASTIC_USERNAME=elastic
+ELASTIC_PASSWORD=<strong-password>
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+SPRING_AI_OPENAI_API_KEY=sk-...
 ```
 
 ### 3. Start Docker Desktop
@@ -90,7 +93,7 @@ Run from the **project root**: `.\flashsale-build.ps1 <action> [target]`
 | `mvn <service>` | Build single Maven module |
 | `mvn-clean <service>` | Clean + build single Maven module |
 
-Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `product`, `search`, `notification`, `common-lib`, `dev-data-runner`
+Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `product`, `search`, `notification`, `chat`, `common-lib`, `dev-data-runner`
 
 ### npm -- Frontend Build
 
@@ -136,7 +139,7 @@ Apps: `customer` (port 3000), `seller` (port 3001), `admin` (port 3002)
 | `svc-up <service>` | Start ONE service container (already built) |
 | `svc-rm <service>` | Remove ONE service container |
 
-Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `product`, `search`, `notification`
+Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `product`, `search`, `notification`, `chat`
 
 ### Stop Commands
 
@@ -191,6 +194,7 @@ Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `
 | Product | `fs-product` | 8090 | http://localhost:8090 |
 | Search | `fs-search` | 8091 | http://localhost:8091 |
 | Notification | `fs-notification` | 8092 | http://localhost:8092 |
+| AI Chat | `fs-chat` | 8093 | http://localhost:8093 |
 
 ### Infrastructure
 
@@ -233,7 +237,7 @@ http://localhost:8024    Axon Server GUI
 | Category | Containers |
 |----------|------------|
 | **Infrastructure** | `fs-postgres`, `fs-mongo`, `fs-redis`, `fs-elasticsearch`, `fs-minio`, `fs-kafka`, `fs-zookeeper`, `fs-axonserver` |
-| **Backend** | `fs-discovery`, `fs-gateway`, `fs-identity`, `fs-payment`, `fs-order`, `fs-flashsale`, `fs-product`, `fs-search`, `fs-notification` |
+| **Backend** | `fs-discovery`, `fs-gateway`, `fs-identity`, `fs-payment`, `fs-order`, `fs-flashsale`, `fs-product`, `fs-search`, `fs-notification`, `fs-chat` |
 | **Frontend** | `fs-customer-fe`, `fs-seller-fe`, `fs-admin-fe` |
 | **Special** | `fs-reverse-proxy` (nginx), `fs-stripe-listener` (dev only) |
 
@@ -248,7 +252,7 @@ Connect from host machine (outside Docker):
 | PostgreSQL | localhost | 5432 | postgres | `POSTGRES_PASSWORD` from `.env` |
 | MongoDB | localhost | 27017 | fs_mongo_admin | `MONGO_INITDB_ROOT_PASSWORD` from `.env` |
 | Redis | localhost | 6379 | (none) | `REDIS_PASSWORD` from `.env` |
-| Elasticsearch | localhost | 9200 | (none) | No authentication |
+| Elasticsearch | localhost | 9200 | elastic | `ELASTIC_PASSWORD` from `.env` (x-pack security; disabled by default in dev, must be enabled in production) |
 | MinIO | localhost | 9000 | `MINIO_ACCESS_KEY` | `MINIO_SECRET_KEY` |
 
 ---

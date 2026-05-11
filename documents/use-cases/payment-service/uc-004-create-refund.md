@@ -30,8 +30,8 @@
 | 1d | -- | Selects items to refund (for PARTIAL) |
 | 2 | System | Validates: return_window not expired, amount <= remaining balance |
 | 3 | System | Generates `group_ref` UUID for this request |
-| 4 | System | Creates REFUND row (type, amount, status=PENDING, reason, evidence_images) |
-| 5 | System | Creates REFUND_ITEM rows for each selected item |
+| 4 | System | Creates REFUND row (type, amount, status=PENDING, reason, evidence_images) (→ ENTITY-PAYMENT-004) |
+| 5 | System | Creates REFUND_ITEM rows for each selected item (→ ENTITY-PAYMENT-005) |
 | 6 | System | Publishes Kafka `refund.requested` |
 | 7 | Notification | Notifies seller of refund request |
 
@@ -43,8 +43,8 @@
 |------|-------------|--------|
 | 1 | Order Svc | Publishes `order.returned` to Kafka |
 | 2 | System | PaymentService consumes `order.returned` |
-| 3 | System | Creates REFUND: type=FULL, refund_reason_type=RETURN_TO_SENDER, initiated_by=SYSTEM |
-| 4 | System | Checks SELLER_TRANSFERS.status: pre-payout or post-payout |
+| 3 | System | Creates REFUND: type=FULL, refund_reason_type=RETURN_TO_SENDER, initiated_by=SYSTEM (→ ENTITY-PAYMENT-004) |
+| 4 | System | Checks SELLER_TRANSFERS.status: pre-payout or post-payout (→ ENTITY-PAYMENT-003) |
 | 5 | System | IF pre-payout: execute refund from platform balance |
 | 5a | System | IF post-payout: execute Stripe Transfer reversal |
 | 6 | System | Publishes Kafka `refund.rts_completed` |

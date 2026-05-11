@@ -39,7 +39,7 @@ Buyer selects items from their cart and completes checkout. The system splits it
 | 9 | System | Creates ORDER_ITEMS with price/image/name snapshots |
 | 10 | System | Reserves stock (stock_reservation entries) |
 | 11 | System | Emits Axon ParentOrderCheckoutCreatedEvent → starts Saga |
-| 12 | System | Produces `order.created` and `order.checkout_completed` Kafka events |
+| 12 | System | Produces `order.created` and `order.checkout_created` Kafka events |
 | 13 | System | Returns 201 with parent_order_id, orders[], shipping_address, totals |
 
 ---
@@ -101,5 +101,5 @@ Buyer selects items from their cart and completes checkout. The system splits it
 | Business Rules | BR-ORDER-001 through BR-ORDER-009 |
 | Functional Requirements | FR-ORDER-001, FR-ORDER-002, FR-ORDER-003, FR-ORDER-004 |
 | API Contract | api-post-orders-checkout.yaml |
-| Kafka Events | order.created, order.checkout_completed |
+| Kafka Events | order.created, order.checkout_created |
 | Entities | ENTITY-ORDER-001, ENTITY-ORDER-002, ENTITY-ORDER-003 |

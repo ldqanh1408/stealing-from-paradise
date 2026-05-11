@@ -76,6 +76,6 @@
 | This Document | Source File | Section |
 |---------------|-------------|---------|
 | ENTITY-NOTIF-001 | database-entities.md | Section 8 |
-| ENTITY-NOTIF-001 | 03_database_tables.md | MG_NOTIFICATIONS |
-| API contracts | 02_API_notification_service.md | All endpoints |
-| Kafka info | KAFKA_EVENTS.md | Consumer topics |
+| ENTITY-NOTIF-001 | data-models/notification-service/entity-notification.md | MG_NOTIFICATIONS |
+| API contracts | api-contracts/notification-service/ | All endpoints |
+| Kafka info | messaging/notification-service/KAFKA_EVENTS.md | Consumer topics |

@@ -71,8 +71,8 @@ Updated: 2026-05-09
 | POST /auth/register | account.created |
 | POST /auth/login | account.login |
 | PUT /users/me | account.updated |
-| POST /admin/users/{id}/lock | account.locked |
-| POST /admin/users/{id}/unlock | account.unlocked |
+| POST /admin/users/{id}/lock | account.locked (post-MVP) |
+| POST /admin/users/{id}/unlock | account.unlocked (post-MVP) |
 | POST /auth/register/seller | seller.registered |
 | POST /admin/users/{id}/suspend-posting | seller.posting_suspended |
 | POST /admin/users/{id}/unlock-product-posting | seller.posting_resumed |

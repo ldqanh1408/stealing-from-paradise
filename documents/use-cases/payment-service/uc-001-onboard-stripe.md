@@ -22,15 +22,15 @@
 | Step | Actor/System | Action |
 |------|-------------|--------|
 | 1 | Seller | Calls POST `/stripe/onboarding/start` |
-| 2 | System | Checks UNIQUE(seller_id): if existing account with `details_submitted = true`, return 409 |
+| 2 | System | Checks UNIQUE(seller_id): if existing account with `details_submitted = true`, return 409 (→ ENTITY-PAYMENT-001) |
 | 3 | System | If no existing account, creates Stripe Express account via `Account.create()` |
-| 4 | System | Inserts SELLER_STRIPE_ACCOUNTS row (status = PENDING) |
+| 4 | System | Inserts SELLER_STRIPE_ACCOUNTS row (status = PENDING) (→ ENTITY-PAYMENT-001) |
 | 5 | System | Calls Stripe `accountLinks.create()` to generate onboarding URL |
-| 6 | System | Sets `onboarding_url_expires_at = NOW() + 24h` |
+| 6 | System | Sets `onboarding_url_expires_at = NOW() + 24h` (→ ENTITY-PAYMENT-001) |
 | 7 | System | Returns 201 `{ onboarding_url, expires_at }` |
 | 8 | Seller | Opens onboarding URL in browser, completes Stripe KYC |
 | 9 | Stripe | Sends `account.updated` webhook |
-| 10 | System | Updates `charges_enabled`, `payouts_enabled`, `details_submitted`; sets `account_status = ACTIVE` |
+| 10 | System | Updates `charges_enabled`, `payouts_enabled`, `details_submitted`; sets `account_status = ACTIVE` (→ ENTITY-PAYMENT-001) |
 
 ---
 
@@ -40,7 +40,7 @@
 |------|-----------|--------|
 | A1 | Seller already onboarded | Return 409 Conflict with message "Stripe account already verified" |
 | A2 | Onboarding URL expired | Seller calls POST `/stripe/onboarding/refresh-link` |
-| A3 | Stripe suspends account | Webhook sets `account_status = SUSPENDED`; publish `stripe.account_suspended` |
+| A3 | Stripe suspends account | Webhook sets `account_status = SUSPENDED`; publish `stripe.account_suspended` (post-MVP) |
 
 ---
 

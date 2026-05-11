@@ -117,6 +117,7 @@ paths:
       description: >
         Returns a MinIO presigned PUT URL for direct avatar upload.
         Bucket: user-avatars. Object key: {user_id}/{uuid}.{ext}. TTL: 15 minutes.
+        Max file size: 10MB. Accepted MIME types: image/jpeg, image/png, image/webp.
         After upload, use the CDN URL in PUT /users/me to save the avatar reference.
         Referenced by UC-IDENTITY-003, FR-IDENTITY-010.
       tags:

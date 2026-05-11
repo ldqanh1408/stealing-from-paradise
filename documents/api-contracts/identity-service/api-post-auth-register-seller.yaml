@@ -18,7 +18,7 @@ paths:
         Also creates a SELLERS record and ROLES entry.
         Publishes account.created event to Kafka topic.
         Same validation rules as /auth/register (BR-IDENTITY-002).
-        Referenced by UC-SELLER-001, FR-IDENTITY-001.
+        Referenced by UC-IDENTITY-006, FR-IDENTITY-001.
       tags:
         - Seller Registration
       security: []

@@ -22,7 +22,7 @@ paths:
       description: |
         Tra ve MinIO presigned PUT URL cho phep buyer upload anh bang chung.
         Bucket: refund-evidence. URL co hieu luc 15 phut.
-        Tham khao: FR-REFUND-005.
+        Tham khao: FR-PAYMENT-008.
       operationId: getRefundEvidencePresignedUrl
       security:
         - bearerAuth: []

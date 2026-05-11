@@ -1,4 +1,7 @@
 # State Diagram: User Account Lifecycle
+
+**Stable ID:** `STATE-IDENTITY-001`
+
 Service: identity-service
 Entity: ENTITY-IDENTITY-001 (User)
 
@@ -41,8 +44,8 @@ stateDiagram-v2
 |--------|-----------|
 | Login blocked | BR-IDENTITY-003 returns HTTP 403 |
 | Tokens revoked | Redis blocklist -- all JWTs invalidated (BR-IDENTITY-009) |
-| Seller products hidden | Search Service consumes account.locked event |
-| Notification sent | account.locked -> Notification Service |
+| Seller products hidden | Search Service consumes account.locked (post-MVP) event |
+| Notification sent | account.locked (post-MVP) -> Notification Service |
 
 ## Idempotency
 | Operation | Current State | Result |

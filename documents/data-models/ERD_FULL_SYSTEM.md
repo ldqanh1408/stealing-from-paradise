@@ -2,7 +2,7 @@
 
 > Generated: 2026-05-10
 > Source of truth: `docs/database/database-entities.md` (2026-05-09)
-> Storage: MongoDB (catalog, cart, notifications), PostgreSQL (orders, payments, flash_sale, identity, ai_chat), Elasticsearch (search index)
+> Storage: PostgreSQL (catalog, cart, orders, payments, flash_sale, identity), MongoDB (notifications, ai_chat), Elasticsearch (search index)
 
 ```mermaid
 erDiagram
@@ -66,37 +66,41 @@ erDiagram
         timestamp updated_at
     }
 
-    %% ==================== CATALOG DOMAIN (MongoDB) ====================
+    %% ==================== CATALOG DOMAIN (PostgreSQL) ====================
     CATEGORY ||--o{ CATEGORY : "self: parent_id"
     CATEGORY ||--o{ PRODUCT : "category_id"
 
     CATEGORY {
-        objectid _id PK
-        objectid parent_id "self-ref, NULL=root"
-        string name "NOT NULL"
-        string slug UK
-        string description
-        string image_url
-        numberint sort_order "DEFAULT 0"
+        uuid id PK "gen_random_uuid()"
+        uuid parent_id "self-ref, NULL=root"
+        varchar name "NOT NULL"
+        varchar slug UK
+        text description
+        varchar image_url
+        integer sort_order "DEFAULT 0"
         boolean is_active "DEFAULT TRUE"
-        isodate created_at
-        isodate updated_at
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     PRODUCT ||--o{ PRODUCT_VARIANT : "product_id CASCADE"
     PRODUCT ||--o{ PRODUCT_IMAGE : "product_id CASCADE"
 
     PRODUCT {
-        objectid _id PK
-        objectid category_id "reference"
-        objectid seller_id "reference, no hard FK"
-        string name
-        string slug UK
-        string description "rich text/HTML"
-        object attributes
-        string status "active/out_of_stock/inactive"
-        isodate created_at
-        isodate updated_at
+        uuid id PK "gen_random_uuid()"
+        uuid category_id "reference"
+        uuid seller_id "reference, no hard FK"
+        varchar name
+        varchar slug UK
+        text description "rich text/HTML"
+        jsonb attributes
+        varchar status "draft/pending/approved/rejected/active/out_of_stock/inactive"
+        text reject_reason
+        timestamptz reviewed_at
+        uuid reviewed_by
+        integer reject_count "DEFAULT 0"
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     PRODUCT_VARIANT ||--o{ STOCK_RESERVATION : "variant_id"
@@ -104,62 +108,62 @@ erDiagram
     PRODUCT_VARIANT ||--o{ PRODUCT_IMAGE : "variant_id SET NULL"
 
     PRODUCT_VARIANT {
-        objectid _id PK
-        objectid product_id "reference"
-        string variant_code UK
-        string variant_name
-        object variant_attributes
-        numberdecimal price "NOT NULL"
-        numberdecimal original_price
-        numberint stock_quantity "DEFAULT 0"
-        string status "active/out_of_stock/inactive"
-        numberint version "DEFAULT 1, optimistic lock"
-        string image_url
-        isodate created_at
-        isodate updated_at
+        uuid id PK "gen_random_uuid()"
+        uuid product_id "reference"
+        varchar variant_code UK
+        varchar variant_name
+        jsonb variant_attributes
+        decimal price "NOT NULL"
+        decimal original_price
+        integer stock_quantity "DEFAULT 0"
+        varchar status "active/out_of_stock/inactive"
+        integer version "DEFAULT 1, optimistic lock"
+        varchar image_url
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     PRODUCT_IMAGE {
-        objectid _id PK
-        objectid product_id "reference"
-        objectid variant_id "reference, NULL=product-level"
-        string url "MinIO URL"
-        numberint sort_order "DEFAULT 0"
-        isodate created_at
+        uuid id PK "gen_random_uuid()"
+        uuid product_id "reference"
+        uuid variant_id "reference, NULL=product-level"
+        varchar url "MinIO URL"
+        integer sort_order "DEFAULT 0"
+        timestamptz created_at
     }
 
     STOCK_RESERVATION {
-        objectid _id PK
-        objectid variant_id "reference"
-        string session_id "checkout session"
-        numberint quantity
-        string status "pending/confirmed/released"
-        isodate expires_at "NOW()+15min, TTL index"
-        isodate created_at
-        isodate updated_at
+        uuid id PK "gen_random_uuid()"
+        uuid variant_id "reference"
+        varchar session_id "checkout session"
+        integer quantity
+        varchar status "pending/confirmed/released"
+        timestamptz expires_at "NOW()+15min"
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    %% ==================== CART DOMAIN (MongoDB) ====================
+    %% ==================== CART DOMAIN (PostgreSQL) ====================
     CART ||--o{ CART_ITEM : "cart_id CASCADE"
 
     CART {
-        objectid _id PK
-        objectid customer_id UK "1 customer = 1 cart"
-        string status "active"
-        isodate created_at
-        isodate updated_at
+        uuid id PK "gen_random_uuid()"
+        bigint customer_id UK "1 customer = 1 cart"
+        varchar status "active"
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     CART_ITEM {
-        objectid _id PK
-        objectid cart_id "reference"
-        objectid variant_id "reference"
-        numberint quantity "DEFAULT 1"
-        numberdecimal price_snapshot
-        string variant_name_snapshot
-        string variant_image_snapshot
-        isodate created_at
-        isodate updated_at
+        uuid id PK "gen_random_uuid()"
+        uuid cart_id "reference"
+        uuid variant_id "reference"
+        integer quantity "DEFAULT 1"
+        decimal price_snapshot
+        varchar variant_name_snapshot
+        varchar variant_image_snapshot
+        timestamptz created_at
+        timestamptz updated_at
     }
 
     %% ==================== FLASH SALE DOMAIN ====================
@@ -351,7 +355,6 @@ erDiagram
     CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "session_id"
     CHAT_SESSIONS ||--o{ PENDING_CONFIRMATIONS : "session_id"
     CHAT_SESSIONS ||--o{ TOOL_CALL_LOGS : "session_id"
-    CHAT_SESSIONS ||--o{ OUTBOX_EVENTS_AI : "session_id"
     CHAT_SESSIONS {
         uuid id PK
         bigint user_id FK
@@ -376,10 +379,10 @@ erDiagram
     PENDING_CONFIRMATIONS {
         uuid id PK
         uuid session_id FK
-        uuid message_id FK
         bigint user_id FK
-        confirm_action action_type "CANCEL_ORDER/UPDATE_PROFILE/DELETE_ACCOUNT/CUSTOM"
-        jsonb payload
+        varchar tool_name
+        jsonb tool_arguments
+        varchar summary
         confirm_status status "PENDING/CONFIRMED/REJECTED/EXPIRED"
         timestamptz expires_at "now+5min"
         timestamptz created_at
@@ -392,23 +395,13 @@ erDiagram
         uuid message_id FK
         bigint user_id FK
         varchar tool_name
-        jsonb input_params
-        jsonb output
+        jsonb arguments
+        jsonb result
         tool_call_status status "SUCCESS/FAILED/BLOCKED/TIMEOUT"
-        int duration_ms
-        smallint risk_level "1/2/3"
-        timestamptz created_at
-    }
-
-    OUTBOX_EVENTS_AI {
-        uuid id PK
-        varchar event_type
-        jsonb payload
-        outbox_status status "PENDING/PROCESSING/DONE/FAILED"
-        smallint retry_count
+        int latency_ms
+        varchar error_code
         text error_message
         timestamptz created_at
-        timestamptz processed_at
     }
 
     %% ==================== INFRASTRUCTURE ====================
@@ -445,15 +438,17 @@ erDiagram
 | Domain | Database | Service | Port |
 |--------|----------|---------|------|
 | Identity | PostgreSQL | identity-service | 8081 |
-| Catalog | MongoDB | product-service | 8090 |
-| Cart | MongoDB | product-service | 8090 |
+| Catalog | PostgreSQL | product-service | 8090 |
+| Cart | PostgreSQL | product-service | 8090 |
 | Flash Sale | PostgreSQL | flashsale-service | 8085 |
 | Orders | PostgreSQL | order-service | 8083 |
 | Payments | PostgreSQL | payment-service | 8082 |
 | Notifications | MongoDB | notification-service | 8092 |
-| AI Chat | PostgreSQL | ai-chat-service | 8093 |
+| AI Chat | MongoDB | ai-chat-service | 8093 |
 | Search | Elasticsearch | search-service | 8091 |
 | Infrastructure | PostgreSQL | shared | -- |
+
+> **Note (2026-05-11):** Outbox pattern (OUTBOX_EVENTS, FAILED_EVENTS) is temporarily not used per MVP scope. Infrastructure tables are kept in schema but not currently active.
 
 ---
 

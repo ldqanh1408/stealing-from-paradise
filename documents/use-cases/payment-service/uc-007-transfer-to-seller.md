@@ -24,16 +24,16 @@
 |------|-------------|--------|
 | 1 | Order Svc | Publishes `order.delivered` event |
 | 2 | System | PaymentService consumes `order.delivered` |
-| 3 | System | Finds SELLER_TRANSFERS by `order_id` |
-| 4 | System | Sets status -> RETURN_WINDOW |
-| 5 | System | Sets `delivered_at = NOW()` |
-| 6 | System | Calculates `payout_eligible_at = delivered_at + 7 days` |
+| 3 | System | Finds SELLER_TRANSFERS by `order_id` (→ ENTITY-PAYMENT-003) |
+| 4 | System | Sets status -> RETURN_WINDOW (→ ENTITY-PAYMENT-003) |
+| 5 | System | Sets `delivered_at = NOW()` (→ ENTITY-PAYMENT-003) |
+| 6 | System | Calculates `payout_eligible_at = delivered_at + 7 days` (→ ENTITY-PAYMENT-003) |
 | 7 | Cron Job | (ShedLock) Queries `idx_st_payout_eligible` for status=RETURN_WINDOW AND payout_eligible_at <= NOW() |
-| 8 | Cron Job | Sets status -> READY_FOR_PAYOUT |
+| 8 | Cron Job | Sets status -> READY_FOR_PAYOUT (→ ENTITY-PAYMENT-003) |
 | 9 | System | Calculates `net_payout_amount = transfer_amount - platform_commission_amt` |
-| 10 | System | Checks `SELLER_STRIPE_ACCOUNTS.charges_enabled` |
+| 10 | System | Checks `SELLER_STRIPE_ACCOUNTS.charges_enabled` (→ ENTITY-PAYMENT-001) |
 | 11 | System | IF charges_enabled: calls Stripe `Transfer.create()` with `source_transaction` |
-| 12 | System | On success: sets status -> PAID_OUT, `payout_at = NOW()`, `stripe_transfer_id = tr_xxx` |
+| 12 | System | On success: sets status -> PAID_OUT, `payout_at = NOW()`, `stripe_transfer_id = tr_xxx` (→ ENTITY-PAYMENT-003) |
 | 13 | System | Publishes Kafka `transfer.completed` |
 
 ---

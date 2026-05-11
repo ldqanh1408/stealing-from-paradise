@@ -1,8 +1,8 @@
 # ENTITY-PRODUCT-001: CATEGORY
 
 > **Service**: product-service (Port 8090)
-> **Database**: MongoDB
-> **Collection**: mg_categories
+> **Database**: PostgreSQL
+> **Table**: categories
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 1
 
 ---
@@ -12,16 +12,16 @@
 ```mermaid
 erDiagram
     CATEGORY {
-        objectid _id PK
-        objectid parent_id "NULL=root"
-        string name "NOT NULL"
-        string slug UK
-        string description
-        string image_url
-        numberint sort_order "DEFAULT 0"
+        uuid id PK
+        uuid parent_id "NULL=root"
+        varchar name "NOT NULL"
+        varchar slug UK
+        text description
+        text image_url
+        int sort_order "DEFAULT 0"
         boolean is_active "DEFAULT TRUE"
-        isodate created_at
-        isodate updated_at
+        timestamp created_at
+        timestamp updated_at
     }
     CATEGORY ||--o{ CATEGORY : "parent_id"
     CATEGORY ||--o{ PRODUCT : "category_id"
@@ -33,16 +33,16 @@ erDiagram
 
 | # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
-| 1 | `_id` | ObjectId | PK, auto-generated | Unique category identifier |
-| 2 | `parent_id` | ObjectId | NULLABLE, application-level reference | Parent category; NULL = root (top-level). No CASCADE; deletion handled in application layer. |
-| 3 | `name` | String | NOT NULL | Display name (e.g., "Ao Thun Nam") |
-| 4 | `slug` | String | Unique index | URL-friendly identifier for SEO (e.g., "ao-thun-nam") |
-| 5 | `description` | String | NULLABLE | Optional category description |
-| 6 | `image_url` | String | NULLABLE | Banner/icon URL for category display |
-| 7 | `sort_order` | NumberInt | DEFAULT 0 | Display ordering; lower numbers appear first |
-| 8 | `is_active` | Boolean | DEFAULT true | FALSE hides category and all its products from storefront |
-| 9 | `created_at` | ISODate | Auto-set | Document creation timestamp |
-| 10 | `updated_at` | ISODate | Auto-set | Last modification timestamp |
+| 1 | `id` | UUID | PK (gen_random_uuid()) | Unique category identifier |
+| 2 | `parent_id` | UUID | NULLABLE, FK → category.id | Parent category; NULL = root (top-level). No CASCADE. |
+| 3 | `name` | VARCHAR(255) | NOT NULL | Display name (e.g., "Ao Thun Nam") |
+| 4 | `slug` | VARCHAR(255) | UNIQUE | URL-friendly identifier for SEO (e.g., "ao-thun-nam") |
+| 5 | `description` | TEXT | NULLABLE | Optional category description |
+| 6 | `image_url` | TEXT | NULLABLE | Banner/icon URL for category display |
+| 7 | `sort_order` | INT | DEFAULT 0 | Display ordering; lower numbers appear first |
+| 8 | `is_active` | BOOLEAN | DEFAULT true | FALSE hides category and all its products from storefront |
+| 9 | `created_at` | TIMESTAMP | Auto-set | Row creation timestamp |
+| 10 | `updated_at` | TIMESTAMP | Auto-set | Last modification timestamp |
 
 ---
 
@@ -50,8 +50,8 @@ erDiagram
 
 | Index Name | Fields | Type | Purpose |
 |------------|---------|------|---------|
-| `idx_category_parent` | `{ parent_id: 1 }` | B-tree | Fast child-category lookup for tree traversal |
-| `idx_category_slug` | `{ slug: 1 }` | Unique B-tree | Slug-based lookup for SEO URLs and duplicate prevention |
+| `idx_category_parent` | `(parent_id)` | B-tree | Fast child-category lookup for tree traversal |
+| `idx_category_slug` | `(slug)` | PostgreSQL UNIQUE constraint | Slug-based lookup for SEO URLs and duplicate prevention |
 
 ---
 

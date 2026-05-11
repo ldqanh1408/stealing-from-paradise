@@ -1,5 +1,6 @@
 # State Diagram: Refund
 
+**Stable ID:** `STATE-PAYMENT-002`
 **Entity**: REFUNDS (ENTITY-PAYMENT-004)  
 **Domain**: Payment Service  
 **References**: [entity-refund.md](../../data-models/payment-service/entity-refund.md), [KAFKA_EVENTS.md](../../../docs/services/payment-service/KAFKA_EVENTS.md)

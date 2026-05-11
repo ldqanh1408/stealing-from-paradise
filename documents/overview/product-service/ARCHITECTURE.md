@@ -1,7 +1,7 @@
 # Product Service — Architecture Overview
 
 > Service: product-service (SVC-007, Port 8090)
-> Database: MongoDB
+> Database: PostgreSQL
 > Source: `documents` micro-docs
 > Generated: 2026-05-10
 
@@ -12,7 +12,7 @@ Product catalog management, variant/price/stock management, category management,
 
 ## Tech Stack
 - Java 25, Spring Boot 4.0.4
-- MongoDB (mg_products, mg_product_variants, mg_carts, mg_cart_items, mg_categories, mg_product_images, mg_stock_reservations)
+- PostgreSQL (products, product_variants, carts, cart_items, categories, product_images, stock_reservations)
 - MinIO (product image object storage)
 - Kafka (producer + consumer + request-reply)
 
@@ -26,17 +26,17 @@ Product catalog management, variant/price/stock management, category management,
 - Flash sale price sync (activate/deactivate)
 - Checkout preview with TTL token
 
-## MongoDB Collections
+## PostgreSQL Tables
 
-| Collection | Purpose |
+| Table | Purpose |
 |-----------|---------|
-| mg_products | Product master data (name, description, seller_id, category_id, status) |
-| mg_product_variants | Variants (SKU, price, stock_quantity, variant_attributes as JSON) |
-| mg_categories | Category tree with parent_id |
-| mg_product_images | Image URLs with sort_order |
-| mg_carts | User cart with items array |
-| mg_cart_items | Cart items (variant_id, quantity, price_snapshot) |
-| mg_stock_reservations | Pending stock holds during checkout (15min TTL) |
+| products | Product master data (name, description, seller_id, category_id, status) |
+| product_variants | Variants (SKU, price, stock_quantity, variant_attributes as JSONB) |
+| categories | Category tree with parent_id |
+| product_images | Image URLs with sort_order |
+| carts | User cart with items array |
+| cart_items | Cart items (variant_id, quantity, price_snapshot) |
+| stock_reservations | Pending stock holds during checkout (15min TTL) |
 
 ## Product Lifecycle
 ```

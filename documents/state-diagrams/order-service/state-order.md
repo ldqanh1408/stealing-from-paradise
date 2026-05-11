@@ -42,7 +42,7 @@
 | 1 | (none) | PENDING | POST /orders/checkout | BUYER | UC-ORDER-001 | BR-ORDER-001..009 | `order.created` |
 | 2 | PENDING | PAID | Stripe payment_intent.succeeded webhook → `payment.success` | SYSTEM | UC-ORDER-001 | BR-ORDER-010 | `order.paid` |
 | 3 | PENDING | CANCELLED | POST /orders/{id}/cancel | BUYER \| SELLER | UC-ORDER-003 | BR-ORDER-011, BR-ORDER-021 | `order.cancelled` |
-| 4 | PENDING | CANCELLED | JOB-13 auto-cancel (payment timeout: 30m / 10m flash sale) | SYSTEM | — | BR-ORDER-012 | `order.auto_cancelled` |
+| 4 | PENDING | CANCELLED | JOB-13 auto-cancel (payment timeout: 30m / 10m flash sale) | SYSTEM | — | BR-ORDER-012 | `order.auto_cancelled` (post-MVP) |
 | 5 | PAID | SHIPPING | PUT /orders/{id}/tracking | SELLER | UC-ORDER-004 | BR-ORDER-013 | `order.shipped` |
 | 6 | SHIPPING | DELIVERED | POST /orders/{id}/confirm-received | BUYER | UC-ORDER-005 | BR-ORDER-014 | `order.delivered` |
 | 7 | SHIPPING | DELIVERED | JOB-22 auto-confirm (7 days after shipping, not RTS'd) | SYSTEM | — | BR-ORDER-015 | `order.delivered` |
@@ -60,14 +60,14 @@
 
 | # | State | Description | Entry Events | Exit Events |
 |---|-------|-------------|-------------|-------------|
-| 1 | **PENDING** | Order created, awaiting payment | `order.created` | `order.paid`, `order.cancelled`, `order.auto_cancelled` |
+| 1 | **PENDING** | Order created, awaiting payment | `order.created` | `order.paid`, `order.cancelled`, `order.auto_cancelled` (post-MVP) |
 | 2 | **PAID** | Payment confirmed by Stripe | `payment.success` | `order.shipped`, `order.cancelled`, `refund.admin_approved` |
 | 3 | **SHIPPING** | Seller provided tracking number | `order.shipped` | `order.delivered`, `order.returned`, `refund.admin_approved` |
 | 4 | **DELIVERED** | Goods received by buyer (or auto-confirmed) | `order.delivered` | `refund.admin_approved` |
 | 5 | **RETURNED** | Seller confirmed RTS, auto-refund initiated | `order.returned` | `refund.rts_completed` |
 | 6 | **REFUNDED** | Full refund processed | `refund.admin_approved` or `refund.rts_completed` | — (terminal) |
 | 7 | **PARTIALLY_REFUNDED** | Partial refund processed | `refund.admin_approved` | — (terminal) |
-| 8 | **CANCELLED** | Order cancelled, stock released | `order.cancelled` or `order.auto_cancelled` | — (terminal) |
+| 8 | **CANCELLED** | Order cancelled, stock released | `order.cancelled` or `order.auto_cancelled` (post-MVP) | — (terminal) |
 
 ---
 
@@ -118,12 +118,12 @@ The following transitions are explicitly blocked by business rules:
 
 ```
 checkout ──────────────▶ order.created
-                          order.checkout_completed
+                          order.checkout_created
 
 payment success ───────▶ order.paid (consumed payment.success)
 
 cancel (buyer/seller) ─▶ order.cancelled
-cancel (auto) ─────────▶ order.auto_cancelled
+cancel (auto) ─────────▶ order.auto_cancelled (post-MVP)
 
 ship (tracking) ───────▶ order.shipped
 

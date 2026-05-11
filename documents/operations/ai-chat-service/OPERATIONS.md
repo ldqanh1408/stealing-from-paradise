@@ -1,10 +1,10 @@
 # AI Chat Service Operations
 
-**Service:** ai-chat-service | **Port:** 8093 | **Database:** PostgreSQL (chat_db) + Redis + PageIndex
+**Service:** ai-chat-service | **Port:** 8093 | **Database:** MongoDB (fs_chat) + Redis + PageIndex
 
 ## Overview
 
-Conversational AI with tool-calling support. Sessions in PostgreSQL, ephemeral context in Redis. Rate limiting via Redis counters. Confirmation tokens for sensitive operations. PageIndex provides RAG context.
+Conversational AI with tool-calling support. Sessions in MongoDB, ephemeral context in Redis. Rate limiting via Redis counters. Confirmation tokens for sensitive operations. PageIndex provides RAG context.
 
 ## Key Database Tables
 

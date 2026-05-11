@@ -1,5 +1,6 @@
 # State Diagram: Transaction
 
+**Stable ID:** `STATE-PAYMENT-001`
 **Entity**: TRANSACTIONS (ENTITY-PAYMENT-002)  
 **Domain**: Payment Service  
 **References**: [entity-transaction.md](../../data-models/payment-service/entity-transaction.md), [06_PAYMENT_SAGA_FLOW.md](../../../docs/business/06_PAYMENT_SAGA_FLOW.md)
@@ -19,7 +20,7 @@
     payment.         /       \        payment.
     succeeded       /         \       failed
                    v           v
-               COMPLETED    FAILED
+               SUCCESS      FAILED
                    |           |
                    | refunded  |
                    v           |
@@ -33,6 +34,8 @@
                    (terminal)
 ```
 
+> **Note on PENDING**: `PENDING` is not a stored ENUM value in the TRANSACTIONS table. The entity status column only stores `SUCCESS / FAILED / REFUNDED / PARTIALLY_REFUNDED` (see entity-transaction.md:49). PENDING represents the pre-row-insert / in-flight state before Stripe confirms the payment intent. The row may not exist yet, or may be written with status `SUCCESS`/`FAILED` atomically on webhook receipt.
+
 ---
 
 ## State Transition Table
@@ -40,10 +43,10 @@
 | From | To | Trigger | Actor | Cites |
 |------|----|---------|-------|-------|
 | `[*]` | `PENDING` | `payment.requested` Kafka event | System (ParentOrderPaymentSaga) | UC-PAYMENT-002 |
-| `PENDING` | `COMPLETED` | Stripe webhook `payment_intent.succeeded` | Stripe / System | UC-PAYMENT-003 |
+| `PENDING` | `SUCCESS` | Stripe webhook `payment_intent.succeeded` | Stripe / System | UC-PAYMENT-003 |
 | `PENDING` | `FAILED` | Stripe webhook `payment_intent.payment_failed` | Stripe / System | UC-PAYMENT-003 |
-| `COMPLETED` | `REFUNDED` | All refunds processed; total refunded = amount | System (admin approve) | UC-PAYMENT-005 |
-| `COMPLETED` | `PARTIALLY_REFUNDED` | Partial refund processed; amount > 0 refunded < amount | System (admin approve) | UC-PAYMENT-005 |
+| `SUCCESS` | `REFUNDED` | All refunds processed; total refunded = amount | System (admin approve) | UC-PAYMENT-005 |
+| `SUCCESS` | `PARTIALLY_REFUNDED` | Partial refund processed; amount > 0 refunded < amount | System (admin approve) | UC-PAYMENT-005 |
 | `REFUNDED` | `[*]` | Terminal state | -- | -- |
 | `PARTIALLY_REFUNDED` | `REFUNDED` | Remaining balance refunded | System | UC-PAYMENT-005 |
 | `FAILED` | `[*]` | Terminal state | -- | -- |

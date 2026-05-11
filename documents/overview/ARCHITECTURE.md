@@ -11,21 +11,21 @@ Service: platform
 | SVC-004 | payment-service | 8082 | PostgreSQL + Axon | CQRS/ES | Stripe Connect, multi-vendor splits, refunds |
 | SVC-005 | order-service | 8083 | PostgreSQL + Axon | CQRS/ES + Saga | Checkout, order lifecycle, RTS |
 | SVC-006 | flashsale-service | 8085 | PostgreSQL + Axon + Redis | CQRS/ES | Flash sale sessions, Redis Lua atomic buy |
-| SVC-007 | product-service | 8090 | MongoDB | Traditional | Catalog, variants, cart, images (MinIO) |
+| SVC-007 | product-service | 8090 | PostgreSQL | Traditional | Catalog, variants, cart, images (MinIO) |
 | SVC-008 | search-service | 8091 | Elasticsearch | Traditional | Full-text search, VN text analysis |
 | SVC-009 | notification-service | 8092 | MongoDB | Traditional | SSE real-time notifications |
-| SVC-010 | ai-chat-service | 8093 | PostgreSQL | Traditional | AI chat, tool calls, human-in-the-loop |
+| SVC-010 | ai-chat-service | 8093 | MongoDB | Traditional | AI chat, tool calls, human-in-the-loop |
 
 ### Infrastructure Map
 
 | Component | Port | Used By | Purpose |
 |-----------|------|---------|---------|
-| PostgreSQL | 5432 | identity, payment, order, flashsale, ai-chat | Primary relational store |
-| MongoDB | 27017 | product, notification | Document store |
+| PostgreSQL | 5432 | identity, payment, order, flashsale, product | Primary relational store |
+| MongoDB | 27017 | notification, ai-chat | Document store |
 | Redis | 6379 | flashsale, identity, api-gateway | Session cache, Lua atomic ops, JWT blocklist |
 | Elasticsearch | 9200 | search | Full-text product index |
 | MinIO | 9000/9001 | product | Object storage (product images) |
-| Kafka | 9092 | all services | Async event streaming (47 topics) |
+| Kafka | 9092 | all services | Async event streaming (58 Kafka topics: 44 event + 14 request-reply) |
 | Axon Server | 8024/8124 | payment, order, flashsale | Event store + command bus |
 
 ### Frontend Apps
@@ -55,8 +55,8 @@ Service: platform
 - Full-text search with Elasticsearch (Vietnamese text analysis)
 - Return To Sender (RTS) refund workflow
 - AI Chat Support (multi-turn, tool calls, human-in-the-loop)
-- 17 scheduled cronjobs for data retention and cleanup
-- 47 Kafka topics for event-driven architecture
+- 15 scheduled cronjobs (1 implemented, 14 post-MVP)
+- 58 Kafka topics (44 event + 14 request-reply)
 - Axon CQRS/ES for Order, Payment, Flashsale services
 
 ---
@@ -219,26 +219,68 @@ com.yourcompany.ai
 | Synonyms | Synonym filter with file `synonyms/vi_product.txt` |
 | Recommended plugin | `elasticsearch-plugin install analysis-icu` |
 
-### Database: Enum Types
+### Database: MongoDB Collection Schemas
 
-```sql
-CREATE TYPE session_status   AS ENUM ('ACTIVE', 'CLOSED', 'EXPIRED');
-CREATE TYPE message_role     AS ENUM ('USER', 'ASSISTANT', 'TOOL_CALL', 'TOOL_RESULT');
-CREATE TYPE confirm_status   AS ENUM ('PENDING', 'CONFIRMED', 'REJECTED', 'EXPIRED');
-CREATE TYPE confirm_action   AS ENUM ('CANCEL_ORDER', 'UPDATE_PROFILE', 'DELETE_ACCOUNT', 'CUSTOM');
-CREATE TYPE tool_call_status AS ENUM ('SUCCESS', 'FAILED', 'BLOCKED', 'TIMEOUT');
-CREATE TYPE outbox_status    AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
+**chat_sessions**
+```json
+{
+  "_id": "ObjectId",
+  "user_id": "Long",
+  "status": "String (ACTIVE | CLOSED | EXPIRED)",
+  "context_summary": "String",
+  "created_at": "Date",
+  "updated_at": "Date",
+  "closed_at": "Date"
+}
 ```
 
-### Outbox Pattern (for Kafka Failures)
+**chat_messages**
+```json
+{
+  "_id": "ObjectId",
+  "session_id": "ObjectId (ref: chat_sessions)",
+  "role": "String (USER | ASSISTANT | TOOL_CALL | TOOL_RESULT)",
+  "content": "String",
+  "tool_name": "String (TOOL_CALL/TOOL_RESULT only)",
+  "sequence_no": "Int (compound unique with session_id)",
+  "tokens_used": "Int (ASSISTANT only)",
+  "created_at": "Date"
+}
+```
 
-```sql
--- Multiple app instances, each only takes unlocked rows
-SELECT * FROM outbox_events
-WHERE status = 'PENDING' AND retry_count < 3
-ORDER BY created_at ASC
-LIMIT 50
-FOR UPDATE SKIP LOCKED;
+**pending_confirmations**
+```json
+{
+  "_id": "ObjectId",
+  "session_id": "ObjectId (ref: chat_sessions)",
+  "user_id": "Long",
+  "tool_name": "String",
+  "tool_arguments": "Object",
+  "summary": "String",
+  "status": "String (PENDING | CONFIRMED | REJECTED | EXPIRED)",
+  "action": "String (CANCEL_ORDER | UPDATE_PROFILE | DELETE_ACCOUNT | CUSTOM)",
+  "expires_at": "Date (TTL index: 5 min)",
+  "created_at": "Date",
+  "resolved_at": "Date"
+}
+```
+
+**tool_call_logs**
+```json
+{
+  "_id": "ObjectId",
+  "session_id": "ObjectId (ref: chat_sessions)",
+  "message_id": "ObjectId (ref: chat_messages)",
+  "user_id": "Long",
+  "tool_name": "String",
+  "arguments": "Object",
+  "result": "Object",
+  "status": "String (SUCCESS | FAILED | BLOCKED | TIMEOUT)",
+  "latency_ms": "Int",
+  "error_code": "String",
+  "error_message": "String",
+  "created_at": "Date"
+}
 ```
 
 ### Message Flow: 4 Records per Turn

@@ -1,6 +1,6 @@
 # Flashsale Service Operations
 
-**Service:** flashsale-service | **Port:** 8084 | **Database:** PostgreSQL (flashsale_db) + Redis
+**Service:** flashsale-service | **Port:** 8085 | **Database:** PostgreSQL (flashsale_db) + Redis
 
 ## Overview
 

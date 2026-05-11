@@ -24,10 +24,10 @@
 | 2 | System | Verifies signature via `Webhook.constructEvent()` |
 | 3 | System | Dispatches by `event.type` |
 | 4 | System | For `payment_intent.succeeded`: |
-| 4a | -- | Looks up TRANSACTION by `parent_order_id` from metadata |
+| 4a | -- | Looks up TRANSACTION by `parent_order_id` from metadata (→ ENTITY-PAYMENT-002) |
 | 4b | -- | If already SUCCESS -> skip (idempotent) |
-| 4c | -- | Sets TRANSACTIONS.status = SUCCESS, `pay_at = NOW()` |
-| 4d | -- | For each SELLER_TRANSFER: status -> AWAITING_DELIVERY |
+| 4c | -- | Sets TRANSACTIONS.status = SUCCESS, `pay_at = NOW()` (→ ENTITY-PAYMENT-002) |
+| 4d | -- | For each SELLER_TRANSFER: status -> AWAITING_DELIVERY (→ ENTITY-PAYMENT-003) |
 | 4e | -- | Publishes Kafka `payment.success` |
 | 5 | System | Returns HTTP 200 to Stripe |
 
@@ -39,8 +39,8 @@
 |------|-------------|--------|
 | 1-3 | Same as above | |
 | 4 | System | For `payment_intent.payment_failed`: |
-| 4a | -- | Looks up TRANSACTION |
-| 4b | -- | Sets TRANSACTIONS.status = FAILED |
+| 4a | -- | Looks up TRANSACTION (→ ENTITY-PAYMENT-002) |
+| 4b | -- | Sets TRANSACTIONS.status = FAILED (→ ENTITY-PAYMENT-002) |
 | 4c | -- | Publishes Kafka `payment.failed` |
 
 ---

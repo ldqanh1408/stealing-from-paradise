@@ -84,3 +84,11 @@ User enters keywords in the search bar. The system performs full-text search aga
 | BR-SEARCH-001-01 | Field collapsing rules |
 | BR-SEARCH-001-02 | Vietnamese text analysis |
 | ENTITY-SEARCH-001 | SKU document mapping |
+
+### Also supports
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /search/products/suggest | Autocomplete suggestions (min 2 chars, see alternate flow A1) |
+
+> Autocomplete is referenced in alternate flow A1 above as a companion to full-text search, providing real-time suggestions as the user types.

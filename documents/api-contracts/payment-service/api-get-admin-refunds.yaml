@@ -22,7 +22,7 @@ paths:
       description: >
         Returns paginated list of all refunds across all buyers and sellers.
         Supports filtering by status, refund type, seller, and date range.
-        Referenced by FR-REFUND-ADMIN-001.
+        Referenced by FR-PAYMENT-008.
       operationId: listAdminRefunds
       security:
         - bearerAuth: []
@@ -120,7 +120,7 @@ paths:
       description: >
         Returns full detail of a single refund including all items,
         evidence images, review history, and Stripe refund reference.
-        Referenced by FR-REFUND-ADMIN-002.
+        Referenced by FR-PAYMENT-008.
       operationId: getAdminRefundDetail
       security:
         - bearerAuth: []

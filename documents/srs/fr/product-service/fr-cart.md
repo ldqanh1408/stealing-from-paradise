@@ -90,6 +90,6 @@
 |-----------|-------|
 | **Priority** | MEDIUM |
 | **Actor** | System (Kafka consumer) |
-| **Description** | Consume events to maintain cart integrity: (a) `order.checkout_completed` -- remove checked-out items from cart; (b) `flash_sale.session_ended` -- JOB-07 removes expired flash sale items; (c) `order.cancelled` -- unlock inventory. |
-| **Acceptance Criteria** | AC1: Checked-out items removed on `order.checkout_completed`. AC2: Expired flash items removed on `flash_sale.session_ended`. AC3: Inventory unlocked on `order.cancelled`. |
+| **Description** | Consume events to maintain cart integrity: (a) `order.checkout_created` -- remove checked-out items from cart; (b) `flash_sale.session_ended` -- JOB-07 removes expired flash sale items; (c) `order.cancelled` -- unlock inventory. |
+| **Acceptance Criteria** | AC1: Checked-out items removed on `order.checkout_created`. AC2: Expired flash items removed on `flash_sale.session_ended`. AC3: Inventory unlocked on `order.cancelled`. |
 | **Related** | ENTITY-PRODUCT-006, ENTITY-PRODUCT-007, KAFKA_EVENTS.md |

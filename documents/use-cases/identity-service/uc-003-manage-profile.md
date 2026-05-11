@@ -11,7 +11,7 @@ Service: identity-service
 | Trigger | User navigates to profile page or submits profile edit form |
 | Business Rules | BR-IDENTITY-007, BR-IDENTITY-010 |
 | Entities | ENTITY-IDENTITY-001 (User) |
-| APIs | GET /users/me, PUT /users/me, POST /users/me/change-password |
+| APIs | GET /users/me, PUT /users/me, POST /users/me/change-password, GET /users/me/avatar/presigned-url |
 | Kafka Events | account.updated (on PUT) |
 
 ### Main Flow: View Profile
@@ -31,6 +31,8 @@ Service: identity-service
 | 4 | System | Updates USERS row, increments version | ENTITY-IDENTITY-001 |
 | 5 | System | Publishes account.updated to Kafka | FR-IDENTITY-014 |
 | 6 | System | Returns 200 with updated profile | FR-IDENTITY-007 |
+
+> **Avatar upload**: This UC also supports avatar upload via `GET /users/me/avatar/presigned-url`, which returns a MinIO presigned PUT URL (TTL 15 min). After uploading, the avatar CDN URL is set via `PUT /users/me`.
 
 ### Main Flow: Change Password
 | Step | Actor | Action | Validations & Rules |

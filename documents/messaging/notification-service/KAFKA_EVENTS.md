@@ -9,43 +9,13 @@
 
 ## Events Consumed
 
-Notification Service is a consumer-only service. It listens to 20+ Kafka topics from all services and pushes SSE real-time notifications to users. It produces **zero** events.
+Notification Service is a consumer-only service. It listens to 22 Kafka topics from all services and pushes SSE real-time notifications to users. It produces **zero** events.
 
 ---
 
 ### From Identity Service
 
-#### account.locked
-
-| Field | Value |
-|-------|-------|
-| **Type** | SYSTEM |
-| **Priority** | URGENT |
-| **Action** | Create notification for affected user, push SSE event |
-
-#### account.unlocked
-
-| Field | Value |
-|-------|-------|
-| **Type** | SYSTEM |
-| **Priority** | HIGH |
-| **Action** | Create notification for affected user, push SSE event |
-
-#### seller.posting_suspended
-
-| Field | Value |
-|-------|-------|
-| **Type** | SYSTEM |
-| **Priority** | HIGH |
-| **Action** | Notify seller that product posting capability has been suspended |
-
-#### seller.posting_resumed
-
-| Field | Value |
-|-------|-------|
-| **Type** | SYSTEM |
-| **Priority** | NORMAL |
-| **Action** | Notify seller that product posting capability has been restored |
+Identity Service does NOT produce Kafka domain events. No events consumed from this service.
 
 ---
 
@@ -74,14 +44,6 @@ Notification Service is a consumer-only service. It listens to 20+ Kafka topics 
 | **Type** | SYSTEM |
 | **Priority** | HIGH |
 | **Action** | Notify seller that product has been rejected |
-
-#### product.auto_hidden
-
-| Field | Value |
-|-------|-------|
-| **Type** | SYSTEM |
-| **Priority** | NORMAL |
-| **Action** | Notify seller that product has been auto-hidden |
 
 ---
 
@@ -176,14 +138,6 @@ Notification Service is a consumer-only service. It listens to 20+ Kafka topics 
 }
 ```
 
-#### order.auto_cancelled
-
-| Field | Value |
-|-------|-------|
-| **Type** | ORDER_STATUS |
-| **Priority** | HIGH |
-| **Action** | Notify buyer: order auto-cancelled due to payment timeout |
-
 #### order.returned
 
 | Field | Value |
@@ -204,6 +158,22 @@ Notification Service is a consumer-only service. It listens to 20+ Kafka topics 
   }
 }
 ```
+
+#### seller.order_cancelled
+
+| Field | Value |
+|-------|-------|
+| **Type** | ORDER_STATUS |
+| **Priority** | HIGH |
+| **Action** | Notify buyer: order cancelled by seller with apology message |
+
+#### order.payment_timeout
+
+| Field | Value |
+|-------|-------|
+| **Type** | ORDER_STATUS |
+| **Priority** | HIGH |
+| **Action** | Notify buyer: payment timeout, order will be cancelled |
 
 ---
 
@@ -328,14 +298,6 @@ Notification Service is a consumer-only service. It listens to 20+ Kafka topics 
 }
 ```
 
-#### stripe.account_suspended
-
-| Field | Value |
-|-------|-------|
-| **Type** | SYSTEM |
-| **Priority** | URGENT |
-| **Action** | Notify seller that Stripe Connect account has been suspended |
-
 ---
 
 ### From Flash Sale Service
@@ -409,22 +371,6 @@ Notification Service is a consumer-only service. It listens to 20+ Kafka topics 
 }
 ```
 
-#### flash_sale.item_approved
-
-| Field | Value |
-|-------|-------|
-| **Type** | FLASH_SALE_ALERT |
-| **Priority** | NORMAL |
-| **Action** | Notify seller: flash sale item approved by admin |
-
-#### flash_sale.item_rejected
-
-| Field | Value |
-|-------|-------|
-| **Type** | FLASH_SALE_ALERT |
-| **Priority** | NORMAL |
-| **Action** | Notify seller: flash sale item rejected by admin |
-
 #### flash_sale.item_purchased
 
 | Field | Value |
@@ -452,14 +398,6 @@ Notification Service is a consumer-only service. It listens to 20+ Kafka topics 
   }
 }
 ```
-
-#### flash_sale.reminder
-
-| Field | Value |
-|-------|-------|
-| **Type** | FLASH_SALE_ALERT |
-| **Priority** | HIGH |
-| **Action** | Send reminder to registered users 15 minutes before session starts |
 
 ---
 
@@ -599,7 +537,7 @@ Notification Service does **NOT** produce any Kafka events. It is a pure consume
 | **REFUND_UPDATE** | NORMAL -- HIGH | Payment Service (refund.*) | Badge increment, deeplink to refund detail |
 | **FLASH_SALE_ALERT** | LOW -- HIGH | Flash Sale Service (flash_sale.*) | Push notification + badge for HIGH, badge only for NORMAL/LOW |
 | **CHAT_MESSAGE** | NORMAL | AI Chat Service (ai_chat.*) | Badge increment, deeplink to chat session |
-| **SYSTEM** | NORMAL -- URGENT | Identity + Product + Payment (account.*, product.*, stripe.*, seller.*) | Push notification for URGENT, badge for others |
+| **SYSTEM** | NORMAL -- HIGH | Product Service (product.*) | Push notification for HIGH, badge for NORMAL |
 
 ---
 
@@ -607,10 +545,9 @@ Notification Service does **NOT** produce any Kafka events. It is a pure consume
 
 | Group ID | Topics | Concurrency |
 |----------|--------|-------------|
-| `notification-service-identity-group` | `account.*`, `seller.*` | 3 |
 | `notification-service-product-group` | `product.*` | 3 |
 | `notification-service-order-group` | `order.*` | 5 |
-| `notification-service-payment-group` | `payment.*`, `refund.*`, `stripe.*` | 3 |
+| `notification-service-payment-group` | `payment.*`, `refund.*` | 3 |
 | `notification-service-flashsale-group` | `flash_sale.*` | 3 |
 | `notification-service-chat-group` | `ai_chat.*` | 2 |
 

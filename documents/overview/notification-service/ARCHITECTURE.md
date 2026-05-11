@@ -44,14 +44,14 @@ Real-time push notifications to users via Server-Sent Events (SSE). Consumer-onl
 | ORDER_STATUS | order-service | order.shipped, order.delivered |
 | PAYMENT_UPDATE | payment-service | payment.success, payment.failed |
 | REFUND_UPDATE | payment-service | refund.requested, refund.admin_approved, refund.rejected |
-| FLASH_SALE_ALERT | flashsale-service | flash_sale.session_started, flash_sale.session_ending |
+| FLASH_SALE_ALERT | flashsale-service | flash_sale.session_started, flash_sale.session_ended |
 | CHAT_MESSAGE | ai-chat-service | ai_chat.message_sent |
 | SYSTEM | platform | Account status changes, announcements |
 
 ## Kafka Integration
 
 Consumer-only — listens to 20+ topics:
-- From identity: `account.registered`, `account.status_changed`
+
 - From order: `order.created`, `order.shipped`, `order.delivered`, `order.cancelled`
 - From payment: `payment.success`, `payment.failed`, `refund.requested`, `refund.admin_approved`, `refund.rejected`
 - From flashsale: `flash_sale.session_started`, `flash_sale.session_ended`, `flash_sale.item_purchased`

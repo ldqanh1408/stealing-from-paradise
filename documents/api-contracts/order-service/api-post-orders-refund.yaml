@@ -247,7 +247,7 @@ paths:
       description: >
         Returns a MinIO presigned PUT URL for uploading refund evidence images.
         Bucket: refund-evidence. TTL: 15 minutes.
-        Referenced by FR-REFUND-005.
+        Referenced by FR-ORDER-013.
       operationId: getRefundEvidencePresignedUrl
       security:
         - bearerAuth: []

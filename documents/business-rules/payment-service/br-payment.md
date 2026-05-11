@@ -120,3 +120,11 @@
 | **REFUNDED** | All amounts returned via refunds |
 | **PARTIALLY_REFUNDED** | Some but not all amounts refunded |
 | **Cites** | UC-PAYMENT-002, UC-PAYMENT-004, FR-PAYMENT-012 |
+
+---
+
+## Cross-References
+
+| Ref ID | Target |
+|--------|--------|
+| STATE-PAYMENT-001 | [state-transaction.md](../../state-diagrams/payment-service/state-transaction.md) |

@@ -24,7 +24,7 @@ paths:
         Validates cart items, shipping address, and stock availability.
         Groups items by seller and creates one sub-order per seller under a parent order.
         Initiates payment via ParentOrderPaymentSaga.
-        Produces `order.created` and `order.checkout_completed` Kafka events.
+        Produces `order.created` and `order.checkout_created` Kafka events.
       operationId: checkout
       security:
         - bearerAuth: []

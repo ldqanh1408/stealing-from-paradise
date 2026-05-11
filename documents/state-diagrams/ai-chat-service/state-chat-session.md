@@ -1,4 +1,6 @@
-# ST-AICHAT-001: Chat Session State Machine
+# State Diagram: Chat Session
+
+**Stable ID:** `STATE-AICHAT-001`
 
 > **Service**: ai-chat-service (Port 8093)
 > **Entity**: CHAT_SESSIONS

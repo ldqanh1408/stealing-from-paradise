@@ -16,7 +16,7 @@ paths:
       description: >
         Returns current inventory levels for a given SKU code.
         Includes total, locked (reserved), available, and flash-sale-reserved quantities.
-        Referenced by FR-INVENTORY-001.
+        Referenced by FR-PRODUCT-011.
       tags:
         - Inventory
       security:
@@ -62,7 +62,7 @@ paths:
       description: >
         Increases stock_available and stock_total for the given SKU.
         Only the seller who owns the product/variant can restock.
-        Referenced by FR-INVENTORY-003.
+        Referenced by FR-PRODUCT-015.
       tags:
         - Inventory
       security:
@@ -125,7 +125,7 @@ paths:
         Negative delta reduces stock_available (must not go negative).
         Positive delta increases stock_total.
         Emits inventory.adjusted Kafka event.
-        Referenced by FR-INVENTORY-002.
+        Referenced by FR-PRODUCT-014.
       tags:
         - Inventory
       security:
@@ -173,7 +173,7 @@ paths:
       description: >
         Returns the history of inventory adjustments for a given SKU.
         Includes restocks, manual adjustments, and system adjustments (order reservations).
-        Referenced by FR-INVENTORY-004.
+        Referenced by FR-PRODUCT-011.
       tags:
         - Inventory
       security:

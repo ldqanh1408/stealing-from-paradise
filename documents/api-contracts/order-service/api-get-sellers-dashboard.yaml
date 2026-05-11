@@ -21,7 +21,7 @@ paths:
       description: >
         Returns aggregated order statistics, revenue metrics, and product counts
         for the authenticated seller. Useful for seller admin panel overview.
-        Referenced by FR-SELLER-010.
+        Referenced by FR-ORDER-015.
       operationId: getSellerDashboard
       security:
         - bearerAuth: []

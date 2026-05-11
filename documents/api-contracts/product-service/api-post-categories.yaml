@@ -17,7 +17,7 @@ paths:
       description: >
         Creates a category entry. Can be root (parent_id=null) or child.
         Slug must be unique. Emits category.created event for search indexing.
-        Referenced by FR-CATEGORY-001.
+        Referenced by FR-PRODUCT-001.
       tags:
         - Admin Categories
       security:
@@ -61,7 +61,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Slug already exists (BR-CATEGORY-001)
+          description: Slug already exists (BR-PRODUCT-003)
           content:
             application/json:
               schema:
@@ -74,7 +74,7 @@ paths:
       description: >
         Updates category fields. All fields optional.
         Emits category.updated event for search index sync.
-        Referenced by FR-CATEGORY-002.
+        Referenced by FR-PRODUCT-002.
       tags:
         - Admin Categories
       security:
@@ -135,7 +135,7 @@ paths:
       description: >
         Deletes a category. Cannot delete categories that have child categories
         or products attached. Emits category.deleted event.
-        Referenced by FR-CATEGORY-003.
+        Referenced by FR-PRODUCT-003.
       tags:
         - Admin Categories
       security:

@@ -17,5 +17,5 @@ Document ID: FR-IDENTITY
 | FR-IDENTITY-011 | The system SHALL allow admin users to list users with filters (status, role, query) via GET /admin/users | MEDIUM | BR-IDENTITY-008 | UC-IDENTITY-005 |
 | FR-IDENTITY-012 | The system SHALL allow admin users to lock a user account via POST /admin/users/{userId}/lock, revoking all active tokens (BR-IDENTITY-009) | HIGH | BR-IDENTITY-008, BR-IDENTITY-009 | UC-IDENTITY-005 |
 | FR-IDENTITY-013 | The system SHALL allow admin users to unlock a user account via POST /admin/users/{userId}/unlock | HIGH | BR-IDENTITY-008 | UC-IDENTITY-005 |
-| FR-IDENTITY-014 | The system SHALL publish Kafka events for account lifecycle: account.created, account.updated, account.locked, account.unlocked, seller.registered | MEDIUM | -- | UC-IDENTITY-001, UC-IDENTITY-003, UC-IDENTITY-005, UC-IDENTITY-006 |
+| FR-IDENTITY-014 | The system MAY (post-MVP) publish Kafka events for account lifecycle: account.created, account.updated, account.locked, account.unlocked, seller.registered. Note: identity-service does not currently produce Kafka domain events. | MEDIUM | -- | UC-IDENTITY-001, UC-IDENTITY-003, UC-IDENTITY-005, UC-IDENTITY-006 |
 | FR-IDENTITY-015 | The system SHALL respond to order.address Kafka request-reply pattern to provide shipping address data to Order Service during checkout | MEDIUM | -- | UC-IDENTITY-004 |

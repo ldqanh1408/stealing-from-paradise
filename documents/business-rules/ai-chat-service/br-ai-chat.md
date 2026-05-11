@@ -1,7 +1,7 @@
 # BR-AICHAT-001: AI Chat Service Business Rules
 
 > **Service**: ai-chat-service (Port 8093)
-> **Database**: PostgreSQL + Redis
+> **Database**: MongoDB + Redis
 > **Source**: 01_technical_module.md, 02_API_ai_chat.md, KAFKA_EVENTS.md
 
 ---
@@ -109,6 +109,6 @@ Errors before stream start -> HTTP error. Errors during stream -> SSE `error` ev
 | FR-AICHAT-001 | Session management |
 | FR-AICHAT-002 | Message streaming |
 | FR-AICHAT-003 | Confirmation |
-| ST-AICHAT-001 | Session state |
+| STATE-AICHAT-001 | [state-chat-session.md](../../state-diagrams/ai-chat-service/state-chat-session.md) |
 | ENTITY-AICHAT-001 | CHAT_SESSIONS |
 | ENTITY-AICHAT-002 | CHAT_MESSAGES |

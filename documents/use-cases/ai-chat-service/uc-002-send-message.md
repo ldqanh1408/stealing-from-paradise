@@ -98,3 +98,9 @@ User sends a message in the chat widget. The AI processes it -- potentially call
 | BR-AICHAT-001-03 | Risk levels |
 | BR-AICHAT-001-06 | SSE event types |
 | ENTITY-AICHAT-002 | CHAT_MESSAGES |
+
+### Also supports
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /chat/history | Cursor-paginated message history for a session (USER, ASSISTANT, TOOL_CALL, TOOL_RESULT) |

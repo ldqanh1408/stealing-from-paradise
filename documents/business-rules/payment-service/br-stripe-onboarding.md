@@ -47,7 +47,7 @@
 | **Rule** | Stripe `account.updated` webhook MUST sync local state |
 | **Synced Fields** | `charges_enabled`, `payouts_enabled`, `details_submitted` |
 | **Status Mapping** | If `charges_enabled AND payouts_enabled AND details_submitted` -> `account_status = ACTIVE` |
-| **Suspension** | If Stripe flags account -> `account_status = SUSPENDED`; publish `stripe.account_suspended` |
+| **Suspension** | If Stripe flags account -> `account_status = SUSPENDED`; publish `stripe.account_suspended` (post-MVP) |
 | **Additional KYC** | If Stripe requires more info -> `account_status = RESTRICTED`; publish `seller.stripe_requirement` |
 | **Cites** | UC-PAYMENT-003 |
 
@@ -74,3 +74,11 @@
 | **On Success** | New `onboarding_url` generated via Stripe `accountLinks.create()` |
 | **On Failure** | If `details_submitted = true`, return 409 (already completed) |
 | **Cites** | UC-PAYMENT-001 |
+
+---
+
+## Cross-References
+
+| Ref ID | Target |
+|--------|--------|
+| STATE-PAYMENT-003 | [state-stripe-account.md](../../state-diagrams/payment-service/state-stripe-account.md) |

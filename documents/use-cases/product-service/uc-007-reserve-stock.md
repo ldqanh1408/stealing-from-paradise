@@ -58,12 +58,12 @@
 ### Phase 3: Confirm or Release
 
 ```
-Payment Succeeds (order.confirmed event):
+Payment Succeeds (payment.success event):
   UPDATE stock_reservation SET status = 'confirmed'
   WHERE session_id = :sid
   -- Stock already deducted, no further action
 
-Payment Fails (order.failed event):
+Payment Fails (payment.failed event):
   UPDATE stock_reservation SET status = 'released'
   WHERE session_id = :sid
   -- Redis INCR stock:{variant_id} {quantity}

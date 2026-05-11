@@ -57,6 +57,13 @@ After product is created:
   - Seller can publish/unpublish via lifecycle endpoints
 ```
 
+### Related Seller Endpoints
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /sellers/me/products | Seller lists own products (paginated, all statuses) |
+| DELETE /seller/products/{productId} | Seller soft-deletes own product |
+
 ---
 
 ## Error Scenarios

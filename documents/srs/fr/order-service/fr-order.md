@@ -136,13 +136,13 @@
 **Priority:** P0 (Critical)
 **Stable ID:** FR-ORDER-008
 
-**Description:** Buyer shall be able to cancel an order in PENDING status with a reason.
+**Description:** Buyer shall be able to cancel an order in PENDING or PAID status (PAID cancellation only before seller ships) with a reason.
 
 **Acceptance Criteria:**
 - [ ] POST /orders/{id}/cancel accepts reason and optional note
-- [ ] Only allowed when order.status = PENDING
+- [ ] Allowed when order.status IN (PENDING, PAID) — BUYER can cancel PENDING or PAID; SELLER can cancel PAID only (see BR-ORDER-011, FR-ORDER-019)
 - [ ] Sets cancelled_by = BUYER, cancel_reason = provided reason
-- [ ] Returns 409 if order not in PENDING
+- [ ] Returns 409 if order not in PENDING or PAID
 - [ ] Produces order.cancelled Kafka event
 - [ ] Triggers stock release via inventory.adjusted
 
@@ -297,8 +297,8 @@
 - [ ] `order.delivered` — on delivery confirmation
 - [ ] `order.cancelled` — on buyer/seller cancel
 - [ ] `order.returned` — on RTS
-- [ ] `order.auto_cancelled` — on JOB-13 timeout
-- [ ] `order.checkout_completed` — on successful checkout
+- [ ] `order.auto_cancelled` (post-MVP) — on JOB-13 timeout
+- [ ] `order.checkout_created` — on successful checkout
 
 **Related:** BR-ORDER-009, BR-ORDER-010, BR-ORDER-011, BR-ORDER-013, BR-ORDER-014, BR-ORDER-016
 

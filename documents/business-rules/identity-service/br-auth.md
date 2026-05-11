@@ -97,3 +97,11 @@ Document ID: BR-IDENTITY
 | Trigger | POST /users/me/change-password |
 | Entity | ENTITY-IDENTITY-001 (User.password) |
 | Related UC | UC-IDENTITY-003 (Manage Profile) |
+
+---
+
+## Cross-References
+
+| Ref ID | Target |
+|--------|--------|
+| STATE-IDENTITY-001 | [state-user.md](../../state-diagrams/identity-service/state-user.md) |

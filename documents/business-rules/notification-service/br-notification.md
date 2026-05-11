@@ -97,7 +97,7 @@ Each Kafka event mapped to a notification has a stable template ID. Templates de
 | NOTIF-ORDER-SHIPPED | BUYER | `order.shipped` | NORMAL | Đơn hàng đang giao | Đơn #{order_code} đang được giao bởi {carrier}, mã {tracking_number}. |
 | NOTIF-ORDER-DELIVERED | BUYER, SELLER | `order.delivered` | NORMAL | Giao hàng thành công | Đơn #{order_code} đã giao thành công. |
 | NOTIF-ORDER-CANCELLED-BY-BUYER | SELLER | `order.cancelled` (cancelled_by=BUYER) | HIGH | Buyer đã hủy đơn | Đơn #{order_code} đã bị buyer hủy. Lý do: "{cancel_reason}". Stock đã được giải phóng. |
-| NOTIF-ORDER-AUTO-CANCELLED | BUYER | `order.auto_cancelled` | HIGH | Đơn hàng bị hủy tự động | Đơn #{order_code} đã bị hủy do hết thời gian thanh toán. |
+| NOTIF-ORDER-AUTO-CANCELLED | BUYER | `order.auto_cancelled` (post-MVP) | HIGH | Đơn hàng bị hủy tự động | Đơn #{order_code} đã bị hủy do hết thời gian thanh toán. |
 | NOTIF-ORDER-CANCELLED-BY-SELLER | BUYER | `seller.order_cancelled` | URGENT | Người bán đã hủy đơn — sẽ hoàn tiền | Rất tiếc, người bán không thể fulfill đơn #{order_code}. Lý do: "{cancel_reason}". Số tiền {refund_amount} {currency} sẽ được hoàn về phương thức thanh toán gốc trong 5–10 ngày làm việc. Mã giao dịch refund: #{transaction_id}. |
 | NOTIF-ORDER-RETURNED | BUYER | `order.returned` | HIGH | Đơn đã trả về người bán | Đơn #{order_code} đã được trả về. Refund sẽ được xử lý tự động. |
 | NOTIF-REFUND-APPROVED | BUYER, SELLER | `refund.admin_approved` | HIGH | Yêu cầu refund được duyệt | Refund cho đơn #{order_code} đã được admin duyệt ({type}). |
@@ -134,7 +134,7 @@ Each Kafka event mapped to a notification has a stable template ID. Templates de
 | FR-NOTIF-001 | SSE delivery |
 | FR-NOTIF-002 | Paginated history |
 | FR-NOTIF-003 | Read management |
-| ST-NOTIF-001 | State diagram |
+| STATE-NOTIFICATION-001 | [state-notification.md](../../state-diagrams/notification-service/state-notification.md) |
 | UC-ORDER-008 | Seller cancel order (drives NOTIF-ORDER-CANCELLED-BY-SELLER) |
 | UC-PRODUCT-012 | Submit product for review (drives NOTIF-PRODUCT-PENDING-REVIEW) |
 | UC-PRODUCT-014 | Approve product (drives NOTIF-PRODUCT-APPROVED) |

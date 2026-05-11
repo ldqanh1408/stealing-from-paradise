@@ -11,8 +11,9 @@
 | Prefix | Range | Domain |
 |--------|-------|--------|
 | ENTITY-PRODUCT | 001-007 | Data models |
-| BR-PRODUCT | 001-012 | Business rules (incl. BR-009 admin review) |
-| FR-PRODUCT | 001-026 | Functional requirements (FR-023..026 = admin review) |
+| BR-PRODUCT | 001-013 | Business rules (incl. BR-009 admin review) |
+| FR-PRODUCT | 001-022 | Functional requirements (catalog + cart) |
+| FR-PRODUCT-UI | 001-009 | UI display rules |
 | UC-PRODUCT | 001-015 | Use cases (UC-012..015 = admin review) |
 
 ---
@@ -43,10 +44,15 @@
 | FR-PRODUCT-020 | Clear entire cart | ENTITY-006 |
 | FR-PRODUCT-021 | Cart integrity at checkout | ENTITY-007 |
 | FR-PRODUCT-022 | Cart cleanup on events | ENTITY-006, ENTITY-007 |
-| FR-PRODUCT-023 | Seller submits product for review | ENTITY-002 |
-| FR-PRODUCT-024 | Admin lists pending products | ENTITY-002 |
-| FR-PRODUCT-025 | Admin approves product | ENTITY-002 |
-| FR-PRODUCT-026 | Admin rejects product with reason | ENTITY-002 |
+| FR-PRODUCT-UI-001 | Product card (homepage/listing) | ENTITY-002, ENTITY-003, ENTITY-004 |
+| FR-PRODUCT-UI-002 | Product detail — image gallery | ENTITY-003, ENTITY-004 |
+| FR-PRODUCT-UI-003 | Product detail — price display | ENTITY-002, ENTITY-003 |
+| FR-PRODUCT-UI-004 | Product detail — variant selection matrix | ENTITY-003 |
+| FR-PRODUCT-UI-005 | Product detail — info tabs | ENTITY-002 |
+| FR-PRODUCT-UI-006 | Product detail — quantity selector | ENTITY-003 |
+| FR-PRODUCT-UI-007 | Cart page — item display | ENTITY-006, ENTITY-007 |
+| FR-PRODUCT-UI-008 | Checkout preview | ENTITY-005, ENTITY-006, ENTITY-007 |
+| FR-PRODUCT-UI-009 | Image display summary by context | ENTITY-004 |
 
 ---
 
@@ -76,10 +82,15 @@
 | FR-PRODUCT-020 | -- |
 | FR-PRODUCT-021 | BR-011, BR-012 |
 | FR-PRODUCT-022 | -- |
-| FR-PRODUCT-023 | BR-009 |
-| FR-PRODUCT-024 | BR-009 |
-| FR-PRODUCT-025 | BR-009, BR-003 |
-| FR-PRODUCT-026 | BR-009 |
+| FR-PRODUCT-UI-001 | -- |
+| FR-PRODUCT-UI-002 | -- |
+| FR-PRODUCT-UI-003 | -- |
+| FR-PRODUCT-UI-004 | -- |
+| FR-PRODUCT-UI-005 | -- |
+| FR-PRODUCT-UI-006 | -- |
+| FR-PRODUCT-UI-007 | -- |
+| FR-PRODUCT-UI-008 | -- |
+| FR-PRODUCT-UI-009 | -- |
 
 ---
 
@@ -98,10 +109,10 @@
 | UC-PRODUCT-009 | Add to cart (customer) | FR-017 |
 | UC-PRODUCT-010 | Update cart item (customer) | FR-018 |
 | UC-PRODUCT-011 | Remove from cart (customer) | FR-019 |
-| UC-PRODUCT-012 | Submit product for review (seller) | FR-023 |
-| UC-PRODUCT-013 | List pending products (admin) | FR-024 |
-| UC-PRODUCT-014 | Approve product (admin) | FR-025 |
-| UC-PRODUCT-015 | Reject product (admin) | FR-026 |
+| UC-PRODUCT-012 | Submit product for review (seller) | BR-009 |
+| UC-PRODUCT-013 | List pending products (admin) | BR-009 |
+| UC-PRODUCT-014 | Approve product (admin) | BR-009, BR-003 |
+| UC-PRODUCT-015 | Reject product (admin) | BR-009 |
 
 ---
 
@@ -164,6 +175,7 @@
 |------|
 | `srs/fr/product-service/fr-catalog.md` |
 | `srs/fr/product-service/fr-cart.md` |
+| `srs/fr/product-service/fr-product-ui.md` |
 
 ### Use Cases
 | UC ID | File |

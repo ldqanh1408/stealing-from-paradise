@@ -53,6 +53,15 @@
 
 ---
 
+## Related Endpoints
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /categories | Category tree (step 2) |
+| GET /categories/{categoryId} | Single category detail with breadcrumb and children |
+| GET /products | Product listing with filters (step 4) |
+| GET /products/{id} | Product detail with variants and images (step 6) |
+
 ## Related Requirements
 
 | Ref ID | Description |

@@ -24,9 +24,9 @@
 | 1 | Admin | Reviews refund details and evidence |
 | 2 | Admin | Determines refund does not meet criteria |
 | 3 | Admin | Calls PUT `/refunds/{id}/reject` with `reason` in request body |
-| 4 | System | Validates refund is in PENDING status |
-| 5 | System | Sets REFUNDS.status = REJECTED |
-| 6 | System | Sets `reject_reason`, `reviewed_by = admin.id`, `reviewed_at = NOW()` |
+| 4 | System | Validates refund is in PENDING status (→ ENTITY-PAYMENT-004) |
+| 5 | System | Sets REFUNDS.status = REJECTED (→ ENTITY-PAYMENT-004) |
+| 6 | System | Sets `reject_reason`, `reviewed_by = admin.id`, `reviewed_at = NOW()` (→ ENTITY-PAYMENT-004) |
 | 7 | System | Publishes Kafka `refund.rejected` |
 | 8 | Notification | Notifies buyer with rejection reason |
 
@@ -68,3 +68,12 @@
 |----------|-------------|
 | UC-PAYMENT-004 | Create Refund (precedes this) |
 | UC-PAYMENT-005 | Approve Refund (alternative outcome) |
+
+### Admin listing endpoints
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /admin/refunds | List all refunds (paginated, filterable by status/type/seller/date) |
+| GET /admin/refunds/{refundId} | Full refund detail with items, evidence, review history, and Stripe ref |
+
+> These admin endpoints support the review workflow in this UC (admin browses pending refunds before rejecting).

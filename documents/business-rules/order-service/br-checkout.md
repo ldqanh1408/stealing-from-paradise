@@ -144,7 +144,7 @@
 | Consumers | Product Service (inventory lock), Search Service (sold count) |
 
 **Also produced:**
-- `order.checkout_completed` → Product Service (remove items from cart)
+- `order.checkout_created` → Product Service (remove items from cart)
 
 ---
 
@@ -167,4 +167,5 @@
 - **UC:** [uc-001-checkout.md](../../use-cases/order-service/uc-001-checkout.md)
 - **API:** [api-post-orders-checkout.yaml](../../api-contracts/order-service/api-post-orders-checkout.yaml)
 - **FR:** [fr-order.md](../../srs/fr/order-service/fr-order.md)
+- **State:** [state-order.md](../../state-diagrams/order-service/state-order.md)
 - **Traceability:** [traceability-matrix.md](../../traceability/order-service/traceability-matrix.md)

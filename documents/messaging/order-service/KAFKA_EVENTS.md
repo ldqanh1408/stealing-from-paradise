@@ -59,6 +59,15 @@
 | **Topic** | `refund.rts_completed` |
 | **Action** | Log confirmation that Stripe refund executed (order already at RETURNED status) |
 
+### stock.reservation.expired (from Product Service)
+
+| Field | Value |
+|-------|-------|
+| **Consumer** | order-service (StockKafkaEventBridge) |
+| **GroupId** | order-service-group |
+| **Topic** | `stock.reservation.expired` |
+| **Action** | Auto-cancel parent order when stock reservation expires (reservation TTL exceeded) |
+
 ---
 
 ## Events Produced

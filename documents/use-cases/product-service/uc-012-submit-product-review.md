@@ -97,3 +97,12 @@ Seller invokes `POST /seller/products/{productId}/submit` from the seller dashbo
 | Kafka | `product.pending_review` |
 | Notification | NOTIF-PRODUCT-PENDING-REVIEW |
 | DB Dependency | P3-11 in DB_SCHEMA_CHANGE_PROPOSAL.md |
+
+### Also supports (publish/unpublish lifecycle)
+
+| Endpoint | Transition | Kafka Event |
+|----------|-----------|-------------|
+| POST /seller/products/{productId}/publish | approved/inactive -> active | `product.activated` |
+| POST /seller/products/{productId}/unpublish | active/out_of_stock -> inactive | `product.deactivated` |
+
+> These lifecycle endpoints are in the same API contract (`api-put-products-lifecycle.yaml`) as submit but are separate transitions. They control storefront visibility after admin approval, not the review workflow covered by this UC.

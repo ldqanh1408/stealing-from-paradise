@@ -25,7 +25,7 @@ paths:
         `stock_locked` của variant. Nếu đã có reservation cho cùng `session_id`
         thì là idempotent (trả về reservation hiện có).
 
-        Liên quan: UC-PRODUCT-007, BR-CART-005.
+        Liên quan: UC-PRODUCT-007, BR-PRODUCT-012.
 
         Lifecycle: pending → confirmed (khi `payment.success`) hoặc released
         (khi `payment.failed` / hết TTL → emit `stock.reservation.expired`).

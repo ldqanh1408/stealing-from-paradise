@@ -1,7 +1,7 @@
 # ENTITY-AICHAT-002: CHAT_MESSAGES
 
 > **Service**: ai-chat-service (Port 8093)
-> **Database**: PostgreSQL
+> **Database**: MongoDB
 > **Source**: 01_technical_module.md Section 4, 03_database_tables.md
 
 ---

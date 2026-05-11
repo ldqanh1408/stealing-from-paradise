@@ -1,8 +1,8 @@
 # ENTITY-PRODUCT-004: PRODUCT_IMAGE
 
 > **Service**: product-service (Port 8090)
-> **Database**: MongoDB
-> **Collection**: mg_product_images
+> **Database**: PostgreSQL
+> **Table**: product_images
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 4
 
 ---
@@ -15,12 +15,12 @@ erDiagram
     PRODUCT_VARIANT ||--o{ PRODUCT_IMAGE : "variant_id"
 
     PRODUCT_IMAGE {
-        objectid _id PK
-        objectid product_id "reference"
-        objectid variant_id "reference, NULL=product-level"
-        string url "MinIO URL"
-        numberint sort_order "DEFAULT 0"
-        isodate created_at
+        uuid id PK
+        uuid product_id "FK CASCADE"
+        uuid variant_id "FK SET NULL, NULL=product-level"
+        text url "MinIO URL"
+        int sort_order "DEFAULT 0"
+        timestamp created_at
     }
 ```
 
@@ -30,12 +30,12 @@ erDiagram
 
 | # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
-| 1 | `_id` | ObjectId | PK, auto-generated | Unique image identifier |
-| 2 | `product_id` | ObjectId | NOT NULL, application-level reference | Parent product. No CASCADE; deletion handled in application layer. |
-| 3 | `variant_id` | ObjectId | NULLABLE, application-level reference | NULL = common product image; non-NULL = variant-specific image |
-| 4 | `url` | String | NOT NULL | Full MinIO object URL (binary stored in MinIO, not DB) |
-| 5 | `sort_order` | NumberInt | DEFAULT 0 | Display order; smallest value = primary/thumbnail image |
-| 6 | `created_at` | ISODate | Auto-set | Document creation timestamp |
+| 1 | `id` | UUID | PK | Unique image identifier |
+| 2 | `product_id` | UUID | NOT NULL, FK → product.id ON DELETE CASCADE | Parent product. |
+| 3 | `variant_id` | UUID | NULLABLE, FK → product_variant.id ON DELETE SET NULL | NULL = common product image; non-NULL = variant-specific image |
+| 4 | `url` | TEXT | NOT NULL | Full MinIO object URL (binary stored in MinIO, not DB) |
+| 5 | `sort_order` | INT | DEFAULT 0 | Display order; smallest value = primary/thumbnail image |
+| 6 | `created_at` | TIMESTAMP | Auto-set | Row creation timestamp |
 
 ---
 
@@ -57,8 +57,8 @@ Variants:
 
 | Index Name | Fields | Type | Purpose |
 |------------|---------|------|---------|
-| `idx_product_image_product` | `{ product_id: 1 }` | B-tree | Fetch all images for a product gallery |
-| `idx_product_image_variant` | `{ variant_id: 1 }` | B-tree | Fetch variant-specific images |
+| `idx_product_image_product` | `(product_id)` | B-tree | Fetch all images for a product gallery |
+| `idx_product_image_variant` | `(variant_id)` | B-tree | Fetch variant-specific images |
 
 ---
 
@@ -69,7 +69,7 @@ Variants:
 | Listing card / Homepage | `variant_id IS NULL AND sort_order = MIN` | -- |
 | Product Detail (default) | `variant_id IS NULL ORDER BY sort_order` | -- |
 | Product Detail (variant selected) | `variant_id = :selected_id` | Fallback to product images |
-| Cart item | `cart_item.variant_image_snapshot` (not this collection) | -- |
+| Cart item | `cart_item.variant_image_snapshot` (not this table) | -- |
 
 ---
 

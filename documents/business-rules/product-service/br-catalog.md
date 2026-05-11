@@ -185,3 +185,4 @@ draft ──submit──▶ pending ──approve──▶ approved ──publis
 | UC-PRODUCT-014 | Approve Product (admin) |
 | UC-PRODUCT-015 | Reject Product (admin) |
 | P3-11 | DB schema proposal (extends `products.status` enum + adds reviewer columns) |
+| STATE-PRODUCT-001 | [state-product.md](../../state-diagrams/product-service/state-product.md) |

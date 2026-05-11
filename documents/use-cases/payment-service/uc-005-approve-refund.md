@@ -23,13 +23,13 @@
 |------|-------------|--------|
 | 1 | Admin | Reviews refund: evidence images, reason, order details |
 | 2 | Admin | Calls PUT `/refunds/{id}/approve` with optional `tracking_number` and `admin_note` |
-| 3 | System | Validates refund is in PENDING status |
-| 4 | System | Sets `reviewed_by = admin.id`, `reviewed_at = NOW()`, `admin_note` |
-| 5 | System | Checks SELLER_TRANSFERS for associated transfer |
+| 3 | System | Validates refund is in PENDING status (→ ENTITY-PAYMENT-004) |
+| 4 | System | Sets `reviewed_by = admin.id`, `reviewed_at = NOW()`, `admin_note` (→ ENTITY-PAYMENT-004) |
+| 5 | System | Checks SELLER_TRANSFERS for associated transfer (→ ENTITY-PAYMENT-003) |
 | 5a | System | IF pre-payout: calls Stripe `Refund.create()` from platform balance |
 | 5b | System | IF post-payout: calls Stripe Transfer reversal API |
-| 6 | System | On Stripe success: REFUNDS.status = SUCCESS, `refund_ref = re_xxx` |
-| 7 | System | Updates SELLER_TRANSFERS: REFUNDED (pre-payout) or REVERSED (post-payout) |
+| 6 | System | On Stripe success: REFUNDS.status = SUCCESS, `refund_ref = re_xxx` (→ ENTITY-PAYMENT-004) |
+| 7 | System | Updates SELLER_TRANSFERS: REFUNDED (pre-payout) or REVERSED (post-payout) (→ ENTITY-PAYMENT-003) |
 | 8 | System | Publishes Kafka `refund.admin_approved` |
 | 9 | Notification | Notifies buyer (refund approved) and seller |
 
@@ -73,3 +73,12 @@
 |----------|-------------|
 | UC-PAYMENT-004 | Create Refund (precedes this) |
 | UC-PAYMENT-006 | Reject Refund (alternative outcome) |
+
+### Admin listing endpoints
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /admin/refunds | List all refunds (paginated, filterable by status/type/seller/date) |
+| GET /admin/refunds/{refundId} | Full refund detail with items, evidence, review history, and Stripe ref |
+
+> These admin endpoints support the review workflow in this UC (admin browses pending refunds before approving).

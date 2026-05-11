@@ -114,7 +114,7 @@
 | `refund.rejected` | REFUNDS | (notification only) |
 | `refund.rts_completed` | REFUNDS | (notification, order update) |
 | `refund.stripe_auto` | REFUNDS | (order update) |
-| `stripe.account_suspended` | SELLER_STRIPE_ACCOUNTS | SELLERS, SELLER_TRANSFERS (future) |
+| `stripe.account_suspended` (post-MVP) | SELLER_STRIPE_ACCOUNTS | SELLERS, SELLER_TRANSFERS (future) |
 | `stripe.transfer.reversed` | SELLER_TRANSFERS | (order update) |
 | `stripe.payout.failed` | SELLER_TRANSFERS | (notification only) |
 | `payment.requested` (consumed) | -- | TRANSACTIONS, SELLER_TRANSFERS |

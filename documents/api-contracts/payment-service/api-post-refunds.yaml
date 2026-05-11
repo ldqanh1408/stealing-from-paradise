@@ -165,7 +165,7 @@ components:
           items:
             type: string
             format: uri
-          description: MinIO URLs of evidence photos (at least 1 required)
+          description: MinIO URLs of evidence photos (at least 1 required). Max file size: 10MB per image.
         items:
           type: array
           items:

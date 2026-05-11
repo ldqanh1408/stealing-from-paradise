@@ -414,20 +414,6 @@
 | **Module** | Inventory |
 | **Action** | Lock stock for each variant in the order |
 
-### order.confirmed (from Order Service)
-
-| Field | Value |
-|-------|-------|
-| **Module** | Inventory |
-| **Action** | Confirm stock reservation (status = confirmed) |
-
-### order.failed (from Order Service)
-
-| Field | Value |
-|-------|-------|
-| **Module** | Inventory |
-| **Action** | Release stock reservation (status = released), restore Redis + DB |
-
 ### order.cancelled (from Order Service)
 
 | Field | Value |
@@ -441,20 +427,6 @@
 |-------|-------|
 | **Module** | Inventory |
 | **Action** | Restore stock for returned items |
-
-### order.checkout_completed (from Order Service)
-
-| Field | Value |
-|-------|-------|
-| **Module** | Cart |
-| **Action** | Remove checked-out items from user's cart |
-
-### order.auto_cancelled (from Order Service)
-
-| Field | Value |
-|-------|-------|
-| **Module** | Inventory |
-| **Action** | Unlock stock for unpaid orders after timeout |
 
 ### flash_sale.session_started (from Flash Sale Service)
 

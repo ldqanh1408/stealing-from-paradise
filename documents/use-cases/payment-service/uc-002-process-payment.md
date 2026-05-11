@@ -22,16 +22,16 @@
 | Step | Actor/System | Action |
 |------|-------------|--------|
 | 1 | System | PaymentService consumes `payment.requested` |
-| 2 | System | Checks idempotency: if existing TRANSACTION with PENDING/SUCCESS -> skip |
-| 3 | System | Creates TRANSACTION row (status = PENDING, amount = parent_order.total_amt) |
-| 4 | System | For each sub-order: creates SELLER_TRANSFER row (status = PENDING) |
+| 2 | System | Checks idempotency: if existing TRANSACTION with PENDING/SUCCESS -> skip (→ ENTITY-PAYMENT-002) |
+| 3 | System | Creates TRANSACTION row (status = PENDING, amount = parent_order.total_amt) (→ ENTITY-PAYMENT-002) |
+| 4 | System | For each sub-order: creates SELLER_TRANSFER row (status = PENDING) (→ ENTITY-PAYMENT-003) |
 | 5 | System | Calls Stripe `PaymentIntent.create()` with total amount, currency=VND |
-| 6 | System | Saves `trans_ref` (pi_xxx) and `clientSecret` to TRANSACTION |
+| 6 | System | Saves `trans_ref` (pi_xxx) and `clientSecret` to TRANSACTION (→ ENTITY-PAYMENT-002) |
 | 7 | Frontend | Polls GET `/payments/by-order/{parentOrderId}` for clientSecret |
 | 8 | Buyer | Completes payment in Stripe Payment Modal |
 | 9 | Stripe | Sends `payment_intent.succeeded` webhook |
-| 10 | System | TRANSACTIONS.status = SUCCESS, `pay_at = NOW()` |
-| 11 | System | SELLER_TRANSFERS: each row status -> AWAITING_DELIVERY |
+| 10 | System | TRANSACTIONS.status = SUCCESS, `pay_at = NOW()` (→ ENTITY-PAYMENT-002) |
+| 11 | System | SELLER_TRANSFERS: each row status -> AWAITING_DELIVERY (→ ENTITY-PAYMENT-003) |
 | 12 | System | Publishes Kafka `payment.success` |
 | 13 | Order Svc | ParentOrderPaymentSaga marks all sub-orders PAID |
 
@@ -85,3 +85,11 @@
 |----------|-------------|
 | UC-PAYMENT-003 | Handle Stripe Webhook (payment_intent.succeeded/failed) |
 | UC-PAYMENT-007 | Transfer to Seller (after delivery, downstream) |
+
+### Internal utility endpoint
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /payments/by-intent/{stripePaymentIntentId} | Lookup transaction by Stripe PaymentIntent ID (debug/reconciliation) |
+
+> This is an internal utility endpoint for debugging and manual reconciliation. Accessible by buyer or admin.

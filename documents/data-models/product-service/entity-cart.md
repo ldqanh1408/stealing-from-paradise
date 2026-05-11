@@ -1,8 +1,8 @@
 # ENTITY-PRODUCT-006: CART
 
 > **Service**: product-service (Port 8090)
-> **Database**: MongoDB
-> **Collection**: mg_carts
+> **Database**: PostgreSQL
+> **Table**: carts
 > **Source**: database-entities.md Section 4, 03_database_tables.md Section 6
 
 ---
@@ -14,11 +14,11 @@ erDiagram
     CART ||--o{ CART_ITEM : "cart_id"
 
     CART {
-        objectid _id PK
-        objectid customer_id UK "1 customer = 1 cart"
-        string status "active"
-        isodate created_at
-        isodate updated_at
+        uuid id PK
+        uuid customer_id UK "1 customer = 1 cart"
+        varchar status "active"
+        timestamp created_at
+        timestamp updated_at
     }
 ```
 
@@ -28,11 +28,11 @@ erDiagram
 
 | # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
-| 1 | `_id` | ObjectId | PK, auto-generated | Unique cart identifier |
-| 2 | `customer_id` | ObjectId | Unique, NOT NULL, enforced at application layer | Customer ID from Identity Service; exactly 1 active cart per customer |
-| 3 | `status` | String | NOT NULL, DEFAULT 'active' | Cart state: currently always `active` |
-| 4 | `created_at` | ISODate | Auto-set | Cart creation timestamp |
-| 5 | `updated_at` | ISODate | Auto-set | Last modification timestamp |
+| 1 | `id` | UUID | PK | Unique cart identifier |
+| 2 | `customer_id` | UUID | UNIQUE NOT NULL | Customer ID from Identity Service; exactly 1 active cart per customer |
+| 3 | `status` | VARCHAR(50) | NOT NULL, DEFAULT 'active' | Cart state: currently always `active` |
+| 4 | `created_at` | TIMESTAMP | Auto-set | Row creation timestamp |
+| 5 | `updated_at` | TIMESTAMP | Auto-set | Last modification timestamp |
 
 ---
 
@@ -40,9 +40,7 @@ erDiagram
 
 | Index Name | Fields | Type | Purpose |
 |------------|---------|------|---------|
-| `idx_cart_customer` | `{ customer_id: 1 }` | Unique B-tree | Fast cart lookup by customer; enforces 1-cart-per-customer |
-
-**Note**: The UNIQUE constraint on `customer_id` is enforced by the MongoDB unique index. However, MongoDB's unique index semantics allow nulls -- application-layer validation ensures exactly one active cart per customer.
+| `idx_cart_customer` | `(customer_id)` | PostgreSQL UNIQUE constraint | Fast cart lookup by customer; enforces 1-cart-per-customer |
 
 ---
 
@@ -50,9 +48,9 @@ erDiagram
 
 | Rule | Detail |
 |------|--------|
-| One cart per customer | Unique index on `customer_id` enforces 1 active cart per customer |
+| One cart per customer | UNIQUE constraint on `customer_id` enforces 1 active cart per customer |
 | Cart auto-creation | Cart is lazily created on first `POST /cart/items` |
-| Cart cleared on checkout | When `order.checkout_completed` event is consumed, checked-out items are removed |
+| Cart cleared on checkout | When `order.checkout_created` event is consumed, checked-out items are removed |
 | Expired flash-sale items | When `flash_sale.session_ended` event arrives, JOB-07 removes expired flash items |
 
 ---

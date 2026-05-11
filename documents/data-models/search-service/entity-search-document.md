@@ -84,11 +84,11 @@ Triggered via Kafka events from the Product Service (consumer-only):
 | `product.approved` | Bulk index all SKU documents | Product + all SKUs |
 | `product.updated` | Update_by_query by `product_id` | Product-level fields |
 | `product.deleted` | Delete documents or set `is_active = false` | All SKUs of product |
-| `product.auto_hidden` | Update `is_active = false` | All SKUs of product |
+| `product.auto_hidden` (post-MVP) | Update `is_active = false` | All SKUs of product |
 | `inventory.adjusted` | Partial update: `stock_status` | Single SKU |
 | `category.updated` | Update_by_query by `category_id` | Category fields |
 | `order.created` | Update `sold_count` (optional) | Affected products |
-| `account.locked` | Update_by_query by `seller_id`: set hidden | All SKUs of seller |
+| `account.locked` (post-MVP) | Update_by_query by `seller_id`: set hidden | All SKUs of seller |
 
 ---
 

@@ -1,5 +1,6 @@
 # State Diagram: Stripe Account
 
+**Stable ID:** `STATE-PAYMENT-003`
 **Entity**: SELLER_STRIPE_ACCOUNTS (ENTITY-PAYMENT-001)  
 **Domain**: Payment Service  
 **References**: [entity-seller-stripe-account.md](../../data-models/payment-service/entity-seller-stripe-account.md), [02_API_payment_service.md](../../../docs/services/payment-service/02_API_payment_service.md)
@@ -78,9 +79,9 @@
 | Transition | Kafka Topic |
 |------------|-------------|
 | IN_PROGRESS -> COMPLETE | (none needed; account is now operational) |
-| IN_PROGRESS -> SUSPENDED | `stripe.account_suspended` |
+| IN_PROGRESS -> SUSPENDED | `stripe.account_suspended` (post-MVP) |
 | COMPLETE -> RESTRICTED | `seller.stripe_requirement` |
-| RESTRICTED -> SUSPENDED | `stripe.account_suspended` |
+| RESTRICTED -> SUSPENDED | `stripe.account_suspended` (post-MVP) |
 
 ---
 

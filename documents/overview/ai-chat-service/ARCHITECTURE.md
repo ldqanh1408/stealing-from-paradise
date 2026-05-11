@@ -1,7 +1,7 @@
 # AI Chat Service — Architecture Overview
 
 > Service: ai-chat-service (SVC-010, Port 8093)
-> Database: PostgreSQL
+> Database: MongoDB
 > Source: Backend code `com.flashsale.chatservice`, `docs/services/ai-chat-service/`
 > Generated: 2026-05-10
 
@@ -13,7 +13,7 @@ AI-powered customer support chat with multi-turn conversations, tool calling for
 ## Tech Stack
 - Java 25, Spring Boot 4.0.4
 - Spring AI (OpenAI integration)
-- PostgreSQL via JPA
+- MongoDB via Spring Data MongoDB
 - Redis (rate limiting, session cache, confirmation tokens)
 - PageIndex (vector search for products)
 - Kafka (event producer)

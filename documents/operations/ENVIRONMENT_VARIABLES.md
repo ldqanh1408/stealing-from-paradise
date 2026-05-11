@@ -1,6 +1,6 @@
 # Environment Variables Reference
 
-> **Source**: docs/operations/10_ENVIRONMENT_VARIABLES.md (v5.4)
+> **Source**: documents/operations/ENVIRONMENT_VARIABLES.md (v5.5)
 > **Generated**: 2026-05-10
 > **Service**: platform
 
@@ -29,7 +29,7 @@ All environment variables needed to run the system. Fill these into your `.env` 
 
 | Variable | Default | Used By | Notes |
 |----------|---------|---------|-------|
-| `POSTGRES_USER` | `flashsale` | identity, payment, order, flashsale, product, ai-chat | DB username |
+| `POSTGRES_USER` | `flashsale` | identity, payment, order, flashsale, product | DB username |
 | `POSTGRES_PASSWORD` | (set securely) | same services | DB password |
 | `POSTGRES_DB` | `flashsale` | docker container init | Database name |
 
@@ -37,9 +37,12 @@ All environment variables needed to run the system. Fill these into your `.env` 
 
 | Variable | Default | Used By | Notes |
 |----------|---------|---------|-------|
-| `MONGO_INITDB_ROOT_USERNAME` | `admin` | notification | Root user |
-| `MONGO_INITDB_ROOT_PASSWORD` | (set securely) | notification | Root password |
+| `MONGO_INITDB_ROOT_USERNAME` | `admin` | notification, ai-chat | Root user |
+| `MONGO_INITDB_ROOT_PASSWORD` | (set securely) | notification, ai-chat | Root password |
 | `MONGO_INITDB_DATABASE` | `flashsale` | docker init | Initial database |
+| `MONGO_USER` | `admin` | notification, ai-chat | MongoDB username |
+| `MONGO_PASSWORD` | (set securely) | notification, ai-chat | MongoDB password |
+| `MONGO_DATABASE` | `flashsale` | notification, ai-chat | MongoDB database name |
 
 ### Redis
 
@@ -54,6 +57,8 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | Variable | Default | Used By | Notes |
 |----------|---------|---------|-------|
 | `ELASTIC_URI` | `http://elasticsearch:9200` | search-service | Full URI |
+| `ELASTIC_USERNAME` | `elastic` | search-service | x-pack username (post-MVP, optional in dev) |
+| `ELASTIC_PASSWORD` | (optional in dev) | search-service | x-pack password (post-MVP, required in production) |
 | `ES_JAVA_OPTS` | `-Xms512m -Xmx512m` | elasticsearch container | Heap size |
 
 ### MinIO
@@ -171,7 +176,7 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | Variable | Example | Notes |
 |----------|---------|-------|
 | `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `MONGO_HOST` | `mongo` | |
+| `MONGO_HOST` | `mongo` | notification, ai-chat | MongoDB hostname |
 | `MONGO_INITDB_ROOT_USERNAME` | `admin` | |
 | `MONGO_INITDB_ROOT_PASSWORD` | (set securely) | |
 | `REDIS_HOST` | `redis` | SSE connection tracking |
@@ -182,9 +187,14 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | Variable | Example | Notes |
 |----------|---------|-------|
 | `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `DB_HOST` | `postgres` | |
-| `POSTGRES_USER` | `flashsale` | |
-| `POSTGRES_PASSWORD` | (set securely) | |
+| `MONGO_HOST` | `mongo` | |
+| `MONGO_USER` | `admin` | |
+| `MONGO_PASSWORD` | (set securely) | |
+| `MONGO_DATABASE` | `flashsale` | |
+| `REDIS_HOST` | `redis` | Session context + rate limiting |
+| `OPENAI_API_KEY` | (set securely) | OpenAI API key |
+| `OPENAI_MODEL` | `gpt-4o` | OpenAI model name |
+| `PAGEINDEX_ENDPOINT` | (set securely) | PageIndex RAG endpoint URL |
 | `KAFKA_SERVER` | `kafka:9092` | |
 
 ---
@@ -264,6 +274,8 @@ REDIS_HOST=redis
 REDIS_PASSWORD=
 
 ELASTIC_URI=http://elasticsearch:9200
+ELASTIC_USERNAME=elastic
+ELASTIC_PASSWORD=
 ES_JAVA_OPTS=-Xms512m -Xmx512m
 
 MINIO_URL=http://minio:9000

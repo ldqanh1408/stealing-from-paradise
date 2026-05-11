@@ -11,7 +11,7 @@
 
 | Hạng mục | Số lượng | Mức độ |
 |----------|----------|--------|
-| API endpoints THIẾU (MUST-HAVE) | 3 | Block MVP |
+| API endpoints THIẾU (MUST-HAVE) | 3 (ALL RESOLVED) | Block MVP (YAMLs on disk) |
 | API endpoints THIẾU (SHOULD) | 4 | Hoàn thiện UX |
 | API endpoints OBSOLETE phải xóa/deprecate | 0 (sau v3 re-activate 4 admin product YAMLs) | Cleanup |
 | Kafka events THIẾU (MUST-HAVE) | 2 | Block MVP |
@@ -51,13 +51,18 @@
 
 > **Đính chính (2026-05-10 v2):** Sau khi đọc trực tiếp các YAML, một số endpoint mà audit ban đầu báo "thiếu" thực ra đã có (gộp trong YAML khác): `GET /products/{productId}` đã có trong `api-get-products.yaml`; `PUT/DELETE /cart/items/{itemId}` đã có trong `api-post-cart-items.yaml`; `PUT /notifications/read-all` đã có trong `api-put-notifications-read.yaml`. Bảng dưới là danh sách CHÍNH XÁC.
 
-### 2.1 MUST-HAVE — 3 endpoints thực sự còn thiếu
+### 2.1 MUST-HAVE — 3 endpoints (ALL RESOLVED)
 
-| # | Method + Path | Service | UC liên quan | Lý do MUST |
-|---|--------------|---------|--------------|-----------|
-| 1 | `GET /categories/{categoryId}` | product-service | UC-PRODUCT-002 | Xem chi tiết + cây danh mục con (currently chỉ có `GET /categories` flat list) |
-| 2 | `POST /inventory/{skuCode}/reserve` | product-service | UC-PRODUCT-007 | Order-service gọi để reserve stock 15 phút khi checkout (hiện có GET, restock, adjust nhưng không có reserve trực tiếp) |
-| 3 | `GET /sellers/me/orders/{orderId}` | order-service | UC-ORDER-007 | Seller xem chi tiết đơn (`GET /orders/{id}` dùng cho buyer; cần endpoint riêng cho seller scope) |
+> **RESOLVED (2026-05-11):** YAML files now exist on disk for all 3 endpoints.
+> - `api-get-category-detail.yaml` — `GET /categories/{categoryId}`
+> - `api-post-inventory-reserve.yaml` — `POST /inventory/{skuCode}/reserve`
+> - `api-get-seller-order-detail.yaml` — `GET /sellers/me/orders/{orderId}`
+
+| # | Method + Path | Service | UC liên quan | Status |
+|---|--------------|---------|--------------|--------|
+| 1 | `GET /categories/{categoryId}` | product-service | UC-PRODUCT-002 | RESOLVED (YAML on disk) |
+| 2 | `POST /inventory/{skuCode}/reserve` | product-service | UC-PRODUCT-007 | RESOLVED (YAML on disk) |
+| 3 | `GET /sellers/me/orders/{orderId}` | order-service | UC-ORDER-007 | RESOLVED (YAML on disk) |
 
 ### 2.2 SHOULD-HAVE — 4 endpoints hoàn thiện UX
 

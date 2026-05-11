@@ -2,18 +2,18 @@
 
 **Project**: stealing-from-paradise
 **Generated**: 2026-05-10
-**Source**: docs/messaging/11_KAFKA_REQUEST_REPLY.md (v5.4)
+**Source**: documents/messaging/KAFKA_REQUEST_REPLY.md (v5.5)
 **Stable ID Prefix**: `KAFKA-RR-`
 
 ---
 
 ## Overview
 
-The marketplace uses **Kafka Request-Reply** for inter-service queries that need an immediate synchronous-like response while maintaining loose coupling. Instead of REST/gRPC calls, a requester publishes to a `.request` topic and waits for a response on a `.response` topic with a matching `correlationId`.
+The marketplace uses **Kafka Request-Reply** for inter-service queries that need an immediate synchronous-like response while maintaining loose coupling. Instead of REST/gRPC calls, a requester publishes to a `.request` topic and waits for a response on a `.response` topic with a matching `correlation_id`.
 
 | Metric | Value |
 |--------|-------|
-| Total Request-Reply pairs | 6 pairs (12 topics) |
+| Total Request-Reply pairs | 7 pairs (14 topics) |
 | Default timeout | 5-10 seconds |
 | Correlation mechanism | UUID per request |
 | Status | MVP workaround (gRPC planned for future) |
@@ -28,17 +28,17 @@ The marketplace uses **Kafka Request-Reply** for inter-service queries that need
 Service A (Requester)                    Service B (Responder)
       |                                        |
       |- publish to {topic}.request --------->|
-      |   payload: { correlationId, ...data }  |
+      |   payload: { correlation_id, ...data }  |
       |                                        | process request
       |                                        |
       |<- publish to {topic}.response ---------|
-      |   payload: { correlationId, ...result}  |
+      |   payload: { correlation_id, ...result}  |
       |                                        |
-      | match correlationId -> unblock caller  |
+      | match correlation_id -> unblock caller  |
 ```
 
-1. **Requester** publishes a message to the `.request` topic with a `correlationId` (UUID)
-2. **Requester** blocks the thread (or uses `CompletableFuture`) waiting for a message with the same `correlationId` on the `.response` topic
+1. **Requester** publishes a message to the `.request` topic with a `correlation_id` (UUID)
+2. **Requester** blocks the thread (or uses `CompletableFuture`) waiting for a message with the same `correlation_id` on the `.response` topic
 3. **Responder** consumes `.request`, processes it, and publishes the result to `.response`
 4. **Timeout** is typically 5-10 seconds; exceeding it throws an exception and rolls back
 
@@ -54,6 +54,7 @@ Service A (Requester)                    Service B (Responder)
 | 4 | `order.cart_items.request` | `order.cart_items.response` | Order | Product | Fetch cart items during checkout |
 | 5 | `order.address.request` | `order.address.response` | Order | Identity | Get buyer shipping address |
 | 6 | `order.refunds.request` | `order.refunds.response` | Order | Payment | Get refund info for an order |
+| 7 | `order.refund_presigned_url.request` | `order.refund_presigned_url.response` | Order | Payment | Get presigned URL for evidence upload |
 
 ---
 
@@ -67,18 +68,18 @@ Service A (Requester)                    Service B (Responder)
 ```
 Request:
 {
-  "correlationId": "uuid",
-  "productId": "prod_abc123",
-  "skuId": "sku_xyz"
+  "correlation_id": "uuid",
+  "product_id": "prod_abc123",
+  "sku_id": "sku_xyz"
 }
 
 Response:
 {
-  "correlationId": "uuid",
-  "productId": "prod_abc123",
+  "correlation_id": "uuid",
+  "product_id": "prod_abc123",
   "name": "Ao thun trang",
   "price": 150000,
-  "imageUrl": "https://cdn.../img.jpg",
+  "image_url": "https://cdn.../img.jpg",
   "available": true
 }
 ```
@@ -93,20 +94,20 @@ Response:
 ```
 Request:
 {
-  "correlationId": "uuid",
+  "correlation_id": "uuid",
   "items": [
-    { "skuId": "sku_xyz", "quantity": 2 },
-    { "skuId": "sku_abc", "quantity": 1 }
+    { "sku_id": "sku_xyz", "quantity": 2 },
+    { "sku_id": "sku_abc", "quantity": 1 }
   ]
 }
 
 Response:
 {
-  "correlationId": "uuid",
-  "allAvailable": true,
+  "correlation_id": "uuid",
+  "all_available": true,
   "results": [
-    { "skuId": "sku_xyz", "requested": 2, "available": 15, "sufficient": true },
-    { "skuId": "sku_abc", "requested": 1, "available": 0, "sufficient": false }
+    { "sku_id": "sku_xyz", "requested": 2, "available": 15, "sufficient": true },
+    { "sku_id": "sku_abc", "requested": 1, "available": 0, "sufficient": false }
   ]
 }
 ```
@@ -121,18 +122,18 @@ Response:
 ```
 Request:
 {
-  "correlationId": "uuid",
-  "orderId": "ord_abc123",
-  "paymentIntentId": "pi_stripe_xxx"
+  "correlation_id": "uuid",
+  "order_id": "ord_abc123",
+  "payment_intent_id": "pi_stripe_xxx"
 }
 
 Response:
 {
-  "correlationId": "uuid",
-  "orderId": "ord_abc123",
+  "correlation_id": "uuid",
+  "order_id": "ord_abc123",
   "status": "SUCCESS|PENDING|FAILED",
   "amount": 450000,
-  "paidAt": "2026-05-01T10:00:00Z"
+  "paid_at": "2026-05-01T10:00:00Z"
 }
 ```
 
@@ -146,25 +147,25 @@ Response:
 ```
 Request:
 {
-  "correlationId": "uuid",
-  "userId": 42,
-  "selectedItemIds": ["cart_item_1", "cart_item_2"]
+  "correlation_id": "uuid",
+  "user_id": 42,
+  "selected_item_ids": ["cart_item_1", "cart_item_2"]
 }
 
 Response:
 {
-  "correlationId": "uuid",
-  "userId": 42,
+  "correlation_id": "uuid",
+  "user_id": 42,
   "items": [
     {
-      "cartItemId": "cart_item_1",
-      "productId": "prod_abc",
-      "skuId": "sku_xyz",
-      "productName": "Ao thun",
+      "cart_item_id": "cart_item_1",
+      "product_id": "prod_abc",
+      "sku_id": "sku_xyz",
+      "product_name": "Ao thun",
       "price": 150000,
       "quantity": 2,
-      "sellerId": 10,
-      "imageUrl": "https://..."
+      "seller_id": 10,
+      "image_url": "https://..."
     }
   ]
 }
@@ -180,23 +181,23 @@ Response:
 ```
 Request:
 {
-  "correlationId": "uuid",
-  "userId": 42,
-  "addressId": 5
+  "correlation_id": "uuid",
+  "user_id": 42,
+  "address_id": 5
 }
-// addressId = null means "get default address"
+// address_id = null means "get default address"
 
 Response:
 {
-  "correlationId": "uuid",
-  "addressId": 5,
-  "recipientName": "Nguyen Van A",
+  "correlation_id": "uuid",
+  "address_id": 5,
+  "recipient_name": "Nguyen Van A",
   "phone": "0901234567",
   "street": "123 Le Van Viet",
   "ward": "Phuong Hiep Phu",
   "district": "Quan 9",
   "city": "TP. Ho Chi Minh",
-  "isDefault": true
+  "is_default": true
 }
 ```
 
@@ -210,23 +211,49 @@ Response:
 ```
 Request:
 {
-  "correlationId": "uuid",
-  "orderId": "ord_abc123"
+  "correlation_id": "uuid",
+  "order_id": "ord_abc123"
 }
 
 Response:
 {
-  "correlationId": "uuid",
-  "orderId": "ord_abc123",
+  "correlation_id": "uuid",
+  "order_id": "ord_abc123",
   "refunds": [
     {
-      "refundId": "ref_001",
+      "refund_id": "ref_001",
       "amount": 150000,
       "status": "PENDING|SUCCESS|REJECTED",
       "reason": "Hang bi loi",
-      "createdAt": "2026-05-01T10:00:00Z"
+      "created_at": "2026-05-01T10:00:00Z"
     }
   ]
+}
+```
+
+---
+
+### 7. Refund Presigned URL (`order.refund_presigned_url`)
+
+**Requester**: Order-service (when buyer needs to upload refund evidence)
+**Responder**: Payment-service
+
+```
+Request:
+{
+  "correlation_id": "uuid",
+  "order_id": "ord_abc123",
+  "refund_id": "ref_001",
+  "file_name": "evidence_img1.jpg",
+  "content_type": "image/jpeg"
+}
+
+Response:
+{
+  "correlation_id": "uuid",
+  "presigned_url": "https://storage.googleapis.com/...",
+  "object_key": "refunds/ref_001/evidence_img1.jpg",
+  "expires_at": "2026-05-12T10:15:00Z"
 }
 ```
 
@@ -237,7 +264,7 @@ Response:
 ### Adding a New Request-Reply Pair
 
 1. Declare both constants (request + response) in `KafkaTopics.java` (common-lib)
-2. **Responder**: Implement `@KafkaListener` on `.request`, publish to `.response` with the same `correlationId`
+2. **Responder**: Implement `@KafkaListener` on `.request`, publish to `.response` with the same `correlation_id`
 3. **Requester**: Use `KafkaReplyingTemplate` or implement `CompletableFuture` + correlation map
 4. Set a reasonable timeout (recommended: 5 seconds); throw exception and rollback on timeout
 
@@ -268,4 +295,4 @@ When migrating to gRPC:
 
 ---
 
-*Generated: 2026-05-10 | Sources: KAFKA_EVENTS.md (v5.5), 11_KAFKA_REQUEST_REPLY.md (v5.4)*
+*Generated: 2026-05-10 | Sources: KAFKA_EVENTS.md (v5.5), KAFKA_REQUEST_REPLY.md (v5.5)*

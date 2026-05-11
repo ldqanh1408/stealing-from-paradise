@@ -50,22 +50,22 @@ erDiagram
 | ORDER_SHIPPED | NORMAL | order.shipped |
 | ORDER_DELIVERED | NORMAL | order.delivered |
 | ORDER_CANCELLED | HIGH | order.cancelled |
-| ORDER_AUTO_CANCELLED | HIGH | order.auto_cancelled |
+| ORDER_AUTO_CANCELLED (post-MVP) | HIGH | order.auto_cancelled |
 | REFUND_REQUESTED | NORMAL | refund.requested |
 | REFUND_APPROVED | HIGH | refund.admin_approved |
 | REFUND_REJECTED | HIGH | refund.rejected |
 | FLASH_SALE_STARTING | HIGH | flash_sale.session_started |
 | FLASH_SALE_ENDED | LOW | flash_sale.session_ended |
-| FS_ITEM_APPROVED | NORMAL | flash_sale.item_approved |
-| FS_ITEM_REJECTED | NORMAL | flash_sale.item_rejected |
+| FS_ITEM_APPROVED (post-MVP) | NORMAL | flash_sale.item_approved |
+| FS_ITEM_REJECTED (post-MVP) | NORMAL | flash_sale.item_rejected |
 | PRODUCT_APPROVED | NORMAL | product.approved |
 | PRODUCT_REJECTED | HIGH | product.rejected |
-| ACCOUNT_LOCKED | URGENT | account.locked |
-| ACCOUNT_UNLOCKED | HIGH | account.unlocked |
-| STRIPE_ACCOUNT_SUSPENDED | URGENT | stripe.account_suspended |
+| ACCOUNT_LOCKED (post-MVP) | URGENT | account.locked |
+| ACCOUNT_UNLOCKED (post-MVP) | HIGH | account.unlocked |
+| STRIPE_ACCOUNT_SUSPENDED (post-MVP) | URGENT | stripe.account_suspended |
 | SELLER_POSTING_SUSPENDED | HIGH | seller.posting_suspended |
 | SELLER_POSTING_RESUMED | NORMAL | seller.posting_resumed |
-| FLASH_SALE_REMINDER | HIGH | flash_sale.reminder |
+| FLASH_SALE_REMINDER (post-MVP) | HIGH | flash_sale.reminder |
 
 ---
 
@@ -83,11 +83,11 @@ erDiagram
 
 Notification Service produces **zero** events. It consumes **30+** topics from:
 
-- **Identity Service**: account.locked, account.unlocked, seller.posting_suspended, seller.posting_resumed
-- **Product Service**: product.pending_review, product.approved, product.rejected, product.auto_hidden
-- **Order Service**: order.shipped, order.delivered, order.cancelled, order.auto_cancelled, order.returned
-- **Payment Service**: payment.success, payment.failed, refund.*, stripe.*
-- **Flash Sale Service**: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_*, flash_sale.reminder
+- **Identity Service**: account.locked (post-MVP), account.unlocked (post-MVP), seller.posting_suspended, seller.posting_resumed
+- **Product Service**: product.pending_review, product.approved, product.rejected, product.auto_hidden (post-MVP)
+- **Order Service**: order.shipped, order.delivered, order.cancelled, order.auto_cancelled (post-MVP), order.returned
+- **Payment Service**: payment.success, payment.failed, refund.*, stripe.* (stripe.account_suspended is post-MVP)
+- **Flash Sale Service**: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_* (post-MVP), flash_sale.reminder (post-MVP)
 
 ---
 

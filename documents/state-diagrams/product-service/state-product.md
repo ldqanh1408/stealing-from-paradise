@@ -1,5 +1,7 @@
 # State Diagram: PRODUCT
 
+**Stable ID:** `STATE-PRODUCT-001`
+
 > **Entity**: ENTITY-PRODUCT-002 (PRODUCT)
 > **Status Column**: `product.status` (VARCHAR 50, CHECK enum)
 > **Last Updated**: 2026-05-10 (v3 — admin review workflow re-activated; P3-11 APPROVED & applied)

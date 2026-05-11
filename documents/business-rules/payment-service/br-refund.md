@@ -124,3 +124,11 @@
 | RTS (Return To Sender) | Mandatory | Seller-provided return tracking |
 | Admin error correction (no return) | Optional | No physical return needed |
 | Buyer/Seller dispute (no return) | Optional | Only if goods need return |
+
+---
+
+## Cross-References
+
+| Ref ID | Target |
+|--------|--------|
+| STATE-PAYMENT-002 | [state-refund.md](../../state-diagrams/payment-service/state-refund.md) |

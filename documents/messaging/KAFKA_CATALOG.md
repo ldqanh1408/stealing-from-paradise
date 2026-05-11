@@ -22,28 +22,28 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 
 | Metric | Value |
 |--------|-------|
-| Total Topics | 47 (35 event + 12 request-reply) |
-| Event Producers | Identity, Product, Order, Payment, Flash Sale, AI Chat |
+| Total Topics | 58 (44 event + 14 request-reply) |
+| Event Producers | Product, Order, Payment, Flash Sale, AI Chat |
 | Event Consumers | All 9 services |
 | Retention Policy | 7–365 days depending on topic type |
 | Request-Reply Doc | [KAFKA_REQUEST_REPLY.md](KAFKA_REQUEST_REPLY.md) |
 
-> **Migration Note**: The former worker-service (port 8086) has been migrated to ai-chat-service (port 8093). Worker responsibilities (JOB-13, JOB-22, outbox, DLQ) are now distributed across order-service, payment-service, and notification-service per the v5.0 distributed cronjob model.
+> **Migration Note**: The former worker-service (port 8086) has been migrated to ai-chat-service (port 8093). Worker responsibilities (JOB-13, JOB-22, DLQ) are now distributed across order-service, payment-service, and notification-service per the v5.0 distributed cronjob model.
 
 ### Event Topics by Service
 
 | Service | Produces | Consumes |
 |---------|----------|----------|
-| identity-service | account.*, seller.* | order.delivered, order.cancelled, refund.admin_approved |
+| identity-service | — (does NOT produce domain events) | order.delivered, order.cancelled, refund.admin_approved, refund.rejected |
 | product-service | product.* (incl. pending_review, approved, rejected), category.*, inventory.*, stock.reservation.* | order.created, order.cancelled, flash_sale.* |
 | order-service | order.*, order.payment_timeout, seller.order_cancelled | payment.*, refund.*, stock.reservation.expired |
-| payment-service | payment.*, refund.*, stripe.*, seller.transfer.* | order.returned |
+| payment-service | payment.*, refund.*, seller.transfer.* | order.returned, order.checkout_created |
 | flashsale-service | flash_sale.* | — |
 | search-service | — (consumer-only) | product.*, category.*, inventory.* |
-| notification-service | — (consumer-only) | 20+ topics from all services |
-| ai-chat-service | ai_chat.*, tool_call.* | — |
+| notification-service | — (consumer-only) | 22 topics from all services |
+| ai-chat-service | ai_chat.* | — |
 
-### Kafka Request-Reply Pairs (6 pairs, 12 topics)
+### Kafka Request-Reply Pairs (7 pairs, 14 topics)
 
 | Request Topic | Response Topic | Requester | Responder |
 |--------------|----------------|-----------|-----------|
@@ -53,12 +53,12 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 | order.cart_items.request | order.cart_items.response | Order | Product |
 | order.address.request | order.address.response | Order | Identity |
 | order.refunds.request | order.refunds.response | Order | Payment |
+| order.refund_presigned_url.request | order.refund_presigned_url.response | Order | Payment |
 
 ### Retention Policies
 
 | Domain | Retention | Rationale |
 |--------|-----------|------------|
-| account.* | 7 days | Account security events |
 | product.* | 30 days | Product lifecycle tracking |
 | order.* | 30 days | Order history and audit |
 | payment.*, refund.* | 90 days | Payment compliance and refunds |
@@ -68,7 +68,6 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 
 | Domain | Partition Key | Rationale |
 |--------|---------------|-----------|
-| account.* | user_id | Same-user events to same partition |
 | order.* | order_id | Same-order events ordered |
 | payment.* | transaction_id | Payment events sequential |
 | product.* | product_id | Product events sequential |
@@ -110,8 +109,8 @@ public void onEvent(KafkaEvent event) {
 
 ```java
 @KafkaListener(
-  topics = "payment.success",
-  groupId = "order-service-payment",
+  topics = "order.created",
+  groupId = "order-service-order",
   containerFactory = "kafkaListenerContainerFactory"
 )
 public void onPaymentSuccess(PaymentSuccessEvent event) {

@@ -268,4 +268,12 @@ ELSE
 
 ---
 
+## Cross-References
+
+| Ref ID | Target |
+|--------|--------|
+| STATE-FLASHSALE-001 | [state-fs-session.md](../../state-diagrams/flashsale-service/state-fs-session.md) |
+
+---
+
 *Generated: 2026-05-09 | Sources: database-entities.md, 03_database_tables.md, flashsale_service_flow.md, KAFKA_EVENTS.md*

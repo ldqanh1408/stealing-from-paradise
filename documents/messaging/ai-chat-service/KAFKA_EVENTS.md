@@ -1,7 +1,7 @@
 # Kafka Events -- AI Chat Service
 
 > Service: ai-chat-service (Port 8093)
-> Database: PostgreSQL (tables: chat_sessions, chat_messages, pending_confirmations, tool_call_logs)
+> Database: MongoDB (collections: chat_sessions, chat_messages, pending_confirmations, tool_call_logs)
 > Backend: ChatServiceApplication.java
 > Source: `documents/business-rules/ai-chat-service/br-ai-chat.md`, `documents/data-models/ai-chat-service/entity-chat-session.md`, `documents/data-models/ai-chat-service/entity-chat-message.md`
 > Generated: 2026-05-10

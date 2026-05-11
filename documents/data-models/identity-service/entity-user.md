@@ -67,5 +67,5 @@ LOCKED --> ACTIVE : admin unlock (UC-IDENTITY-005)
 |-------|---------|
 | account.registered | POST /auth/register (UC-IDENTITY-001) |
 | account.updated | PUT /users/me (UC-IDENTITY-003) |
-| account.locked | POST /admin/users/{userId}/lock (UC-IDENTITY-005) |
-| account.unlocked | POST /admin/users/{userId}/unlock (UC-IDENTITY-005) |
+| account.locked (post-MVP) | POST /admin/users/{userId}/lock (UC-IDENTITY-005) |
+| account.unlocked (post-MVP) | POST /admin/users/{userId}/unlock (UC-IDENTITY-005) |

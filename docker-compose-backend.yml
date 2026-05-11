@@ -248,9 +248,9 @@ services:
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_NOTIFICATION}
     depends_on:
-      postgres: { condition: service_started }
+      mongo: { condition: service_started }
+      redis: { condition: service_started }
       kafka: { condition: service_started }
-      axonserver: { condition: service_started }
     networks: [*network]
 
   chat-service:

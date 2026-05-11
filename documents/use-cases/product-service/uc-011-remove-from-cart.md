@@ -57,7 +57,7 @@ Cart page:
 
 ```
 - If all items removed: cart remains with status=active, ready for new items
-- If checked-out items: removed automatically via order.checkout_completed Kafka event
+- If checked-out items: removed automatically via order.checkout_created Kafka event
 - If flash sale expired items: removed by JOB-07 (flash_sale.session_ended event)
 ```
 

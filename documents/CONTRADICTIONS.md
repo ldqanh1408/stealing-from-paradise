@@ -23,13 +23,13 @@
 **Verdict:** Old docs describe complex FS_ITEMS. DB has simplified model. **Old docs are outdated.**
 
 ### 1.3 MongoDB vs PostgreSQL (product-service)
-| Old Docs | DB Truth |
+| Old Docs | DB Truth (2026-05-10) |
 |----------|----------|
-| `MG_PRODUCTS`, `MG_INVENTORIES`, `MG_CART_ITEMS` (MongoDB) | MongoDB: `mg_products`, `mg_product_variants`, `mg_carts`, `mg_cart_items` |
-| `MG_IMAGES` bridge table | `mg_product_images` collection with `url` field |
-| product_service DB: MongoDB | MongoDB (product-service and notification-service both use MongoDB) |
+| `MG_PRODUCTS`, `MG_INVENTORIES`, `MG_CART_ITEMS` (MongoDB) | PostgreSQL: `category`, `product`, `product_variant`, `product_image`, `stock_reservation` |
+| `MG_IMAGES` bridge table | `product_image` table with `url` field |
+| product_service DB: MongoDB | PostgreSQL (product-service migrated from MongoDB; notification-service still uses MongoDB) |
 
-**Verdict:** Old docs were CORRECT (MongoDB). New docs (`documents/`) previously incorrectly described a PostgreSQL migration. **New docs have been updated to reflect MongoDB reality.**
+**Verdict:** MongoDB was the old truth (pre-2026-05-10). Per `database-entities.md` 2026-05-10 update, Catalog and Cart tables have migrated to PostgreSQL. Old MongoDB docs are now outdated. **database-entities.md is the authoritative source — PostgreSQL is the current truth.**
 
 ### 1.4 Field Name Errors
 | Old Docs | DB Truth |
@@ -80,8 +80,10 @@
 |----------|----------|
 | worker-service owns OUTBOX_EVENTS, FAILED_EVENTS | payment-service (JOB-04, JOB-05, JOB-06) |
 
+**Note (2026-05-11):** Outbox pattern is temporarily not used per MVP scope. Infrastructure tables (OUTBOX_EVENTS, FAILED_EVENTS, SHEDLOCK) are kept in schema but not currently active.
+
 ### 3.4 Internal Architecture Contradiction
-`ARCHITECTURE_MAP.md` claims flashsale, search, notification have "No REST controllers — Kafka consumer only" — but `API_URLS_COMPACT.md` shows all three have documented REST endpoints (12, 2, and 5 respectively).
+`ARCHITECTURE_MAP.md` claims flashsale, search, notification have "No REST controllers — Kafka consumer only" — but the API URL catalog (`operations/API_URLS.md`) shows all three have documented REST endpoints (12, 2, and 5 respectively).
 
 ---
 
@@ -141,7 +143,7 @@
 
 | Domain | Old (`05_OPERATIONS.md`) | New (`CRONJOBS.md`) |
 |--------|-------------------------|---------------------|
-| Notifications | 90 days (MongoDB TTL) | 30 days |
+| Notifications | 90 days (MongoDB TTL) | 90 days (MongoDB TTL) -- fixed 2026-05-11 |
 | Failed events | 30d RESOLVED + 90d DEAD | Generic 30d |
 | Outbox events | 7d PROCESSED + 3d FAILED | Generic 7d |
 
@@ -153,7 +155,7 @@
 |---|----------|--------------|----------|------------|
 | 1 | DB Schema | Product review workflow doesn't exist in DB | HIGH | **2026-05-10 v3 (P3-11 APPROVED & applied)**: Re-activated. Schema mở rộng qua P3-11 (status enum 7 giá trị + 4 review columns: `reject_reason` + `reviewed_at` + `reviewed_by` + `reject_count`). BR-PRODUCT-009 + UC-PRODUCT-012..015 + state-product.md (7 states). |
 | 2 | DB Schema | FS_ITEMS simplified (no flash_price/status) | HIGH | Old docs outdated |
-| 3 | DB Schema | MongoDB vs PostgreSQL (product-service) | HIGH | Old docs CORRECT (MongoDB); new docs updated to match |
+| 3 | DB Schema | MongoDB vs PostgreSQL (product-service) | HIGH | database-entities.md CORRECT (PostgreSQL); old MongoDB docs outdated |
 | 4 | DB Schema | tracking_number → return_tracking_number | MEDIUM | Fixed: BR-PAYMENT-025 |
 | 5 | DB Schema | FS_ITEMS.sku_code → product_id | MEDIUM | Documented |
 | 6 | DB Schema | seller_id INT → UUID | LOW | Documented |
@@ -171,9 +173,9 @@
 | 18 | Kafka | JOB-01 cron → Redis ZSET worker | MEDIUM | Documented |
 | 19 | Cronjob | 12 of 17 schedules differ | **CRITICAL** | 2026-05-10: Source audit — 14/15 jobs have NO @Scheduled annotation. Only PayoutScheduler exists in Java. 14 jobs unimplemented or use external scheduler (K8s CronJob, etc.) |
 | 20 | Cronjob | Description drift (7 jobs) | MEDIUM | 2026-05-10: Unverified — no implementation to compare against |
-| 21 | Retention | Notifications: 90d vs 30d | MEDIUM | Reconcile from source |
-| 22 | Retention | Failed events: lost DEAD tier | LOW | Documented |
-| 23 | Retention | Outbox events: lost FAILED tier | LOW | Documented |
+| 21 | Retention | Notifications: 90d vs 30d | MEDIUM | **RESOLVED 2026-05-11**: CRONJOBS.md updated to 90 days (MongoDB TTL auto-delete), matching notification-service KAFKA_EVENTS.md. No cronjob needed -- MongoDB TTL index handles it. |
+| 22 | Retention | Failed events: lost DEAD tier | LOW | Deferred — outbox pattern temporarily not used per MVP scope |
+| 23 | Retention | Outbox events: lost FAILED tier | LOW | Deferred — outbox pattern temporarily not used per MVP scope |
 | 24 | Data Model | entity-user: `role`, `version` in doc but NOT in Java; phone constraints differ | HIGH | Fixed 2026-05-10: removed role, version; corrected phone nullable |
 | 25 | Data Model | entity-order: `net_payout_amount`, `carrier`, `paid_at`, `return_window_end`, `shipped_at`, `delivered_at` in doc but NOT in Java | HIGH | Fixed 2026-05-10: removed 6 phantom fields; added isFlashSale, version |
 | 26 | Data Model | entity-order-item: `variant_id` doc says UUID, Java is VARCHAR(100); `refunded_quantity` missing from doc | MEDIUM | Fixed 2026-05-10: corrected type, added refunded_quantity |
@@ -181,7 +183,7 @@
 | 28 | Data Model | entity-refund: `user_id` in Java (20 fields) but missing from doc (19 fields) | MEDIUM | Fixed 2026-05-10: added userId, updated full schema |
 | 29 | Data Model | entity-refund-item: field names mismatch — `itemReason` vs `reason`, `returnEvidenceImages` vs `evidence_images`; no `reject_reason`, `reviewed_at`, `carrier` in Java | MEDIUM | Fixed 2026-05-10: aligned field names to Java source |
 | 30 | Data Model | entity-seller-transfer: `transaction_id`, `refunded_amount`, `net_payout_amount` in doc but NOT in Java | MEDIUM | Fixed 2026-05-10: removed phantom fields, added platform_commission_amount, payout_at |
-| 31 | API Contract | 18 missing YAML files across all services (coverage: 78%, up from 42%) | MEDIUM | Documented 2026-05-10: improved from 35 to 65 YAMLs, 18 endpoints still need YAML |
+| 31 | API Contract | 3 MUST-HAVE APIs RESOLVED 2026-05-11; 4 SHOULD-HAVE deferred (post-MVP scope per user direction) | MEDIUM | Documented 2026-05-10: improved from 35 to 68 YAMLs; all 3 MUST-HAVE endpoints now have YAML on disk; 4 SHOULD-HAVE endpoints deferred per user direction |
 | 32 | API Contract | flashsale, ai-chat, notification, search: YAML files exist but no backend controllers implemented | LOW | YAML ahead of implementation |
 | 33 | Cronjob | NEW undocumented job: PayoutScheduler (@Scheduled 0 */5 * * * * in payment-service) | MEDIUM | 2026-05-10: Discovered during source audit. Assign JOB-23, add to CRONJOBS.md |
 | 34 | Cronjob | 14/15 documented jobs NOT_FOUND in Java source — only PayoutScheduler has @Scheduled | **CRITICAL** | 2026-05-10: Exhaustive grep across all Java files. Only @Scheduled is PayoutScheduler. 14 jobs have zero code. |

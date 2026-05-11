@@ -81,3 +81,11 @@ User opens the AI chat widget. The system creates a new chat session, optionally
 | BR-AICHAT-001-01 | Session lifecycle rules |
 | ST-AICHAT-001 | Session state machine |
 | ENTITY-AICHAT-001 | CHAT_SESSIONS |
+
+### Also supports
+
+| Endpoint | Usage |
+|----------|-------|
+| GET /sessions | List user's active sessions |
+| DELETE /sessions/{sessionId} | Close session, clear Redis cache, publish `ai.session.closed` |
+| GET /suggest | Contextual quick-suggestion questions (personalized, see main flow step 8) |

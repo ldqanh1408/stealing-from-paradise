@@ -1,5 +1,7 @@
 # State Diagram: STOCK_RESERVATION
 
+**Stable ID:** `STATE-PRODUCT-003`
+
 > **Entity**: ENTITY-PRODUCT-005 (STOCK_RESERVATION)
 > **Status Column**: `stock_reservation.status` (VARCHAR 50)
 > **Last Updated**: 2026-05-09
@@ -12,8 +14,8 @@
 stateDiagram-v2
     [*] --> pending : Customer clicks "Dat hang"
 
-    pending --> confirmed : Payment succeeds (order.confirmed)
-    pending --> released : Payment fails (order.failed)
+    pending --> confirmed : Payment succeeds (payment.success)
+    pending --> released : Payment fails (payment.failed)
     pending --> released : Timeout (expires_at < NOW()) -- cleanup job
 
     confirmed --> [*]
@@ -27,8 +29,8 @@ stateDiagram-v2
 | # | From | To | Trigger | Actor | Business Rule | Use Case |
 |---|------|-----|---------|-------|---------------|----------|
 | 1 | `[*]` | `pending` | `order.created` event received; reservation inserted with `expires_at = NOW() + 15 min` | System | BR-PRODUCT-007 | UC-PRODUCT-007 |
-| 2 | `pending` | `confirmed` | `order.confirmed` event received (payment success) | System (Order Service) | -- | UC-PRODUCT-007 |
-| 3 | `pending` | `released` | `order.failed` event received (payment failure) | System (Order Service) | BR-PRODUCT-007 | UC-PRODUCT-007 |
+| 2 | `pending` | `confirmed` | `payment.success` event received (payment success) | System (Order Service) | -- | UC-PRODUCT-007 |
+| 3 | `pending` | `released` | `payment.failed` event received (payment failure) | System (Order Service) | BR-PRODUCT-007 | UC-PRODUCT-007 |
 | 4 | `pending` | `released` | `expires_at < NOW()` -- cleanup job (runs every 1-5 min) | System (Scheduler) | BR-PRODUCT-007 | -- |
 | 5 | `confirmed` | `[*]` | Terminal state | -- | -- | -- |
 | 6 | `released` | `[*]` | Terminal state | -- | -- | -- |

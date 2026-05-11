@@ -57,11 +57,11 @@
 ```json
 {
   "correlation_id": "uuid",
-  "addressId": 1,
-  "userId": 42,
-  "fullAddress": "123 Nguyen Hue, District 1, HCMC",
-  "provinceId": 79,
-  "districtId": 760,
+  "address_id": 1,
+  "user_id": 42,
+  "full_address": "123 Nguyen Hue, District 1, HCMC",
+  "province_id": 79,
+  "district_id": 760,
   "error": false
 }
 ```

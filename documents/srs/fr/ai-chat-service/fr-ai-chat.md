@@ -1,7 +1,7 @@
 # FR-AICHAT: AI Chat Service Functional Requirements
 
 > **Service**: ai-chat-service (Port 8093)
-> **Stack**: Spring AI, PostgreSQL, Redis, Kafka, Elasticsearch
+> **Stack**: Spring AI, MongoDB, Redis, Kafka
 > **Source**: 01_technical_module.md, 02_API_ai_chat.md
 
 ---

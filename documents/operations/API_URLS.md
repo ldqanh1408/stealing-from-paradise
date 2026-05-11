@@ -1,6 +1,6 @@
 # API Endpoints Reference
 
-> **Source**: docs/operations/API_URLS_COMPACT.md
+> **Source**: documents/operations/API_URLS.md
 > **Generated**: 2026-05-10
 > **Base path**: `/api/v1` -- Gateway stripPrefix(1) -- `/{service}:{port}`
 
@@ -203,8 +203,6 @@
 | GET | /admin/flash-sale/sessions | All sessions |
 | PUT | /admin/flash-sale/sessions/{sessionId} | Edit session |
 | DELETE | /admin/flash-sale/sessions/{sessionId} | Delete session |
-| POST | /flash-sale/sessions/{sessionId}/items/{itemId}/approve | Approve item |
-| POST | /admin/flash-sale/items/{itemId}/reject | Reject item |
 
 ---
 

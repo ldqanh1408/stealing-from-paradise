@@ -1,5 +1,7 @@
 # State Diagram: CART
 
+**Stable ID:** `STATE-PRODUCT-002`
+
 > **Entity**: ENTITY-PRODUCT-006 (CART)
 > **Status Column**: `cart.status` (VARCHAR 50)
 > **Last Updated**: 2026-05-09
@@ -15,7 +17,7 @@ stateDiagram-v2
     active --> active : Items added/updated/removed
     active --> active : Cart cleared (DELETE /cart)
 
-    active --> converted : Checkout completed (order.checkout_completed)
+    active --> converted : Checkout completed (order.checkout_created)
 
     converted --> [*]
 ```
@@ -30,7 +32,7 @@ stateDiagram-v2
 | 2 | `active` | `active` | `PUT /cart/items/{id}` (update quantity) | Customer | BR-PRODUCT-012 | UC-PRODUCT-010 |
 | 3 | `active` | `active` | `DELETE /cart/items/{id}` (remove item) | Customer | -- | UC-PRODUCT-011 |
 | 4 | `active` | `active` | `DELETE /cart` (clear all items, cart retained) | Customer | -- | UC-PRODUCT-008 |
-| 5 | `active` | `converted` | `order.checkout_completed` event received; checked-out items removed | System (Order Service) | -- | UC-PRODUCT-007 |
+| 5 | `active` | `converted` | `order.checkout_created` event received; checked-out items removed | System (Order Service) | -- | UC-PRODUCT-007 |
 | 6 | `converted` | `[*]` | Cart items cleared; cart record may be retained or archived | System | -- | -- |
 
 ---
@@ -52,7 +54,7 @@ stateDiagram-v2
   +--> Checkout Preview validates cart integrity
   |    (price match, stock available, variant active)
   |
-  +--> Order placed (order.checkout_completed event)
+  +--> Order placed (order.checkout_created event)
        -> Checked-out items removed from cart
        -> Cart remains active for future items
 ```
@@ -63,7 +65,7 @@ stateDiagram-v2
 
 | Kafka Event | Action | Module |
 |-------------|--------|--------|
-| `order.checkout_completed` | Remove checked-out items from cart | Cart |
+| `order.checkout_created` | Remove checked-out items from cart | Cart |
 | `flash_sale.session_ended` | JOB-07 removes expired flash sale items from all carts | Cart |
 | `order.cancelled` | Unlock inventory (stock_reservation released) | Inventory |
 

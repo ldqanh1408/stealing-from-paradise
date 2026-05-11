@@ -113,5 +113,5 @@ All sorts include a deterministic tiebreaker field as secondary sort.
 | FR-SEARCH-001 | Full-text search |
 | FR-SEARCH-002 | Filter/facets |
 | FR-SEARCH-003 | Reindex |
-| ST-SEARCH-001 | Index state |
+| STATE-SEARCH-001 | [state-search-index.md](../../state-diagrams/search-service/state-search-index.md) |
 | ENTITY-SEARCH-001 | SKU document mapping |

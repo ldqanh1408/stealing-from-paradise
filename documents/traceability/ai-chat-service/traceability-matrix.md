@@ -1,7 +1,7 @@
 # Traceability Matrix: AI Chat Service
 
 > **Service**: ai-chat-service (Port 8093)
-> **Stack**: Spring AI, PostgreSQL, Redis, Kafka
+> **Stack**: Spring AI, MongoDB, Redis, Kafka
 
 ---
 
@@ -36,7 +36,6 @@
 | ENTITY-AICHAT-002 (CHAT_MESSAGES) | UC-AICHAT-002 |
 | PENDING_CONFIRMATIONS | UC-AICHAT-003 |
 | TOOL_CALL_LOGS | UC-AICHAT-002, UC-AICHAT-003 |
-| OUTBOX_EVENTS (AI) | UC-AICHAT-001, UC-AICHAT-002, UC-AICHAT-003 |
 
 ---
 
@@ -84,8 +83,10 @@
 | This Document | Source File | Section |
 |---------------|-------------|---------|
 | ENTITY-AICHAT-001 | database-entities.md | Section 11 |
-| ENTITY-AICHAT-001 | 03_database_tables.md | CHAT_SESSIONS |
-| ENTITY-AICHAT-002 | 03_database_tables.md | CHAT_MESSAGES |
-| API contracts | 02_API_ai_chat.md | All endpoints |
-| Kafka info | KAFKA_EVENTS.md | Producer topics |
-| Architecture | 01_technical_module.md | Full module |
+| ENTITY-AICHAT-001 | data-models/ai-chat-service/entity-chat-session.md | CHAT_SESSIONS |
+| ENTITY-AICHAT-002 | data-models/ai-chat-service/entity-chat-message.md | CHAT_MESSAGES |
+| ENTITY-AICHAT-003 | data-models/ai-chat-service/entity-pending-confirmation.md | PENDING_CONFIRMATIONS |
+| ENTITY-AICHAT-004 | data-models/ai-chat-service/entity-tool-call-log.md | TOOL_CALL_LOGS |
+| API contracts | api-contracts/ai-chat-service/ | All endpoints |
+| Kafka info | messaging/ai-chat-service/KAFKA_EVENTS.md | Producer topics |
+| Architecture | overview/ai-chat-service/ARCHITECTURE.md | Full module |

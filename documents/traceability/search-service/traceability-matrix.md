@@ -65,11 +65,11 @@
 | product.updated | skus | Update_by_query |
 | product.deleted | skus | Delete / set is_active=false |
 | product.rejected | skus | Delete / set is_active=false |
-| product.auto_hidden | skus | Set is_active=false |
+| product.auto_hidden (post-MVP) | skus | Set is_active=false |
 | category.updated | skus | Update_by_query |
 | inventory.adjusted | skus | Partial update (stock_status) |
 | order.created | skus | Update sold_count (optional) |
-| account.locked | skus | Update_by_query (hide seller) |
+| account.locked (post-MVP) | skus | Update_by_query (hide seller) |
 
 ---
 
@@ -78,6 +78,6 @@
 | This Document | Source File | Section |
 |---------------|-------------|---------|
 | ENTITY-SEARCH-001 | database-entities.md | Section 10 |
-| ENTITY-SEARCH-001 | 03_database_tables.md | Index mapping |
-| API contracts | 02_API_search_service.md | All endpoints |
-| Kafka info | KAFKA_EVENTS.md | Consumer topics |
+| ENTITY-SEARCH-001 | data-models/search-service/entity-search-document.md | Index mapping |
+| API contracts | api-contracts/search-service/ | All endpoints |
+| Kafka info | messaging/search-service/KAFKA_EVENTS.md | Consumer topics |
