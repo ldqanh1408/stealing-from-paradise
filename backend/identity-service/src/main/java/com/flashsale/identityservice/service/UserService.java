@@ -10,8 +10,13 @@ import com.flashsale.identityservice.dto.request.ChangePasswordRequest;
 import com.flashsale.identityservice.dto.request.AddressCreateRequest;
 import com.flashsale.identityservice.dto.request.AddressUpdateRequest;
 import com.flashsale.identityservice.dto.request.UserProfileUpdateRequest;
+import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.identityservice.dto.response.AddressResponse;
+import com.flashsale.identityservice.dto.response.AdminUserResponse;
 import com.flashsale.identityservice.dto.response.UserProfileResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -66,7 +71,7 @@ public class UserService {
         if (request.getPhone() != null) {
             userRepository.findByPhone(request.getPhone())
                     .filter(existing -> !existing.getId().equals(userId))
-                    .ifPresent(_ -> { throw new RuntimeException("Phone number already in use"); });
+                    .ifPresent(ignored -> { throw new RuntimeException("Phone number already in use"); });
             user.setPhone(request.getPhone());
         }
 
@@ -163,6 +168,79 @@ public class UserService {
         roleRepository.save(role);
 
         log.info("User {} registered as seller", userId);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminUserResponse> listUsers(String status, String search, Pageable pageable) {
+        Specification<User> spec = null;
+
+        if (status != null && !status.isBlank()) {
+            spec = (root, query, cb) -> cb.equal(root.get("status"), status);
+        }
+
+        if (search != null && !search.isBlank()) {
+            String pattern = "%" + search.toLowerCase() + "%";
+            Specification<User> searchSpec = (root, query, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("username")), pattern),
+                    cb.like(cb.lower(root.get("email")), pattern),
+                    cb.and(
+                            cb.isNotNull(root.get("phone")),
+                            cb.like(cb.lower(root.get("phone")), pattern)
+                    )
+            );
+            spec = (spec == null) ? searchSpec : spec.and(searchSpec);
+        }
+
+        Page<User> userPage = (spec != null)
+                ? userRepository.findAll(spec, pageable)
+                : userRepository.findAll(pageable);
+
+        List<AdminUserResponse> responses = userPage.getContent().stream()
+                .map(user -> {
+                    String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(user.getId())
+                            .map(Role::getRoleName)
+                            .orElse("BUYER");
+
+                    return AdminUserResponse.builder()
+                            .userId(user.getId())
+                            .username(user.getUsername())
+                            .email(user.getEmail())
+                            .phone(user.getPhone())
+                            .fullName(user.getFullName())
+                            .status(user.getStatus())
+                            .role(roleName)
+                            .createdAt(user.getCreatedAt())
+                            .build();
+                })
+                .toList();
+
+        return PageResponse.<AdminUserResponse>builder()
+                .content(responses)
+                .page(userPage.getNumber())
+                .size(userPage.getSize())
+                .totalElements(userPage.getTotalElements())
+                .totalPages(userPage.getTotalPages())
+                .last(userPage.isLast())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminUserResponse getAdminUserDetail(Long userId) {
+        User user = getUserById(userId);
+        String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(userId)
+                .map(Role::getRoleName)
+                .orElse("BUYER");
+
+        return AdminUserResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .fullName(user.getFullName())
+                .status(user.getStatus())
+                .role(roleName)
+                .createdAt(user.getCreatedAt())
+                .build();
     }
 
     @Transactional

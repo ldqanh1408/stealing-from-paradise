@@ -66,7 +66,34 @@ public final class KafkaTopics {
     public static final String FLASH_SALE_ITEM_APPROVED   = "flash_sale.item_approved";
     public static final String FLASH_SALE_ITEM_REJECTED   = "flash_sale.item_rejected";
     public static final String FLASH_SALE_ITEM_SOLD       = "flash_sale.item_sold";
+    public static final String FLASH_SALE_ITEM_PURCHASED  = "flash_sale.item_purchased";
     public static final String FLASH_SALE_REMINDER        = "flash_sale.reminder";
+
+    // ──────────────────────────────────────────────
+    // Stock Reservation (Producer: Product Service)
+    // ──────────────────────────────────────────────
+    public static final String STOCK_RESERVATION_EXPIRED   = "stock.reservation.expired";
+    public static final String STOCK_RESERVATION_CONFIRMED = "stock.reservation.confirmed";
+    public static final String STOCK_RESERVATION_RELEASED  = "stock.reservation.released";
+
+    // ──────────────────────────────────────────────
+    // Order — additional events (Producer: Order Service)
+    // ──────────────────────────────────────────────
+    public static final String ORDER_PAYMENT_TIMEOUT       = "order.payment_timeout";
+
+    // ──────────────────────────────────────────────
+    // Seller Transfer (Producer: Payment Service)
+    // ──────────────────────────────────────────────
+    public static final String SELLER_TRANSFER_ELIGIBLE    = "seller.transfer.eligible";
+    public static final String SELLER_TRANSFER_PAID_OUT    = "seller.transfer.paid_out";
+    public static final String SELLER_TRANSFER_FAILED      = "seller.transfer.failed";
+
+    // ──────────────────────────────────────────────
+    // AI Chat (Producer: ai-chat-service)
+    // ──────────────────────────────────────────────
+    public static final String AI_CHAT_MESSAGE_SENT         = "ai_chat.message_sent";
+    public static final String AI_CHAT_TOOL_CALL_EXECUTED   = "ai_chat.tool_call_executed";
+    public static final String AI_CHAT_CONFIRMATION_RESOLVED = "ai_chat.confirmation_resolved";
 
     // ──────────────────────────────────────────────
     // Request-Reply (MVP — thay thế gRPC tạm thời)

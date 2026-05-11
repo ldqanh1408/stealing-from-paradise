@@ -80,6 +80,15 @@ public class PayoutScheduler {
             st.setStatus("READY_FOR_PAYOUT");
             sellerTransferRepository.save(st);
 
+            // Publish seller.transfer.eligible event
+            publishPayoutEvent(st, "SELLER_TRANSFER_ELIGIBLE", Map.of(
+                    "transfer_id", st.getId(),
+                    "seller_id", st.getSellerId(),
+                    "order_id", st.getOrderId(),
+                    "amount", st.getTransferAmount(),
+                    "eligible_at", Instant.now().toString()
+            ));
+
             // Resolve the seller's Stripe connected account
             SellerStripeAccount sellerAccount = sellerStripeAccountRepository
                     .findBySellerId(st.getSellerId()).orElse(null);
@@ -127,7 +136,17 @@ public class PayoutScheduler {
             log.info("Payout succeeded: orderId={}, sellerId={}, stripeTransferId={}, gross={}, commission={}, net={}",
                     st.getOrderId(), st.getSellerId(), transfer.getId(), transferAmount, commission, netAmount);
 
-            // Publish payout.processed event
+            // Publish seller.transfer.paid_out event
+            publishPayoutEvent(st, "SELLER_TRANSFER_PAID_OUT", Map.of(
+                    "transfer_id", st.getId(),
+                    "seller_id", st.getSellerId(),
+                    "order_id", st.getOrderId(),
+                    "amount", transferAmount,
+                    "stripe_payout_id", transfer.getId(),
+                    "paid_at", Instant.now().toString()
+            ));
+
+            // Publish payout.processed event (legacy)
             publishPayoutEvent(st, "PAYOUT_PROCESSED", Map.of(
                     "order_id", st.getOrderId(),
                     "seller_id", st.getSellerId(),
@@ -147,6 +166,15 @@ public class PayoutScheduler {
             st.setPayoutRetryCount(retryCount);
             sellerTransferRepository.save(st);
 
+            // Publish seller.transfer.failed event
+            publishPayoutEvent(st, "SELLER_TRANSFER_FAILED", Map.of(
+                    "transfer_id", st.getId(),
+                    "seller_id", st.getSellerId(),
+                    "order_id", st.getOrderId(),
+                    "failure_code", e.getCode(),
+                    "failure_reason", e.getMessage()
+            ));
+
             publishPayoutEvent(st, "PAYOUT_FAILED", Map.of(
                     "order_id", st.getOrderId(),
                     "seller_id", st.getSellerId(),
@@ -158,9 +186,14 @@ public class PayoutScheduler {
     }
 
     private void publishPayoutEvent(SellerTransfer st, String type, Map<String, Object> data) {
-        String topic = "PAYOUT_PROCESSED".equals(type)
-                ? KafkaTopics.PAYOUT_PROCESSED
-                : KafkaTopics.PAYOUT_FAILED;
+        String topic = switch (type) {
+            case "PAYOUT_PROCESSED" -> KafkaTopics.PAYOUT_PROCESSED;
+            case "PAYOUT_FAILED" -> KafkaTopics.PAYOUT_FAILED;
+            case "SELLER_TRANSFER_ELIGIBLE" -> KafkaTopics.SELLER_TRANSFER_ELIGIBLE;
+            case "SELLER_TRANSFER_PAID_OUT" -> KafkaTopics.SELLER_TRANSFER_PAID_OUT;
+            case "SELLER_TRANSFER_FAILED" -> KafkaTopics.SELLER_TRANSFER_FAILED;
+            default -> type;
+        };
 
         String key = st.getOrderId() != null ? String.valueOf(st.getOrderId()) : String.valueOf(st.getId());
 

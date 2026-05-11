@@ -61,6 +61,11 @@ public class KafkaTopicConfig {
     @Bean public NewTopic payoutFailed()                { return topic(KafkaTopics.PAYOUT_FAILED); }
     @Bean public NewTopic orderDelivered()              { return topic(KafkaTopics.ORDER_DELIVERED); }
 
+    // ─── Seller Transfer topics (new) ────────────────────────────────────────
+    @Bean public NewTopic sellerTransferEligible()      { return topic(KafkaTopics.SELLER_TRANSFER_ELIGIBLE); }
+    @Bean public NewTopic sellerTransferPaidOut()       { return topic(KafkaTopics.SELLER_TRANSFER_PAID_OUT); }
+    @Bean public NewTopic sellerTransferFailed()        { return topic(KafkaTopics.SELLER_TRANSFER_FAILED); }
+
     private NewTopic topic(String name) {
         return TopicBuilder.name(name).partitions(3).replicas(1).build();
     }

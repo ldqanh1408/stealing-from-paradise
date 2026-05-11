@@ -228,6 +228,16 @@ public class OrderProcessingSaga {
             }
         }
 
+        // Publish order.payment_timeout (for notification-service)
+        Map<String, Object> timeoutPayload = new HashMap<>();
+        timeoutPayload.put("parent_order_id", parentOrderId);
+        timeoutPayload.put("order_ids", java.util.List.of(orderId));
+        timeoutPayload.put("session_id", "");
+        timeoutPayload.put("timeout_threshold_minutes", 30);
+        timeoutPayload.put("timeout_reason", "PAYMENT_NOT_COMPLETED");
+        timeoutPayload.put("auto_cancelled_at", Instant.now().toString());
+        send(KafkaTopics.ORDER_PAYMENT_TIMEOUT, String.valueOf(parentOrderId), timeoutPayload);
+
         Map<String, Object> payload = new HashMap<>();
         payload.put("order_id",        orderId);
         payload.put("parent_order_id", parentOrderId);

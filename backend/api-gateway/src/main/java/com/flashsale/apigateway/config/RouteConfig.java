@@ -132,6 +132,12 @@ public class RouteConfig {
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://notification-service"))
 
+            // ===== AI Chat Service =====
+            .route("ai-chat", r -> r
+                .path("/api/ai/**")
+                .filters(f -> f.stripPrefix(1))
+                .uri("lb://chat-service"))
+
             .build();
     }
 }
