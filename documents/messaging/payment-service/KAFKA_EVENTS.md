@@ -2,25 +2,32 @@
 
 > Service: payment-service (Port 8082)
 > Source: Backend code `com.flashsale.paymentservice`
-> Generated: 2026-05-10
+> Updated: 2026-05-12 — refund events moved to [refund-service](../refund-service/KAFKA_EVENTS.md)
 
 ---
 
 ## Events Consumed
 
-### order.returned (from Order Service)
+### payment.requested (from Order Service)
 
 | Field | Value |
 |-------|-------|
 | **Consumer** | payment-service |
-| **Action** | Auto-create full refund (RTS flow), process Stripe refund |
+| **Action** | Create Stripe PaymentIntent, create TRANSACTIONS + SELLER_TRANSFERS records |
 
-### order.checkout_created (from Order Service)
+### order.delivered (from Order Service)
 
 | Field | Value |
 |-------|-------|
 | **Consumer** | payment-service |
-| **Action** | Create Stripe PaymentIntent, create TRANSACTIONS record |
+| **Action** | Schedule seller payout deadline (AWAITING_DELIVERY → RETURN_WINDOW) |
+
+### order.cancelled / order.auto_cancelled (from Order Service)
+
+| Field | Value |
+|-------|-------|
+| **Consumer** | payment-service |
+| **Action** | Cancel Stripe PaymentIntent, mark transaction CANCELLED, publish payment.failed |
 
 ---
 
@@ -37,12 +44,9 @@
 ```json
 {
   "parent_order_id": 1,
-  "transaction_id": "txn_abc123",
-  "stripe_payment_intent_id": "pi_3NqX...",
-  "amount": 450000,
-  "currency": "vnd",
-  "payment_method": "card",
-  "timestamp": "2026-05-10T08:05:00Z"
+  "transaction_id": 99,
+  "stripe_pi_id": "pi_3NqX...",
+  "amount": 450000
 }
 ```
 
@@ -50,188 +54,74 @@
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | Stripe webhook `payment_intent.payment_failed` |
+| **Trigger** | Stripe webhook `payment_intent.payment_failed` or order cancelled |
 | **Consumers** | Order Service |
 
-**Payload:**
-```json
-{
-  "parent_order_id": 1,
-  "reason": "card_declined",
-  "timestamp": "2026-05-10T08:05:00Z"
-}
-```
-
-### refund.requested
+### stripe.account_suspended
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | Order Service publishes `REFUND_REQUESTED` or `REFUND_FULL_REQUESTED` |
+| **Trigger** | Stripe webhook `account.updated` with restricted status |
 | **Consumers** | Notification Service |
 
-**Payload:**
-```json
-{
-  "refund_type": "PARTIAL",
-  "order_id": 5,
-  "parent_order_id": 1,
-  "user_id": 42,
-  "seller_id": 99,
-  "reason": "San pham bi loi",
-  "amount": 150000,
-  "group_ref": "uuid",
-  "items": [{ "order_item_id": 10, "quantity": 1, "refund_amount": 150000 }],
-  "evidence_images": [],
-  "timestamp": "2026-05-12T10:00:00Z"
-}
-```
-
-### refund.admin_approved
+### stripe.dispute.created / stripe.dispute.closed
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | Admin approves refund via `POST /admin/refunds/{id}/approve` |
-| **Consumers** | Order Service, Identity Service, Notification Service |
+| **Trigger** | Stripe webhook `charge.dispute.created` / `charge.dispute.closed` |
+| **Consumers** | Admin alert |
 
-**Payload:**
-```json
-{
-  "refund_id": 7,
-  "order_id": 5,
-  "type": "FULL",
-  "amount": 150000,
-  "adjust_amount": 140000,
-  "tracking_number": "RN123456789VN",
-  "approved_by": 1,
-  "timestamp": "2026-05-12T14:00:00Z"
-}
-```
-
-### refund.rejected
+### stripe.transfer.reversed
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | Admin rejects refund via `POST /admin/refunds/{id}/reject` |
-| **Consumers** | Identity Service, Notification Service |
+| **Trigger** | Stripe webhook `transfer.reversed` |
+| **Consumers** | Admin alert |
 
-**Payload:**
-```json
-{
-  "refund_id": 7,
-  "order_id": 5,
-  "rejected_by": 1,
-  "reason": "Khong du dieu kien hoan tien",
-  "timestamp": "2026-05-12T14:00:00Z"
-}
-```
-
-### refund.stripe_auto
+### stripe.payout.failed
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | Stripe webhook `charge.refunded` (automatic RTS refund) |
-| **Consumers** | Order Service |
+| **Trigger** | Stripe webhook `payout.failed` |
+| **Consumers** | Notification Service |
 
-### refund.rts_completed
+### seller.stripe_requirement
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | Stripe refund for RTS flow completes |
-| **Consumers** | Order Service |
+| **Trigger** | Stripe webhook `account.updated` when seller has pending requirements |
+| **Consumers** | Notification Service |
 
 ### seller.transfer.eligible
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | JOB-23 PayoutScheduler phát hiện `orders.delivered_at + 30 days <= NOW()` và chưa có refund pending |
+| **Trigger** | PayoutScheduler detects return window expired |
 | **Consumers** | Notification Service |
-| **Status** | NEW — bổ sung 2026-05-10 (MVP SHOULD-HAVE) |
-| **Retention** | 90 days |
-| **Partition Key** | `seller_id` |
 
-**Payload:**
-```json
-{
-  "topic": "seller.transfer.eligible",
-  "event_id": "evt_20260610_payout_001",
-  "data": {
-    "seller_transfer_id": 88,
-    "order_id": 5,
-    "seller_id": 99,
-    "transfer_amount": 651000,
-    "platform_commission_amount": 49000,
-    "currency": "vnd",
-    "eligible_at": "2026-06-10T00:00:00Z"
-  }
-}
-```
-
-### seller.transfer.paid_out
+### seller.transfer.paid_out / seller.transfer.failed
 
 | Field | Value |
 |-------|-------|
-| **Trigger** | Stripe webhook `payout.paid` hoặc `transfer.created` thành công |
+| **Trigger** | Stripe webhook `payout.paid` / `payout.failed` |
 | **Consumers** | Notification Service |
-| **Status** | NEW — MVP SHOULD-HAVE |
-| **Retention** | 90 days |
-
-**Payload:**
-```json
-{
-  "topic": "seller.transfer.paid_out",
-  "data": {
-    "seller_transfer_id": 88,
-    "seller_id": 99,
-    "amount": 651000,
-    "stripe_transfer_id": "tr_1Ab...",
-    "stripe_payout_id": "po_1Cd...",
-    "paid_at": "2026-06-10T03:00:00Z"
-  }
-}
-```
-
-### seller.transfer.failed
-
-| Field | Value |
-|-------|-------|
-| **Trigger** | Stripe webhook `payout.failed` hoặc retry exhausted (PayoutScheduler `payout_retry_count > 3`) |
-| **Consumers** | Notification Service, audit |
-| **Status** | NEW — MVP SHOULD-HAVE |
-| **Retention** | 365 days (compliance) |
-
-**Payload:**
-```json
-{
-  "topic": "seller.transfer.failed",
-  "data": {
-    "seller_transfer_id": 88,
-    "seller_id": 99,
-    "amount": 651000,
-    "failure_code": "account_closed",
-    "failure_reason": "The destination account has been closed",
-    "retry_count": 3,
-    "failed_at": "2026-06-10T03:05:00Z"
-  }
-}
-```
 
 ---
 
-## Request-Reply (Payment Service is Responder)
+## Request-Reply
 
 | Request Topic | Response Topic | Requester | Purpose |
 |--------------|----------------|-----------|---------|
-| `order.payment_status.request` | `order.payment_status.response` | Order Service | Query payment/transaction status |
-| `order.refunds.request` | `order.refunds.response` | Order Service | Query refund history/detail |
-| `order.refund_presigned_url.request` | `order.refund_presigned_url.response` | Order Service | Generate presigned URL for evidence upload |
+| `order.payment_status.request` | `order.payment_status.response` | Order Service | Query transaction status |
 
 ---
 
-## Direct Kafka Publishing (via KafkaTemplate)
+## Refund Events → Moved to refund-service
 
-Payment Service directly publishes to these topics via `KafkaTemplate`:
+All refund-related Kafka events are now handled by `refund-service`:
 
-| Topic | Published From | Purpose |
-|-------|---------------|---------|
-| `refund.requested` | RefundController (order-service) via `REFUND_REQUESTED` | Partial refund request |
-| `refund.full_requested` | RefundController (order-service) via `REFUND_FULL_REQUESTED` | Full refund request |
+- **Consumed**: `refund.requested`, `refund.full_requested`, `order.returned`, `order.refunds.request`
+- **Produced**: `refund.created`, `refund.admin_approved`, `refund.rejected`, `refund.rts_completed`, `refund.stripe_auto`
+- **Request-Reply**: `order.payment_status.request/response`, `order.refunds.request/response`
+
+See [refund-service/KAFKA_EVENTS.md](../refund-service/KAFKA_EVENTS.md) for full details.

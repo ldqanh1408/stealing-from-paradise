@@ -1,4 +1,4 @@
-package com.flashsale.paymentservice.domain.model;
+package com.flashsale.refundservice.domain.model;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(name = "refunds", indexes = {
+@Table(name = "refunds", schema = "refund", indexes = {
     @Index(columnList = "order_id")
 })
 @Data

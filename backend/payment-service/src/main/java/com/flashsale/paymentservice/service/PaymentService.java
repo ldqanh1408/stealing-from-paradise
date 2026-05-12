@@ -11,7 +11,7 @@ import com.flashsale.paymentservice.config.StripeConfig;
 import com.flashsale.paymentservice.domain.model.SellerStripeAccount;
 import com.flashsale.paymentservice.domain.model.SellerTransfer;
 import com.flashsale.paymentservice.domain.model.Transaction;
-import com.flashsale.paymentservice.domain.repository.RefundRepository;
+
 import com.flashsale.paymentservice.domain.repository.SellerStripeAccountRepository;
 import com.flashsale.paymentservice.domain.repository.SellerTransferRepository;
 import com.flashsale.paymentservice.domain.repository.TransactionRepository;
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 public class PaymentService {
 
     private final TransactionRepository transactionRepository;
-    private final RefundRepository refundRepository;
+
     private final SellerTransferRepository sellerTransferRepository;
     private final SellerStripeAccountRepository sellerStripeAccountRepository;
     private final StripeConfig stripeConfig;
@@ -119,12 +119,8 @@ public class PaymentService {
             case "charge.succeeded"              -> handleChargeSucceeded(event);
             case "charge.failed"                 -> handleChargeFailed(event);
             case "charge.refunded"               -> handleChargeRefunded(event);
-            case "charge.refund.updated"         -> handleChargeRefundUpdated(event);
             case "charge.dispute.created"        -> handleDisputeCreated(event);
             case "charge.dispute.closed"         -> handleDisputeClosed(event);
-            // ── Refund ─────────────────────────────────────────────────────
-            case "refund.created"                -> handleRefundCreated(event);
-            case "refund.updated"                -> handleRefundUpdated(event);
             // ── Transfer ───────────────────────────────────────────────────
             case "transfer.created"              -> handleTransferCreated(event);
             case "transfer.updated"              -> handleTransferUpdated(event);
@@ -433,56 +429,6 @@ public class PaymentService {
         ));
         log.info("Stripe dispute CLOSED: disputeId={}, outcome={}, amount={}",
                 dispute.getId(), dispute.getStatus(), dispute.getAmount());
-    }
-
-    // ─── refund.created ───────────────────────────────────────────────────────
-
-    /**
-     * Stripe xác nhận refund được tạo. Nếu refund_ref chưa có trong DB (refund
-     * được khởi tạo bên ngoài hệ thống), chỉ log để admin biết.
-     * Với refund do hệ thống tạo, DB đã được cập nhật trước khi Stripe gửi event này.
-     */
-    private void handleRefundCreated(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
-        if (!(stripeObject instanceof com.stripe.model.Refund stripeRefund)) return;
-
-        boolean alreadyTracked = refundRepository.findByRefundRef(stripeRefund.getId()).isPresent();
-        if (alreadyTracked) {
-            log.debug("refund.created: already tracked in DB, stripeRefundId={}", stripeRefund.getId());
-            return;
-        }
-        // Refund không có trong DB → có thể được tạo trực tiếp từ Stripe Dashboard
-        log.warn("refund.created: untracked Stripe refund detected — stripeRefundId={}, piId={}, amount={}",
-                stripeRefund.getId(), stripeRefund.getPaymentIntent(), stripeRefund.getAmount());
-    }
-
-    // ─── refund.updated / charge.refund.updated ───────────────────────────────
-
-    /**
-     * Trạng thái refund thay đổi phía Stripe (pending → succeeded/failed).
-     * Cập nhật Refund.status trong DB để đồng bộ.
-     */
-    private void handleRefundUpdated(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
-        if (!(stripeObject instanceof com.stripe.model.Refund stripeRefund)) return;
-
-        refundRepository.findByRefundRef(stripeRefund.getId()).ifPresent(refund -> {
-            String newStatus = switch (stripeRefund.getStatus() != null ? stripeRefund.getStatus() : "") {
-                case "succeeded"               -> "SUCCESS";
-                case "failed", "canceled"      -> "FAILED";
-                default                        -> refund.getStatus(); // pending: giữ nguyên
-            };
-            if (!newStatus.equals(refund.getStatus())) {
-                refund.setStatus(newStatus);
-                refundRepository.save(refund);
-                log.info("Refund status synced from Stripe: refundId={}, stripeRefundId={}, status={}",
-                        refund.getId(), stripeRefund.getId(), newStatus);
-            }
-        });
-    }
-
-    private void handleChargeRefundUpdated(Event event) {
-        handleRefundUpdated(event); // same logic
     }
 
     // ─── transfer.updated ─────────────────────────────────────────────────────

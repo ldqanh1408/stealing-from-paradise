@@ -38,7 +38,7 @@ jobs:
         run: |
           test -f backend/pom.xml || { echo "Missing backend/pom.xml"; exit 1; }
           for svc in discovery-service api-gateway identity-service product-service \
-                     order-service payment-service flashsale-service \
+                     order-service payment-service refund-service flashsale-service \
                      search-service notification-service chat-service; do
             test -f "backend/$svc/pom.xml" || { echo "Missing backend/$svc/pom.xml"; exit 1; }
           done
@@ -130,6 +130,14 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+      - name: Upload refund-service JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-refund-service
+          path: backend/refund-service/target/*.jar
+          retention-days: 1
+          if-no-files-found: error
+
       - name: Upload flashsale-service JAR
         uses: actions/upload-artifact@v4
         with:
@@ -217,6 +225,7 @@ jobs:
           product-service,
           order-service,
           payment-service,
+          refund-service,
           flashsale-service,
           search-service,
           notification-service,
@@ -277,7 +286,7 @@ jobs:
         id: ctx
         run: |
           case "${{ matrix.service }}" in
-            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|chat-service)
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|refund-service|flashsale-service|search-service|notification-service|chat-service)
               echo "context=./backend/${{ matrix.service }}" >> $GITHUB_OUTPUT
               echo "file=./backend/${{ matrix.service }}/Dockerfile.dev" >> $GITHUB_OUTPUT
               echo "image_name=${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" >> $GITHUB_OUTPUT
@@ -303,7 +312,7 @@ jobs:
       - name: Verify Dockerfile.dev exists
         run: |
           case "${{ matrix.service }}" in
-            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|flashsale-service|search-service|notification-service|chat-service)
+            api-gateway|discovery-service|identity-service|product-service|order-service|payment-service|refund-service|flashsale-service|search-service|notification-service|chat-service)
               DOCKERFILE="backend/${{ matrix.service }}/Dockerfile.dev"
               ;;
             customer-app) DOCKERFILE="frontend/apps/customer/Dockerfile.dev" ;;

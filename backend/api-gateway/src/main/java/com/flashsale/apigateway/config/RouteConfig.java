@@ -91,9 +91,15 @@ public class RouteConfig {
                 .uri("lb://payment-service"))
 
             .route("payment", r -> r
-                .path("/api/v1/payments/**", "/api/v1/refunds/**")
+                .path("/api/v1/payments/**")
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://payment-service"))
+
+            // ===== Refund Service =====
+            .route("refund", r -> r
+                .path("/api/v1/admin/refunds/**")
+                .filters(f -> f.stripPrefix(1))
+                .uri("lb://refund-service"))
 
             // ===== FlashSale Service =====
             .route("fs-read", r -> r

@@ -1,4 +1,4 @@
-package com.flashsale.paymentservice.domain.model;
+package com.flashsale.refundservice.domain.model;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "refund_items")
+@Table(name = "refund_items", schema = "refund")
 @Data
 @Builder
 @NoArgsConstructor

@@ -7,7 +7,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
       </profile>
-      <profile name="Annotation profile for FlashSale Parent" enabled="true">
+      <profile name="Annotation profile for Payment Service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
@@ -15,16 +15,17 @@
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
         </processorPath>
         <module name="dev-data-runner" />
-        <module name="payment-service" />
-        <module name="search-service" />
-        <module name="api-gateway" />
+        <module name="refund-service" />
         <module name="product-service" />
         <module name="chat-service" />
         <module name="common-lib" />
-        <module name="order-service" />
-        <module name="identity-service" />
         <module name="discovery-service" />
         <module name="notification-service" />
+        <module name="payment-service" />
+        <module name="search-service" />
+        <module name="api-gateway" />
+        <module name="order-service" />
+        <module name="identity-service" />
         <module name="flashsale-service" />
       </profile>
     </annotationProcessing>
@@ -66,6 +67,7 @@
       <module name="product-service" options="-parameters" />
       <module name="promotion-api" options="" />
       <module name="promotion-domain" options="" />
+      <module name="refund-service" options="-parameters" />
       <module name="search-service" options="-parameters" />
       <module name="woker-service" options="" />
       <module name="worker-service" options="-parameters" />

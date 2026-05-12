@@ -1,14 +1,14 @@
-package com.flashsale.paymentservice.controller;
+package com.flashsale.refundservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
-import com.flashsale.paymentservice.dto.request.AdminRefundApproveRequest;
-import com.flashsale.paymentservice.dto.request.AdminRefundRejectRequest;
-import com.flashsale.paymentservice.dto.response.AdminRefundApproveResponse;
-import com.flashsale.paymentservice.dto.response.RefundDetailResponse;
-import com.flashsale.paymentservice.dto.response.RefundListResponse;
-import com.flashsale.paymentservice.service.RefundService;
+import com.flashsale.refundservice.dto.request.AdminRefundApproveRequest;
+import com.flashsale.refundservice.dto.request.AdminRefundRejectRequest;
+import com.flashsale.refundservice.dto.response.AdminRefundApproveResponse;
+import com.flashsale.refundservice.dto.response.RefundDetailResponse;
+import com.flashsale.refundservice.dto.response.RefundListResponse;
+import com.flashsale.refundservice.service.RefundService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,18 +25,6 @@ public class AdminRefundController {
 
     private final RefundService refundService;
 
-    /**
-     * GET /api/v1/admin/refunds
-     * Danh sách tất cả yêu cầu hoàn tiền (Admin).
-     *
-     * Query params:
-     * - status: PENDING | SUCCESS | FAILED | REJECTED
-     * - type: FULL | PARTIAL
-     * - seller_id: long (filter by affected seller — for groupRef lookup)
-     * - group_ref: uuid
-     * - from_date / to_date: ISO 8601 date (yyyy-MM-dd)
-     * - page, size: pagination
-     */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<RefundListResponse>>> listRefunds(
@@ -52,11 +40,6 @@ public class AdminRefundController {
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
-    /**
-     * GET /api/v1/admin/refunds/{refundId}
-     * Chi tiết một yêu cầu hoàn tiền (Admin).
-     * Trả về đầy đủ thông tin refund, danh sách items, tracking number, return evidence.
-     */
     @GetMapping("/{refundId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<RefundDetailResponse>> getRefund(
@@ -67,17 +50,6 @@ public class AdminRefundController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /**
-     * POST /api/v1/admin/refunds/{refundId}/approve
-     * Duyệt hoàn tiền thủ công (Admin).
-     *
-     * Side effects:
-     * 1. Stripe refunds.create (dùng adjust_amount nếu có)
-     * 2. REFUNDS.status = SUCCESS
-     * 3. Nếu tracking_number → UPDATE REFUND_ITEMS
-     * 4. Publish refund.admin_approved (kèm tracking_number)
-     * 5. handled by identity-service via Kafka
-     */
     @PostMapping("/{refundId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AdminRefundApproveResponse>> approveRefund(
@@ -90,16 +62,6 @@ public class AdminRefundController {
         return ResponseEntity.ok(ApiResponse.success(response, "Refund approved successfully"));
     }
 
-    /**
-     * POST /api/v1/admin/refunds/{refundId}/reject
-     * Từ chối yêu cầu hoàn tiền (Admin).
-     *
-     * Side effects:
-     * 1. REFUNDS.status = REJECTED
-     * 2. Publish refund.rejected
-     * 3. handled by identity-service
-     * 4. Push notification đến Buyer
-     */
     @PostMapping("/{refundId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> rejectRefund(

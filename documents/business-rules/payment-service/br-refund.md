@@ -1,8 +1,10 @@
-# BR-PAYMENT: Refund Business Rules
+# BR-PAYMENT: Refund Business Rules — MOVED
 
-**Domain**: Payment Service  
-**Feature**: Refund Processing (Buyer Request, Admin Approval, Stripe Execution)  
-**References**: [KAFKA_EVENTS.md](../../../docs/services/payment-service/KAFKA_EVENTS.md), [06_PAYMENT_SAGA_FLOW.md](../../../docs/business/06_PAYMENT_SAGA_FLOW.md)
+**Note**: Refund processing has been split into its own `refund-service`. The business rules have been moved to:
+
+→ [refund-service/br-refund.md](../refund-service/br-refund.md)
+
+This file is kept for historical reference only. All rule IDs have been renumbered from `BR-PAYMENT-017`–`BR-PAYMENT-025` to `BR-REFUND-001`–`BR-REFUND-009`.
 
 ---
 

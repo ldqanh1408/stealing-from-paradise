@@ -64,7 +64,7 @@
 
 | Aspect | Count |
 |--------|-------|
-| Backend Microservices | 11 |
+| Backend Microservices | 12 |
 | Frontend Apps | 3 (Customer 3000, Seller 3001, Admin 3002) |
 | API Endpoints | 40+ |
 | Kafka Topics | 35+ |
@@ -82,7 +82,7 @@
 - ✅ Refund with RTS (Return To Sender) — tự động hoàn tiền
 - ✅ Trust Score & Loyalty Points
 - ✅ 3 user roles (Buyer, Seller, Admin)
-- ✅ 11 microservices (4 Axon CQRS, 7 traditional)
+- ✅ 12 microservices (4 Axon CQRS, 8 traditional)
 - ✅ Production-ready with Docker
 
 ---

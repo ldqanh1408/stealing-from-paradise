@@ -1,4 +1,4 @@
-package com.flashsale.paymentservice.dto.request;
+package com.flashsale.refundservice.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

@@ -1,9 +1,8 @@
-# ENTITY-PAYMENT-005: Refund Item
+# ENTITY-PAYMENT-005: RefundItem — MOVED
 
-**Domain**: Payment Service  
-**Table**: `refund_items`  
-**Purpose**: Line-item detail for each refund, linking individual order items to their refund amounts, return tracking, and evidence.  
-**Last Updated**: 2026-05-10 (verified against Java source)
+**Note**: RefundItem entity has been moved to `refund-service`. See [refund-service/entity-refund-item.md](../refund-service/entity-refund-item.md).
+
+**Domain**: Refund Service (formerly Payment Service)
 
 ---
 

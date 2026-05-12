@@ -2,7 +2,9 @@
 
 **Domain**: Payment Service  
 **Feature**: Payment Processing (Destination Charges + Transfer API)  
-**References**: [06_PAYMENT_SAGA_FLOW.md](../../../docs/business/06_PAYMENT_SAGA_FLOW.md), [08_PAYMENT_ORDER_INTEGRATION.md](../../../docs/business/08_PAYMENT_ORDER_INTEGRATION.md)
+**References**: [KAFKA_EVENTS.md](../../messaging/payment-service/KAFKA_EVENTS.md)
+
+**Note**: Refund processing has been split into a separate `refund-service`. See [refund-service/br-refund.md](../refund-service/br-refund.md) for refund business rules.
 
 ---
 

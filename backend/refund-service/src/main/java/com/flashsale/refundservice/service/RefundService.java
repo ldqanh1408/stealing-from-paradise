@@ -1,4 +1,4 @@
-package com.flashsale.paymentservice.service;
+package com.flashsale.refundservice.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -7,19 +7,19 @@ import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
-import com.flashsale.paymentservice.domain.model.Refund;
-import com.flashsale.paymentservice.domain.model.RefundItem;
-import com.flashsale.paymentservice.domain.model.SellerTransfer;
-import com.flashsale.paymentservice.domain.model.Transaction;
-import com.flashsale.paymentservice.domain.repository.RefundItemRepository;
-import com.flashsale.paymentservice.domain.repository.RefundRepository;
-import com.flashsale.paymentservice.domain.repository.SellerTransferRepository;
-import com.flashsale.paymentservice.domain.repository.TransactionRepository;
-import com.flashsale.paymentservice.dto.request.AdminRefundApproveRequest;
-import com.flashsale.paymentservice.dto.request.AdminRefundRejectRequest;
-import com.flashsale.paymentservice.dto.response.AdminRefundApproveResponse;
-import com.flashsale.paymentservice.dto.response.RefundDetailResponse;
-import com.flashsale.paymentservice.dto.response.RefundListResponse;
+import com.flashsale.refundservice.domain.model.Refund;
+import com.flashsale.refundservice.domain.model.RefundItem;
+import com.flashsale.refundservice.domain.model.SellerTransfer;
+import com.flashsale.refundservice.domain.model.Transaction;
+import com.flashsale.refundservice.domain.repository.RefundItemRepository;
+import com.flashsale.refundservice.domain.repository.RefundRepository;
+import com.flashsale.refundservice.domain.repository.SellerTransferRepository;
+import com.flashsale.refundservice.domain.repository.TransactionRepository;
+import com.flashsale.refundservice.dto.request.AdminRefundApproveRequest;
+import com.flashsale.refundservice.dto.request.AdminRefundRejectRequest;
+import com.flashsale.refundservice.dto.response.AdminRefundApproveResponse;
+import com.flashsale.refundservice.dto.response.RefundDetailResponse;
+import com.flashsale.refundservice.dto.response.RefundListResponse;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Transfer;
 import com.stripe.model.TransferReversal;
@@ -41,7 +41,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -260,7 +259,7 @@ public class RefundService {
      * { refund_type, order_id, parent_order_id, user_id, seller_id,
      *   reason, amount, group_ref, refund_reason_type, items[], evidence_images[], timestamp }
      */
-    @KafkaListener(topics = KafkaTopics.REFUND_REQUESTED, groupId = "payment-service-group")
+    @KafkaListener(topics = KafkaTopics.REFUND_REQUESTED, groupId = "refund-service-group")
     @Transactional
     public void onRefundRequested(String message) {
         try {
@@ -351,7 +350,7 @@ public class RefundService {
      * { parent_order_id, user_id, group_ref, total_amount,
      *   refunds: [{ order_id, seller_id, amount, item_count }], timestamp }
      */
-    @KafkaListener(topics = KafkaTopics.REFUND_FULL_REQUESTED, groupId = "payment-service-group")
+    @KafkaListener(topics = KafkaTopics.REFUND_FULL_REQUESTED, groupId = "refund-service-group")
     @Transactional
     public void onRefundFullRequested(String message) {
         try {
@@ -415,7 +414,7 @@ public class RefundService {
      * { order_id, parent_order_id, user_id, seller_id, refund_reason_type,
      *   return_tracking_number, total_amount, evidence_count, timestamp }
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_RETURNED_RTS, groupId = "payment-service-group")
+    @KafkaListener(topics = KafkaTopics.ORDER_RETURNED_RTS, groupId = "refund-service-group")
     @Transactional
     public void onOrderReturnedRts(String message) {
         try {
@@ -502,6 +501,68 @@ public class RefundService {
         }
     }
 
+    // ─── Kafka Consumer: REFUND_STRIPE_AUTO (Chargeback từ ngân hàng) ──────────
+
+    /**
+     * Nhận event từ payment-service khi Stripe webhook charge.refunded được kích hoạt.
+     * Xảy ra khi Buyer dispute qua ngân hàng (chargeback) hoặc admin refund từ Stripe Dashboard.
+     * Tạo Refund record để tracking và notify admin.
+     */
+    @KafkaListener(topics = KafkaTopics.REFUND_STRIPE_AUTO, groupId = "refund-service-group")
+    @Transactional
+    public void onRefundStripeAuto(String message) {
+        try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
+            String chargeId = (String) payload.get("charge_id");
+            Long amountRefunded = toLong(payload.get("amount_refunded"));
+
+            // Tìm transaction có charge này trong raw_response (dùng JPQL LIKE tránh load toàn bộ table)
+            Transaction tx = transactionRepository.findByRawResponseContaining(chargeId).orElse(null);
+
+            if (tx == null) {
+                log.warn("REFUND_STRIPE_AUTO: No transaction found for chargeId={} — likely external Stripe Dashboard refund", chargeId);
+                return;
+            }
+
+            if (refundRepository.existsByOrderIdAndStatusIn(tx.getParentOrderId(), List.of("PENDING", "SUCCESS"))) {
+                log.warn("REFUND_STRIPE_AUTO: Refund already exists for parentOrderId={}, skipping", tx.getParentOrderId());
+                return;
+            }
+
+            BigDecimal amount = amountRefunded != null ? BigDecimal.valueOf(amountRefunded) : tx.getAmount();
+
+            Refund refund = Refund.builder()
+                    .transactionId(tx.getId())
+                    .orderId(tx.getParentOrderId())
+                    .type("FULL")
+                    .initiatedBy("SYSTEM")
+                    .refundReasonType("CHARGEBACK")
+                    .amount(amount)
+                    .reason("Stripe chargeback — chargeId=" + chargeId)
+                    .status("SUCCESS")
+                    .refundRef(chargeId)
+                    .reviewedAt(LocalDateTime.now())
+                    .build();
+            refundRepository.save(refund);
+
+            publish(KafkaTopics.REFUND_CREATED, String.valueOf(refund.getId()), Map.of(
+                    "refund_id", refund.getId(),
+                    "order_id",  tx.getParentOrderId(),
+                    "amount",    amount,
+                    "type",      "FULL",
+                    "status",    "SUCCESS",
+                    "charge_id", chargeId,
+                    "timestamp", Instant.now().toString()
+            ));
+
+            log.warn("REFUND_STRIPE_AUTO: Chargeback recorded — refundId={}, chargeId={}, amount={}",
+                    refund.getId(), chargeId, amount);
+
+        } catch (Exception e) {
+            log.error("Error processing REFUND_STRIPE_AUTO: {}", e.getMessage(), e);
+        }
+    }
+
     // ─── Kafka Consumer: ORDER_REFUNDS_REQUEST (Reply handler for order-service) ──
 
     /**
@@ -511,7 +572,7 @@ public class RefundService {
      * - { correlation_id, order_id } → lấy refunds của 1 sub-order
      * - { correlation_id, user_id, status?, from_date?, to_date?, page, size } → lấy refunds của Buyer
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_REFUNDS_REQUEST, groupId = "payment-service-reply-group")
+    @KafkaListener(topics = KafkaTopics.ORDER_REFUNDS_REQUEST, groupId = "refund-service-reply-group")
     public void onOrderRefundsRequest(String message) {
         String correlationId = null;
         try {
@@ -581,7 +642,7 @@ public class RefundService {
      * order-service hỏi transaction status theo parentOrderId.
      * Dùng để order-service kiểm tra xem đơn đã thanh toán chưa trước khi tạo refund.
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_PAYMENT_STATUS_REQUEST, groupId = "payment-service-reply-group")
+    @KafkaListener(topics = KafkaTopics.ORDER_PAYMENT_STATUS_REQUEST, groupId = "refund-service-reply-group")
     public void onOrderPaymentStatusRequest(String message) {
         String correlationId = null;
         try {

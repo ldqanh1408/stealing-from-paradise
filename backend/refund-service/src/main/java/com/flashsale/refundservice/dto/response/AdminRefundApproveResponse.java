@@ -1,4 +1,4 @@
-package com.flashsale.paymentservice.dto.response;
+package com.flashsale.refundservice.dto.response;
 
 import lombok.Builder;
 import lombok.Data;

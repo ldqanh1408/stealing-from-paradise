@@ -1,9 +1,10 @@
-# ENTITY-PAYMENT-004: Refund
+# ENTITY-PAYMENT-004: Refund — MOVED
 
-**Domain**: Payment Service  
-**Table**: `refunds`  
-**Purpose**: Records buyer refund requests, admin review decisions, and Stripe refund processing. Supports FULL and PARTIAL refunds with evidence images and admin notes.  
-**Last Updated**: 2026-05-10 (verified against Java source)
+**Note**: Refund entity has been moved to `refund-service`. See [refund-service/entity-refund.md](../refund-service/entity-refund.md).
+
+**Domain**: Refund Service (formerly Payment Service)
+**Table**: `refund.refunds`
+**Last Updated**: 2026-05-12 — moved to refund-service
 
 ---
 

@@ -116,6 +116,35 @@ services:
       axonserver: { condition: service_started }
     networks: [*network]
 
+  refund-service:
+    build:
+      context: ./backend/refund-service
+      dockerfile: Dockerfile.dev
+    container_name: fs-refund
+    restart: unless-stopped
+    ports: ["${PORT_REFUND:-8094}:8094"]
+    env_file: .env
+    environment:
+      - EUREKA_URI=${EUREKA_URI}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - KAFKA_SERVER=${KAFKA_SERVER}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PLATFORM_FEE_PERCENTAGE=${STRIPE_PLATFORM_FEE_PERCENTAGE}
+      - AXON_SERVER=${AXON_SERVER}
+      - JWT_SECRET=${JWT_SECRET}
+      - TZ=${TZ}
+      - JVM_OPTS=${JVM_OPTS_REFUND}
+    depends_on:
+      postgres: { condition: service_started }
+      kafka: { condition: service_started }
+      axonserver: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
+    networks: [*network]
+
   order-service:
     build:
       context: ./backend/order-service

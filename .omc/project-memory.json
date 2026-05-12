@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1778434172260,
+  "lastScanned": 1778580171907,
   "projectRoot": "D:\\dev\\stealing-from-paradise",
   "techStack": {
     "languages": [],
@@ -25,7 +25,6 @@
     "isMonorepo": false,
     "workspaces": [],
     "mainDirectories": [
-      "docs",
       "scripts"
     ],
     "gitBranches": {
@@ -39,41 +38,31 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1778434172242,
+      "lastAccessed": 1778580171893,
       "keyFiles": [
         "docker-compose.infra-only.yml",
         "docker-compose.yml",
         "pom.xml"
       ]
     },
-    "docs": {
-      "path": "docs",
-      "purpose": "Documentation",
-      "fileCount": 2,
-      "lastAccessed": 1778434172242,
-      "keyFiles": [
-        "00_INDEX.md",
-        "README.md"
-      ]
-    },
     "documents": {
       "path": "documents",
       "purpose": null,
-      "fileCount": 7,
-      "lastAccessed": 1778434172243,
+      "fileCount": 6,
+      "lastAccessed": 1778580171894,
       "keyFiles": [
-        "10_ENVIRONMENT_VARIABLES.md",
         "CONTRADICTIONS.md",
         "database-entities.md",
         "DB_SCHEMA_CHANGE_PROPOSAL.md",
-        "MVP_ANALYSIS.md"
+        "MVP_ANALYSIS.md",
+        "README.md"
       ]
     },
     "frontend": {
       "path": "frontend",
       "purpose": null,
       "fileCount": 8,
-      "lastAccessed": 1778434172243,
+      "lastAccessed": 1778580171894,
       "keyFiles": [
         "docker compose.yml",
         "package-lock.json",
@@ -84,7 +73,7 @@
       "path": "nginx",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1778434172243,
+      "lastAccessed": 1778580171894,
       "keyFiles": [
         "docker-compose.prod-pulled.yml",
         "docker-entrypoint.sh",
@@ -96,23 +85,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 0,
-      "lastAccessed": 1778434172243,
-      "keyFiles": []
-    },
-    "docs\\api": {
-      "path": "docs\\api",
-      "purpose": "API routes",
-      "fileCount": 1,
-      "lastAccessed": 1778434172244,
-      "keyFiles": [
-        "README.md"
-      ]
-    },
-    "docs\\services": {
-      "path": "docs\\services",
-      "purpose": "Business logic services",
-      "fileCount": 0,
-      "lastAccessed": 1778434172244,
+      "lastAccessed": 1778580171894,
       "keyFiles": []
     }
   },

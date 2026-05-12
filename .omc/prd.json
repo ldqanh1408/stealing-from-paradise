@@ -1,1 +1,90 @@
-{"title":"Refactor Backend Services to Align with Documents Spec","description":"...","stories":[{"id":"US-001","priority":1,"passes":true},{"id":"US-002","priority":2,"passes":true},{"id":"US-003","priority":3,"passes":true},{"id":"US-004","priority":4,"passes":true},{"id":"US-005","priority":5,"passes":true},{"id":"US-006","priority":6,"passes":true},{"id":"US-007","priority":7,"passes":true},{"id":"US-008","priority":8,"passes":true},{"id":"US-009","priority":9,"passes":true},{"id":"US-010","priority":10,"passes":true},{"id":"US-011","priority":11,"passes":true},{"id":"US-012","priority":12,"passes":true},{"id":"US-013","priority":13,"passes":true}]}
+{
+  "title": "Verify Refund-Service Split — Zero Gaps",
+  "description": "Comprehensive verification that refund-service is fully functional, payment-service is clean, and all cross-service integration points are wired correctly.",
+  "stories": [
+    {
+      "id": "US-V01",
+      "priority": 1,
+      "passes": true,
+      "title": "Payment-service compilation — zero dead references",
+      "acceptanceCriteria": [
+        "No imports of deleted classes (RefundService, AdminRefundController, Refund, RefundItem, RefundRepository, RefundItemRepository) in payment-service source",
+        "PaymentService.java does not inject RefundRepository",
+        "PaymentDevDataLoader.java does not reference Refund or RefundItem",
+        "KafkaTopicConfig.java has zero refund-related topic beans",
+        "All remaining Java files compile cleanly (no broken imports or missing symbols)"
+      ]
+    },
+    {
+      "id": "US-V02",
+      "priority": 2,
+      "passes": true,
+      "title": "Refund-service compilation — all files present",
+      "acceptanceCriteria": [
+        "All required Java files exist: Application, Config (5), Domain (4), Repo (4), DTO (5), Service (1), Controller (1)",
+        "All package imports use com.flashsale.refundservice.* (no leakage from payment-service)",
+        "pom.xml has NO Axon dependency",
+        "application.yaml has correct schema (refund), port 8094, Eureka enabled, Stripe config present, NO Axon config",
+        "Dockerfile.dev and Dockerfile.prod exist with correct port 8094",
+        "Flyway migration V1__init_refund_schema.sql exists"
+      ]
+    },
+    {
+      "id": "US-V03",
+      "priority": 3,
+      "passes": true,
+      "title": "API Gateway routes refund requests to refund-service",
+      "acceptanceCriteria": [
+        "RouteConfig.java has a 'refund' route pointing to lb://refund-service",
+        "Path pattern /api/v1/admin/refunds/** is routed to refund-service (not payment-service)",
+        "No path conflict between payment and refund routes"
+      ]
+    },
+    {
+      "id": "US-V04",
+      "priority": 4,
+      "passes": true,
+      "title": "Payment-Refund cross-service communication complete",
+      "acceptanceCriteria": [
+        "REFUND_STRIPE_AUTO Kafka consumer exists in RefundService (payment→refund)",
+        "TransactionRepository exists in refund-service for cross-schema reads",
+        "SellerTransferRepository exists in refund-service for cross-schema writes",
+        "KafkaTopicConfig in refund-service has all 12 required topics"
+      ]
+    },
+    {
+      "id": "US-V05",
+      "priority": 5,
+      "passes": true,
+      "title": "Docker Compose — refund-service in all compose files",
+      "acceptanceCriteria": [
+        "docker-compose.yml has refund-service block with port 8094",
+        "docker-compose-backend.yml has refund-service block",
+        "docker-compose.prod-pulled.yml has refund-service image reference",
+        ".env.example has PORT_REFUND=8094 and JVM_OPTS_REFUND"
+      ]
+    },
+    {
+      "id": "US-V06",
+      "priority": 6,
+      "passes": true,
+      "title": "CI/CD — refund-service in all workflows",
+      "acceptanceCriteria": [
+        "ci-build.yml: refund-service in structure validation, JAR upload, build matrix, case statements",
+        "deploy.yml: refund-service in JAR upload, build matrix, case statement, env template, export list"
+      ]
+    },
+    {
+      "id": "US-V07",
+      "priority": 7,
+      "passes": true,
+      "title": "Documents updated — all references corrected",
+      "acceptanceCriteria": [
+        "README.md includes refund-service in folder structure",
+        "INDEX.md microservice count updated to 12, 8 traditional",
+        "refund-service docs created: br-refund.md, KAFKA_EVENTS.md, entity-refund.md",
+        "payment-service docs have MOVED notices for refund entities"
+      ]
+    }
+  ]
+}
