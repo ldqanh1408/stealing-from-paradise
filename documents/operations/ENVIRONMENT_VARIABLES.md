@@ -197,6 +197,22 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | `PAGEINDEX_ENDPOINT` | (set securely) | PageIndex RAG endpoint URL |
 | `KAFKA_SERVER` | `kafka:9092` | |
 
+### refund-service (:8094)
+
+| Variable | Default / Example | Notes |
+|----------|-------------------|-------|
+| `PORT_REFUND` | `8094` | Service port |
+| `EUREKA_URI` | `http://discovery-service:8761/eureka` | Eureka registry zone |
+| `DB_HOST` | `postgres` | PostgreSQL hostname |
+| `DB_NAME` | `flashsale_platform` | Relational database name |
+| `POSTGRES_USER` | `flashsale` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | (set securely) | PostgreSQL password |
+| `KAFKA_SERVER` | `kafka:9092` | Message broker bootstrap |
+| `AXON_SERVER` | `axonserver:8124` | Axon Server endpoint |
+| `STRIPE_SECRET_KEY` | (same as payment-service) | Stripe Secret Key |
+| `STRIPE_WEBHOOK_SECRET` | (same as payment-service) | Stripe Webhook Secret |
+| `STRIPE_PLATFORM_FEE_PERCENTAGE` | `5.0` | Commission rate percentage |
+
 ---
 
 ## Frontend Apps
@@ -296,6 +312,9 @@ STRIPE_SECRET_KEY=sk_test_CHANGE_ME
 STRIPE_WEBHOOK_SECRET=whsec_CHANGE_ME
 STRIPE_PLATFORM_FEE_PERCENTAGE=0.05
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_CHANGE_ME
+
+# --- Refund ---
+PORT_REFUND=8094
 
 # --- Frontend ---
 VITE_BACKEND_MODE=proxy

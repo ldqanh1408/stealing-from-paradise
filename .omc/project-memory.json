@@ -1,9 +1,18 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1778580171907,
+  "lastScanned": 1779285231569,
   "projectRoot": "D:\\dev\\stealing-from-paradise",
   "techStack": {
-    "languages": [],
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
     "frameworks": [],
     "packageManager": "npm",
     "runtime": null
@@ -38,7 +47,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1778580171893,
+      "lastAccessed": 1779285231539,
       "keyFiles": [
         "docker-compose.infra-only.yml",
         "docker-compose.yml",
@@ -48,21 +57,21 @@
     "documents": {
       "path": "documents",
       "purpose": null,
-      "fileCount": 6,
-      "lastAccessed": 1778580171894,
+      "fileCount": 7,
+      "lastAccessed": 1779285231540,
       "keyFiles": [
         "CONTRADICTIONS.md",
         "database-entities.md",
         "DB_SCHEMA_CHANGE_PROPOSAL.md",
-        "MVP_ANALYSIS.md",
-        "README.md"
+        "ERD_DIAGRAMS.md",
+        "PROJECT_OVERVIEW.md"
       ]
     },
     "frontend": {
       "path": "frontend",
       "purpose": null,
       "fileCount": 8,
-      "lastAccessed": 1778580171894,
+      "lastAccessed": 1779285231548,
       "keyFiles": [
         "docker compose.yml",
         "package-lock.json",
@@ -73,7 +82,7 @@
       "path": "nginx",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1778580171894,
+      "lastAccessed": 1779285231549,
       "keyFiles": [
         "docker-compose.prod-pulled.yml",
         "docker-entrypoint.sh",
@@ -84,9 +93,11 @@
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 0,
-      "lastAccessed": 1778580171894,
-      "keyFiles": []
+      "fileCount": 1,
+      "lastAccessed": 1779285231549,
+      "keyFiles": [
+        "generate-report.js"
+      ]
     }
   },
   "hotPaths": [

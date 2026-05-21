@@ -636,6 +636,63 @@ public class RefundService {
         }
     }
 
+    @org.springframework.beans.factory.annotation.Value("${minio.url:http://localhost:9000}")
+    private String minioUrl;
+
+    /**
+     * order-service gửi request để xin presigned URL để upload ảnh bằng chứng hoàn tiền.
+     * Request payload: { correlation_id, order_id, user_id, file_name, content_type }
+     */
+    @KafkaListener(topics = KafkaTopics.ORDER_REFUND_PRESIGNED_URL_REQUEST, groupId = "refund-service-reply-group")
+    public void onRefundPresignedUrlRequest(String message) {
+        String correlationId = null;
+        try {
+            Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
+            correlationId = (String) payload.get("correlation_id");
+            if (correlationId == null) return;
+
+            Long orderId = toLong(payload.get("order_id"));
+            Long userId = toLong(payload.get("user_id"));
+            String fileName = (String) payload.get("file_name");
+            String contentType = (String) payload.get("content_type");
+
+            if (fileName == null) fileName = "evidence.jpg";
+            int dot = fileName.lastIndexOf('.');
+            String ext = dot > 0 ? fileName.substring(dot) : ".jpg";
+            String objectKey = "refunds/" + orderId + "/" + UUID.randomUUID() + ext;
+
+            // Generate mock presigned PUT URL
+            String presignedUrl = minioUrl + "/refund-evidences/" + objectKey 
+                    + "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+                    + "&X-Amz-Credential=minioadmin%2F" + java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) 
+                    + "%2Fus-east-1%2Fs3%2Faws4_request"
+                    + "&X-Amz-Date=" + java.time.format.DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+                    + "&X-Amz-Expires=900"
+                    + "&X-Amz-SignedHeaders=host"
+                    + "&X-Amz-Signature=mock_sig_refund_" + UUID.randomUUID().toString().replace("-", "");
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("correlation_id", correlationId);
+            response.put("url", presignedUrl);
+            response.put("fileName", objectKey);
+            response.put("contentType", contentType);
+            response.put("expiresAt", Instant.now().plusSeconds(900).toString());
+
+            kafkaTemplate.send(KafkaTopics.ORDER_REFUND_PRESIGNED_URL_RESPONSE, correlationId, toJson(response));
+
+        } catch (Exception e) {
+            log.error("Error processing ORDER_REFUND_PRESIGNED_URL_REQUEST: {}", e.getMessage(), e);
+            if (correlationId != null) {
+                Map<String, Object> errorResp = Map.of(
+                        "correlation_id", correlationId,
+                        "error", true,
+                        "message", e.getMessage()
+                );
+                kafkaTemplate.send(KafkaTopics.ORDER_REFUND_PRESIGNED_URL_RESPONSE, correlationId, toJson(errorResp));
+            }
+        }
+    }
+
     // ─── Kafka Consumer: ORDER_PAYMENT_STATUS_REQUEST ───────────────────────
 
     /**

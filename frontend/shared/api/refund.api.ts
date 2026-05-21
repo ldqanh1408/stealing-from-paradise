@@ -162,4 +162,11 @@ export const refundApi = {
   /** List all buyer's refunds */
   getMyRefunds: (params?: { status?: string; page?: number; size?: number }) =>
     apiClient.get<ApiResponse<{ content: RefundResponse[]; totalElements: number; totalPages: number }>>('/orders/refunds', { params }),
+
+  /** Get presigned URL for refund evidence upload */
+  getRefundPresignedUrl: (orderId: number, fileName: string, contentType: string) =>
+    apiClient.get<ApiResponse<{ url: string; fileName: string; contentType: string; expiresAt: string }>>(
+      `/orders/${orderId}/refunds/presigned-url`,
+      { params: { file_name: fileName, content_type: contentType } }
+    ),
 };

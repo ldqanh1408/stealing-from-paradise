@@ -68,6 +68,9 @@ public class Order {
     @Column(name = "shipping_deadline")
     private LocalDateTime shippingDeadline;
 
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
+
     @Version
     private Integer version;
 

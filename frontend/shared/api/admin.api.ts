@@ -54,11 +54,15 @@ export const adminApi = {
 
   /** List all users */
   getUsers: (params?: { role?: string; status?: string; page?: number; size?: number }) =>
-    apiClient.get<ApiResponse<PageResponse<AdminUser>>>('/users', { params }),
+    apiClient.get<ApiResponse<PageResponse<AdminUser>>>('/admin/users', { params }),
 
-  /** Ban/unban user */
-  updateUserStatus: (userId: number, status: 'ACTIVE' | 'BANNED') =>
-    apiClient.put<ApiResponse<{ userId: number; status: string }>>(`/users/${userId}/status`, { status }),
+  /** Lock user account */
+  lockUser: (userId: number, reason: string) =>
+    apiClient.post<ApiResponse<void>>(`/admin/users/${userId}/lock`, { reason }),
+
+  /** Unlock user account */
+  unlockUser: (userId: number, reason: string) =>
+    apiClient.post<ApiResponse<void>>(`/admin/users/${userId}/unlock`, { reason }),
 
   /** Create flash sale session (admin) */
   createFlashSaleSession: (data: CreateFlashSaleRequest) =>

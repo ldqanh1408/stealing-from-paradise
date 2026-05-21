@@ -11,8 +11,11 @@ const ROLE_COLORS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE:  'bg-green-100 text-green-700',
   BANNED:  'bg-red-100 text-red-700',
+  LOCKED:  'bg-red-100 text-red-700',
   PENDING: 'bg-yellow-100 text-yellow-700',
 };
+
+const isLocked = (status: string) => status === 'BANNED' || status === 'LOCKED';
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('vi-VN', {
@@ -22,7 +25,13 @@ const fmtDate = (iso: string) =>
 function BanModal({ user, onClose, onSuccess }: { user: AdminUser; onClose: () => void; onSuccess: () => void }) {
   const queryClient = useQueryClient();
   const mut = useMutation({
-    mutationFn: () => adminApi.updateUserStatus(user.userId, user.status === 'BANNED' ? 'ACTIVE' : 'BANNED'),
+    mutationFn: () => {
+      if (isLocked(user.status)) {
+        return adminApi.unlockUser(user.userId, 'Mở khoá tài khoản bởi Admin');
+      } else {
+        return adminApi.lockUser(user.userId, 'Khoá tài khoản bởi Admin');
+      }
+    },
     onSuccess: () => { onSuccess(); onClose(); },
     onError: () => {},
   });
@@ -30,12 +39,12 @@ function BanModal({ user, onClose, onSuccess }: { user: AdminUser; onClose: () =
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
-        <div className="text-5xl mb-4">{user.status === 'BANNED' ? '🔓' : '🔒'}</div>
+        <div className="text-5xl mb-4">{isLocked(user.status) ? '🔓' : '🔒'}</div>
         <h3 className="text-lg font-bold text-gray-900 mb-2">
-          {user.status === 'BANNED' ? 'Mở khoá tài khoản?' : 'Khoá tài khoản?'}
+          {isLocked(user.status) ? 'Mở khoá tài khoản?' : 'Khoá tài khoản?'}
         </h3>
         <p className="text-sm text-gray-500 mb-6">
-          {user.status === 'BANNED'
+          {isLocked(user.status)
             ? `Mở khoá tài khoản "${user.username}" để họ có thể tiếp tục sử dụng.`
             : `Khoá tài khoản "${user.username}" sẽ không cho phép họ đăng nhập.`}
         </p>
@@ -45,10 +54,10 @@ function BanModal({ user, onClose, onSuccess }: { user: AdminUser; onClose: () =
             onClick={() => mut.mutate()}
             disabled={mut.isPending}
             className={`flex-1 py-2.5 text-white rounded-xl text-sm font-medium ${
-              user.status === 'BANNED' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+              isLocked(user.status) ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
             } disabled:opacity-50`}
           >
-            {mut.isPending ? '...' : user.status === 'BANNED' ? 'Mở khoá' : 'Khoá'}
+            {mut.isPending ? '...' : isLocked(user.status) ? 'Mở khoá' : 'Khoá'}
           </button>
         </div>
       </div>
@@ -118,7 +127,7 @@ export default function UserManagementPage() {
             {r.label}
           </button>
         ))}
-        {[{ value: '', label: 'Tất cả trạng thái' }, { value: 'ACTIVE', label: 'ACTIVE' }, { value: 'BANNED', label: 'BANNED' }].map(s => (
+        {[{ value: '', label: 'Tất cả trạng thái' }, { value: 'ACTIVE', label: 'ACTIVE' }, { value: 'LOCKED', label: 'LOCKED' }, { value: 'BANNED', label: 'BANNED' }].map(s => (
           <button
             key={s.value}
             onClick={() => { setStatusFilter(s.value); setPage(0); }}
@@ -193,9 +202,9 @@ export default function UserManagementPage() {
                             <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">Xem</button>
                             <button
                               onClick={() => setBanUser(u)}
-                              className={`text-xs font-medium ${u.status === 'BANNED' ? 'text-green-600 hover:text-green-700' : 'text-red-500 hover:text-red-600'}`}
+                              className={`text-xs font-medium ${isLocked(u.status) ? 'text-green-600 hover:text-green-700' : 'text-red-500 hover:text-red-600'}`}
                             >
-                              {u.status === 'BANNED' ? 'Mở khoá' : 'Khoá'}
+                              {isLocked(u.status) ? 'Mở khoá' : 'Khoá'}
                             </button>
                           </div>
                         )}

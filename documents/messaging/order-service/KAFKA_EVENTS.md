@@ -224,6 +224,26 @@ All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPay
 
 ---
 
+### order.checkout_completed
+
+| Field | Value |
+|-------|-------|
+| **Trigger** | Checkout successful — parent order and all sub-orders created |
+| **Consumers** | Product Service (Cart — remove purchased items) |
+
+**Payload:**
+```json
+{
+  "parent_order_id": 1,
+  "customer_id": 42,
+  "orders": [{"order_id": 5, "seller_id": 99}],
+  "item_ids": ["uuid1", "uuid2"],
+  "timestamp": "2026-05-12T10:00:00Z"
+}
+```
+
+---
+
 ## Request-Reply (Order Service is Requester)
 
 | Request Topic | Response Topic | Responder | Purpose |

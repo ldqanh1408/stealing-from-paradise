@@ -1,0 +1,232 @@
+import { create } from 'zustand';
+import { chatApi, streamChat, type ChatMessage, type PendingConfirmation } from '../api/chat.api';
+
+interface ChatState {
+  currentSessionId: string | null;
+  messages: (ChatMessage & { products?: any[] })[];
+  isStreaming: boolean;
+  pendingConfirmation: PendingConfirmation | null;
+  suggestions: string[];
+  isOpen: boolean;
+  isLoading: boolean;
+  error: string | null;
+  abortController: AbortController | null;
+
+  setOpen: (isOpen: boolean) => void;
+  toggleChat: () => void;
+  createSession: () => Promise<string | null>;
+  closeSession: () => Promise<void>;
+  fetchHistory: (sessionId: string) => Promise<void>;
+  fetchSuggestions: () => Promise<void>;
+  sendMessage: (message: string) => Promise<void>;
+  confirmAction: (confirmId: string) => Promise<void>;
+  rejectAction: (confirmId: string) => Promise<void>;
+  clearChat: () => void;
+  cancelStreaming: () => void;
+}
+
+export const useChatStore = create<ChatState>((set, get) => ({
+  currentSessionId: null,
+  messages: [],
+  isStreaming: false,
+  pendingConfirmation: null,
+  suggestions: [],
+  isOpen: false,
+  isLoading: false,
+  error: null,
+  abortController: null,
+
+  setOpen: (isOpen) => set({ isOpen }),
+  toggleChat: () => set((state) => ({ isOpen: !state.isOpen })),
+
+  createSession: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await chatApi.createSession();
+      if (data?.data?.id) {
+        const sessId = data.data.id;
+        set({ currentSessionId: sessId, isLoading: false });
+        // Initial assistant message
+        set({
+          messages: [
+            {
+              role: 'ASSISTANT',
+              content: 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?',
+              sessionId: sessId,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        });
+        return sessId;
+      }
+      throw new Error('Không nhận được ID phiên chat');
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message || 'Không thể tạo phiên chat AI';
+      set({ error: errMsg, isLoading: false });
+      return null;
+    }
+  },
+
+  closeSession: async () => {
+    const { currentSessionId } = get();
+    if (!currentSessionId) return;
+
+    try {
+      await chatApi.closeSession(currentSessionId);
+      get().clearChat();
+    } catch (err: any) {
+      console.error('Failed to close chat session:', err);
+    }
+  },
+
+  fetchHistory: async (sessionId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await chatApi.getHistory(sessionId, { pageSize: 50 });
+      // The backend returns user, assistant, tool_call, tool_result messages.
+      // We'll filter and sort to display them nicely.
+      // Filter out tool messages if we only want conversation, or let's keep assistant and user messages.
+      const displayMsgs = (data?.data || [])
+        .filter((msg) => msg.role === 'USER' || msg.role === 'ASSISTANT')
+        .sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0));
+
+      set({ messages: displayMsgs, isLoading: false });
+    } catch (err: any) {
+      set({
+        error: err?.response?.data?.message || 'Không thể lấy lịch sử chat',
+        isLoading: false,
+      });
+    }
+  },
+
+  fetchSuggestions: async () => {
+    try {
+      const { data } = await chatApi.getSuggestions();
+      set({ suggestions: data?.data || [] });
+    } catch (err) {
+      console.error('Failed to fetch chat suggestions:', err);
+    }
+  },
+
+  sendMessage: async (message) => {
+    let sessId = get().currentSessionId;
+    if (!sessId) {
+      sessId = await get().createSession();
+      if (!sessId) return;
+    }
+
+    // Append user message
+    const userMsg: ChatMessage = {
+      role: 'USER',
+      content: message,
+      sessionId: sessId,
+      createdAt: new Date().toISOString(),
+    };
+
+    const assistantMsg: ChatMessage & { products?: any[] } = {
+      role: 'ASSISTANT',
+      content: '',
+      sessionId: sessId,
+      createdAt: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      messages: [...state.messages, userMsg, assistantMsg],
+      isStreaming: true,
+      error: null,
+    }));
+
+    // Start SSE streaming
+    const controller = streamChat(sessId, message, {
+      onDelta: (chunk) => {
+        set((state) => {
+          const updatedMessages = [...state.messages];
+          const lastIdx = updatedMessages.length - 1;
+          if (lastIdx >= 0 && updatedMessages[lastIdx].role === 'ASSISTANT') {
+            updatedMessages[lastIdx] = {
+              ...updatedMessages[lastIdx],
+              content: updatedMessages[lastIdx].content + chunk,
+            };
+          }
+          return { messages: updatedMessages };
+        });
+      },
+      onEvent: (event, data) => {
+        if (event === 'confirmation_required') {
+          set({ pendingConfirmation: data });
+        } else if (event === 'products') {
+          set((state) => {
+            const updatedMessages = [...state.messages];
+            const lastIdx = updatedMessages.length - 1;
+            if (lastIdx >= 0 && updatedMessages[lastIdx].role === 'ASSISTANT') {
+              updatedMessages[lastIdx] = {
+                ...updatedMessages[lastIdx],
+                products: data,
+              };
+            }
+            return { messages: updatedMessages };
+          });
+        }
+      },
+      onError: (error) => {
+        set({ error, isStreaming: false, abortController: null });
+      },
+      onDone: () => {
+        set({ isStreaming: false, abortController: null });
+      },
+    });
+
+    set({ abortController: controller });
+  },
+
+  confirmAction: async (confirmId) => {
+    const sessId = get().currentSessionId;
+    set({ isStreaming: true, error: null, pendingConfirmation: null });
+    try {
+      await chatApi.confirmAction(confirmId, true);
+      if (sessId) {
+        await get().fetchHistory(sessId);
+      }
+    } catch (err: any) {
+      set({
+        error: err?.response?.data?.message || 'Lỗi xác nhận hành động',
+        isStreaming: false,
+      });
+    }
+  },
+
+  rejectAction: async (confirmId) => {
+    const sessId = get().currentSessionId;
+    set({ isStreaming: true, error: null, pendingConfirmation: null });
+    try {
+      await chatApi.confirmAction(confirmId, false);
+      if (sessId) {
+        await get().fetchHistory(sessId);
+      }
+    } catch (err: any) {
+      set({
+        error: err?.response?.data?.message || 'Lỗi hủy bỏ hành động',
+        isStreaming: false,
+      });
+    }
+  },
+
+  cancelStreaming: () => {
+    const { abortController } = get();
+    if (abortController) {
+      abortController.abort();
+      set({ isStreaming: false, abortController: null });
+    }
+  },
+
+  clearChat: () => {
+    set({
+      currentSessionId: null,
+      messages: [],
+      isStreaming: false,
+      pendingConfirmation: null,
+      error: null,
+      abortController: null,
+    });
+  },
+}));

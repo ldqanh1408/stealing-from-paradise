@@ -132,6 +132,26 @@
 
 ---
 
+### flash_sale.reminder
+
+| Field | Value |
+|-------|-------|
+| **Trigger** | Customer sets a reminder for an upcoming flash sale session |
+| **Consumers** | Notification Service |
+
+**Payload:**
+```json
+{
+  "session_id": 10,
+  "customer_id": 42,
+  "session_name": "Flash Sale 12/12",
+  "start_time": "2026-05-12T12:00:00Z",
+  "timestamp": "2026-05-12T10:00:00Z"
+}
+```
+
+---
+
 ## Events Consumed
 
 Flash Sale Service does NOT consume events from Kafka. All triggers are from REST API or Redis ZSET worker.

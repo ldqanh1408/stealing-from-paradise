@@ -148,11 +148,11 @@ public class ChatService {
                     .call()
                     .chatResponse();
 
-            String finalText = response.getResult().getOutput().getContent();
+            String finalText = response.getResult().getOutput().getText();
 
             // Save assistant message
             return nextSequenceNo(sessionId)
-                    .flatMapMany(seqNo -> {
+                    .flatMap(seqNo -> {
                         ChatMessage assistantMsg = ChatMessage.builder()
                                 .sessionId(sessionId)
                                 .role("ASSISTANT")
@@ -326,7 +326,7 @@ public class ChatService {
         };
 
         if (actionUrl == null) {
-            return rejectWithError(confirmation, "Unknown action type: " + actionType);
+            return rejectWithError(confirmation, "Unknown action type: " + actionType).then(Mono.empty());
         }
 
         String accessToken = ToolContext.getAccessToken();
@@ -391,7 +391,7 @@ public class ChatService {
                     .call()
                     .chatResponse();
 
-            String content = response.getResult().getOutput().getContent();
+            String content = response.getResult().getOutput().getText();
 
             return nextSequenceNo(sessionId)
                     .flatMap(seqNo -> {

@@ -167,6 +167,10 @@ public class OrderDevDataLoader implements CommandLineRunner {
                                  String orderCode, BigDecimal totalAmt,
                                  BigDecimal finalAmt, String status,
                                  String shippingAddress, String trackingNumber) {
+        LocalDateTime deliveredAt = null;
+        if ("DELIVERED".equals(status)) {
+            deliveredAt = LocalDateTime.now().minusDays(1);
+        }
         Order order = Order.builder()
                 .parentOrderId(parentOrderId)
                 .sellerId(sellerId)
@@ -179,6 +183,7 @@ public class OrderDevDataLoader implements CommandLineRunner {
                 .shippingAddress(shippingAddress)
                 .trackingNumber(trackingNumber)
                 .shippingDeadline(LocalDateTime.now().plusDays(3))
+                .deliveredAt(deliveredAt)
                 .build();
         return orderRepository.save(order);
     }

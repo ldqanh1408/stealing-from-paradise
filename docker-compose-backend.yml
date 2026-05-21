@@ -30,7 +30,7 @@ services:
     env_file: .env
     networks: [*network]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s http://localhost:8761/actuator/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8761/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -56,7 +56,7 @@ services:
       redis: { condition: service_started }
     networks: [*network]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s http://localhost:8080/actuator/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -171,7 +171,7 @@ services:
       axonserver: { condition: service_healthy }
     networks: [*network]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s http://localhost:8083/actuator/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8083/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 8
@@ -302,6 +302,8 @@ services:
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_CHAT}
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
+      - SPRING_AI_OPENAI_BASE_URL=${SPRING_AI_OPENAI_BASE_URL}
+      - SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL=${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL}
     depends_on:
       mongo: { condition: service_started }
       kafka: { condition: service_started }

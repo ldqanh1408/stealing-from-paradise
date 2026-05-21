@@ -405,6 +405,25 @@
 
 ---
 
+### product.auto_hidden
+
+| Field | Value |
+|-------|-------|
+| **Trigger** | Product inactive for 30 days (cronjob) |
+| **Consumers** | Search Service |
+
+**Payload:**
+```json
+{
+  "product_id": "uuid",
+  "seller_id": "uuid",
+  "reason": "inactive_30_days",
+  "timestamp": "2026-05-12T00:00:00Z"
+}
+```
+
+---
+
 ## Events Consumed
 
 ### order.created (from Order Service)

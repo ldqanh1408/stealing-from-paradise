@@ -391,6 +391,7 @@ public class OrderService {
 
         LocalDateTime now = LocalDateTime.now();
         order.setStatus("DELIVERED");
+        order.setDeliveredAt(now);
         orderRepository.save(order);
 
         // Emit Axon event → Saga publishes order.delivered (ends saga)

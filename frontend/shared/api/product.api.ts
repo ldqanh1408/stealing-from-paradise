@@ -71,8 +71,8 @@ export const productApi = {
     page?: number;
     size?: number;
   }) =>
-    apiClient.get<ApiResponse<ProductDetail[]>>('/search', {
-      params: { q: query, ...params },
+    apiClient.get<ApiResponse<ProductDetail[]>>('/products', {
+      params: { search: query, ...params },
     }),
 };
 

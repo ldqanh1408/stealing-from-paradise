@@ -106,6 +106,24 @@
 | **Trigger** | Stripe webhook `payout.paid` / `payout.failed` |
 | **Consumers** | Notification Service |
 
+### payout.processed
+
+| Field | Value |
+|-------|-------|
+| **Trigger** | JOB-23 PayoutScheduler successfully processes a seller payout |
+| **Consumers** | Notification Service |
+
+**Payload:**
+```json
+{
+  "seller_transfer_id": 88,
+  "seller_id": 99,
+  "amount": 651000,
+  "stripe_payout_id": "po_xxx",
+  "paid_at": "2026-06-10T03:00:00Z"
+}
+```
+
 ---
 
 ## Request-Reply

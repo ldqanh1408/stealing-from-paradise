@@ -1,49 +1,124 @@
 import apiClient from '../lib/axios';
-import type { ApiResponse, PageResponse } from '../types/api';
+import type { ApiResponse } from '../types/api';
 
-/** Flash sale item — one SKU on sale within a session */
 export interface FlashSaleItem {
   id: number;
   sessionId: number;
   skuCode: string;
-  productName: string;
-  productDescription?: string;
-  imageUrl?: string;
+  productName?: string;
   flashPrice: number;
-  originalPrice: number;
+  originalPrice?: number;
   flashStock: number;
   soldQty: number;
   limitPerUser: number;
-  status: 'PENDING' | 'ACTIVE' | 'SOLD_OUT' | 'ENDED';
+  status: string;
 }
 
-/** Flash sale session — a time window with multiple items */
 export interface FlashSaleSession {
   id: number;
   name: string;
   startTime: string;
   endTime: string;
   status: 'UPCOMING' | 'ACTIVE' | 'ENDED';
+  secondsRemaining?: number;
+  isEnded?: boolean;
+  createdAt?: string;
   items?: FlashSaleItem[];
+}
+
+interface BackendSession {
+  sessionId: number;
+  name: string;
+  status: string;
+  startTime: string;
+  endTime: string;
+  secondsRemaining: number;
+  isEnded: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BackendItem {
+  id: number;
+  sessionId: number;
+  skuCode: string;
+  flashPrice: number;
+  flashStock: number;
+  limitPerUser: number;
+  soldQty: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function mapSession(s: BackendSession): FlashSaleSession {
+  return {
+    id: s.sessionId,
+    name: s.name,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    status: s.status as FlashSaleSession['status'],
+    secondsRemaining: s.secondsRemaining,
+    isEnded: s.isEnded,
+    createdAt: s.createdAt,
+  };
+}
+
+function mapItem(i: BackendItem): FlashSaleItem {
+  return {
+    id: i.id,
+    sessionId: i.sessionId,
+    skuCode: i.skuCode,
+    flashPrice: i.flashPrice,
+    flashStock: i.flashStock,
+    soldQty: i.soldQty,
+    limitPerUser: i.limitPerUser,
+    status: i.status,
+  };
 }
 
 export const flashSaleApi = {
   /** Get all flash sale sessions (public) */
-  getSessions: (params?: { status?: string; page?: number; size?: number }) =>
-    apiClient.get<ApiResponse<PageResponse<FlashSaleSession>>>('/flash-sales', { params }),
+  getSessions: async (params?: { status?: string }) => {
+    const res = await apiClient.get<ApiResponse<{ serverTime: number; sessions: BackendSession[] }>>('/flash-sales', { params });
+    const data = res.data.data;
+    return {
+      ...res,
+      data: {
+        ...res.data,
+        data: {
+          content: (data?.sessions ?? []).map(mapSession),
+          totalElements: data?.sessions?.length ?? 0,
+          totalPages: 1,
+        },
+      },
+    };
+  },
 
   /** Get one session with its items */
-  getSession: (sessionId: number) =>
-    apiClient.get<ApiResponse<FlashSaleSession>>(`/flash-sales/${sessionId}`),
+  getSession: async (sessionId: number) => {
+    const res = await apiClient.get<ApiResponse<{ session: BackendSession; items: BackendItem[] }>>(`/flash-sales/${sessionId}`);
+    const data = res.data.data;
+    return {
+      ...res,
+      data: {
+        ...res.data,
+        data: data ? {
+          ...mapSession(data.session),
+          items: (data.items ?? []).map(mapItem),
+        } : null,
+      },
+    };
+  },
 
   /** Buy a flash sale item */
-  buy: (sessionId: number, skuCode: string, quantity: number) =>
-    apiClient.post<ApiResponse<{ orderId: number; orderCode: string; amount: number }>>(
+  buy: (sessionId: number, fsItemId: number, quantity: number, addressId: number) =>
+    apiClient.post<ApiResponse<{ sessionId: number; fsItemId: number; skuCode: string; flashPrice: number; quantity: number; totalAmount: number; purchasedAt: string }>>(
       `/flash-sales/${sessionId}/buy`,
-      { skuCode, quantity }
+      { fsItemId, quantity, addressId }
     ),
 
   /** Create a flash sale session (admin) */
   createSession: (data: { name: string; startTime: string; endTime: string; description?: string }) =>
-    apiClient.post<ApiResponse<{ sessionId: number; status: string }>>('/flash-sales', data),
+    apiClient.post<ApiResponse<BackendSession>>('/flash-sales', data),
 };

@@ -168,7 +168,6 @@ erDiagram
 
     %% ==================== FLASH SALE DOMAIN ====================
     FS_SESSIONS ||--o{ FS_ITEMS : "session_id"
-    FS_SESSIONS ||--o{ FS_REMINDERS : "session_id"
 
     FS_SESSIONS {
         bigint id PK "BIGSERIAL"
@@ -192,13 +191,6 @@ erDiagram
         timestamp registered_at
         timestamp created_at
         timestamp updated_at
-    }
-
-    FS_REMINDERS {
-        bigint id PK "BIGSERIAL"
-        bigint customer_id FK
-        bigint session_id FK
-        timestamp created_at
     }
 
     %% ==================== ORDER DOMAIN ====================
@@ -464,7 +456,6 @@ erDiagram
 | CART_ITEM.variant_id | PRODUCT_VARIANT.id |
 | FS_ITEMS.session_id | FS_SESSIONS.id |
 | FS_ITEMS.product_id | PRODUCT.id (soft ref) |
-| FS_REMINDERS.customer_id | Identity.CUSTOMERS.id |
 | PARENT_ORDERS.customer_id | Identity.CUSTOMERS.id |
 | PARENT_ORDERS.session_id | STOCK_RESERVATION.session_id |
 | ORDERS.parent_order_id | PARENT_ORDERS.id |

@@ -579,8 +579,8 @@ public class RefundController {
                     "Chỉ có thể yêu cầu hoàn tiền khi đơn hàng đã được giao (DELIVERED). "
                             + "Đơn " + order.getOrderCode() + " đang ở trạng thái " + status);
         }
-        if (order.getUpdatedAt() == null
-                || Duration.between(order.getUpdatedAt(), LocalDateTime.now()).toDays() > 7) {
+        if (order.getDeliveredAt() == null
+                || Duration.between(order.getDeliveredAt(), LocalDateTime.now()).toDays() > 7) {
             throw new AppException(ErrorCode.VALIDATION_FAILED,
                     "Đã quá 7 ngày kể từ khi nhận hàng, không thể yêu cầu hoàn tiền");
         }

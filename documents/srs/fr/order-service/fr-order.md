@@ -219,10 +219,9 @@
 **Acceptance Criteria:**
 - [ ] POST /orders/{id}/return-to-sender (multipart: evidence_images[] + return_tracking_number)
 - [ ] Only allowed when order.status = SHIPPING
-- [ ] Transitions to RETURNED, creates REFUNDS (type=FULL, initiated_by=SELLER)
-- [ ] Auto-processes Stripe refund (no admin approval)
-- [ ] Restores stock via inventory.adjusted
-- [ ] Produces order.returned Kafka event
+- [ ] Transitions to RETURNED
+- [ ] Produces `order.returned` Kafka event (consumed by Refund Service to create and auto-process a full refund)
+- [ ] Restores stock via `inventory.adjusted`
 - [ ] Evidence images stored via MinIO
 
 **Related:** BR-ORDER-016, BR-ORDER-022
@@ -243,8 +242,8 @@
 - [ ] Only allowed when order.status = DELIVERED and within return_window_end
 - [ ] Partial: specifies order_item_id + quantity per item
 - [ ] Full: POST /orders/parent/{parentOrderId}/refund
-- [ ] Creates REFUNDS with status=PENDING, requires ADMIN approval
-- [ ] Produces refund.requested Kafka event
+- [ ] Order Service routes request details to Refund Service to create `REFUNDS` with status = PENDING (awaiting ADMIN approval)
+- [ ] Produces `refund.requested` Kafka event
 
 **Related:** BR-ORDER-017, BR-ORDER-018, BR-ORDER-019
 **UC:** UC-ORDER-006

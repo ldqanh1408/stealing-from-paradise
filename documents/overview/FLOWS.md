@@ -251,15 +251,15 @@ sequenceDiagram
     actor Seller
     participant OS as Order Service
     participant Kafka
-    participant PayS as Payment Service
+    participant RefS as Refund Service
     participant PS as Product Service
 
     Seller->>OS: POST /orders/{id}/return-to-sender (tracking, carrier)
     OS->>OS: Update order status
     OS->>Kafka: order.returned
-    Kafka->>PayS: Auto-create full refund
+    Kafka->>RefS: Auto-create full refund
     Kafka->>PS: Restore stock (INCR Redis, UPDATE DB)
-    Kafka->>PS: Process Stripe refund
+    Kafka->>RefS: Process Stripe refund (pre-payout / transfer reversal)
 ```
 
 ---

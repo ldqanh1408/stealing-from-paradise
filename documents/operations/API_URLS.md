@@ -157,6 +157,10 @@
 | GET | /payments/parent-order/{parentOrderId} | Payment status |
 | GET | /payments/by-intent/{stripePaymentIntentId} | Lookup by PaymentIntent |
 
+---
+
+## Refund Service (`refund-service:8094`)
+
 ### Admin (JWT + ADMIN)
 
 | Method | Path | Notes |

@@ -121,7 +121,7 @@
 | **FAILED** | Payment failed at Stripe |
 | **REFUNDED** | All amounts returned via refunds |
 | **PARTIALLY_REFUNDED** | Some but not all amounts refunded |
-| **Cites** | UC-PAYMENT-002, UC-PAYMENT-004, FR-PAYMENT-012 |
+| **Cites** | UC-PAYMENT-002, [UC-REFUND-001](../../use-cases/refund-service/uc-001-create-refund.md), FR-PAYMENT-012 |
 
 ---
 

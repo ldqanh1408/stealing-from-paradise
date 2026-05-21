@@ -46,6 +46,10 @@ public class KafkaTopicConfig {
     @Bean public NewTopic orderRefundsResponse()       { return topic(KafkaTopics.ORDER_REFUNDS_RESPONSE); }
     @Bean public NewTopic orderPaymentStatusResponse() { return topic(KafkaTopics.ORDER_PAYMENT_STATUS_RESPONSE); }
 
+    // ─── Refund Presigned URL request-reply topics ───────────────────────────
+    @Bean public NewTopic orderRefundPresignedUrlRequest() { return topic(KafkaTopics.ORDER_REFUND_PRESIGNED_URL_REQUEST); }
+    @Bean public NewTopic orderRefundPresignedUrlResponse() { return topic(KafkaTopics.ORDER_REFUND_PRESIGNED_URL_RESPONSE); }
+
     private NewTopic topic(String name) {
         return TopicBuilder.name(name).partitions(3).replicas(1).build();
     }

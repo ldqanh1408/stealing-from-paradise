@@ -117,17 +117,14 @@ export const userApi = {
 
 export const adminUserApi = {
   getUserDetail: (userId: number) =>
-    apiClient.get<ApiResponse<AdminUserDetail>>(`/users/${userId}`),
+    apiClient.get<ApiResponse<AdminUserDetail>>(`/admin/users/${userId}`),
 
   getUsers: (params?: { role?: string; status?: string; page?: number; size?: number }) =>
-    apiClient.get<ApiResponse<PageResponse<AdminUser>>>('/users', { params }),
+    apiClient.get<ApiResponse<PageResponse<AdminUser>>>('/admin/users', { params }),
 
   lockUser: (userId: number, body: { reason: string }) =>
     apiClient.post<ApiResponse<void>>(`/admin/users/${userId}/lock`, body),
 
   unlockUser: (userId: number, body: { reason: string }) =>
     apiClient.post<ApiResponse<void>>(`/admin/users/${userId}/unlock`, body),
-
-  getBanHistory: (userId: number) =>
-    apiClient.get<ApiResponse<BanHistoryResponse[]>>(`/admin/users/${userId}/ban-history`),
 };

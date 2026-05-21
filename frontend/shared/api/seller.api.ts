@@ -143,7 +143,7 @@ export const sellerApi = {
 
   /** Delete a product (seller owner) */
   deleteProduct: (productId: string) =>
-    apiClient.delete<ApiResponse<void>>(`/products/${productId}`),
+    apiClient.delete<ApiResponse<void>>(`/seller/products/${productId}`),
 
   /** Update a product */
   updateProduct: (productId: string, data: { name: string; description: string; categoryId: string; images?: string[] }) =>

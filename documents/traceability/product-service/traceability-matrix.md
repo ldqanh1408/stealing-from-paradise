@@ -215,3 +215,13 @@
 | `state-diagrams/product-service/state-product.md` |
 | `state-diagrams/product-service/state-stock-reservation.md` |
 | `state-diagrams/product-service/state-cart.md` |
+
+---
+
+## Use Cases & Events to Business Flows
+
+| Use Case / Event | Business Flow | Integration Role |
+|------------------|---------------|------------------|
+| [UC-PRODUCT-007](../../use-cases/product-service/uc-007-reserve-stock.md) | [flow-order-cancellation](../../flows/cross-service/flow-order-cancellation.md) | Stock is reserved during checkout; released if order is cancelled |
+| `order.cancelled` (consumed) | [flow-order-cancellation](../../flows/cross-service/flow-order-cancellation.md) | Consumed to increment Redis and database stock, and release reservation |
+| `order.returned` (consumed) | [flow-refund-processing](../../flows/cross-service/flow-refund-processing.md) (RTS) | Consumed to restore stock for returned items |

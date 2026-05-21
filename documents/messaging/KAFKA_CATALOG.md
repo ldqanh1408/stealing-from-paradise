@@ -22,23 +22,26 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 
 | Metric | Value |
 |--------|-------|
-| Total Topics | 58 (44 event + 14 request-reply) |
+| Total Topics | 62 (48 event + 14 request-reply) |
 | Event Producers | Product, Order, Payment, Flash Sale, AI Chat |
 | Event Consumers | All 9 services |
 | Retention Policy | 7–365 days depending on topic type |
 | Request-Reply Doc | [KAFKA_REQUEST_REPLY.md](KAFKA_REQUEST_REPLY.md) |
 
 > **Migration Note**: The former worker-service (port 8086) has been migrated to ai-chat-service (port 8093). Worker responsibilities (JOB-13, JOB-22, DLQ) are now distributed across order-service, payment-service, and notification-service per the v5.0 distributed cronjob model.
+>
+> **2026-05-12 Note**: 3 flash sale topics (`flash_sale.item_approved`, `flash_sale.item_rejected`, `flash_sale.item_sold`) are marked OBSOLETE but still present in KafkaTopics.java for backward compatibility. These are excluded from the active count.
 
 ### Event Topics by Service
 
 | Service | Produces | Consumes |
 |---------|----------|----------|
 | identity-service | — (does NOT produce domain events) | order.delivered, order.cancelled, refund.admin_approved, refund.rejected |
-| product-service | product.* (incl. pending_review, approved, rejected), category.*, inventory.*, stock.reservation.* | order.created, order.cancelled, flash_sale.* |
-| order-service | order.*, order.payment_timeout, seller.order_cancelled | payment.*, refund.*, stock.reservation.expired |
-| payment-service | payment.*, refund.*, seller.transfer.* | order.returned, order.checkout_created |
-| flashsale-service | flash_sale.* | — |
+| product-service | product.* (incl. pending_review, approved, rejected, auto_hidden), category.*, inventory.*, stock.reservation.* | order.created, order.cancelled, flash_sale.* |
+| order-service | order.*, order.payment_timeout, seller.order_cancelled, order.checkout_completed | payment.*, refund.*, stock.reservation.expired |
+| payment-service | payment.*, stripe.*, seller.transfer.*, payout.*, refund.stripe_auto | payment.requested, order.delivered, order.cancelled |
+| refund-service | refund.* | refund.requested, refund.full_requested, order.returned, order.refunds.request, order.payment_status.request |
+| flashsale-service | flash_sale.*, flash_sale.reminder | — |
 | search-service | — (consumer-only) | product.*, category.*, inventory.* |
 | notification-service | — (consumer-only) | 22 topics from all services |
 | ai-chat-service | ai_chat.* | — |
@@ -52,8 +55,8 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 | order.payment_status.request | order.payment_status.response | Order | Payment |
 | order.cart_items.request | order.cart_items.response | Order | Product |
 | order.address.request | order.address.response | Order | Identity |
-| order.refunds.request | order.refunds.response | Order | Payment |
-| order.refund_presigned_url.request | order.refund_presigned_url.response | Order | Payment |
+| order.refunds.request | order.refunds.response | Order | Refund |
+| order.refund_presigned_url.request | order.refund_presigned_url.response | Order | Refund |
 
 ### Retention Policies
 

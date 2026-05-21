@@ -30,6 +30,7 @@ Read the requirement. Extract and list:
 - Domain Entities (data objects)
 - API operations (verbs + nouns)
 - Lifecycle states per entity
+- Kafka events / commands published or consumed
 
 **Step 2 — Assign IDs**
 Before writing any file, produce an internal ID map:
@@ -40,6 +41,7 @@ BR-001: <name>
 FR-001: <name>
 ENTITY-001: <name>
 API-001: <METHOD /path>
+EV-001: <topic>.<event_name>
 ```
 
 Cross-reference this map throughout all subsequent files. IDs are immutable once assigned.
@@ -47,24 +49,30 @@ Cross-reference this map throughout all subsequent files. IDs are immutable once
 **Step 3 — Determine {service-name}**
 Identify the bounded context (e.g., `cart-service`, `order-service`). All file paths use this prefix.
 
-**Step 4 — Write Files**
+**Step 4 — Database Schema Proposals**
+If changes to database schema are required, you must first register them in [DB_SCHEMA_CHANGE_PROPOSAL.md](file:///D:/dev/stealing-from-paradise/documents/DB_SCHEMA_CHANGE_PROPOSAL.md) as a new entry with status `⏸️ Pending` and await confirmation.
+
+**Step 5 — Write Files**
 Call `write_file` once per file. Write in this order:
 
-1. `docs/data-models/{service-name}/entity-{name}.md`
-2. `docs/business-rules/{service-name}/br-{topic}.md`
-3. `docs/srs/fr/{service-name}/fr-{feature}.md`
-4. `docs/use-cases/{service-name}/uc-{nnn}-{action}.md`
-5. `docs/api-contracts/{service-name}/api-{method}-{resource}.yaml`
-6. `docs/state-diagrams/{service-name}/state-{entity}.md`
-7. `docs/traceability/{service-name}/traceability-matrix.md` — always last
+1. `documents/data-models/{service-name}/entity-{name}.md`
+2. `documents/business-rules/{service-name}/br-{topic}.md`
+3. `documents/srs/fr/{service-name}/fr-{feature}.md`
+4. `documents/use-cases/{service-name}/uc-{nnn}-{action}.md`
+5. `documents/api-contracts/{service-name}/api-{method}-{resource}.yaml`
+6. `documents/messaging/{service-name}/KAFKA_EVENTS.md`
+7. `documents/flows/{service-name}/flow-{topic}.md` (or `documents/flows/cross-service/flow-{topic}.md`)
+8. `documents/state-diagrams/{service-name}/state-{entity}.md`
+9. `documents/traceability/{service-name}/traceability-matrix.md` — always last
 
-**Step 5 — Self-Audit**
+**Step 6 — Self-Audit**
 Before declaring completion, verify:
 
 - [ ] Every ID in the ID map has a corresponding file.
 - [ ] Every file that references an ID links to an existing file.
 - [ ] No `[REQUIRED]` field is left empty without a `TBD:` note.
 - [ ] The traceability matrix covers every UC.
+- [ ] All Mermaid diagrams compile without syntax errors.
 
 If any check fails → create the missing file or fix the reference. Then re-run the audit.
 
@@ -89,12 +97,15 @@ When the input is incomplete, DO NOT stop and ask. Instead:
 ## Directory & File Structure
 
 ```
-docs/
+documents/
   srs/fr/{service-name}/*.md
   use-cases/{service-name}/uc-{nnn}-{slug}.md
   business-rules/{service-name}/br-{topic}.md
   data-models/{service-name}/entity-{name}.md
   api-contracts/{service-name}/api-{method}-{resource}.yaml
+  messaging/{service-name}/KAFKA_EVENTS.md
+  flows/{service-name}/flow-{topic}.md
+  flows/cross-service/flow-{topic}.md
   state-diagrams/{service-name}/state-{entity}.md
   traceability/{service-name}/traceability-matrix.md
 ```
@@ -241,7 +252,35 @@ components:
 
 ---
 
-### 6. State Diagram — `state-{entity}.md`
+### 6. Kafka Events — `KAFKA_EVENTS.md`
+
+```md
+## Kafka Events: {service-name}
+Domain: {service-name}
+
+### Events Consumed
+| Topic | Event Name | Action | Reference |
+|-------|------------|--------|-----------|
+| {topic} | {event_name} | {Service action} | UC-002 |
+
+### Events Produced
+| Topic | Event Name | Stable ID | Trigger |
+|-------|------------|-----------|---------|
+| {topic} | {event_name} | EV-001 | {When triggered} |
+
+### Event Definitions
+
+#### EV-001: {event_name}
+- **Topic**: `{topic}`
+- **Payload Schema**:
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | id    | UUID | Event identifier |
+```
+
+---
+
+### 7. State Diagram — `state-{entity}.md`
 
 ```md
 ## State Diagram: {Entity}
@@ -255,11 +294,40 @@ stateDiagram-v2
     SHIPPED --> [*]
 ```
 
-Rule: Every transition must cite the UC-ID or BR-ID that triggers it.
+Rules:
+1. Every transition must cite the UC-ID or BR-ID that triggers it.
+2. Quote all node labels containing special characters (e.g., `id["Label (Extra Info)"]`).
 
 ---
 
-### 7. Traceability Matrix — `traceability-matrix.md`
+### 7.5. Business Flows — `flow-{topic}.md`
+
+```md
+## Business Flow: {Topic Name}
+Service/Scope: {service-name | Cross-Service}
+
+### Description
+{High-level explanation of the business flow}
+
+### Sequence Diagram
+```mermaid
+sequenceDiagram
+    ...
+```
+
+### Participant Directory
+| Participant | Service Name | Role & Responsibility |
+|-------------|--------------|-----------------------|
+| Actor/Service | {service} | {Role} |
+
+### Message & Event Catalog
+| Step | Source | Target | Trigger/Payload | Channel | Reference |
+|------|--------|--------|-----------------|---------|-----------|
+| 1    | Service A | Service B | API-POST-/orders | HTTP/gRPC | API-001 |
+| 2    | Service B | Kafka | order.created event | Kafka | EV-001 |
+```
+
+### 8. Traceability Matrix — `traceability-matrix.md`
 
 ```md
 ## Traceability Matrix
@@ -270,6 +338,12 @@ Generated: {date}
 |--------|----------------|--------------------|----------------|----------|
 | UC-001 | FR-001, FR-002 | POST /cart         | BR-001, BR-002 | CartItem |
 | UC-002 | FR-003         | DELETE /cart/{id}  | BR-003         | CartItem |
+
+### Use Cases & Events to Business Flows
+
+| Use Case / Event | Business Flow | Integration Role |
+|------------------|---------------|------------------|
+| UC-001 / EV-001  | flow-{topic}  | {Description of role in flow} |
 ```
 
 ---
@@ -281,7 +355,7 @@ Generated: {date}
 | No monoliths         | One file per use case. Never merge.                               |
 | No prose in files    | Use tables, lists, and IF-THEN blocks only.                       |
 | IDs are stable       | Assign once, never rename.                                        |
-| Write order matters  | Entities → BRs → FRs → UCs → APIs → States → Traceability.       |
+| Write order matters  | Entities → BRs → FRs → UCs → APIs → Events → Flows → States → Traceability. |
 | Traceability last    | Write only after all other files exist.                           |
 | Broken reference     | Fix before Self-Audit passes. Do not declare done with open refs. |
 | Empty required field | Always use `TBD: <reason>` — never leave blank.                   |

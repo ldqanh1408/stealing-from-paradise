@@ -115,8 +115,21 @@
 | `order.checkout_created` | order-service | product-service (cart) | → PENDING |
 | `payment.success` | payment-service | order-service | → PAID |
 | `payment.failed` | payment-service | order-service | (retry/stay PENDING) |
-| `refund.rts_completed` | payment-service | order-service | RETURNED→REFUNDED |
-| `refund.admin_approved` | payment-service | order-service | → REFUNDED/PARTIALLY_REFUNDED |
+| `refund.rts_completed` | refund-service | order-service | RETURNED→REFUNDED |
+| `refund.admin_approved` | refund-service | order-service | → REFUNDED/PARTIALLY_REFUNDED |
+
+---
+
+## Use Cases & Events to Business Flows
+
+| Use Case / Event | Business Flow | Integration Role |
+|------------------|---------------|------------------|
+| [UC-ORDER-003](../../use-cases/order-service/uc-003-cancel-order.md) | [flow-order-cancellation](../../flows/cross-service/flow-order-cancellation.md) | Initiates manual order cancellation |
+| [UC-ORDER-006](../../use-cases/order-service/uc-006-request-return.md) | [flow-refund-processing](../../flows/cross-service/flow-refund-processing.md) | Initiates buyer partial/full refund request |
+| `order.cancelled` | [flow-order-cancellation](../../flows/cross-service/flow-order-cancellation.md) | Published to trigger downstream stock/payment releases |
+| `order.returned` | [flow-refund-processing](../../flows/cross-service/flow-refund-processing.md) (RTS) | Published to trigger auto-refund creation |
+| `refund.rts_completed` (consumed) | [flow-refund-processing](../../flows/cross-service/flow-refund-processing.md) (RTS) | Consumed to update order status to REFUNDED |
+| `refund.admin_approved` (consumed) | [flow-refund-processing](../../flows/cross-service/flow-refund-processing.md) | Consumed to mark order items as REFUNDED |
 
 ---
 

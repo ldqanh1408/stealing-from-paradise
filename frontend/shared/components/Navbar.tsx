@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore, isAuthFromCookie } from '../store/authStore';
+import NotificationBell from './NotificationBell';
 
 export interface NavLink {
   label: string;
@@ -65,7 +66,9 @@ export default function Navbar({ appName, links = [], authLinks = [] }: NavbarPr
           {/* Right side */}
           <div className="flex items-center gap-3">
             {authed && user ? (
-              <div className="relative">
+              <>
+                <NotificationBell />
+                <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-150"
@@ -103,7 +106,8 @@ export default function Navbar({ appName, links = [], authLinks = [] }: NavbarPr
                   </>
                 )}
               </div>
-            ) : (
+            </>
+          ) : (
               <div className="flex items-center gap-2">
                 <Link
                   to="/login"

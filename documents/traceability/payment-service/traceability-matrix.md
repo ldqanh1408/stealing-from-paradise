@@ -1,9 +1,9 @@
 # Traceability Matrix: Payment Service
 
 **Domain**: Payment Service  
-**Version**: v5.4  
-**Generated**: 2026-05-09  
-**References**: All payment-service micro-documentation
+**Version**: v5.5  
+**Generated**: 2026-05-12  
+**References**: All payment-service micro-documentation (excluding refunds)
 
 ---
 
@@ -11,11 +11,9 @@
 
 | Entity ID | Entity Name | Business Rules |
 |-----------|-------------|----------------|
-| ENTITY-PAYMENT-001 | Seller Stripe Account | BR-PAYMENT-001, BR-PAYMENT-002, BR-PAYMENT-003, BR-PAYMENT-004, BR-PAYMENT-005, BR-PAYMENT-006 |
-| ENTITY-PAYMENT-002 | Transaction | BR-PAYMENT-007, BR-PAYMENT-008, BR-PAYMENT-011, BR-PAYMENT-015, BR-PAYMENT-016 |
-| ENTITY-PAYMENT-003 | Seller Transfer | BR-PAYMENT-001, BR-PAYMENT-009, BR-PAYMENT-010, BR-PAYMENT-012, BR-PAYMENT-013, BR-PAYMENT-014, BR-PAYMENT-015 |
-| ENTITY-PAYMENT-004 | Refund | BR-PAYMENT-016, BR-PAYMENT-017, BR-PAYMENT-018, BR-PAYMENT-019, BR-PAYMENT-020, BR-PAYMENT-021, BR-PAYMENT-022, BR-PAYMENT-023, BR-PAYMENT-024 |
-| ENTITY-PAYMENT-005 | Refund Item | BR-PAYMENT-022, BR-PAYMENT-023 |
+| [ENTITY-PAYMENT-001](../../data-models/payment-service/entity-stripe-account.md) | Seller Stripe Account | BR-PAYMENT-001, BR-PAYMENT-002, BR-PAYMENT-003, BR-PAYMENT-004, BR-PAYMENT-005, BR-PAYMENT-006 |
+| [ENTITY-PAYMENT-002](../../data-models/payment-service/entity-transaction.md) | Transaction | BR-PAYMENT-007, BR-PAYMENT-008, BR-PAYMENT-011, BR-PAYMENT-015 |
+| [ENTITY-PAYMENT-003](../../data-models/payment-service/entity-seller-transfer.md) | Seller Transfer | BR-PAYMENT-001, BR-PAYMENT-009, BR-PAYMENT-010, BR-PAYMENT-012, BR-PAYMENT-013, BR-PAYMENT-014, BR-PAYMENT-015 |
 
 ---
 
@@ -38,15 +36,6 @@
 | BR-PAYMENT-013 | Webhook signature verification | FR-PAYMENT-009 |
 | BR-PAYMENT-014 | Seller charges check | FR-PAYMENT-011 |
 | BR-PAYMENT-015 | Kafka event publishing (payment) | FR-PAYMENT-005, FR-PAYMENT-006 |
-| BR-PAYMENT-016 | Transaction status propagation | FR-PAYMENT-012 |
-| BR-PAYMENT-017 | Return window eligibility | FR-PAYMENT-013 |
-| BR-PAYMENT-018 | Evidence requirement | FR-PAYMENT-014 |
-| BR-PAYMENT-019 | Admin approval gate | FR-PAYMENT-015 |
-| BR-PAYMENT-020 | Pre-payout vs post-payout refund | FR-PAYMENT-016 |
-| BR-PAYMENT-021 | RTS auto-refund | FR-PAYMENT-008 |
-| BR-PAYMENT-022 | Refund amount validation | FR-PAYMENT-013 |
-| BR-PAYMENT-023 | Refund grouping by UUID | (entity-level) |
-| BR-PAYMENT-024 | Kafka event publishing (refund) | FR-PAYMENT-015 |
 
 ---
 
@@ -61,15 +50,11 @@
 | FR-PAYMENT-005 | Payment success handling | UC-PAYMENT-002, UC-PAYMENT-003 |
 | FR-PAYMENT-006 | Payment failure handling | UC-PAYMENT-002, UC-PAYMENT-003 |
 | FR-PAYMENT-007 | Payment timeout auto-cancel | UC-PAYMENT-002 |
-| FR-PAYMENT-008 | RTS auto-refund | UC-PAYMENT-004 |
+| FR-PAYMENT-008 | RTS auto-refund (downstream link) | (handled by refund-service) |
 | FR-PAYMENT-009 | Webhook signature verification | UC-PAYMENT-003 |
 | FR-PAYMENT-010 | Commission calculation | UC-PAYMENT-007 |
 | FR-PAYMENT-011 | Delayed payout execution | UC-PAYMENT-007 |
 | FR-PAYMENT-012 | Transaction status aggregation | UC-PAYMENT-002 |
-| FR-PAYMENT-013 | Refund eligibility validation | UC-PAYMENT-004 |
-| FR-PAYMENT-014 | Refund evidence upload | UC-PAYMENT-004 |
-| FR-PAYMENT-015 | Admin refund review | UC-PAYMENT-005, UC-PAYMENT-006 |
-| FR-PAYMENT-016 | Stripe refund execution | UC-PAYMENT-005 |
 
 ---
 
@@ -79,10 +64,7 @@
 |----------|------------------------|
 | UC-PAYMENT-001 | state-stripe-account (PENDING -> IN_PROGRESS -> COMPLETE) |
 | UC-PAYMENT-002 | state-transaction ([*] -> PENDING -> COMPLETED / FAILED) |
-| UC-PAYMENT-003 | state-transaction, state-refund, state-stripe-account |
-| UC-PAYMENT-004 | state-refund ([*] -> PENDING_REVIEW) |
-| UC-PAYMENT-005 | state-refund (PENDING_REVIEW -> APPROVED -> PROCESSING -> COMPLETED) |
-| UC-PAYMENT-006 | state-refund (PENDING_REVIEW -> REJECTED) |
+| UC-PAYMENT-003 | state-transaction, state-stripe-account |
 | UC-PAYMENT-007 | state-transaction (SELLER_TRANSFERS downstream states) |
 | UC-PAYMENT-008 | (read-only, no state transitions) |
 
@@ -95,9 +77,6 @@
 | UC-PAYMENT-001 | api-post-stripe-onboarding-start.yaml |
 | UC-PAYMENT-002 | api-post-stripe-webhook.yaml (payment_intent events) |
 | UC-PAYMENT-003 | api-post-stripe-webhook.yaml |
-| UC-PAYMENT-004 | api-post-refunds.yaml |
-| UC-PAYMENT-005 | api-put-refunds-approve.yaml (approve endpoint) |
-| UC-PAYMENT-006 | api-put-refunds-approve.yaml (reject endpoint) |
 | UC-PAYMENT-007 | api-post-stripe-webhook.yaml (transfer.created events) |
 | UC-PAYMENT-008 | (GET endpoints documented in API spec, no dedicated contract) |
 
@@ -109,36 +88,40 @@
 |-------------|-----------------|-------------------|
 | `payment.success` | TRANSACTIONS | PARENT_ORDERS, SELLER_TRANSFERS (-> AWAITING_DELIVERY) |
 | `payment.failed` | TRANSACTIONS | PARENT_ORDERS (-> CANCELLED) |
-| `refund.requested` | REFUNDS | (notification only) |
-| `refund.admin_approved` | REFUNDS | REFUND_ITEMS, SELLER_TRANSFERS |
-| `refund.rejected` | REFUNDS | (notification only) |
-| `refund.rts_completed` | REFUNDS | (notification, order update) |
-| `refund.stripe_auto` | REFUNDS | (order update) |
 | `stripe.account_suspended` (post-MVP) | SELLER_STRIPE_ACCOUNTS | SELLERS, SELLER_TRANSFERS (future) |
 | `stripe.transfer.reversed` | SELLER_TRANSFERS | (order update) |
 | `stripe.payout.failed` | SELLER_TRANSFERS | (notification only) |
 | `payment.requested` (consumed) | -- | TRANSACTIONS, SELLER_TRANSFERS |
-| `order.returned` (consumed) | -- | REFUNDS, REFUND_ITEMS, SELLER_TRANSFERS |
+
+---
+
+## Use Cases & Events to Business Flows
+
+| Use Case / Event | Business Flow | Integration Role |
+|------------------|---------------|------------------|
+| [UC-PAYMENT-001](../../use-cases/payment-service/uc-001-create-onboarding.md) | [flow-stripe-onboarding](../../flows/cross-service/flow-stripe-onboarding.md) | Creates express merchant account and returns KYC onboarding link |
+| [UC-PAYMENT-002](../../use-cases/payment-service/uc-002-create-payment.md) | [flow-order-cancellation](../../flows/cross-service/flow-order-cancellation.md) | Cancels uncaptured PaymentIntent on order cancellation |
+| [UC-PAYMENT-003](../../use-cases/payment-service/uc-003-stripe-webhook.md) | [flow-stripe-onboarding](../../flows/cross-service/flow-stripe-onboarding.md) | Handles `account.updated` webhook to activate Stripe account |
+| `order.cancelled` (consumed) | [flow-order-cancellation](../../flows/cross-service/flow-order-cancellation.md) | Consumed to release pending Stripe PaymentIntents |
+| `refund.admin_approved` (consumed) | [flow-refund-processing](../../flows/cross-service/flow-refund-processing.md) | Consumed to reverse seller transfers on Stripe |
 
 ---
 
 ## Full Coverage Matrix
 
 ```
-                    ENTITY  BR    FR    UC    API   STATE
-ENTITY-PAYMENT-001    X     X     X     X     X      X
-ENTITY-PAYMENT-002    X     X     X     X     X      X
-ENTITY-PAYMENT-003    X     X     X     X     -      -
-ENTITY-PAYMENT-004    X     X     X     X     X      X
-ENTITY-PAYMENT-005    X     X     -     X     -      -
+                    ENTITY  BR    FR    UC    API   STATE  FLOW
+ENTITY-PAYMENT-001    X     X     X     X     X      X      X
+ENTITY-PAYMENT-002    X     X     X     X     X      X      X
+ENTITY-PAYMENT-003    X     X     X     X     -      -      X
 
-BR-PAYMENT-001..006   -     X     X     X     X      X
-BR-PAYMENT-007..016   -     X     X     X     X      X
-BR-PAYMENT-017..024   -     X     X     X     X      X
+BR-PAYMENT-001..006   -     X     X     X     X      X      X
+BR-PAYMENT-007..015   -     X     X     X     X      X      X
 
-FR-PAYMENT-001..016   -     -     X     X     X      X
+FR-PAYMENT-001..012   -     -     X     X     X      X      X
 
-UC-PAYMENT-001..008   -     -     -     X     X      X
+UC-PAYMENT-001..003   -     -     -     X     X      X      X
+UC-PAYMENT-007..008   -     -     -     X     X      X      X
 ```
 
-**Key**: X = coverage exists, - = not applicable (e.g., API contracts only for POST/PUT endpoints)
+**Key**: X = coverage exists, - = not applicable

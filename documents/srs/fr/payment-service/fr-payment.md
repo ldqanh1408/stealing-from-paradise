@@ -1,7 +1,7 @@
 # FR-PAYMENT: Functional Requirements
 
 **Domain**: Payment Service  
-**Version**: v5.4  
+**Version**: v5.5  
 **References**: [02_API_payment_service.md](../../../docs/services/payment-service/02_API_payment_service.md), [06_PAYMENT_SAGA_FLOW.md](../../../docs/business/06_PAYMENT_SAGA_FLOW.md)
 
 ---
@@ -94,17 +94,6 @@
 
 ---
 
-## FR-PAYMENT-008: RTS Auto-Refund
-
-| Property | Value |
-|----------|-------|
-| **Description** | Return-To-Sender orders automatically generate full refunds |
-| **Trigger** | Kafka `order.returned` from Order Service |
-| **Actions** | Create REFUND (type=FULL, refund_reason_type=RETURN_TO_SENDER), check pre/post payout, execute Stripe refund, publish `refund.rts_completed` |
-| **Cites** | UC-PAYMENT-004, BR-PAYMENT-021 |
-
----
-
 ## FR-PAYMENT-009: Webhook Signature Verification
 
 | Property | Value |
@@ -151,54 +140,4 @@
 | **SUCCESS** | Payment completed, no refunds |
 | **PARTIALLY_REFUNDED** | Some refunds processed |
 | **REFUNDED** | All amounts refunded |
-| **Cites** | UC-PAYMENT-002, BR-PAYMENT-016 |
-
----
-
-## FR-PAYMENT-013: Refund Eligibility Validation
-
-| Property | Value |
-|----------|-------|
-| **Description** | System validates refund requests before processing |
-| **Checks** | (1) Order within return_window_end; (2) Refund amount <= remaining balance; (3) Evidence images provided for BUYER_REQUEST |
-| **On Violation** | Return error with specific reason |
-| **Cites** | UC-PAYMENT-004, BR-PAYMENT-017, BR-PAYMENT-022 |
-
----
-
-## FR-PAYMENT-014: Refund Evidence Upload
-
-| Property | Value |
-|----------|-------|
-| **Description** | Buyer must upload evidence images when requesting a refund |
-| **Field** | `evidence_images` (JSONB array of MinIO URLs) |
-| **Requirement** | At least 1 image for BUYER_REQUEST type |
-| **Storage** | Images uploaded to MinIO, URLs stored in REFUNDS.evidence_images |
-| **Cites** | UC-PAYMENT-004, BR-PAYMENT-018 |
-
----
-
-## FR-PAYMENT-015: Admin Refund Review
-
-| Property | Value |
-|----------|-------|
-| **Description** | Admin reviews and either approves or rejects refund requests |
-| **Approve Endpoint** | PUT `/refunds/{id}/approve` |
-| **Reject Endpoint** | PUT `/refunds/{id}/reject` |
-| **Auth** | JWT (ADMIN) |
-| **Approve Action** | Set status = APPROVED, trigger Stripe refund, publish `refund.admin_approved` |
-| **Reject Action** | Set status = REJECTED, set `reject_reason`, publish `refund.rejected` |
-| **Cites** | UC-PAYMENT-005, UC-PAYMENT-006, BR-PAYMENT-019 |
-
----
-
-## FR-PAYMENT-016: Stripe Refund Execution
-
-| Property | Value |
-|----------|-------|
-| **Description** | Execute the actual refund via Stripe API after admin approval |
-| **Pre-Payout** | Stripe `Refund.create()` from platform balance; no reversal needed |
-| **Post-Payout** | Stripe Transfer reversal; `SELLER_TRANSFERS.status = REVERSED` |
-| **Response** | Set `refund_ref` (Stripe refund ID `re_xxx`), `raw_response` (Stripe payload) |
-| **On Stripe Error** | Set status = FAILED, log error |
-| **Cites** | UC-PAYMENT-005, BR-PAYMENT-020 |
+| **Cites** | UC-PAYMENT-002, [UC-REFUND-001](../../../use-cases/refund-service/uc-001-create-refund.md), BR-PAYMENT-016 |

@@ -45,10 +45,10 @@
 | `[*]` | `PENDING` | `payment.requested` Kafka event | System (ParentOrderPaymentSaga) | UC-PAYMENT-002 |
 | `PENDING` | `SUCCESS` | Stripe webhook `payment_intent.succeeded` | Stripe / System | UC-PAYMENT-003 |
 | `PENDING` | `FAILED` | Stripe webhook `payment_intent.payment_failed` | Stripe / System | UC-PAYMENT-003 |
-| `SUCCESS` | `REFUNDED` | All refunds processed; total refunded = amount | System (admin approve) | UC-PAYMENT-005 |
-| `SUCCESS` | `PARTIALLY_REFUNDED` | Partial refund processed; amount > 0 refunded < amount | System (admin approve) | UC-PAYMENT-005 |
+| `SUCCESS` | `REFUNDED` | All refunds processed; total refunded = amount | System (admin approve) | [UC-REFUND-002](../../use-cases/refund-service/uc-002-approve-refund.md) |
+| `SUCCESS` | `PARTIALLY_REFUNDED` | Partial refund processed; amount > 0 refunded < amount | System (admin approve) | [UC-REFUND-002](../../use-cases/refund-service/uc-002-approve-refund.md) |
 | `REFUNDED` | `[*]` | Terminal state | -- | -- |
-| `PARTIALLY_REFUNDED` | `REFUNDED` | Remaining balance refunded | System | UC-PAYMENT-005 |
+| `PARTIALLY_REFUNDED` | `REFUNDED` | Remaining balance refunded | System | [UC-REFUND-002](../../use-cases/refund-service/uc-002-approve-refund.md) |
 | `FAILED` | `[*]` | Terminal state | -- | -- |
 
 ---

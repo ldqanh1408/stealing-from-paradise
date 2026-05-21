@@ -180,8 +180,8 @@
 | 25 | Data Model | entity-order: `net_payout_amount`, `carrier`, `paid_at`, `return_window_end`, `shipped_at`, `delivered_at` in doc but NOT in Java | HIGH | Fixed 2026-05-10: removed 6 phantom fields; added isFlashSale, version |
 | 26 | Data Model | entity-order-item: `variant_id` doc says UUID, Java is VARCHAR(100); `refunded_quantity` missing from doc | MEDIUM | Fixed 2026-05-10: corrected type, added refunded_quantity |
 | 27 | Data Model | entity-parent-order: `session_id`, `status` in doc but NOT in Java (very simple entity) | MEDIUM | Fixed 2026-05-10: removed phantom fields |
-| 28 | Data Model | entity-refund: `user_id` in Java (20 fields) but missing from doc (19 fields) | MEDIUM | Fixed 2026-05-10: added userId, updated full schema |
-| 29 | Data Model | entity-refund-item: field names mismatch — `itemReason` vs `reason`, `returnEvidenceImages` vs `evidence_images`; no `reject_reason`, `reviewed_at`, `carrier` in Java | MEDIUM | Fixed 2026-05-10: aligned field names to Java source |
+| 28 | Data Model | entity-refund: `user_id` in Java (20 fields) but missing from doc (19 fields) | MEDIUM | **RESOLVED 2026-05-12**: Moved to `refund-service/entity-refund.md`, added `userId`, aligned fields to match Java. |
+| 29 | Data Model | entity-refund-item: field names mismatch — `itemReason` vs `reason`, `returnEvidenceImages` vs `evidence_images`; no `reject_reason`, `reviewed_at`, `carrier` in Java | MEDIUM | **RESOLVED 2026-05-12**: Moved to `refund-service/entity-refund-item.md` and fields aligned with Java source of truth. |
 | 30 | Data Model | entity-seller-transfer: `transaction_id`, `refunded_amount`, `net_payout_amount` in doc but NOT in Java | MEDIUM | Fixed 2026-05-10: removed phantom fields, added platform_commission_amount, payout_at |
 | 31 | API Contract | 3 MUST-HAVE APIs RESOLVED 2026-05-11; 4 SHOULD-HAVE deferred (post-MVP scope per user direction) | MEDIUM | Documented 2026-05-10: improved from 35 to 68 YAMLs; all 3 MUST-HAVE endpoints now have YAML on disk; 4 SHOULD-HAVE endpoints deferred per user direction |
 | 32 | API Contract | flashsale, ai-chat, notification, search: YAML files exist but no backend controllers implemented | LOW | YAML ahead of implementation |
@@ -191,4 +191,4 @@
 
 ---
 
-*Generated: 2026-05-10 | Updated: 2026-05-10 | 220 files (155 .md + 65 .yaml) | 12 Java entities verified | 15 cronjobs audited | API coverage: 78% | Operations: 100% (12 files) | All 10 categories: 100% service coverage*
+*Generated: 2026-05-10 | Updated: 2026-05-12 | 225 files (159 .md + 66 .yaml) | 12 Java entities verified | 15 cronjobs audited | API coverage: 80% | Operations: 100% | All 10 categories: 100% service coverage*

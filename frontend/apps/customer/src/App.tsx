@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@shared/components/Layout';
 import PrivateRoute from '@shared/components/PrivateRoute';
+import ChatWidget from '@/components/ChatWidget';
+import { useAuthStore } from '@shared/store/authStore';
 
 const LoginPage          = lazy(() => import('@shared/pages/LoginPage'));
 const RegisterPage       = lazy(() => import('@shared/pages/RegisterPage'));
@@ -34,6 +36,8 @@ const AUTH_LINKS = [
 ];
 
 export default function App() {
+  const { isAuthenticated } = useAuthStore();
+
   return (
     <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
       <Routes>
@@ -70,6 +74,7 @@ export default function App() {
           }
         />
       </Routes>
+      {isAuthenticated && <ChatWidget />}
     </Suspense>
   );
 }

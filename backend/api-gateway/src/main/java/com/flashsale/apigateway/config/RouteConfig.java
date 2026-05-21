@@ -46,13 +46,15 @@ public class RouteConfig {
 
             // ===== Product Service =====
             .route("product-read", r -> r
-                .path("/api/v1/products/**", "/api/v1/categories/**", "/api/v1/seller/**", "/api/v1/inventory/**")
+                .path("/api/v1/products/**", "/api/v1/categories/**", "/api/v1/seller/**", "/api/v1/inventory/**",
+                      "/api/v1/admin/products/**", "/api/v1/admin/categories/**")
                 .and().method(HttpMethod.GET)
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://product-service"))
 
             .route("product-write", r -> r
-                .path("/api/v1/products/**", "/api/v1/categories/**", "/api/v1/seller/**", "/api/v1/inventory/**")
+                .path("/api/v1/products/**", "/api/v1/categories/**", "/api/v1/seller/**", "/api/v1/inventory/**",
+                      "/api/v1/admin/products/**", "/api/v1/admin/categories/**")
                 .and().method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE)
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://product-service"))

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { flashSaleApi, type FlashSaleSession } from '@shared/api/flashSale.api';
+import { adminApi } from '@shared/api/admin.api';
 
 const STATUS_COLORS: Record<string, string> = {
   UPCOMING: 'bg-blue-100 text-blue-700',
@@ -15,10 +16,18 @@ function formatDateTime(iso?: string) {
   });
 }
 
+function toLocalDatetime(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function FlashSaleConfigPage() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingSession, setEditingSession] = useState<FlashSaleSession | null>(null);
+  const [deletingSession, setDeletingSession] = useState<FlashSaleSession | null>(null);
   const [name, setName] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -26,16 +35,15 @@ export default function FlashSaleConfigPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-flash-sale-sessions'],
-    queryFn: () => flashSaleApi.getSessions({ size: 100 }).then(r => r.data.data),
+    queryFn: () => flashSaleApi.getSessions().then(r => r.data.data),
     staleTime: 1000 * 60,
   });
 
   const createMut = useMutation({
-    mutationFn: () =>
-      flashSaleApi.createSession({ name, start_time: startTime, end_time: endTime }),
+    mutationFn: () => flashSaleApi.createSession({ name, startTime, endTime }),
     onSuccess: () => {
       setShowForm(false);
-      setName(''); setStartTime(''); setEndTime('');
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['admin-flash-sale-sessions'] });
     },
     onError: (err: any) => {
@@ -43,7 +51,58 @@ export default function FlashSaleConfigPage() {
     },
   });
 
+  const updateMut = useMutation({
+    mutationFn: () => adminApi.updateFlashSaleSession(editingSession!.id, {
+      name,
+      startTime,
+      endTime,
+    }),
+    onSuccess: () => {
+      setEditingSession(null);
+      setShowForm(false);
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ['admin-flash-sale-sessions'] });
+    },
+    onError: (err: any) => {
+      setFormError(err?.response?.data?.message || 'Cập nhật thất bại');
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (sessionId: number) => adminApi.deleteFlashSaleSession(sessionId),
+    onSuccess: () => {
+      setDeletingSession(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-flash-sale-sessions'] });
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.message || 'Không thể xoá phiên.');
+      setDeletingSession(null);
+    },
+  });
+
   const sessions: FlashSaleSession[] = data?.content ?? [];
+
+  const resetForm = () => {
+    setName('');
+    setStartTime('');
+    setEndTime('');
+    setFormError(null);
+  };
+
+  const handleOpenCreate = () => {
+    resetForm();
+    setEditingSession(null);
+    setShowForm(true);
+  };
+
+  const handleOpenEdit = (s: FlashSaleSession) => {
+    setFormError(null);
+    setName(s.name);
+    setStartTime(toLocalDatetime(s.startTime));
+    setEndTime(toLocalDatetime(s.endTime));
+    setEditingSession(s);
+    setShowForm(true);
+  };
 
   const handleSubmit = () => {
     if (!name.trim() || !startTime || !endTime) {
@@ -55,12 +114,17 @@ export default function FlashSaleConfigPage() {
       return;
     }
     setFormError(null);
-    createMut.mutate();
+    if (editingSession) {
+      updateMut.mutate();
+    } else {
+      createMut.mutate();
+    }
   };
+
+  const isMutating = createMut.isPending || updateMut.isPending;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Cấu hình Flash Sale</h1>
@@ -77,10 +141,12 @@ export default function FlashSaleConfigPage() {
         </button>
       </div>
 
-      {/* Create form */}
+      {/* Create / Edit form */}
       {showForm && (
         <div className="bg-white rounded-2xl border border-violet-100 p-6 mb-6 shadow-sm">
-          <h2 className="font-bold text-gray-900 mb-4">Tạo phiên Flash Sale mới</h2>
+          <h2 className="font-bold text-gray-900 mb-4">
+            {editingSession ? `Chỉnh sửa: ${editingSession.name}` : 'Tạo phiên Flash Sale mới'}
+          </h2>
           {formError && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{formError}</div>
           )}
@@ -117,13 +183,13 @@ export default function FlashSaleConfigPage() {
           <div className="flex gap-3 mt-5">
             <button
               onClick={handleSubmit}
-              disabled={createMut.isPending}
+              disabled={isMutating}
               className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm rounded-xl transition-colors disabled:opacity-50"
             >
-              {createMut.isPending ? 'Đang tạo...' : 'Tạo phiên'}
+              {isMutating ? 'Đang xử lý...' : editingSession ? 'Cập nhật' : 'Tạo phiên'}
             </button>
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => { setShowForm(false); setEditingSession(null); resetForm(); }}
               className="px-5 py-2.5 border border-gray-200 text-gray-700 font-semibold text-sm rounded-xl hover:bg-gray-50 transition-colors"
             >
               Huỷ
@@ -156,7 +222,7 @@ export default function FlashSaleConfigPage() {
             Tạo phiên flash sale đầu tiên để thu hút khách hàng với giá ưu đãi đặc biệt
           </p>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={handleOpenCreate}
             className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm rounded-xl transition-colors"
           >
             Tạo phiên đầu tiên
@@ -190,23 +256,54 @@ export default function FlashSaleConfigPage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingSession(s)}
-                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          Chỉnh sửa
-                        </button>
-                        {s.status !== 'ACTIVE' && (
-                          <button className="text-xs text-red-500 hover:text-red-600 font-medium">
-                            Xoá
+                        {s.status === 'UPCOMING' && (
+                          <button
+                            onClick={() => handleOpenEdit(s)}
+                            className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Chỉnh sửa
                           </button>
                         )}
+                        <button
+                          onClick={() => setDeletingSession(s)}
+                          className="text-xs text-red-500 hover:text-red-600 font-medium"
+                        >
+                          Xoá
+                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deletingSession && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Xoá phiên Flash Sale?</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Bạn có chắc muốn xoá phiên <strong>"{deletingSession.name}"</strong>? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingSession(null)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => deleteMut.mutate(deletingSession.id)}
+                disabled={deleteMut.isPending}
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMut.isPending ? 'Đang xoá...' : 'Xoá'}
+              </button>
+            </div>
           </div>
         </div>
       )}

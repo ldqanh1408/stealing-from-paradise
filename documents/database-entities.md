@@ -45,7 +45,7 @@ Lưu trữ tại **MinIO** (object storage), bucket `products-media`.
 | `created_at` | TIMESTAMP | |
 | `updated_at` | TIMESTAMP | |
 
-**Index:** `idx_users_role` ON users(role)
+**Index:** `idx_users_role` ON users(role), UNIQUE `idx_users_email` ON users(email), UNIQUE `idx_users_phone` ON users(phone) (P2-10 APPROVED)
 
 ### ROLES
 
@@ -272,15 +272,6 @@ Danh mục đa cấp – tự tham chiếu.
 > - Không còn trường `flash_price`, `flash_stock`, `status` phức tạp – đăng ký là tự động duyệt.
 > - Tồn kho vẫn dùng `product_variant.stock_quantity` và cơ chế reservation khi checkout.
 
-### FS_REMINDERS (giữ nguyên)
-
-| Cột          | Kiểu      | Ghi chú |
-|--------------|-----------|---------|
-| `id`         | BIGSERIAL | PK |
-| `customer_id`| BIGINT    | FK → customers.id |
-| `session_id` | BIGINT    | FK → fs_sessions.id |
-| `created_at` | TIMESTAMP | |
-
 ---
 
 ## 6. Orders
@@ -408,39 +399,45 @@ Danh mục đa cấp – tự tham chiếu.
 | `created_at`            | TIMESTAMP     | |
 | `updated_at`            | TIMESTAMP     | |
 
-### REFUNDS
+### REFUNDS (Schema: `refund`)
 
-| Cột              | Kiểu      |
-|------------------|-----------|
-| `id`             | BIGSERIAL |
-| `transaction_id` | BIGINT    |
-| `order_id`       | BIGINT    |
-| `group_ref`      | UUID      |
-| `type`           | VARCHAR   |
-| `amount`         | DECIMAL   |
-| `status`         | VARCHAR   |
-| `reason`         | VARCHAR   |
-| `refund_ref`     | VARCHAR   |
-| `raw_response`   | JSONB     |
-| `created_at`     | TIMESTAMP |
-| `updated_at`     | TIMESTAMP |
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | BIGSERIAL | PK |
+| `transaction_id` | BIGINT | FK → payment.transactions.id, NOT NULL |
+| `order_id` | BIGINT | FK → orders.orders.id, NOT NULL |
+| `user_id` | BIGINT | FK → users.id, NULLABLE |
+| `group_ref` | UUID | NULLABLE |
+| `type` | VARCHAR | `FULL` / `PARTIAL`, NOT NULL |
+| `initiated_by` | VARCHAR | `BUYER` / `SELLER` / `SYSTEM`, NOT NULL |
+| `refund_reason_type` | VARCHAR | NULLABLE |
+| `amount` | DECIMAL | NOT NULL |
+| `reason` | TEXT | NULLABLE |
+| `status` | VARCHAR | `PENDING` / `SUCCESS` / `FAILED` / `REJECTED`, NOT NULL, DEFAULT 'PENDING' |
+| `evidence_images` | JSONB | Array of MinIO URLs, NULLABLE |
+| `reject_reason` | TEXT | NULLABLE |
+| `admin_note` | TEXT | NULLABLE |
+| `reviewed_by` | BIGINT | FK → users.id (ADMIN), NULLABLE |
+| `reviewed_at` | TIMESTAMP | NULLABLE |
+| `refund_ref` | VARCHAR | Stripe Refund ID, NULLABLE |
+| `raw_response` | JSONB | Raw Stripe response payload, NULLABLE |
+| `created_at` | TIMESTAMP | NOT NULL |
+| `updated_at` | TIMESTAMP | NOT NULL |
 
-### REFUND_ITEMS
+### REFUND_ITEMS (Schema: `refund`)
 
-| Cột                      | Kiểu      |
-|--------------------------|-----------|
-| `id`                     | BIGSERIAL |
-| `refund_id`              | BIGINT    |
-| `item_id`                | BIGINT    |
-| `refund_amount`          | DECIMAL   |
-| `reason`                 | VARCHAR   |
-| `status`                 | VARCHAR   |
-| `evidence_images`        | JSONB     |
-| `reject_reason`          | VARCHAR   |
-| `reviewed_at`            | TIMESTAMP |
-| `return_tracking_number` | VARCHAR   |
-| `carrier`                | VARCHAR   |
-| `returned_at`            | TIMESTAMP |
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | BIGSERIAL | PK |
+| `refund_id` | BIGINT | FK → refund.refunds.id, NOT NULL |
+| `item_id` | BIGINT | FK → orders.order_items.id, NOT NULL |
+| `quantity` | INTEGER | NOT NULL |
+| `refund_amount` | DECIMAL | NULLABLE |
+| `item_reason` | TEXT | NULLABLE |
+| `status` | VARCHAR | `PENDING` / `SUCCESS` / `FAILED`, NOT NULL, DEFAULT 'PENDING' |
+| `return_tracking_number` | VARCHAR | NULLABLE |
+| `return_evidence_images` | JSONB | Array of MinIO URLs, NULLABLE |
+| `returned_at` | TIMESTAMP | NULLABLE |
 
 ---
 
@@ -562,9 +559,10 @@ Audit log mọi lần AI gọi tool (thành công/thất bại) để debug và 
 | **identity**   | users, roles, customers, sellers, admins, addresses |
 | **catalog**    | category, product, product_variant, product_image, stock_reservation |
 | **cart**       | cart, cart_item                                |
-| **flash_sale** | fs_sessions, fs_items, fs_reminders            |
+| **flash_sale** | fs_sessions, fs_items                          |
 | **orders**     | parent_orders, orders, order_items             |
-| **payments**   | seller_stripe_accounts, transactions, seller_transfers, refunds, refund_items |
+| **payments**   | seller_stripe_accounts, transactions, seller_transfers |
+| **refunds**    | refunds, refund_items |
 | **notifications** | mg_notifications (MongoDB)                  |
 | **search**     | Elasticsearch index `skus`                     |
 | **ai_chat**    | chat_sessions, chat_messages, pending_confirmations, tool_call_logs |
@@ -577,7 +575,9 @@ Audit log mọi lần AI gọi tool (thành công/thất bại) để debug và 
 
 ## Lịch sử thay đổi
 
-### 2026-05-10 (theo DB_SCHEMA_CHANGE_PROPOSAL.md)
+### 2026-05-12 (theo DB_SCHEMA_CHANGE_PROPOSAL.md & refund-service split)
+- **USERS**: thêm unique index cho `email` và `phone` (P2-10 APPROVED).
+- **REFUNDS** & **REFUND_ITEMS**: đồng bộ cấu trúc cột khớp 100% với JPA entity Java (Refund.java, RefundItem.java) trong schema `refund` và cập nhật Table Groups.
 - **PARENT_ORDERS**: thêm cột `currency VARCHAR(3) NOT NULL DEFAULT 'VND'` (P1-06).
 - **SELLER_TRANSFERS**: thêm `stripe_payout_id`, `failure_code`, `failure_reason`; bổ sung enum status `ELIGIBLE / IN_TRANSIT / PAID / FAILED / RETRYING` (P1-08).
 - **MG_NOTIFICATIONS**: thêm cột `read_at TIMESTAMP NULLABLE` (P2-09).
