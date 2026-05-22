@@ -1,30 +1,31 @@
-# UC-SEARCH-001: Search Products (Full-Text)
+# UC-SEARCH-001: Product Listing & Search
 
-> **Service**: search-service (Port 8091)
-> **Use Case ID**: UC-SEARCH-001
-> **Priority**: HIGH
-> **Source**: 02_API_search_service.md
+|> **Service**: search-service (Port 8091)
+|> **Use Case ID**: UC-SEARCH-001
+|> **Priority**: HIGH
+|> **Source**: 02_API_search_service.md
+|> **Last Updated**: 2026-05-22
 
 ---
 
 ## Brief
 
-User enters keywords in the search bar. The system performs full-text search against the Elasticsearch index and returns collapsed product results (one card per product).
+User browses homepage/category or searches for products. The system queries Elasticsearch and returns collapsed product results (one card per product). All filtering, sorting, and faceting is handled by this endpoint.
 
 ---
 
 ## Actors
 
-| Actor | Role |
+|| Actor | Role |
 |-------|------|
-| Shopper (any user) | Enters search keywords |
+| Shopper (any user) | Browses or enters search keywords |
 | System | Elasticsearch query engine |
 
 ---
 
 ## Preconditions
 
-| # | Condition |
+|| # | Condition |
 |---|-----------|
 | 1 | Elasticsearch `skus` index is populated and healthy |
 | 2 | Vietnamese text analyzer is configured |
@@ -33,62 +34,114 @@ User enters keywords in the search bar. The system performs full-text search aga
 
 ## Main Flow
 
-| Step | Actor | Action |
+|| Step | Actor | Action |
 |------|-------|--------|
-| 1 | User | Types keywords in search bar, presses Enter |
-| 2 | Client | Sends GET /search/products?q={keywords}&page=0&size=20 |
-| 3 | Server | Constructs `multi_match` query across `product_name^3`, `product_description`, `product_attributes.*` |
-| 4 | Server | Adds `bool.filter`: `is_active = true` |
-| 5 | Server | Applies field collapsing by `product_id` with `inner_hits` (cheapest in-stock SKU) |
-| 6 | Server | Sorts by `_score DESC` |
-| 7 | Server | Returns `{"total_results": N, "products": [...], "page": 0, "size": 20, "total_pages": M}` |
-| 8 | Client | Renders product cards with representative price, image, seller name |
+| 1 | User | Navigates to homepage, category page, or types keywords in search bar |
+| 2 | Client | Sends GET /search/products with optional `q` and filter params |
+| 3 | Server | IF `q` is provided: constructs `multi_match` query across `product_name^3`, `product_description`, `product_attributes.*` |
+| 4 | Server | IF `q` is empty: constructs `match_all` query (browse mode) |
+| 5 | Server | Adds `bool.filter`: `is_active = true` |
+| 6 | Server | Applies additional filters: category_id, price_min/max, in_stock, is_flash, etc. |
+| 7 | Server | Applies field collapsing by `product_id` with `inner_hits` (cheapest in-stock SKU) |
+| 8 | Server | Sorts by `_score DESC` (search) or specified `sort` param (browse) |
+| 9 | Server | Executes query with aggregations for facets: by color, by size, price stats |
+| 10 | Server | Returns `{"total_results": N, "products": [...], "filters": {...}, "page": 0, "size": 20, "total_pages": M}` |
+| 11 | Client | Renders product cards with filters sidebar, facet counts, and pagination |
+
+---
+
+## URL Parameters
+
+|| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `q` | string | No | Search keywords (Vietnamese full-text search). If empty, returns all products (browse mode). |
+| `category_id` | UUID | No | Filter by category |
+| `price_min` | integer | No | Minimum price filter |
+| `price_max` | integer | No | Maximum price filter |
+| `in_stock` | boolean | No | Filter in-stock only |
+| `is_flash` | boolean | No | Filter flash sale items only |
+| `sort` | string | No | Sort order: `relevance`, `price_asc`, `price_desc`, `newest`, `sold_desc` |
+| `page` | integer | No | Page number (default: 0) |
+| `size` | integer | No | Page size (default: 20, max: 40) |
+
+---
+
+## Example URLs
+
+```
+GET /search/products                                    # Browse all (homepage)
+GET /search/products?category_id=uuid                  # Browse category
+GET /search/products?category_id=uuid&price_min=100000&price_max=500000  # Browse + price filter
+GET /search/products?q=áo thun                          # Full-text search
+GET /search/products?q=áo thun&category_id=uuid        # Search + category filter
+GET /search/products?q=áo thun&sort=price_asc&in_stock=true  # Search + filters + sort
+```
 
 ---
 
 ## Alternate Flows
 
-| Flow | Condition | Action |
+|| Flow | Condition | Action |
 |------|-----------|--------|
 | A1 | User types while searching | Client calls GET /search/products/suggest for autocomplete |
-| A2 | No results found | Returns `{"total_results": 0, "products": []}` |
+| A2 | No results found | Returns `{"total_results": 0, "products": [], "filters": {}}` |
 | A3 | Fuzzy match returns unexpected results | User refines query with more specific keywords |
 | A4 | Page beyond `max_result_window` | Returns empty result set (ES limit 10,000) |
+| A5 | Empty `q` with no other filters | Returns all active products sorted by `newest` |
+| A6 | `is_flash=true` | Add `exists: { field: "flash_session_id" }` filter |
+| A7 | User applies/clears filters | Reload current query with updated filter params |
 
 ---
 
 ## Postconditions
 
-| # | Condition |
+|| # | Condition |
 |---|-----------|
-| 1 | User sees relevant products matching search query |
+| 1 | User sees relevant products matching browse/search criteria |
 | 2 | Products are grouped (one card per product via field collapsing) |
+| 3 | Filter sidebar shows facet counts for current result set |
+| 4 | Active filters displayed as tags |
 
 ---
 
 ## Exceptions
 
-| Code | Condition | Response |
+|| Code | Condition | Response |
 |------|-----------|----------|
 | 503 | Elasticsearch unavailable | HTTP 503, error message |
-| 400 | `q` parameter empty or < 1 character | HTTP 400 |
+| 400 | Invalid filter value | HTTP 400, validation error |
 
 ---
 
 ## Cross-References
 
-| Ref ID | Target |
+|| Ref ID | Target |
 |--------|--------|
 | FR-SEARCH-001 | Full-text search requirement |
+| FR-SEARCH-002 | Filter/facets requirement |
 | BR-SEARCH-001-04 | Query construction rules |
 | BR-SEARCH-001-01 | Field collapsing rules |
 | BR-SEARCH-001-02 | Vietnamese text analysis |
+| BR-SEARCH-001-05 | Sorting rules |
+| UC-SEARCH-002 | Merged into this use case (deprecated) |
 | ENTITY-SEARCH-001 | SKU document mapping |
+
+---
+
+## Note
+
+All product listing and filtering functionality has been consolidated into this single endpoint. Frontend should call this endpoint for:
+- Homepage product listing
+- Category browsing with filters
+- Search with keywords
+- All filter/sort operations
+
+> Product Service no longer handles product listing. Use this endpoint for all product browsing and search scenarios.
+
+---
 
 ### Also supports
 
-| Endpoint | Usage |
+|| Endpoint | Usage |
 |----------|-------|
 | GET /search/products/suggest | Autocomplete suggestions (min 2 chars, see alternate flow A1) |
-
-> Autocomplete is referenced in alternate flow A1 above as a companion to full-text search, providing real-time suggestions as the user types.

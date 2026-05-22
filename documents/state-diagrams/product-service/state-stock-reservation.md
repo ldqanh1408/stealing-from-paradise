@@ -41,9 +41,11 @@ stateDiagram-v2
 
 ```
   t=0      Customer clicks "Dat hang"
-           -> INSERT reservation (pending, expires_at = NOW()+15min)
-           -> Redis DECRBY
-           -> DB UPDATE stock_quantity (optimistic lock)
+           -> Redis DECRBY stock:{variant_id} {qty}
+           -> Transaction:
+                -> INSERT reservation (pending, expires_at = NOW()+15min)
+                -> DB UPDATE stock_quantity (optimistic lock)
+           -> On DB fail: Redis INCRBY rollback, return "out of stock"
 
   t=0..15  Payment processing window
 

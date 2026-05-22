@@ -32,27 +32,28 @@
 ```
 1. Order Service emits order.created event after creating order
 
-2. Product Service creates stock_reservation:
-   INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
-   VALUES (:vid, :sid, :qty, 'pending', NOW() + INTERVAL '15 minutes')
+2. Redis Layer 1 (Fast Check): DECRBY stock:{variant_id} {quantity}
+   - IF stock becomes negative: INCRBY rollback immediately, return error
 
-3. Redis Layer 1: DECRBY stock:{variant_id} {quantity}
+3. DB Transaction Layer 2:
+   a) INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
+      VALUES (:vid, :sid, :qty, 'pending', NOW() + INTERVAL '15 minutes')
 
-4. DB Layer 2: UPDATE product_variant
-   SET stock_quantity = stock_quantity - :qty,
-       version = version + 1,
-       status = CASE WHEN stock_quantity - :qty = 0 THEN 'out_of_stock' ELSE status END
-   WHERE id = :vid
-     AND stock_quantity >= :qty
-     AND version = :currentVersion
+   b) UPDATE product_variant
+      SET stock_quantity = stock_quantity - :qty,
+          version = version + 1,
+          status = CASE WHEN stock_quantity - :qty = 0 THEN 'out_of_stock' ELSE status END
+      WHERE id = :vid
+        AND stock_quantity >= :qty
+        AND version = :currentVersion
 
-5. IF rows_affected = 0:
-   - Rollback: Redis INCR, return error
-   - Trả loi "Het hang"
+4. IF rows_affected = 0:
+   - Rollback: Redis INCRBY, DELETE reservation, return error
+   - Tra loi "Het hang"
 
-6. Product status recomputed in same transaction
+5. Product status recomputed in same transaction
 
-7. Returns success -> Order Service proceeds to payment
+6. Returns success -> Order Service proceeds to payment
 ```
 
 ### Phase 3: Confirm or Release

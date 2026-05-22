@@ -58,11 +58,12 @@ erDiagram
 
 ```
 1. Customer clicks "Dat hang"
-   -> INSERT stock_reservation (status=pending, expires_at=NOW()+15min)
    -> Redis: DECRBY stock:{variant_id} {quantity}
-   -> DB: Update product_variant field stock_quantity = stock_quantity - {quantity}
-          with optimistic lock check on version field
-   -> Update fails? -> Rollback, return "out of stock"
+   -> DB Transaction:
+      -> INSERT stock_reservation (status=pending, expires_at=NOW()+15min)
+      -> UPDATE product_variant SET stock_quantity = stock_quantity - {quantity}
+         (with optimistic lock check on version field)
+   -> If DB fails: Redis INCRBY {quantity}, return "out of stock"
 
 2. Payment succeeds
    -> UPDATE stock_reservation SET status = 'confirmed'

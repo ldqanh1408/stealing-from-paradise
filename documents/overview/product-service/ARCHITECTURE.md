@@ -50,7 +50,6 @@ inactive → active (seller republishes)
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/v1/products` | Public | Browse catalog with filters |
 | GET | `/v1/products/{id}` | Public | Product detail with variants |
 | POST | `/v1/products` | SELLER | Create product |
 | PUT | `/v1/products/{id}` | SELLER | Update product |
@@ -62,6 +61,8 @@ inactive → active (seller republishes)
 | PUT | `/v1/cart/items/{id}` | BUYER | Update cart item |
 | DELETE | `/v1/cart/items/{id}` | BUYER | Remove from cart |
 | GET | `/v1/inventory` | SELLER | View inventory |
+
+> **Note:** Product listing and filtering has been moved to **Search Service** (`GET /search/products`).
 
 ## Kafka Integration
 

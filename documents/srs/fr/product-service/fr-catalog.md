@@ -58,16 +58,28 @@
 
 ---
 
-## FR-PRODUCT-005: List/Search Products
+## FR-PRODUCT-005: List Products (DEPRECATED)
 
 | Attribute | Value |
 |-----------|-------|
-| **Priority** | HIGH |
+| **Priority** | N/A |
 | **Actor** | Public |
-| **Endpoint** | `GET /products` |
-| **Description** | List products with filtering by category, status, seller; sorting by price, created_at; pagination. Only `active` and `out_of_stock` products visible publicly; `inactive` excluded. |
-| **Acceptance Criteria** | AC1: Supports pagination. AC2: Supports category filter. AC3: Inactive products excluded from public results. |
-| **Related** | ENTITY-PRODUCT-002, UC-PRODUCT-001 |
+| **Endpoint** | ~~`GET /products`~~ |
+| **Status** | **DEPRECATED** - Moved to Search Service |
+| **Description** | ~~List products with filtering by category, status, seller; sorting by price, created_at; pagination. Only `active` and `out_of_stock` products visible publicly; `inactive` excluded.~~ |
+| **Acceptance Criteria** | ~~AC1: Supports pagination. AC2: Supports category filter. AC3: Inactive products excluded from public results.~~ |
+| **Related** | ~~ENTITY-PRODUCT-002, UC-PRODUCT-001~~, **UC-SEARCH-001** |
+
+### Deprecation Notice
+
+> **FR-PRODUCT-005 has been deprecated and replaced by FR-SEARCH-001 (UC-SEARCH-001).**
+
+Product listing, filtering, and search functionality has been moved to **Search Service** for a unified browsing and search experience.
+
+| Before | After |
+|--------|-------|
+| `GET /products` | `GET /search/products` |
+| `GET /products?category_id=X` | `GET /search/products?category_id=X` |
 
 ---
 

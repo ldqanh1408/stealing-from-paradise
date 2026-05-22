@@ -1,84 +1,72 @@
-# UC-SEARCH-002: Filter Search Results
+# UC-SEARCH-002: Filter Search Results (DEPRECATED)
 
-> **Service**: search-service (Port 8091)
-> **Use Case ID**: UC-SEARCH-002
-> **Priority**: MEDIUM
-> **Source**: 02_API_search_service.md
-
----
-
-## Brief
-
-User refines search results by applying filters (category, price range, stock status, flash sale) and selecting a sort order. The system updates results with facet counts for the filter sidebar.
+|> **Service**: search-service (Port 8091)
+|> **Use Case ID**: UC-SEARCH-002
+|> **Priority**: N/A
+|> **Status**: DEPRECATED - Merged into UC-SEARCH-001
+|> **Source**: 02_API_search_service.md
+|> **Last Updated**: 2026-05-22
 
 ---
 
-## Actors
+## Deprecation Notice
 
-| Actor | Role |
-|-------|------|
-| Shopper | Applies filters and sort options |
-| System | Elasticsearch query engine with aggregations |
-
----
-
-## Preconditions
-
-| # | Condition |
-|---|-----------|
-| 1 | Search query has been executed (UC-SEARCH-001) or user is browsing a category |
-| 2 | Elasticsearch `skus` index is operational |
+> **This use case has been deprecated and merged into UC-SEARCH-001.**
+>
+> All filtering, sorting, and faceting functionality is now part of UC-SEARCH-001. The `GET /search/products` endpoint handles both browse (without keyword) and search (with keyword) scenarios, including all filter parameters.
 
 ---
 
-## Main Flow
+## Migration Guide
 
-| Step | Actor | Action |
-|------|-------|--------|
-| 1 | User | Selects a category filter from the sidebar |
-| 2 | Client | Appends `category_id={id}` to GET /search/products params |
-| 3 | Server | Adds `term: { category_id }` to `bool.filter` |
-| 4 | User | Adjusts price range slider (e.g., 100k-300k) |
-| 5 | Client | Appends `price_min=100000&price_max=300000` |
-| 6 | Server | Adds `range: { price: { gte: 100000, lte: 300000 } }` to `bool.filter` |
-| 7 | User | Toggles `in_stock` filter |
-| 8 | Client | Appends `in_stock=true` |
-| 9 | Server | Adds `term: { stock_status: "in_stock" }` to `bool.filter` |
-| 10 | User | Changes sort to "Price: Low to High" |
-| 11 | Client | Appends `sort=price_asc` |
-| 12 | Server | Sorts by `price ASC` with tiebreaker |
-| 13 | Server | Executes query with aggregations: by color, by size, price stats |
-| 14 | Server | Returns products + `filters: { colors: [...], sizes: [...] }` |
-| 15 | Client | Updates product grid and filter sidebar with facet counts |
+All filtering operations should now use the consolidated endpoint:
 
----
+### Before (Separate endpoints)
+```
+GET /products?category_id=X                    # Product Service
+GET /search/products?q=keyword                 # Search Service
+GET /search/products?q=keyword&category_id=X    # Search Service (filter + search)
+```
 
-## Alternate Flows
-
-| Flow | Condition | Action |
-|------|-----------|--------|
-| A1 | User clears all filters | Reload base search/browse query without filter params |
-| A2 | Filter combination yields 0 results | Show "0 results" with suggestion to broaden filters |
-| A3 | `is_flash=true` | Add `exists: { field: "flash_session_id" }` filter |
-| A4 | Sort by `sold_desc` | Requires `sold_count` field populated via `order.created` events |
+### After (Consolidated)
+```
+GET /search/products                                    # Browse all (homepage)
+GET /search/products?category_id=X                     # Browse category
+GET /search/products?q=keyword                         # Full-text search
+GET /search/products?q=keyword&category_id=X            # Search + filter
+GET /search/products?category_id=X&price_min=100000    # Browse + filters
+```
 
 ---
 
-## Postconditions
+## Filter Parameters
 
-| # | Condition |
-|---|-----------|
-| 1 | Filtered results displayed with active filter tags |
-| 2 | Facet counts in sidebar reflect current filtered result set |
+All filters are now available in UC-SEARCH-001:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `q` | string | Search keywords (optional) |
+| `category_id` | UUID | Filter by category |
+| `price_min` | integer | Minimum price |
+| `price_max` | integer | Maximum price |
+| `in_stock` | boolean | In-stock only |
+| `is_flash` | boolean | Flash sale only |
+| `sort` | string | Sort order |
 
 ---
 
 ## Cross-References
 
-| Ref ID | Target |
+|| Ref ID | Target |
 |--------|--------|
+| UC-SEARCH-001 | Consolidated endpoint (use this instead) |
+| FR-SEARCH-001 | Full-text search requirement |
 | FR-SEARCH-002 | Filter/facets requirement |
-| BR-SEARCH-001-04 | Query construction rules |
-| BR-SEARCH-001-05 | Sorting rules |
-| UC-SEARCH-001 | Base search |
-| ENTITY-SEARCH-001 | SKU document mapping |
+
+---
+
+## History
+
+| Date | Change |
+|------|--------|
+| 2026-05-22 | Deprecated. Merged into UC-SEARCH-001 for unified browse/search experience. |
