@@ -27,9 +27,18 @@ public interface ProductRepository extends MongoRepository<Product, String> {
 
     Optional<Product> findByIdAndDeletedAtIsNull(String id);
 
+    @Query("{ 'status': 'ACTIVE', 'deletedAt': null, 'name': { $regex: ?0, $options: 'i' } }")
+    Page<Product> findActiveByNameContaining(String namePattern, Pageable pageable);
+
+    @Query("{ 'status': 'ACTIVE', 'deletedAt': null, 'categoryId': ?0, 'name': { $regex: ?1, $options: 'i' } }")
+    Page<Product> findActiveByCategoryAndNameContaining(String categoryId, String namePattern, Pageable pageable);
+
+    // Deprecated PUBLISHED queries kept for backward compatibility during migration
+    @Deprecated
     @Query("{ 'status': 'PUBLISHED', 'deletedAt': null, 'name': { $regex: ?0, $options: 'i' } }")
     Page<Product> findPublishedByNameContaining(String namePattern, Pageable pageable);
 
+    @Deprecated
     @Query("{ 'status': 'PUBLISHED', 'deletedAt': null, 'categoryId': ?0, 'name': { $regex: ?1, $options: 'i' } }")
     Page<Product> findPublishedByCategoryAndNameContaining(String categoryId, String namePattern, Pageable pageable);
 }

@@ -2,6 +2,7 @@ package com.flashsale.productservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.PageResponse;
+import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.productservice.dto.request.AdminApproveRequest;
 import com.flashsale.productservice.dto.request.AdminRejectRequest;
 import com.flashsale.productservice.dto.response.ProductResponse;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,8 +23,6 @@ public class AdminProductController {
 
     private final AdminProductService adminProductService;
 
-    // ─── GET /admin/products/pending ──────────────────────────────────────────
-
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getPendingProducts(
@@ -30,29 +30,28 @@ public class AdminProductController {
             @RequestParam(required = false) Long sellerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(adminProductService.getPendingProducts(categoryId, sellerId, page, size))));
+        return ResponseEntity.ok(ApiResponse.success(
+                PageResponse.of(adminProductService.getPendingProducts(categoryId, sellerId, page, size))));
     }
-
-    // ─── POST /admin/products/{productId}/approve ─────────────────────────────
 
     @PostMapping("/{productId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProductResponse>> approveProduct(
             @PathVariable String productId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @RequestBody(required = false) AdminApproveRequest req) {
         if (req == null) req = new AdminApproveRequest();
-        ProductResponse result = adminProductService.approveProduct(productId, req);
+        ProductResponse result = adminProductService.approveProduct(productId, req, user.getId());
         return ResponseEntity.ok(ApiResponse.success(result, "Duyệt sản phẩm thành công"));
     }
-
-    // ─── POST /admin/products/{productId}/reject ──────────────────────────────
 
     @PostMapping("/{productId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProductResponse>> rejectProduct(
             @PathVariable String productId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody AdminRejectRequest req) {
-        ProductResponse result = adminProductService.rejectProduct(productId, req);
+        ProductResponse result = adminProductService.rejectProduct(productId, req, user.getId());
         return ResponseEntity.ok(ApiResponse.success(result, "Từ chối sản phẩm thành công"));
     }
 }

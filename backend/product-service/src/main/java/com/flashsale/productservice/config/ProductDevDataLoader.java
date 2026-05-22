@@ -331,9 +331,9 @@ public class ProductDevDataLoader implements CommandLineRunner {
                 .description(description)
                 .attributes(Map.of("origin", "Chính hãng", "warranty", "12 tháng"))
                 .images(images)
-                .isFlash(isFlash)
+                .isFlashSale(isFlash)
                 .status(status)
-                .stockAvailable(stock)
+                .rejectCount(0)
                 .build();
     }
 
@@ -466,11 +466,12 @@ public class ProductDevDataLoader implements CommandLineRunner {
 
             for (ProductVariant variant : variants) {
                 Inventory inv = Inventory.builder()
-                        .skuCode(variant.getSkuCode())
+                        .skuCode(variant.getVariantCode())
+                        .variantCode(variant.getVariantCode())
                         .productId(product.getId())
-                        .stockTotal(product.getStockAvailable())
+                        .stockTotal(100)
                         .stockLocked(0)
-                        .stockAvailable(product.getStockAvailable())
+                        .stockAvailable(100)
                         .stockFlashReserved(0)
                         .build();
                 inventories.add(inv);
@@ -483,12 +484,15 @@ public class ProductDevDataLoader implements CommandLineRunner {
     }
 
     private ProductVariant createVariant(String productId, String skuCode,
-                                          String tierName, BigDecimal price) {
+                                          String variantName, BigDecimal price) {
         return ProductVariant.builder()
                 .productId(productId)
-                .skuCode(skuCode)
-                .tierName(tierName)
+                .variantCode(skuCode)
+                .variantName(variantName)
                 .price(price)
+                .status("ACTIVE")
+                .stockQuantity(0)
+                .version(1)
                 .build();
     }
 

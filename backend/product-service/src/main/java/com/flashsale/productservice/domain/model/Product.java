@@ -11,18 +11,23 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 @Document(collection = "products")
-@CompoundIndex(name = "idx_seller_status", def = "{'seller_id': 1, 'status': 1}")
-@CompoundIndex(name = "idx_category_status", def = "{'category_id': 1, 'status': 1}")
+@CompoundIndexes({
+    @CompoundIndex(name = "idx_seller_status", def = "{'sellerId': 1, 'status': 1}"),
+    @CompoundIndex(name = "idx_category_status", def = "{'categoryId': 1, 'status': 1}"),
+    @CompoundIndex(name = "idx_product_status", def = "{'status': 1}")
+})
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Product {
+
     @Id
     private String id;
 
@@ -30,16 +35,32 @@ public class Product {
     private Long sellerId;
 
     @Indexed
-    private String categoryId;  // FK -> MG_CATEGORIES._id
+    private String categoryId;
 
     private String name;
+
+    @Indexed(unique = true)
+    private String slug;
+
     private String description;
+
     private Map<String, Object> attributes;
+
     private List<String> images;
-    private Boolean isFlash;
-    private String status;           // PENDING | APPROVED | REJECTED
+
+    private Boolean isFlashSale;
+
+    private String status;
+
     private String rejectReason;
-    private Integer stockAvailable;
+
+    private LocalDateTime reviewedAt;
+
+    private Long reviewedBy;
+
+    @Builder.Default
+    private Integer rejectCount = 0;
+
     private LocalDateTime deletedAt;
 
     @CreatedDate
@@ -47,5 +68,14 @@ public class Product {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
-}
 
+    public enum ProductStatus {
+        DRAFT,
+        PENDING,
+        APPROVED,
+        REJECTED,
+        ACTIVE,
+        OUT_OF_STOCK,
+        INACTIVE
+    }
+}

@@ -41,8 +41,11 @@ public class CartItem {
 
     private BigDecimal priceSnapshot;  // Giá tại thời điểm thêm vào giỏ (đặc phòng giảm giá)
 
+    private String variantNameSnapshot;  // Snapshot tên variant tại thời điểm thêm vào giỏ
+
+    private String variantImageSnapshot;  // Snapshot hình ảnh variant tại thời điểm thêm vào giỏ
+
     private Integer quantity;  // Số lượng
 
     private LocalDateTime addedAt;  // Thời điểm thêm vào giỏ
 }
-

@@ -33,17 +33,17 @@ public class InventoryManagementService {
     private final MongoTemplate mongoTemplate;
     private final KafkaProducerService kafkaProducer;
 
-    public InventoryResponse getInventory(String skuCode) {
-        Inventory inv = inventoryRepository.findBySkuCode(skuCode)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "SKU không tồn tại: " + skuCode));
+    public InventoryResponse getInventory(String variantCode) {
+        Inventory inv = inventoryRepository.findByVariantCode(variantCode)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "SKU không tồn tại: " + variantCode));
         return InventoryResponse.from(inv);
     }
 
     /**
      * Seller restock: adds quantity to stock_total and stock_available atomically.
      */
-    public InventoryResponse restock(String skuCode, Long sellerId, InventoryRestockRequest req) {
-        ProductVariant variant = variantRepository.findBySkuCode(skuCode)
+    public InventoryResponse restock(String variantCode, Long sellerId, InventoryRestockRequest req) {
+        ProductVariant variant = variantRepository.findByVariantCode(variantCode)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "SKU không tồn tại"));
 
         // Verify seller owns this product
@@ -51,14 +51,14 @@ public class InventoryManagementService {
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.FORBIDDEN, "Không có quyền chỉnh sửa tồn kho này"));
 
-        Query query = Query.query(Criteria.where("skuCode").is(skuCode));
+        Query query = Query.query(Criteria.where("variantCode").is(variantCode));
         Update update = new Update()
                 .inc("stockTotal", req.getQuantity())
                 .inc("stockAvailable", req.getQuantity());
         mongoTemplate.updateFirst(query, update, Inventory.class);
 
-        publishInventoryAdjusted(skuCode, req.getQuantity(), req.getReason());
-        return getInventory(skuCode);
+        publishInventoryAdjusted(variantCode, req.getQuantity(), req.getReason());
+        return getInventory(variantCode);
     }
 
     /**
@@ -66,7 +66,7 @@ public class InventoryManagementService {
      * Ensures stock_available never goes negative.
      */
     public InventoryResponse adjust(Long sellerId, InventoryAdjustRequest req) {
-        ProductVariant variant = variantRepository.findBySkuCode(req.getSkuCode())
+        ProductVariant variant = variantRepository.findByVariantCode(req.getSkuCode())
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "SKU không tồn tại: " + req.getSkuCode()));
 
         // Verify seller owns this product
@@ -79,7 +79,7 @@ public class InventoryManagementService {
         if (delta < 0) {
             // Guard: stock_available must not go negative
             Query query = Query.query(
-                    Criteria.where("skuCode").is(req.getSkuCode())
+                    Criteria.where("variantCode").is(req.getSkuCode())
                             .and("stockAvailable").gte(-delta)
             );
             Update update = new Update()
@@ -91,7 +91,7 @@ public class InventoryManagementService {
                         "Số lượng điều chỉnh vượt quá tồn kho hiện có");
             }
         } else {
-            Query query = Query.query(Criteria.where("skuCode").is(req.getSkuCode()));
+            Query query = Query.query(Criteria.where("variantCode").is(req.getSkuCode()));
             Update update = new Update()
                     .inc("stockTotal", delta)
                     .inc("stockAvailable", delta);
@@ -102,9 +102,9 @@ public class InventoryManagementService {
         return getInventory(req.getSkuCode());
     }
 
-    private void publishInventoryAdjusted(String skuCode, int delta, String reason) {
+    private void publishInventoryAdjusted(String variantCode, int delta, String reason) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("sku_code", skuCode);
+        payload.put("variant_code", variantCode);
         payload.put("delta", delta);
         payload.put("reason", reason);
         payload.put("timestamp", System.currentTimeMillis());

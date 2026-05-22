@@ -8,4 +8,8 @@ public class UpdateCategoryRequest {
     private String slug;
     private String parentId;
     private Integer level;
+    private String description;
+    private String imageUrl;
+    private Boolean isActive;
+    private Integer sortOrder;
 }

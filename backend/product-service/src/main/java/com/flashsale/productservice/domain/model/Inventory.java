@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.LocalDateTime;
 
 /**
@@ -28,7 +29,10 @@ public class Inventory {
     private String id;
 
     @Indexed(unique = true)
-    private String skuCode;  // 1:1 link với MG_PRODUCT_VARIANTS
+    private String skuCode;
+
+    @Indexed(unique = true)
+    private String variantCode;
 
     private String productId;  // FK -> MG_PRODUCTS._id
 
@@ -43,7 +47,8 @@ public class Inventory {
                                          // Admin APPROVE FS_ITEM, hoàn trả phần
                                          // chưa bán sau khi session ENDED
 
+    private LocalDateTime lastRestockedAt;  // Audit: thời điểm restock gần nhất
+
     @LastModifiedDate
     private LocalDateTime updatedAt;
 }
-

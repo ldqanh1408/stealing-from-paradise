@@ -56,3 +56,17 @@ eureka:
     fetch-registry: true
     register-with-eureka: true
     enabled: true
+
+# Stock reservation cleanup
+reservation:
+  cleanup:
+    interval-ms: 180000  # 3 minutes - runs every 3 minutes (per BR-007: 1-5 min)
+
+# Scheduling
+spring:
+  task:
+    execution:
+      pool:
+        core-size: 4
+        max-size: 16
+        queue-capacity: 100

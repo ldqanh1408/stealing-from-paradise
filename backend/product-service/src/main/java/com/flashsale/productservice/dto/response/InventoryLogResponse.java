@@ -17,6 +17,9 @@ public class InventoryLogResponse {
     @JsonProperty("sku_code")
     private String skuCode;
 
+    @JsonProperty("variant_code")
+    private String variantCode;
+
     private Integer delta;
 
     private String reason;
@@ -30,10 +33,11 @@ public class InventoryLogResponse {
         return InventoryLogResponse.builder()
                 .logId(log.getId())
                 .skuCode(log.getSkuCode())
+                .variantCode(log.getVariantCode())
                 .delta(log.getDelta())
                 .reason(log.getReason())
                 .sellerId(log.getSellerId())
-                .timestamp(log.getTimestamp())
+                .timestamp(log.getCreatedAt())
                 .build();
     }
 }

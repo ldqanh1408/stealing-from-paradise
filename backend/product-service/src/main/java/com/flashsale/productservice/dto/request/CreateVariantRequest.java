@@ -8,20 +8,27 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 @Data
 public class CreateVariantRequest {
 
     @NotBlank
     @Size(min = 3, max = 50)
-    @Pattern(regexp = "^[a-zA-Z0-9\\-]+$", message = "SKU code chỉ được chứa chữ cái, số và dấu gạch ngang")
-    private String skuCode;
+    @Pattern(regexp = "^[a-zA-Z0-9\\-]+$", message = "Variant code chỉ được chứa chữ cái, số và dấu gạch ngang")
+    private String variantCode;
 
     @NotBlank
     @Size(min = 1, max = 100)
-    private String tierName;
+    private String variantName;
 
     @NotNull
     @DecimalMin(value = "0", inclusive = true)
     private BigDecimal price;
+
+    private BigDecimal originalPrice;
+
+    private Map<String, Object> variantAttributes;
+
+    private String imageUrl;
 }

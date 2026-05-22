@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @Builder
@@ -13,11 +14,15 @@ public class VariantResponse {
 
     private String variantId;
     private String productId;
-    private String skuCode;
-    private String tierName;
-    private String variantName;  // alias for tierName (frontend compatibility)
+    private String variantCode;
+    private String variantName;
+    private Map<String, Object> variantAttributes;
     private BigDecimal price;
-    private Integer stock;       // from inventory lookup
+    private BigDecimal originalPrice;
+    private Integer stockQuantity;
+    private String status;
+    private String imageUrl;
+    private Integer stock;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -25,24 +30,31 @@ public class VariantResponse {
         return VariantResponse.builder()
                 .variantId(v.getId())
                 .productId(v.getProductId())
-                .skuCode(v.getSkuCode())
-                .tierName(v.getTierName())
-                .variantName(v.getTierName())  // alias
+                .variantCode(v.getVariantCode())
+                .variantName(v.getVariantName())
+                .variantAttributes(v.getVariantAttributes())
                 .price(v.getPrice())
+                .originalPrice(v.getOriginalPrice())
+                .stockQuantity(v.getStockQuantity())
+                .status(v.getStatus())
+                .imageUrl(v.getImageUrl())
                 .createdAt(v.getCreatedAt())
                 .updatedAt(v.getUpdatedAt())
                 .build();
     }
 
-    /** Factory that also populates stock from inventory */
     public static VariantResponse from(ProductVariant v, Integer stock) {
         return VariantResponse.builder()
                 .variantId(v.getId())
                 .productId(v.getProductId())
-                .skuCode(v.getSkuCode())
-                .tierName(v.getTierName())
-                .variantName(v.getTierName())
+                .variantCode(v.getVariantCode())
+                .variantName(v.getVariantName())
+                .variantAttributes(v.getVariantAttributes())
                 .price(v.getPrice())
+                .originalPrice(v.getOriginalPrice())
+                .stockQuantity(v.getStockQuantity())
+                .status(v.getStatus())
+                .imageUrl(v.getImageUrl())
                 .stock(stock)
                 .createdAt(v.getCreatedAt())
                 .updatedAt(v.getUpdatedAt())

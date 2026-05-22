@@ -9,12 +9,19 @@ import java.util.Optional;
 
 @Repository
 public interface ProductVariantRepository extends MongoRepository<ProductVariant, String> {
-    Optional<ProductVariant> findBySkuCode(String skuCode);
-
-    List<ProductVariant> findBySkuCodeIn(List<String> skuCodes);
-
+    
+    // Find by variant code (SKU)
+    Optional<ProductVariant> findByVariantCode(String variantCode);
+    
+    // Find multiple by variant codes
+    List<ProductVariant> findByVariantCodeIn(List<String> variantCodes);
+    
+    // Find by product ID
     List<ProductVariant> findByProductId(String productId);
-
-    boolean existsBySkuCode(String skuCode);
+    
+    // Check existence
+    boolean existsByVariantCode(String variantCode);
+    
+    // Find active variants by product ID
+    List<ProductVariant> findByProductIdAndStatus(String productId, String status);
 }
-

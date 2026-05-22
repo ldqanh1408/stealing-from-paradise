@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <name>FlashSale Parent</name>
-    <description>He thong Microservices Flash Sale (Java 25 &amp; Spring Boot)</description>
+    <description>He thong Microservices Flash Sale (Java 24 &amp; Spring Boot)</description>
 
     <modules>
         <module>common-lib</module>
@@ -29,7 +29,7 @@
     </modules>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>24</java.version>
         <spring-boot.version>4.0.4</spring-boot.version>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
         <spring-boot-maven-plugin.version>4.0.4</spring-boot-maven-plugin.version>

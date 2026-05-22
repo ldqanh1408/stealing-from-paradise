@@ -24,7 +24,14 @@ public class ProductResponse {
     private Boolean isFlash;
     private String status;
     private String rejectReason;
-    private Integer stockAvailable;
+    private LocalDateTime reviewedAt;
+    private Long reviewedBy;
+    private Integer rejectCount;
+    private String slug;
+    private Integer totalStock;
+    private Long minPrice;
+    private Long maxPrice;
+    private Boolean hasDiscount;
     private Long price;
     private Long originalPrice;
     private Double rating;
@@ -42,10 +49,13 @@ public class ProductResponse {
                 .categoryId(p.getCategoryId())
                 .attributes(p.getAttributes())
                 .images(p.getImages())
-                .isFlash(p.getIsFlash())
+                .isFlash(p.getIsFlashSale())
                 .status(p.getStatus())
                 .rejectReason(p.getRejectReason())
-                .stockAvailable(p.getStockAvailable())
+                .reviewedAt(p.getReviewedAt())
+                .reviewedBy(p.getReviewedBy())
+                .rejectCount(p.getRejectCount())
+                .slug(p.getSlug())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();

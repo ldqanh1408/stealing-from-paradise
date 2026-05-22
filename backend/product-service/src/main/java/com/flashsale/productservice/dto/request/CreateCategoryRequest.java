@@ -17,4 +17,10 @@ public class CreateCategoryRequest {
 
     @NotNull
     private Integer level;
+
+    private String description;
+
+    private String imageUrl;
+
+    private Integer sortOrder;
 }

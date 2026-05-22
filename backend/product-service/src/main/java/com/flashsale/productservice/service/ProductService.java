@@ -4,9 +4,11 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.productservice.domain.model.Category;
+import com.flashsale.productservice.domain.model.Inventory;
 import com.flashsale.productservice.domain.model.Product;
 import com.flashsale.productservice.domain.model.ProductVariant;
 import com.flashsale.productservice.domain.repository.CategoryRepository;
+import com.flashsale.productservice.domain.repository.InventoryRepository;
 import com.flashsale.productservice.domain.repository.ProductRepository;
 import com.flashsale.productservice.domain.repository.ProductVariantRepository;
 import com.flashsale.productservice.dto.request.CreateProductRequest;
@@ -22,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -33,9 +36,22 @@ import java.util.Optional;
 @Slf4j
 public class ProductService {
 
+    public static final String DRAFT = "DRAFT";
+    public static final String PENDING = "PENDING";
+    public static final String APPROVED = "APPROVED";
+    public static final String REJECTED = "REJECTED";
+    public static final String ACTIVE = "ACTIVE";
+    public static final String OUT_OF_STOCK = "OUT_OF_STOCK";
+    public static final String INACTIVE = "INACTIVE";
+
+    public static final String VARIANT_ACTIVE = "ACTIVE";
+    public static final String VARIANT_OUT_OF_STOCK = "OUT_OF_STOCK";
+    public static final String VARIANT_INACTIVE = "INACTIVE";
+
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductVariantRepository variantRepository;
+    private final InventoryRepository inventoryRepository;
     private final KafkaProducerService kafkaProducer;
 
     // ─── Create ───────────────────────────────────────────────────────────────
@@ -44,7 +60,6 @@ public class ProductService {
         Category category = categoryRepository.findById(req.getCategoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Danh mục không tồn tại"));
 
-        // Leaf category check: no children allowed
         boolean hasChildren = !categoryRepository.findByParentId(category.getId()).isEmpty();
         if (hasChildren) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "Phải chọn danh mục lá (không có danh mục con)");
@@ -57,13 +72,12 @@ public class ProductService {
                 .description(req.getDescription())
                 .attributes(req.getAttributes())
                 .images(req.getImages())
-                .isFlash(false)
-                .status("DRAFT")
-                .stockAvailable(0)
+                .isFlashSale(false)
+                .status(DRAFT)
+                .rejectCount(0)
                 .build();
 
         product = productRepository.save(product);
-
         publishProductCreated(product);
         return enrichResponse(product);
     }
@@ -102,8 +116,13 @@ public class ProductService {
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
 
-        if (product.getStockAvailable() != null && product.getStockAvailable() > 0) {
-            throw new AppException(ErrorCode.ALREADY_EXISTS, "Không thể xóa sản phẩm còn hàng đang bị giữ bởi đơn hàng");
+        String currentStatus = product.getStatus();
+        boolean canDelete = DRAFT.equals(currentStatus)
+                || REJECTED.equals(currentStatus)
+                || INACTIVE.equals(currentStatus);
+
+        if (!canDelete) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED, "Chỉ có thể xóa sản phẩm ở trạng thái DRAFT, REJECTED, hoặc INACTIVE");
         }
 
         product.setDeletedAt(LocalDateTime.now());
@@ -131,80 +150,19 @@ public class ProductService {
 
         if (hasCategory && hasSearch) {
             String keyword = "%" + search.toLowerCase() + "%";
-            result = productRepository.findPublishedByCategoryAndNameContaining(
+            result = productRepository.findActiveByCategoryAndNameContaining(
                     category, keyword, pageable);
         } else if (hasCategory) {
             result = productRepository.findByStatusAndCategoryIdAndDeletedAtIsNull(
-                    "PUBLISHED", category, pageable);
+                    ACTIVE, category, pageable);
         } else if (hasSearch) {
             String keyword = "%" + search.toLowerCase() + "%";
-            result = productRepository.findPublishedByNameContaining(keyword, pageable);
+            result = productRepository.findActiveByNameContaining(keyword, pageable);
         } else {
-            result = productRepository.findByStatusAndDeletedAtIsNull("PUBLISHED", pageable);
+            result = productRepository.findByStatusAndDeletedAtIsNull(ACTIVE, pageable);
         }
 
         return result.map(this::enrichResponse);
-    }
-
-    /** Enriches a Product with category name and variants. */
-    private ProductResponse enrichResponse(Product p) {
-        String categoryName = null;
-        String categorySlug = null;
-        if (p.getCategoryId() != null) {
-            Optional<Category> cat = categoryRepository.findById(p.getCategoryId());
-            categoryName = cat.map(Category::getName).orElse(null);
-            categorySlug = cat.map(Category::getSlug).orElse(null);
-        }
-
-        List<ProductVariant> variants = variantRepository.findByProductId(p.getId());
-
-        Long price = null;
-        Long originalPrice = null;
-        if (!variants.isEmpty()) {
-            price = variants.get(0).getPrice().longValue();
-            originalPrice = price;
-        }
-
-        List<VariantResponse> variantResponses = variants.stream()
-                .map(v -> VariantResponse.builder()
-                        .variantId(v.getId())
-                        .productId(v.getProductId())
-                        .skuCode(v.getSkuCode())
-                        .tierName(v.getTierName())
-                        .price(v.getPrice())
-                        .createdAt(v.getCreatedAt())
-                        .updatedAt(v.getUpdatedAt())
-                        .build())
-                .toList();
-
-        return ProductResponse.builder()
-                .productId(p.getId())
-                .sellerId(p.getSellerId())
-                .name(p.getName())
-                .description(p.getDescription())
-                .categoryId(p.getCategoryId())
-                .categoryName(categoryName)
-                .categorySlug(categorySlug)
-                .attributes(p.getAttributes())
-                .images(p.getImages())
-                .isFlash(p.getIsFlash())
-                .status(p.getStatus())
-                .rejectReason(p.getRejectReason())
-                .stockAvailable(p.getStockAvailable())
-                .price(price)
-                .originalPrice(originalPrice)
-                .variants(variantResponses)
-                .createdAt(p.getCreatedAt())
-                .updatedAt(p.getUpdatedAt())
-                .build();
-    }
-
-    // ─── Seller List ──────────────────────────────────────────────────────────
-
-    public Page<ProductResponse> getSellerProducts(Long sellerId, int page, int size) {
-        return productRepository.findBySellerIdAndDeletedAtIsNull(
-                        sellerId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
-                .map(this::enrichResponse);
     }
 
     // ─── Submit for Review ────────────────────────────────────────────────────
@@ -214,12 +172,54 @@ public class ProductService {
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
 
-        if (!"DRAFT".equals(product.getStatus()) && !"REJECTED".equals(product.getStatus())) {
+        if (!DRAFT.equals(product.getStatus()) && !REJECTED.equals(product.getStatus())) {
             throw new AppException(ErrorCode.VALIDATION_FAILED,
                     "Chỉ có thể gửi duyệt sản phẩm ở trạng thái DRAFT hoặc REJECTED");
         }
 
-        product.setStatus("PENDING");
+        // BR-009 Preconditions
+        // 1. >=1 variant with stock>0 (from inventory)
+        List<ProductVariant> variants = variantRepository.findByProductId(productId);
+        if (variants.isEmpty()) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "Sản phẩm phải có ít nhất 1 biến thể");
+        }
+
+        boolean hasStock = variants.stream()
+                .anyMatch(v -> {
+                    Optional<Inventory> inv = inventoryRepository.findByVariantCode(v.getVariantCode());
+                    return inv.map(i -> i.getStockAvailable() != null && i.getStockAvailable() > 0)
+                            .orElse(false);
+                });
+        if (!hasStock) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "Ít nhất một biến thể phải có tồn kho > 0");
+        }
+
+        // 2. >=1 image
+        if (product.getImages() == null || product.getImages().isEmpty()) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "Sản phẩm phải có ít nhất 1 hình ảnh");
+        }
+
+        // 3. name + description non-empty
+        if (product.getName() == null || product.getName().isBlank()) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "Tên sản phẩm không được để trống");
+        }
+        if (product.getDescription() == null || product.getDescription().isBlank()) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "Mô tả sản phẩm không được để trống");
+        }
+
+        // 4. rejectCount < 3
+        Integer currentRejectCount = product.getRejectCount();
+        if (currentRejectCount != null && currentRejectCount >= 3) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED,
+                    "Đã vượt quá giới hạn từ chối (tối đa 3 lần)");
+        }
+
+        product.setStatus(PENDING);
         product = productRepository.save(product);
 
         publishProductPendingReview(product);
@@ -233,13 +233,26 @@ public class ProductService {
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
 
-        if (!"APPROVED".equals(product.getStatus())) {
+        String currentStatus = product.getStatus();
+
+        // Allow: APPROVED -> ACTIVE, INACTIVE -> ACTIVE, OUT_OF_STOCK -> ACTIVE
+        boolean canPublish = APPROVED.equals(currentStatus)
+                || INACTIVE.equals(currentStatus)
+                || OUT_OF_STOCK.equals(currentStatus);
+
+        if (!canPublish) {
             throw new AppException(ErrorCode.VALIDATION_FAILED,
-                    "Chỉ có thể mở bán sản phẩm đã được duyệt");
+                    "Chỉ có thể mở bán sản phẩm đã được duyệt, INACTIVE, hoặc OUT_OF_STOCK");
         }
 
-        product.setStatus("PUBLISHED");
+        // Auto-derive status based on variant stock
+        String derivedStatus = deriveProductStatus(productId);
+        product.setStatus(derivedStatus);
         product = productRepository.save(product);
+
+        // Auto-update variant statuses
+        updateVariantStatuses(productId);
+
         publishProductUpdated(product);
         return enrichResponse(product);
     }
@@ -249,15 +262,94 @@ public class ProductService {
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
 
-        if (!"PUBLISHED".equals(product.getStatus())) {
+        String currentStatus = product.getStatus();
+
+        // Allow: ACTIVE -> INACTIVE, OUT_OF_STOCK -> INACTIVE
+        boolean canUnpublish = ACTIVE.equals(currentStatus) || OUT_OF_STOCK.equals(currentStatus);
+
+        if (!canUnpublish) {
             throw new AppException(ErrorCode.VALIDATION_FAILED,
-                    "Chỉ có thể tạm ẩn sản phẩm đang mở bán");
+                    "Chỉ có thể tạm ẩn sản phẩm đang mở bán hoặc OUT_OF_STOCK");
         }
 
-        product.setStatus("UNPUBLISHED");
+        product.setStatus(INACTIVE);
         product = productRepository.save(product);
+
         publishProductUpdated(product);
         return enrichResponse(product);
+    }
+
+    // ─── Variant Status Management ───────────────────────────────────────────
+
+    /**
+     * Update variant status based on inventory stock.
+     * Auto-updates product status as well (BR-003).
+     */
+    public void updateVariantStatuses(String productId) {
+        List<ProductVariant> variants = variantRepository.findByProductId(productId);
+
+        for (ProductVariant variant : variants) {
+            String newStatus = deriveVariantStatus(variant.getVariantCode());
+            if (!newStatus.equals(variant.getStatus())) {
+                variant.setStatus(newStatus);
+                variantRepository.save(variant);
+            }
+        }
+
+        // Auto-update product status
+        Optional<Product> productOpt = productRepository.findById(productId);
+        if (productOpt.isPresent()) {
+            Product product = productOpt.get();
+            String productNewStatus = deriveProductStatus(productId);
+            if (!productNewStatus.equals(product.getStatus())) {
+                product.setStatus(productNewStatus);
+                productRepository.save(product);
+                publishProductUpdated(product);
+            }
+        }
+    }
+
+    /**
+     * Derive variant status from inventory stock.
+     */
+    private String deriveVariantStatus(String variantCode) {
+        Optional<Inventory> invOpt = inventoryRepository.findByVariantCode(variantCode);
+        if (invOpt.isEmpty()) {
+            return VARIANT_OUT_OF_STOCK;
+        }
+        Inventory inv = invOpt.get();
+        if (inv.getStockAvailable() == null || inv.getStockAvailable() <= 0) {
+            return VARIANT_OUT_OF_STOCK;
+        }
+        return VARIANT_ACTIVE;
+    }
+
+    /**
+     * Derive product status from all variant stock levels.
+     * ACTIVE if any variant has stock, OUT_OF_STOCK otherwise.
+     */
+    private String deriveProductStatus(String productId) {
+        List<ProductVariant> variants = variantRepository.findByProductId(productId);
+        if (variants.isEmpty()) {
+            return OUT_OF_STOCK;
+        }
+
+        boolean anyHasStock = variants.stream()
+                .anyMatch(v -> {
+                    Optional<Inventory> inv = inventoryRepository.findByVariantCode(v.getVariantCode());
+                    return inv.map(i -> i.getStockAvailable() != null && i.getStockAvailable() > 0)
+                            .orElse(false);
+                });
+
+        return anyHasStock ? ACTIVE : OUT_OF_STOCK;
+    }
+
+    // ─── Seller List ──────────────────────────────────────────────────────────
+
+    public Page<ProductResponse> getSellerProducts(Long sellerId, int page, int size) {
+        return productRepository.findBySellerIdAndDeletedAtIsNull(
+                        sellerId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .map(this::enrichResponse);
     }
 
     // ─── Kafka Consumer ───────────────────────────────────────────────────────
@@ -265,8 +357,101 @@ public class ProductService {
     @KafkaListener(topics = KafkaTopics.PRODUCT_APPROVED, groupId = "product-service-group")
     public void onProductApproved(Object payload) {
         log.info("Received product.approved event: {}", payload);
-        // Status is set by AdminProductService.approveProduct(); this listener can
-        // be used for downstream side-effects (e.g., search index sync).
+    }
+
+    // ─── Enrich Response ─────────────────────────────────────────────────────
+
+    /**
+     * Enriches a Product with category name, computed fields, and variant details.
+     */
+    private ProductResponse enrichResponse(Product p) {
+        String categoryName = null;
+        String categorySlug = null;
+        if (p.getCategoryId() != null) {
+            Optional<Category> cat = categoryRepository.findById(p.getCategoryId());
+            categoryName = cat.map(Category::getName).orElse(null);
+            categorySlug = cat.map(Category::getSlug).orElse(null);
+        }
+
+        List<ProductVariant> variants = variantRepository.findByProductId(p.getId());
+
+        // Compute totalStock from inventory
+        int totalStock = 0;
+        BigDecimal minPrice = null;
+        BigDecimal maxPrice = null;
+        boolean hasDiscount = false;
+
+        for (ProductVariant variant : variants) {
+            Optional<Inventory> inv = inventoryRepository.findByVariantCode(variant.getVariantCode());
+            if (inv.isPresent() && inv.get().getStockAvailable() != null) {
+                totalStock += inv.get().getStockAvailable();
+            }
+
+            if (variant.getPrice() != null) {
+                if (minPrice == null || variant.getPrice().compareTo(minPrice) < 0) {
+                    minPrice = variant.getPrice();
+                }
+                if (maxPrice == null || variant.getPrice().compareTo(maxPrice) > 0) {
+                    maxPrice = variant.getPrice();
+                }
+            }
+
+            if (variant.getOriginalPrice() != null && variant.getPrice() != null
+                    && variant.getOriginalPrice().compareTo(variant.getPrice()) > 0) {
+                hasDiscount = true;
+            }
+        }
+
+        List<VariantResponse> variantResponses = variants.stream()
+                .map(v -> {
+                    Integer stock = null;
+                    Optional<Inventory> inv = inventoryRepository.findByVariantCode(v.getVariantCode());
+                    if (inv.isPresent()) {
+                        stock = inv.get().getStockAvailable();
+                    }
+                    return VariantResponse.builder()
+                            .variantId(v.getId())
+                            .productId(v.getProductId())
+                            .variantCode(v.getVariantCode())
+                            .variantName(v.getVariantName())
+                            .variantAttributes(v.getVariantAttributes())
+                            .price(v.getPrice())
+                            .originalPrice(v.getOriginalPrice())
+                            .stockQuantity(v.getStockQuantity())
+                            .status(v.getStatus())
+                            .imageUrl(v.getImageUrl())
+                            .createdAt(v.getCreatedAt())
+                            .updatedAt(v.getUpdatedAt())
+                            .stock(stock)
+                            .build();
+                })
+                .toList();
+
+        return ProductResponse.builder()
+                .productId(p.getId())
+                .sellerId(p.getSellerId())
+                .name(p.getName())
+                .description(p.getDescription())
+                .categoryId(p.getCategoryId())
+                .categoryName(categoryName)
+                .categorySlug(categorySlug)
+                .attributes(p.getAttributes())
+                .images(p.getImages())
+                .isFlash(p.getIsFlashSale())
+                .status(p.getStatus())
+                .rejectReason(p.getRejectReason())
+                .reviewedAt(p.getReviewedAt())
+                .reviewedBy(p.getReviewedBy())
+                .rejectCount(p.getRejectCount())
+                .slug(p.getSlug())
+                .variants(variantResponses)
+                .totalStock(totalStock)
+                .minPrice(minPrice != null ? minPrice.longValue() : null)
+                .maxPrice(maxPrice != null ? maxPrice.longValue() : null)
+                .hasDiscount(hasDiscount)
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build();
     }
 
     // ─── Kafka Producers (private helpers) ───────────────────────────────────

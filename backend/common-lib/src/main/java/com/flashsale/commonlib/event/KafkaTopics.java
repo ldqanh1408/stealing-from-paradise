@@ -15,6 +15,8 @@ public final class KafkaTopics {
     public static final String PRODUCT_DELETED          = "product.deleted";
     public static final String PRODUCT_AUTO_HIDDEN      = "product.auto_hidden";
     public static final String INVENTORY_ADJUSTED       = "inventory.adjusted";
+    public static final String VARIANT_PRICE_UPDATED    = "variant.price_updated";
+    public static final String VARIANT_STOCK_UPDATED    = "variant.stock_updated";
 
     // ──────────────────────────────────────────────
     // Order  (Producer: Order Service / Worker)
@@ -22,6 +24,7 @@ public final class KafkaTopics {
     public static final String ORDER_CREATED            = "order.created";
     public static final String ORDER_SHIPPED            = "order.shipped";
     public static final String ORDER_DELIVERED          = "order.delivered";
+    public static final String ORDER_RETURNED           = "order.returned";
     public static final String ORDER_RETURNED_RTS       = "order.returned";
     public static final String ORDER_CANCELLED          = "order.cancelled";
     public static final String ORDER_AUTO_CANCELLED     = "order.auto_cancelled";
@@ -68,6 +71,7 @@ public final class KafkaTopics {
     public static final String FLASH_SALE_ITEM_SOLD       = "flash_sale.item_sold";
     public static final String FLASH_SALE_ITEM_PURCHASED  = "flash_sale.item_purchased";
     public static final String FLASH_SALE_REMINDER        = "flash_sale.reminder";
+    public static final String FLASH_SALE_PRICE_SYNC      = "flash_sale.price_sync";
 
     // ──────────────────────────────────────────────
     // Stock Reservation (Producer: Product Service)
@@ -75,6 +79,16 @@ public final class KafkaTopics {
     public static final String STOCK_RESERVATION_EXPIRED   = "stock.reservation.expired";
     public static final String STOCK_RESERVATION_CONFIRMED = "stock.reservation.confirmed";
     public static final String STOCK_RESERVATION_RELEASED  = "stock.reservation.released";
+
+    // ──────────────────────────────────────────────
+    // Cart (Producer: Product Service)
+    // ──────────────────────────────────────────────
+    public static final String CART_ITEM_ADDED          = "cart.item_added";
+
+    // ──────────────────────────────────────────────
+    // Category (Producer: Product Service)
+    // ──────────────────────────────────────────────
+    public static final String CATEGORY_UPDATED          = "category.updated";
 
     // ──────────────────────────────────────────────
     // Order — additional events (Producer: Order Service)

@@ -18,6 +18,7 @@ public enum ErrorCode {
     FLASH_SALE_ENDED("BIZ_004",      "Flash Sale đã kết thúc",         410),
     LIMIT_PER_USER_EXCEEDED("BIZ_005","Vượt giới hạn mua mỗi người",   400),
     // Validation / System
+    BAD_REQUEST("VAL_000", "Yêu cầu không hợp lệ",                       400),
     VALIDATION_FAILED("VAL_001",   "Dữ liệu không hợp lệ",           400),
     RATE_LIMIT_EXCEEDED("VAL_002", "Quá nhiều yêu cầu",               429),
     INTERNAL_ERROR("SYS_001",     "Lỗi hệ thống",                    500);
