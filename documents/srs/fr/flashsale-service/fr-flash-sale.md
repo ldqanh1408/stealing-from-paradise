@@ -183,61 +183,14 @@
 
 ---
 
-## FR-FLASHSALE-009: Purchase Flash Sale Item
+## FR-FLASHSALE-009: Customer Set Reminder
 
-| Property | Value |
-|----------|-------|
-| **Priority** | CRITICAL |
-| **Actor** | Customer (BUYER) |
-| **Endpoint** | `POST /flash-sales/{id}/buy` |
-| **Auth** | JWT (BUYER) |
-
-**Description:** The system shall forward flash sale purchase requests to the Checkout Service, which handles inventory reservation and order creation. Flash Sale Service is responsible for validating session status and calculating the flash price.
-
-**Input:**
-| Field | Type | Required | Validation |
-|-------|------|----------|------------|
-| `fs_item_id` | integer | yes | Must exist and be in an ACTIVE session |
-| `quantity` | integer | yes | > 0, <= limit_per_user |
-| `address_id` | integer | yes | Valid shipping address |
-
-**Pre-conditions:**
-1. Session exists and `status = ACTIVE`
-2. `fs_item_id` references a registered product in the session
-3. Product is available (not out of stock)
-
-**Kafka Event:** `flash_sale.item_purchased` (emitted to trigger Checkout Service inventory reservation)
-
-**Cross-ref:** UC-FLASHSALE-005, BR-FLASHSALE-007
-
----
-
-## FR-FLASHSALE-010: Dynamic Flash Price Calculation
-
-| Property | Value |
-|----------|-------|
-| **Priority** | HIGH |
-| **Actor** | System |
-| **Trigger** | Purchase attempt (FR-FLASHSALE-009) |
-
-**Description:** The system shall calculate the flash sale price dynamically at purchase time using the formula `flash_price = sku.price * (1 - discount_applied / 100)`. The price is never materialized in the database.
-
-**Data sources:**
-- `sku.price`: Retrieved from Product Service (`product_variant.price`)
-- `discount_applied`: From `fs_items.discount_applied`
-
-**Cross-ref:** BR-FLASHSALE-007, UC-FLASHSALE-005
-
----
-
-## FR-FLASHSALE-010: Customer Set Reminder
-
-| Property | Value |
-|----------|-------|
-| **Priority** | MEDIUM |
-| **Actor** | Customer (BUYER) |
-| **Endpoint** | `POST /flash-sales/{id}/remind` |
-| **Auth** | JWT (BUYER) |
+|| Property | Value |
+||----------|-------|
+|| **Priority** | MEDIUM |
+|| **Actor** | Customer (BUYER) |
+|| **Endpoint** | POST /flash-sales/{id}/remind |
+|| **Auth** | JWT (BUYER) |
 
 **Description:** The system shall allow a customer to set a reminder for an upcoming flash sale session. Only one reminder per customer per session is allowed (BR-FLASHSALE-005).
 
@@ -246,36 +199,13 @@
 2. Customer not already registered for reminder (BR-FLASHSALE-005)
 
 **Error Responses:**
-| Status | Code | Condition |
-|--------|------|-----------|
-| 409 | `REMINDER_ALREADY_SET` | Reminder exists for this customer+session |
+|| Status | Code | Condition |
+||--------|------|-----------|
+|| 409 | REMINDER_ALREADY_SET | Reminder exists for this customer+session |
 
 **Cross-ref:** UC-FLASHSALE-004, BR-FLASHSALE-005, ENTITY-FLASHSALE-003
 
 ---
-
-## FR-FLASHSALE-011: Publish Kafka Events on State Changes
-
-| Property | Value |
-|----------|-------|
-| **Priority** | HIGH |
-| **Actor** | System |
-| **Trigger** | Various lifecycle events |
-
-**Description:** The system shall publish Kafka events for all significant state changes in the flash sale domain.
-
-| Event | Trigger | Consumer(s) |
-|-------|---------|-------------|
-| `flash_sale.session_created` | Admin creates session | -- (audit log) |
-| `flash_sale.session_started` | Session status -> ACTIVE | Notification Service, Product Service |
-| `flash_sale.session_ended` | Session status -> ENDED | Notification Service, Product Service |
-| `flash_sale.item_registered` | Seller registers product | Notification Service |
-| `flash_sale.item_purchased` | Successful purchase | Checkout Service (inventory reservation) |
-
-**Cross-ref:** UC-FLASHSALE-001, UC-FLASHSALE-002, UC-FLASHSALE-005, UC-FLASHSALE-006, KAFKA_EVENTS.md
-
----
-
 ## FR Matrix Summary
 
 | FR ID | Description | Priority | Actor | UC | BR |
@@ -288,10 +218,8 @@
 | FR-FLASHSALE-006 | Admin update session | MEDIUM | Admin | UC-001 | BR-008 |
 | FR-FLASHSALE-007 | Transition session status | CRITICAL | System | UC-006 | BR-004 |
 | FR-FLASHSALE-008 | View sessions | HIGH | All | UC-003 | -- |
-| FR-FLASHSALE-009 | Purchase (forward to Checkout) | CRITICAL | Customer | UC-005 | BR-007 |
-| FR-FLASHSALE-010 | Dynamic flash price | HIGH | System | UC-005 | BR-007 |
-| FR-FLASHSALE-011 | Set reminder | MEDIUM | Customer | UC-004 | BR-005 |
-| FR-FLASHSALE-012 | Publish Kafka events | HIGH | System | UC-001,002,005,006 | -- |
+| FR-FLASHSALE-010 | Publish Kafka events | HIGH | System | UC-001,002,004,006 | -- |
+| FR-FLASHSALE-009 | Customer set reminder | MEDIUM | Customer | UC-004 | BR-005 |
 
 ---
 

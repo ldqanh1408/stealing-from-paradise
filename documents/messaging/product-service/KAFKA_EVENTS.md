@@ -391,10 +391,7 @@
 | **Module** | Cart + Pricing |
 | **Action** | Remove expired flash items from cart, reset prices, emit `flash_sale.price_sync` (deactivate) |
 
-### flash_sale.item_purchased (from Flash Sale Service)
-
-| Field | Value |
-|-------|-------|
+---|-------|
 | **Module** | Inventory |
 | **Action** | Update sold count and remaining stock cache |
 

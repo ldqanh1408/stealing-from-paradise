@@ -18,10 +18,8 @@
 | FR-FLASHSALE-006 | Admin update session | UC-FLASHSALE-001 | Admin create session |
 | FR-FLASHSALE-007 | System transition session status | UC-FLASHSALE-006 | System end session |
 | FR-FLASHSALE-008 | View flash sale sessions | UC-FLASHSALE-003 | View sessions |
-| FR-FLASHSALE-009 | Purchase (forward to Checkout) | UC-FLASHSALE-005 | Purchase flash item |
-| FR-FLASHSALE-010 | Dynamic flash price calculation | UC-FLASHSALE-005 | Purchase flash item |
-| FR-FLASHSALE-011 | Customer set reminder | UC-FLASHSALE-004 | Set reminder |
-| FR-FLASHSALE-012 | Publish Kafka events | UC-FLASHSALE-001, UC-FLASHSALE-002, UC-FLASHSALE-005, UC-FLASHSALE-006 | Multiple UCs |
+| FR-FLASHSALE-009 | Customer set reminder | UC-FLASHSALE-004 | Set reminder |
+| FR-FLASHSALE-010 | Publish Kafka events | UC-FLASHSALE-001, UC-FLASHSALE-002, UC-FLASHSALE-004, UC-FLASHSALE-006 | Multiple UCs |
 
 ---
 
@@ -37,10 +35,8 @@
 | FR-FLASHSALE-006 | Admin update session | BR-FLASHSALE-008 |
 | FR-FLASHSALE-007 | System transition session status | BR-FLASHSALE-004 |
 | FR-FLASHSALE-008 | View flash sale sessions | -- |
-| FR-FLASHSALE-009 | Purchase (forward to Checkout) | BR-FLASHSALE-007 |
-| FR-FLASHSALE-010 | Dynamic flash price calculation | BR-FLASHSALE-007 |
-| FR-FLASHSALE-011 | Customer set reminder | BR-FLASHSALE-005 |
-| FR-FLASHSALE-012 | Publish Kafka events | -- |
+| FR-FLASHSALE-009 | Customer set reminder | BR-FLASHSALE-005 |
+| FR-FLASHSALE-010 | Publish Kafka events | -- |
 
 ---
 
@@ -52,7 +48,6 @@
 | UC-FLASHSALE-002 | Seller register product | BR-FLASHSALE-002, BR-FLASHSALE-009 |
 | UC-FLASHSALE-003 | View sessions | -- |
 | UC-FLASHSALE-004 | Set reminder | BR-FLASHSALE-005 |
-| UC-FLASHSALE-005 | Purchase flash item | BR-FLASHSALE-007 |
 | UC-FLASHSALE-006 | System end session | BR-FLASHSALE-004 |
 
 ---
@@ -62,7 +57,7 @@
 | Entity ID | Entity | BR ID(s) |
 |-----------|--------|----------|
 | ENTITY-FLASHSALE-001 | FS_SESSIONS | BR-FLASHSALE-001, BR-FLASHSALE-002, BR-FLASHSALE-003, BR-FLASHSALE-004, BR-FLASHSALE-006 |
-| ENTITY-FLASHSALE-002 | FS_ITEMS | BR-FLASHSALE-002, BR-FLASHSALE-007, BR-FLASHSALE-009 |
+| ENTITY-FLASHSALE-002 | FS_ITEMS | BR-FLASHSALE-002, BR-FLASHSALE-009 |
 | ENTITY-FLASHSALE-003 | FS_REMINDERS | BR-FLASHSALE-005 |
 
 ---
@@ -72,8 +67,8 @@
 | Entity ID | Entity | FR ID(s) |
 |-----------|--------|----------|
 | ENTITY-FLASHSALE-001 | FS_SESSIONS | FR-FLASHSALE-001, FR-FLASHSALE-002, FR-FLASHSALE-003, FR-FLASHSALE-006, FR-FLASHSALE-007, FR-FLASHSALE-008 |
-| ENTITY-FLASHSALE-002 | FS_ITEMS | FR-FLASHSALE-004, FR-FLASHSALE-005, FR-FLASHSALE-009, FR-FLASHSALE-010 |
-| ENTITY-FLASHSALE-003 | FS_REMINDERS | FR-FLASHSALE-011 |
+| ENTITY-FLASHSALE-002 | FS_ITEMS | FR-FLASHSALE-004, FR-FLASHSALE-005 |
+| ENTITY-FLASHSALE-003 | FS_REMINDERS | FR-FLASHSALE-009 |
 
 ---
 
@@ -88,8 +83,7 @@
 | POST | /flash-sales/{id}/items | UC-FLASHSALE-002 |
 | GET | /flash-sales/{id}/items | UC-FLASHSALE-003 |
 | POST | /flash-sales/{id}/remind | UC-FLASHSALE-004 |
-| GET | /flash-sales/active | UC-FLASHSALE-003 |
-| POST | /flash-sales/{id}/buy | UC-FLASHSALE-005 |
+| GET | /flash-sales/active | UC-FLASHSALE-003 || GET | /flash-sales/active | UC-FLASHSALE-003 |
 
 ---
 
@@ -101,7 +95,6 @@
 | `flash_sale.session_started` | UC-FLASHSALE-006 | Notification Service, Product Service |
 | `flash_sale.session_ended` | UC-FLASHSALE-006 | Notification Service, Product Service |
 | `flash_sale.item_registered` | UC-FLASHSALE-002 | Notification Service |
-| `flash_sale.item_purchased` | UC-FLASHSALE-005 | Checkout Service |
 
 ---
 
@@ -113,7 +106,6 @@
 | UPCOMING | ACTIVE | UC-FLASHSALE-006 | BR-FLASHSALE-004 |
 | ACTIVE | ENDED | UC-FLASHSALE-006 | BR-FLASHSALE-004 |
 | ENDED | [*] | -- | -- |
-| UPCOMING | [soft deleted] | -- | BR-FLASHSALE-007 |
 
 ---
 
@@ -130,11 +122,9 @@
 | UC: Register Product | `use-cases/flashsale-service/uc-002-register-product.md` | UC-FLASHSALE-002 |
 | UC: View Sessions | `use-cases/flashsale-service/uc-003-view-sessions.md` | UC-FLASHSALE-003 |
 | UC: Set Reminder | `use-cases/flashsale-service/uc-004-set-reminder.md` | UC-FLASHSALE-004 |
-| UC: Purchase Item | `use-cases/flashsale-service/uc-005-purchase-flash-item.md` | UC-FLASHSALE-005 |
 | UC: End Session | `use-cases/flashsale-service/uc-006-end-session.md` | UC-FLASHSALE-006 |
 | API: POST /flash-sales | `api-contracts/flashsale-service/api-post-flash-sales.yaml` | -- |
 | API: GET /flash-sales | `api-contracts/flashsale-service/api-get-flash-sales.yaml` | -- |
-| API: POST buy | `api-contracts/flashsale-service/api-post-flash-sales-buy.yaml` | -- |
 | State Diagram | `state-diagrams/flashsale-service/state-fs-session.md` | STATE-FLASHSALE-001 |
 | Traceability Matrix | `traceability/flashsale-service/traceability-matrix.md` | TRACE-FLASHSALE |
 

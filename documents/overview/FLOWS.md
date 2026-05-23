@@ -314,22 +314,3 @@ sequenceDiagram
 
 ---
 
-## 6. Flash Sale Purchase
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant FS as Flash Sale Service
-    participant PG as PostgreSQL
-    participant PS as Product Service
-
-    Customer->>FS: POST /flash-sales/{id}/buy (fs_item_id, quantity)
-    FS->>PG: Load fs_items.discount_applied
-    FS->>PS: Get sku.price from product_variant
-    PS-->>FS: sku_price = 250000
-    FS->>FS: flash_price = 250000 * (1 - 20/100) = 200000
-    FS->>FS: Emit flash_sale.item_purchased
-    FS->>CS: flash_sale.item_purchased (Kafka)
-    CS-->>FS: Order created (201)
-    FS-->>Customer: 201 Created (order, timeout_at)
-```

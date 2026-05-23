@@ -371,34 +371,6 @@ Identity Service does NOT produce Kafka domain events. No events consumed from t
 }
 ```
 
-#### flash_sale.item_purchased
-
-| Field | Value |
-|-------|-------|
-| **Type** | FLASH_SALE_ALERT |
-| **Priority** | HIGH |
-| **Action** | Notify buyer: flash sale purchase successful |
-
-**Payload:**
-```json
-{
-  "topic": "flash_sale.item_purchased",
-  "payload": {
-    "event": "flash_sale.item_purchased",
-    "session_id": 1,
-    "fs_item_id": 123,
-    "product_id": "uuid-prod-789",
-    "user_id": 42,
-    "variant_id": "uuid-variant-001",
-    "flash_price": 200000,
-    "original_price": 250000,
-    "quantity": 2,
-    "order_id": 5678,
-    "timestamp": "2026-05-10T08:01:00Z"
-  }
-}
-```
-
 ---
 
 ### From AI Chat Service

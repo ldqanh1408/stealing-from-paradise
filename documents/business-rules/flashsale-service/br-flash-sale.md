@@ -154,34 +154,6 @@ ELSE
 
 ---
 
-## BR-FLASHSALE-007: Dynamic Flash Price Calculation
-
-**Rule:** Flash sale price is never stored. It is calculated dynamically at purchase time using the formula:
-
-```
-flash_price = sku.price * (1 - discount_applied / 100)
-```
-
-| Property | Value |
-|----------|-------|
-| **Formula** | `flash_price = sku_price * (1 - discount_applied / 100)` |
-| **Calculation point** | At purchase time (POST /flash-sales/{id}/buy) |
-| **Source of sku_price** | Product Service -> product_variant.price |
-| **Source of discount** | fs_items.discount_applied |
-
-```
-Example:
-  variant.price = 250,000 VND
-  fs_items.discount_applied = 20.00%
-  flash_price = 250,000 * (1 - 20/100) = 250,000 * 0.8 = 200,000 VND
-
-No snapshot: If variant.price changes before purchase, the new price is used.
-```
-
-**Related:** ENTITY-FLASHSALE-002, UC-FLASHSALE-005, FR-FLASHSALE-009
-
----
-
 ## BR-FLASHSALE-008: Session Update Restrictions
 
 **Rule:** Session can only be updated when status is UPCOMING.
@@ -235,7 +207,6 @@ ELSE
 | BR-FLASHSALE-004 | Status transitions | DB + App | FS_SESSIONS | UC-006 |
 | BR-FLASHSALE-005 | 1 reminder/customer/session | App | FS_REMINDERS | UC-004 |
 | BR-FLASHSALE-006 | Soft delete | App | FS_SESSIONS | -- |
-| BR-FLASHSALE-007 | Dynamic price calculation | App | FS_ITEMS | UC-005 |
 | BR-FLASHSALE-008 | Update only UPCOMING | App | FS_SESSIONS | UC-001 |
 | BR-FLASHSALE-009 | Unique product per session | DB | FS_ITEMS | UC-002 |
 

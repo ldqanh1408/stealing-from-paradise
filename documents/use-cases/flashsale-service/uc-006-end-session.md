@@ -100,7 +100,7 @@ Operations:
 | Reference | Description |
 |-----------|-------------|
 | FR-FLASHSALE-007 | System transitions session status |
-| FR-FLASHSALE-011 | Publish Kafka events |
+| FR-FLASHSALE-010 | Publish Kafka events |
 | BR-FLASHSALE-004 | Status transition rules |
 | ENTITY-FLASHSALE-001 | FS_SESSIONS table |
 

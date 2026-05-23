@@ -57,7 +57,7 @@ A customer sets a reminder for an upcoming flash sale session. The system enforc
 
 | Reference | Description |
 |-----------|-------------|
-| FR-FLASHSALE-011 | Customer set reminder |
+| FR-FLASHSALE-009 | Customer set reminder |
 | BR-FLASHSALE-006 | One reminder per customer per session |
 | ENTITY-FLASHSALE-003 | FS_REMINDERS table |
 

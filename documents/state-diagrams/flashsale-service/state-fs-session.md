@@ -22,9 +22,8 @@ stateDiagram-v2
     UPCOMING --> ACTIVE : UC-FLASHSALE-006\nRedis trigger at start_time\n(BR-FLASHSALE-004)
 
     state ACTIVE {
-        [*] --> PurchasesOpen
-        PurchasesOpen --> ProcessingPurchase : POST /flash-sales/{id}/buy
-        ProcessingPurchase --> PurchasesOpen : Purchase complete\n(BR-FLASHSALE-007)
+        [*] --> ActiveSession
+    }
     }
 
     ACTIVE --> ENDED : UC-FLASHSALE-006\nRedis trigger at end_time\n(BR-FLASHSALE-004)
@@ -76,7 +75,7 @@ stateDiagram-v2
 | Property | Value |
 |----------|-------|
 | **Entry condition** | `NOW >= start_time` + Redis Worker fires trigger |
-| **Allowed operations** | Purchase items (UC-FLASHSALE-005), View session |
+| **Allowed operations** | View session only (purchase via standard checkout) |
 | **Forbidden operations** | Update session, Delete session, Register products |
 | **Kafka events on entry** | `flash_sale.session_started` |
 

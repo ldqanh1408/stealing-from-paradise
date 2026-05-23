@@ -12,7 +12,6 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 >
 > **OBSOLETE events** (xóa khỏi catalog):
 > - `flash_sale.item_approved`, `flash_sale.item_rejected` — auto-approve
-> - `flash_sale.item_sold` — đã đổi tên thành `flash_sale.item_purchased`
 >
 > **RE-ACTIVATED events** (đính chính 2026-05-10 v3 — xem `MVP_ANALYSIS.md`):
 > - `seller.order_cancelled` (order → payment, notification, product) — MUST cho workflow seller cancel. ✅ Documented + UC-008 + BR-026 hoàn thành.
@@ -154,7 +153,7 @@ public void onPaymentSuccess(PaymentSuccessEvent event) {
 **Flash Sale Flow:**
 ```
 [FlashSale] flash_sale.session_started → [Notification] open session
-[FlashSale] flash_sale.item_purchased → [Product] update inventory
+
 [FlashSale] flash_sale.session_ended → [Notification] close session
                                      → [Product] clear expired cart items
 ```

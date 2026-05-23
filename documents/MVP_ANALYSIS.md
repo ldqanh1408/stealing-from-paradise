@@ -16,7 +16,6 @@
 | API endpoints OBSOLETE phải xóa/deprecate | 0 (sau v3 re-activate 4 admin product YAMLs) | Cleanup |
 | Kafka events THIẾU (MUST-HAVE) | 2 | Block MVP |
 | Kafka events THIẾU (SHOULD) | 5 | Hoàn thiện flow |
-| Kafka events OBSOLETE phải xóa | 3 (flash_sale.item_approved/rejected + flash_sale.item_sold renamed) | Cleanup |
 | Bảng DB chưa định nghĩa schema chi tiết | 5 | Cần đề xuất |
 | Entity doc lệch DB truth | 7 | Trong đó 5 catalog mâu thuẫn MongoDB↔PostgreSQL |
 
@@ -118,7 +117,6 @@
 | `product.rejected` | ✅ ACTIVE (re-activated) | Trigger khi admin reject (UC-PRODUCT-015) |
 | `seller.order_cancelled` | ✅ ACTIVE (re-activated) | Trigger khi seller cancel ở `PAID` (UC-ORDER-008) |
 | `flash_sale.item_approved` / `flash_sale.item_rejected` | ❌ OBSOLETE | Auto-approve trong MVP — không có review workflow |
-| `flash_sale.item_sold` | 🔄 RENAMED | Đã đổi tên thành `flash_sale.item_purchased` |
 
 → Cập nhật đã thực hiện ở `KAFKA_CATALOG.md` + `messaging/product-service/KAFKA_EVENTS.md` + `messaging/order-service/KAFKA_EVENTS.md`.
 

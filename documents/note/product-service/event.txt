@@ -43,3 +43,19 @@ Luồng xử lý:
 + Restore giá về originalPrice, xóa originalPrice.
 + Emit flash_sale.price_sync với active: false.
 + Acknowledge message
+
+
+PHẦN II — EVENT GỬI ĐI (Producers)
+ product.created           → Search, Notification
+  product.updated           → Search, Notification
+  product.deleted           → Search
+  product.pending_review    → Notification
+  product.approved          → Notification
+  product.rejected          → Notification
+  product.auto_hidden       → Search, Notification
+  variant.price_updated     → Search
+  variant.stock_updated     → Search (InventoryService + VariantService + FlashSaleEventConsumer)
+  inventory.adjusted        → Search
+  stock.reservation.released → Order, Notification
+  flash_sale.price_sync      → Search
+  category.updated          → Search
