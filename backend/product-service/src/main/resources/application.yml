@@ -96,10 +96,6 @@ reservation:
     interval-ms: 180000
   ttl-minutes: 15
 
-product:
-  auto-hide:
-    cron: "0 0 2 * * ?"
-
 kafka:
   topics:
     order-created: order.created
@@ -107,7 +103,6 @@ kafka:
     order-returned: order.returned
     flash-sale-session-started: flash_sale.session_started
     flash-sale-session-ended: flash_sale.session_ended
-    flash-sale-item-purchased: flash_sale.item_purchased
 
 management:
   endpoints:

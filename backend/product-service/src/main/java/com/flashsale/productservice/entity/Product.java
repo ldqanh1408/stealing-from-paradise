@@ -70,6 +70,9 @@ public class Product {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -40,6 +40,7 @@ public class InventoryService {
     private final StringRedisTemplate redisTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final InventorySyncService inventorySyncService;
 
     @Transactional(readOnly = true)
     public ApiResponse<InventoryResponse> getInventory(String variantCode) {
@@ -69,6 +70,9 @@ public class InventoryService {
             variant.setStatus(VariantStatus.ACTIVE);
         }
         variantRepository.save(variant);
+
+        inventorySyncService.updateVariantRedisStock(variant.getId(), variant.getStockQuantity());
+        recomputeProductStatus(variant.getProductId());
 
         emitEvent(KafkaTopics.INVENTORY_ADJUSTED, variant.getId().toString(),
                 Map.of("variantId", variant.getId(), "delta", quantity, "reason", "RESTOCK"));
@@ -112,6 +116,9 @@ public class InventoryService {
             throw new AppException(ErrorCode.OPTIMISTIC_LOCK, "Variant was modified by another request. Please retry.");
         }
 
+        inventorySyncService.updateVariantRedisStock(variant.getId(), variant.getStockQuantity());
+        recomputeProductStatus(variant.getProductId());
+
         emitEvent(KafkaTopics.INVENTORY_ADJUSTED, variant.getId().toString(),
                 Map.of("variantId", variant.getId(), "delta", delta, "reason", source != null ? source : "MANUAL"));
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
@@ -132,7 +139,7 @@ public class InventoryService {
 
         String redisKey = STOCK_RESERVED_KEY_PREFIX + variantId;
         Long currentReserved = redisTemplate.opsForValue().decrement(redisKey, quantity);
-        
+
         if (currentReserved != null && currentReserved < 0) {
             redisTemplate.opsForValue().increment(redisKey, quantity);
             throw new AppException(ErrorCode.INSUFFICIENT_STOCK, "Insufficient stock available");
@@ -154,6 +161,9 @@ public class InventoryService {
                 variant.setStatus(VariantStatus.OUT_OF_STOCK);
             }
             variantRepository.save(variant);
+
+            inventorySyncService.updateVariantRedisStock(variantId, variant.getStockQuantity());
+            recomputeProductStatus(variant.getProductId());
 
             return ApiResponse.success(toReservationResponse(reservation));
         } catch (Exception e) {
@@ -191,6 +201,9 @@ public class InventoryService {
                 Map.of("variantId", variant.getId(), "stockQuantity", variant.getStockQuantity()));
         emitEvent(KafkaTopics.STOCK_RESERVATION_RELEASED, reservation.getId().toString(),
                 Map.of("reservationId", reservation.getId(), "variantId", reservation.getVariantId(), "quantity", reservation.getQuantity()));
+
+        inventorySyncService.updateVariantRedisStock(variant.getId(), variant.getStockQuantity());
+        recomputeProductStatus(variant.getProductId());
 
         return ApiResponse.success(null);
     }
@@ -238,6 +251,42 @@ public class InventoryService {
 
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
                 Map.of("variantId", variant.getId(), "stockQuantity", variant.getStockQuantity(), "reason", "ORDER_RETURN"));
+
+        inventorySyncService.updateVariantRedisStock(variantId, variant.getStockQuantity());
+        recomputeProductStatus(variant.getProductId());
+    }
+
+    public void initializeVariantRedisStock(UUID variantId, int stockQuantity) {
+        inventorySyncService.initializeVariantStock(variantId, stockQuantity);
+    }
+
+    public void recomputeProductStatus(UUID productId) {
+        List<ProductVariant> variants = variantRepository.findByProductIdAndDeletedAtIsNull(productId);
+        if (variants.isEmpty()) {
+            return;
+        }
+
+        boolean hasActiveVariantWithStock = variants.stream()
+                .anyMatch(v -> v.getStatus() == VariantStatus.ACTIVE && v.getStockQuantity() > 0);
+        boolean allOutOfStock = variants.stream()
+                .allMatch(v -> v.getStatus() == VariantStatus.OUT_OF_STOCK);
+
+        productRepository.findById(productId).ifPresent(product -> {
+            if (product.getDeletedAt() != null) {
+                return;
+            }
+            ProductStatus current = product.getStatus();
+            if (current == ProductStatus.ACTIVE ||
+                    current == ProductStatus.OUT_OF_STOCK ||
+                    current == ProductStatus.INACTIVE) {
+                if (hasActiveVariantWithStock) {
+                    product.setStatus(ProductStatus.ACTIVE);
+                } else if (allOutOfStock) {
+                    product.setStatus(ProductStatus.OUT_OF_STOCK);
+                }
+                productRepository.save(product);
+            }
+        });
     }
 
     private InventoryResponse toInventoryResponse(ProductVariant variant) {

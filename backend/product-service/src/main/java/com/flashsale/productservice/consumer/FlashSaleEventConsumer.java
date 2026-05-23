@@ -54,7 +54,8 @@ public class FlashSaleEventConsumer {
                             log.info("Applied flash price to variant: variantId={}, originalPrice={}, flashPrice={}",
                                     variantId, variant.getOriginalPrice(), flashPrice);
 
-                            emitPriceSyncEvent(variantId, flashPrice, true);
+                            emitPriceSyncEvent(variantId, flashPrice, true, variant.getProductId(),
+                                    variant.getOriginalPrice() != null ? variant.getOriginalPrice() : variant.getPrice());
                         });
                     } catch (Exception e) {
                         log.error("Failed to apply flash price for variantId={}: {}", variantIdStr, e.getMessage());
@@ -87,7 +88,7 @@ public class FlashSaleEventConsumer {
                 log.info("Restored original price for variant: variantId={}, restoredPrice={}",
                         variant.getId(), variant.getPrice());
 
-                emitPriceSyncEvent(variant.getId(), variant.getPrice(), false);
+                emitPriceSyncEvent(variant.getId(), variant.getPrice(), false, variant.getProductId(), null);
             }
 
             log.info("Flash sale session ended processing complete: sessionId={}", sessionId);
@@ -98,56 +99,26 @@ public class FlashSaleEventConsumer {
         }
     }
 
-    @KafkaListener(topics = "${kafka.topics.flash-sale-item-purchased:flash_sale.item_purchased}", groupId = "product-service-group")
-    public void onItemPurchased(ConsumerRecord<String, String> record, Acknowledgment ack) {
-        try {
-            JsonNode payload = objectMapper.readTree(record.value());
-            String variantIdStr = payload.has("variantId") ? payload.get("variantId").asText() : null;
-            int quantity = payload.has("quantity") ? payload.get("quantity").asInt() : 0;
-            Integer remainingFlashStock = payload.has("remainingFlashStock") && !payload.get("remainingFlashStock").isNull()
-                    ? payload.get("remainingFlashStock").asInt() : null;
-
-            log.info("Received flash_sale.item_purchased event: variantId={}, quantity={}, remainingFlashStock={}",
-                    variantIdStr, quantity, remainingFlashStock);
-
-            if (variantIdStr != null) {
-                UUID variantId = UUID.fromString(variantIdStr);
-                variantRepository.findById(variantId).ifPresent(variant -> {
-                    int newStock;
-                    if (remainingFlashStock != null) {
-                        newStock = remainingFlashStock;
-                    } else {
-                        newStock = variant.getStockQuantity() - quantity;
-                    }
-
-                    variant.setStockQuantity(Math.max(0, newStock));
-
-                    if (variant.getStockQuantity() == 0) {
-                        variant.setStatus(VariantStatus.OUT_OF_STOCK);
-                    }
-
-                    variantRepository.save(variant);
-
-                    log.info("Updated variant stock after flash sale purchase: variantId={}, newStock={}, status={}",
-                            variantId, variant.getStockQuantity(), variant.getStatus());
-
-                    emitStockUpdatedEvent(variantId, variant.getStockQuantity());
-                });
-            }
-
-            ack.acknowledge();
-        } catch (Exception e) {
-            log.error("Error processing flash_sale.item_purchased event: {}", record.value(), e);
-            ack.acknowledge();
-        }
-    }
-
-    private void emitPriceSyncEvent(UUID variantId, BigDecimal price, boolean active) {
+    private void emitPriceSyncEvent(UUID variantId, BigDecimal price, boolean active, UUID productId,
+                                   BigDecimal originalPrice) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("variantId", variantId);
+            payload.put("productId", productId);
             payload.put("price", price);
+            payload.put("originalPrice", originalPrice);
             payload.put("active", active);
+            if (active && originalPrice != null && price.compareTo(originalPrice) < 0) {
+                int discountPct = originalPrice.subtract(price)
+                        .multiply(java.math.BigDecimal.valueOf(100))
+                        .divideToIntegralValue(originalPrice)
+                        .intValue();
+                payload.put("hasDiscount", true);
+                payload.put("discountPct", discountPct);
+            } else {
+                payload.put("hasDiscount", false);
+                payload.put("discountPct", 0);
+            }
 
             String value = objectMapper.writeValueAsString(payload);
             kafkaTemplate.send(KafkaTopics.FLASH_SALE_PRICE_SYNC, variantId.toString(), value);
@@ -156,11 +127,14 @@ public class FlashSaleEventConsumer {
         }
     }
 
-    private void emitStockUpdatedEvent(UUID variantId, int stockQuantity) {
+    private void emitStockUpdatedEvent(UUID variantId, int stockQuantity, UUID productId, String stockStatus) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("variantId", variantId);
+            payload.put("productId", productId);
             payload.put("stockQuantity", stockQuantity);
+            payload.put("status", stockStatus);
+            payload.put("stockStatus", stockStatus);
 
             String value = objectMapper.writeValueAsString(payload);
             kafkaTemplate.send(KafkaTopics.VARIANT_STOCK_UPDATED, variantId.toString(), value);

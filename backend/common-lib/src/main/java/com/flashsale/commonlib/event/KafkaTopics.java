@@ -69,7 +69,6 @@ public final class KafkaTopics {
     public static final String FLASH_SALE_ITEM_APPROVED   = "flash_sale.item_approved";
     public static final String FLASH_SALE_ITEM_REJECTED   = "flash_sale.item_rejected";
     public static final String FLASH_SALE_ITEM_SOLD       = "flash_sale.item_sold";
-    public static final String FLASH_SALE_ITEM_PURCHASED  = "flash_sale.item_purchased";
     public static final String FLASH_SALE_REMINDER        = "flash_sale.reminder";
     public static final String FLASH_SALE_PRICE_SYNC      = "flash_sale.price_sync";
 
@@ -79,11 +78,6 @@ public final class KafkaTopics {
     public static final String STOCK_RESERVATION_EXPIRED   = "stock.reservation.expired";
     public static final String STOCK_RESERVATION_CONFIRMED = "stock.reservation.confirmed";
     public static final String STOCK_RESERVATION_RELEASED  = "stock.reservation.released";
-
-    // ──────────────────────────────────────────────
-    // Cart (Producer: Product Service)
-    // ──────────────────────────────────────────────
-    public static final String CART_ITEM_ADDED          = "cart.item_added";
 
     // ──────────────────────────────────────────────
     // Category (Producer: Product Service)

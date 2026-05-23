@@ -33,4 +33,5 @@ public class ProductResponse {
     private Integer rejectCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime publishedAt;
 }

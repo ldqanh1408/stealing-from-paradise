@@ -35,12 +35,6 @@ public class FlashSaleEventConsumer {
                 "Flash Sale đã kết thúc. Cảm ơn bạn đã tham gia!");
     }
 
-    @KafkaListener(topics = KafkaTopics.FLASH_SALE_ITEM_PURCHASED, groupId = "notification-service-flashsale")
-    public void onItemPurchased(String message) {
-        createAndEmit(message, "FLASH_SALE_PURCHASED", "Mua Flash Sale thành công",
-                "Bạn đã mua thành công sản phẩm Flash Sale!");
-    }
-
     @SuppressWarnings("unchecked")
     private void createAndEmit(String message, String type, String title, String body) {
         try {

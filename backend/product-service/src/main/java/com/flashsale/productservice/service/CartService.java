@@ -60,6 +60,10 @@ public class CartService {
                 .filter(v -> v.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
+        if (variant.getStatus() != VariantStatus.ACTIVE) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Variant is not available for purchase");
+        }
+
         Optional<CartItem> existingItem = cartItemRepository.findByCartIdAndVariantIdAndDeletedAtIsNull(
                 cart.getId(), request.getVariantId());
 
@@ -85,7 +89,6 @@ public class CartService {
         }
 
         return ApiResponse.success(toCartResponse(cart));
-    }
 
     @Transactional
     public ApiResponse<CartResponse> updateItem(UUID itemId, UpdateCartItemRequest request, UserDetailsImpl user) {
@@ -212,4 +215,5 @@ public class CartService {
                         .orElse(0L))
                 .orElse(0L);
     }
+
 }

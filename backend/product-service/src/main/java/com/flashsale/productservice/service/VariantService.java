@@ -38,6 +38,7 @@ public class VariantService {
     private final ProductRepository productRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final com.flashsale.productservice.service.InventoryService inventoryService;
 
     @Transactional(readOnly = true)
     public ApiResponse<List<VariantResponse>> getVariantsByProduct(UUID productId) {
@@ -79,6 +80,8 @@ public class VariantService {
                 .build();
 
         variant = variantRepository.save(variant);
+
+        inventoryService.initializeVariantRedisStock(variant.getId(), variant.getStockQuantity());
 
         emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
                 Map.of("variantId", variant.getId(), "price", variant.getPrice()));
@@ -122,6 +125,8 @@ public class VariantService {
                 updateVariantStatus(variant);
                 emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
                         Map.of("variantId", variant.getId(), "stockQuantity", request.getStockQuantity()));
+                inventoryService.updateVariantRedisStock(variant.getId(), request.getStockQuantity());
+                inventoryService.recomputeProductStatus(variant.getProductId());
             }
             if (request.getStatus() != null) {
                 variant.setStatus(VariantStatus.valueOf(request.getStatus().toUpperCase()));

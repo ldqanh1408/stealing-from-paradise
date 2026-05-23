@@ -182,6 +182,11 @@ public class ProductService {
             throw new AppException(ErrorCode.BAD_REQUEST, "Cannot submit product for review from current status");
         }
 
+        if (product.getRejectCount() >= 3) {
+            throw new AppException(ErrorCode.BAD_REQUEST,
+                    "Product has been rejected 3 times. Please contact admin.");
+        }
+
         List<ProductVariant> variants = variantRepository.findByProductIdAndDeletedAtIsNull(productId);
         if (variants.isEmpty()) {
             throw new AppException(ErrorCode.BAD_REQUEST, "Product must have at least one variant");
@@ -213,6 +218,10 @@ public class ProductService {
 
         if (!canTransition(product.getStatus(), ProductStatus.ACTIVE)) {
             throw new AppException(ErrorCode.BAD_REQUEST, "Cannot publish product from current status");
+        }
+
+        if (product.getPublishedAt() == null) {
+            product.setPublishedAt(LocalDateTime.now());
         }
 
         product.setStatus(ProductStatus.ACTIVE);
@@ -280,7 +289,15 @@ public class ProductService {
         product.setReviewedBy(user.getId());
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_APPROVED, product.getId().toString(), Map.of("productId", product.getId()));
+        emitEvent(KafkaTopics.PRODUCT_APPROVED, product.getId().toString(),
+                Map.of(
+                        "productId", product.getId(),
+                        "sellerId", product.getSellerId(),
+                        "reviewedBy", user.getId(),
+                        "reviewedAt", LocalDateTime.now().toString(),
+                        "rejectCount", product.getRejectCount(),
+                        "note", "San pham dat yeu cau"
+                ));
 
         return ApiResponse.success(null);
     }
@@ -306,8 +323,15 @@ public class ProductService {
         product.setReviewedBy(user.getId());
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_REJECTED, product.getId().toString(), 
-                Map.of("productId", product.getId(), "reason", reason));
+        emitEvent(KafkaTopics.PRODUCT_REJECTED, product.getId().toString(),
+                Map.of(
+                        "productId", product.getId(),
+                        "sellerId", product.getSellerId(),
+                        "reviewedBy", user.getId(),
+                        "reviewedAt", LocalDateTime.now().toString(),
+                        "rejectReason", reason,
+                        "rejectCount", product.getRejectCount()
+                ));
 
         return ApiResponse.success(null);
     }
@@ -354,6 +378,7 @@ public class ProductService {
                 .rejectCount(product.getRejectCount())
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
+                .publishedAt(product.getPublishedAt())
                 .build();
     }
 
