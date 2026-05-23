@@ -1,6 +1,12 @@
 ## Kafka Events Catalog
 Service: platform
-Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
+Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hidden removed)
+
+> **2026-05-23 changelog:**
+> - `product.pending_review`, `product.updated`, `variant.price_updated`, `variant.stock_updated` payloads updated to include all required fields (`productId`, `sellerId`, `categoryId`, `name`, `submittedAt`, `rejectCount`, `status`, `timestamp`, `productId`, `originalPrice`, `stockStatus`).
+> - `stock.reservation.expired` trigger updated: handled by `ReservationCleanupScheduler` in product-service (cron every minute), not JOB-13.
+> - Flash Sale Flow updated to reflect actual implementation: `flash_sale.session_ended` restores prices and emits `flash_sale.price_sync`; cart cleanup and inventory update are out of scope for MVP.
+> - `product.auto_hidden` event REMOVED from catalog, KafkaTopics.java, and kafka/create-topics.sh. Search Service uses `product.updated` (status change to INACTIVE) for index updates instead.
 
 > **2026-05-10 MVP changes** (xem `MVP_ANALYSIS.md` §3):
 >
@@ -36,7 +42,7 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 | Service | Produces | Consumes |
 |---------|----------|----------|
 | identity-service | — (does NOT produce domain events) | order.delivered, order.cancelled, refund.admin_approved, refund.rejected |
-| product-service | product.* (incl. pending_review, approved, rejected, auto_hidden), category.*, inventory.*, stock.reservation.* | order.created, order.cancelled, flash_sale.* |
+| product-service | product.* (incl. pending_review, approved, rejected), category.*, inventory.*, stock.reservation.* | order.created, order.cancelled, flash_sale.* |
 | order-service | order.*, order.payment_timeout, seller.order_cancelled, order.checkout_completed | payment.*, refund.*, stock.reservation.expired |
 | payment-service | payment.*, stripe.*, seller.transfer.*, payout.*, refund.stripe_auto | payment.requested, order.delivered, order.cancelled |
 | refund-service | refund.* | refund.requested, refund.full_requested, order.returned, order.refunds.request, order.payment_status.request |
@@ -153,7 +159,7 @@ public void onPaymentSuccess(PaymentSuccessEvent event) {
 **Flash Sale Flow:**
 ```
 [FlashSale] flash_sale.session_started → [Notification] open session
-
+                                 → [Product] apply flash prices, emit flash_sale.price_sync (activate)
 [FlashSale] flash_sale.session_ended → [Notification] close session
-                                     → [Product] clear expired cart items
+                                  → [Product] restore original prices, emit flash_sale.price_sync (deactivate)
 ```

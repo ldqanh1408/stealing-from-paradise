@@ -2,7 +2,7 @@
 
 > Service: product-service (Port 8090)
 > Source: `docs/services/product-service/KAFKA_EVENTS.md`, `docs/services/product-service/02_API_product_service.md`
-> Generated: 2026-05-10
+> Generated: 2026-05-10 | Updated: 2026-05-23 (payload alignment + product.auto_hidden removed)
 
 ---
 
@@ -20,10 +20,10 @@
 {
   "topic": "product.created",
   "payload": {
-    "product_id": "uuid",
-    "seller_id": "uuid",
+    "productId": "uuid",
+    "sellerId": "uuid",
     "name": "Ao Thun Nike Air Nam",
-    "category_id": "uuid",
+    "categoryId": "uuid",
     "status": "active",
     "timestamp": "2026-04-15T10:00:00Z"
   }
@@ -37,21 +37,21 @@
 | Field | Value |
 |-------|-------|
 | **Consumers** | Search Service |
-| **Trigger** | Seller updates product via `PUT /products/{id}` |
+| **Trigger** | Seller updates product via `PUT /products/{id}`, publish via `POST /seller/products/{id}/publish`, unpublish via `POST /seller/products/{id}/unpublish` |
 
 **Payload:**
 ```json
 {
   "topic": "product.updated",
   "payload": {
-    "product_id": "uuid",
-    "name": "Updated Name",
-    "category_id": "uuid",
-    "status": "active",
+    "productId": "uuid",
+    "status": "ACTIVE",
     "timestamp": "2026-04-15T10:00:00Z"
   }
 }
 ```
+
+> Note: `productId` is sufficient for Search Service to look up full product details from the database. Additional fields (`name`, `categoryId`) are not included to minimize payload size.
 
 ---
 
@@ -67,8 +67,8 @@
 {
   "topic": "product.deleted",
   "payload": {
-    "product_id": "uuid",
-    "seller_id": "uuid",
+    "productId": "uuid",
+    "sellerId": "uuid",
     "timestamp": "2026-04-15T10:00:00Z"
   }
 }
@@ -90,17 +90,17 @@
 | Field | Value |
 |-------|-------|
 | **Consumers** | Search Service |
-| **Trigger** | Seller updates variant price via `PUT /seller/variants/{id}` |
+| **Trigger** | Seller creates or updates variant price via `POST /seller/products/{id}/variants` or `PUT /seller/variants/{id}` |
 
 **Payload:**
 ```json
 {
   "topic": "variant.price_updated",
   "payload": {
-    "variant_id": "uuid",
-    "product_id": "uuid",
+    "variantId": "uuid",
+    "productId": "uuid",
     "price": 380000,
-    "original_price": 400000,
+    "originalPrice": 400000,
     "timestamp": "2026-04-15T10:00:00Z"
   }
 }
@@ -113,22 +113,29 @@
 | Field | Value |
 |-------|-------|
 | **Consumers** | Search Service |
-| **Trigger** | Stock adjustment or variant status change |
+| **Trigger** | Stock adjustment, variant creation, reservation release/return, or variant status change |
 
 **Payload:**
 ```json
 {
   "topic": "variant.stock_updated",
   "payload": {
-    "variant_id": "uuid",
-    "product_id": "uuid",
-    "stock_quantity": 50,
-    "status": "active",
-    "stock_status": "in_stock",
+    "variantId": "uuid",
+    "productId": "uuid",
+    "stockQuantity": 50,
+    "status": "ACTIVE",
+    "stockStatus": "in_stock",
     "timestamp": "2026-04-15T10:00:00Z"
   }
 }
 ```
+
+| `stockStatus` values | Meaning |
+|---------------------|---------|
+| `in_stock` | Variant is active and has stock |
+| `out_of_stock` | Variant has zero stock |
+| `unavailable` | Variant is inactive |
+| `unknown` | Status could not be determined |
 
 ---
 
@@ -137,7 +144,7 @@
 | Field | Value |
 |-------|-------|
 | **Consumers** | Search Service |
-| **Trigger** | Seller adjusts stock via `POST /seller/inventory/adjust` |
+| **Trigger** | Seller restocks or adjusts stock via `POST /seller/inventory/restock` or `POST /seller/inventory/adjust` |
 
 ---
 
@@ -148,8 +155,8 @@
 | Field | Value |
 |-------|-------|
 | **Consumers** | Order Service, Notification Service |
-| **Trigger** | JOB-13 phát hiện `stock_reservation.expires_at < NOW()` và `status = pending` |
-| **Status** | NEW — bổ sung 2026-05-10 (MVP MUST-HAVE, xem `MVP_ANALYSIS.md` §3.1) |
+| **Trigger** | `ReservationCleanupScheduler` (cron every minute) detects `stock_reservation.expires_at < NOW()` and `status = PENDING` |
+| **Status** | NEW -- bo sung 2026-05-10 (MVP MUST-HAVE, xem `MVP_ANALYSIS.md` §3.1) |
 | **Retention** | 7 days |
 | **Partition Key** | `session_id` |
 
@@ -173,11 +180,10 @@
 ```
 
 **Consumer actions:**
-- Order Service: nếu `parent_orders.session_id` = này và status `PENDING_PAYMENT` → cascade gọi `order.payment_timeout` flow.
-- Notification Service: thông báo buyer "Phiên giữ chỗ đã hết hạn".
+- Order Service: neu `parent_orders.session_id` = nay va status `PENDING_PAYMENT` → cascade goi `order.payment_timeout` flow.
+- Notification Service: thong bao buyer "Phien giu cho da het han".
 
 ---
-
 
 ---
 
@@ -188,7 +194,7 @@
 | **Producer** | product-service (`POST /seller/products/{id}/submit`) |
 | **Consumers** | notification-service (broadcast to admin queue) |
 | **Trigger** | Seller submits product for admin review (`draft → pending`) |
-| **Status** | RE-ACTIVATED 2026-05-10 v3 — P3-11 APPROVED |
+| **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
 
@@ -202,12 +208,12 @@
   "source_service": "product-service",
   "version": 1,
   "data": {
-    "product_id": "uuid",
-    "seller_id": 42,
-    "category_id": "uuid",
+    "productId": "uuid",
+    "sellerId": 42,
+    "categoryId": "uuid",
     "name": "Ao Thun Nike Air Nam",
-    "submitted_at": "2026-05-10T09:00:00Z",
-    "reject_count": 0
+    "submittedAt": "2026-05-10T09:00:00Z",
+    "rejectCount": 0
   }
 }
 ```
@@ -215,7 +221,7 @@
 **Downstream effects:**
 - Notification Service: NOTIF-PRODUCT-PENDING-REVIEW broadcast to all users with role=ADMIN.
 
-> `reject_count` allows admins to prioritize first-time submissions over repeat-rejecters in the review queue (BR-PRODUCT-009.8 — 3-strike limit).
+> `rejectCount` allows admins to prioritize first-time submissions over repeat-rejecters in the review queue (BR-PRODUCT-009.8 -- 3-strike limit).
 
 ---
 
@@ -226,7 +232,7 @@
 | **Producer** | product-service (`POST /admin/products/{id}/approve`) |
 | **Consumers** | notification-service (notify seller), search-service (pre-warm; ES indexing on subsequent `product.activated`) |
 | **Trigger** | Admin approves a pending product (`pending → approved`) |
-| **Status** | RE-ACTIVATED 2026-05-10 v3 — P3-11 APPROVED |
+| **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
 
@@ -240,19 +246,19 @@
   "source_service": "product-service",
   "version": 1,
   "data": {
-    "product_id": "uuid",
-    "seller_id": 42,
-    "reviewed_by": 1,
-    "reviewed_at": "2026-05-10T10:15:00Z",
-    "reject_count": 0,
+    "productId": "uuid",
+    "sellerId": 42,
+    "reviewedBy": 1,
+    "reviewedAt": "2026-05-10T10:15:00Z",
+    "rejectCount": 0,
     "note": "San pham dat yeu cau"
   }
 }
 ```
 
 **Downstream effects:**
-- Notification Service: NOTIF-PRODUCT-APPROVED to seller — "Sản phẩm của bạn đã được duyệt, hãy publish để mở bán".
-- Search Service: pre-warm cache; actual ES upsert chỉ xảy ra khi seller publish (`product.activated`).
+- Notification Service: NOTIF-PRODUCT-APPROVED to seller -- "San pham cua ban da duoc duyet, hay publish de mo ban".
+- Search Service: pre-warm cache; actual ES upsert chi xay ra khi seller publish (`product.activated`).
 
 ---
 
@@ -263,7 +269,7 @@
 | **Producer** | product-service (`POST /admin/products/{id}/reject`) |
 | **Consumers** | notification-service (notify seller with reason) |
 | **Trigger** | Admin rejects a pending product (`pending → rejected`) |
-| **Status** | RE-ACTIVATED 2026-05-10 v3 — P3-11 APPROVED |
+| **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
 
@@ -277,19 +283,19 @@
   "source_service": "product-service",
   "version": 1,
   "data": {
-    "product_id": "uuid",
-    "seller_id": 42,
-    "reviewed_by": 1,
-    "reviewed_at": "2026-05-10T10:20:00Z",
-    "reject_reason": "Hinh anh khong ro rang, vui long chup lai",
-    "reject_count": 1
+    "productId": "uuid",
+    "sellerId": 42,
+    "reviewedBy": 1,
+    "reviewedAt": "2026-05-10T10:20:00Z",
+    "rejectReason": "Hinh anh khong ro rang, vui long chup lai",
+    "rejectCount": 1
   }
 }
 ```
 
 **Downstream effects:**
-- Notification Service: NOTIF-PRODUCT-REJECTED to seller, body includes `{reject_reason}` so seller biết phải sửa gì.
-- Product Service (self): tăng counter `reject_count`; nếu ≥3 → lock product khỏi auto-resubmit (BR-PRODUCT-009.8).
+- Notification Service: NOTIF-PRODUCT-REJECTED to seller, body includes `{rejectReason}` so seller biet phai sua gi.
+- Product Service (self): tang counter `rejectCount`; neu >=3 → lock product khoi auto-resubmit (BR-PRODUCT-009.8).
 
 ---
 
@@ -335,25 +341,6 @@
 
 ---
 
-### product.auto_hidden
-
-| Field | Value |
-|-------|-------|
-| **Trigger** | Product inactive for 30 days (cronjob) |
-| **Consumers** | Search Service |
-
-**Payload:**
-```json
-{
-  "product_id": "uuid",
-  "seller_id": "uuid",
-  "reason": "inactive_30_days",
-  "timestamp": "2026-05-12T00:00:00Z"
-}
-```
-
----
-
 ## Events Consumed
 
 ### order.created (from Order Service)
@@ -361,39 +348,34 @@
 | Field | Value |
 |-------|-------|
 | **Module** | Inventory |
-| **Action** | Lock stock for each variant in the order |
+| **Action** | Confirm all PENDING stock reservations for the given `sessionId` |
 
 ### order.cancelled (from Order Service)
 
 | Field | Value |
 |-------|-------|
-| **Module** | Cart + Inventory |
-| **Action** | Remove items from cart, unlock stock |
+| **Module** | Inventory |
+| **Action** | Release all PENDING stock reservations for the given `sessionId`, unlock stock |
 
 ### order.returned (from Order Service)
 
 | Field | Value |
 |-------|-------|
 | **Module** | Inventory |
-| **Action** | Restore stock for returned items |
+| **Action** | Restore stock for each returned item by calling `restoreStockOnReturn(variantId, quantity)` |
 
 ### flash_sale.session_started (from Flash Sale Service)
 
 | Field | Value |
 |-------|-------|
 | **Module** | Pricing |
-| **Action** | Query fs_items, fetch variant prices, calculate flash_price, emit `flash_sale.price_sync` |
+| **Action** | Apply flash prices to variants from `flashPriceMap`, save `originalPrice`, emit `flash_sale.price_sync` (activate) |
 
 ### flash_sale.session_ended (from Flash Sale Service)
 
 | Field | Value |
 |-------|-------|
-| **Module** | Cart + Pricing |
-| **Action** | Remove expired flash items from cart, reset prices, emit `flash_sale.price_sync` (deactivate) |
-
----|-------|
-| **Module** | Inventory |
-| **Action** | Update sold count and remaining stock cache |
+| **Module** | Pricing |
+| **Action** | Restore original prices for all variants with `originalPrice != null`, emit `flash_sale.price_sync` (deactivate) |
 
 ---
-
