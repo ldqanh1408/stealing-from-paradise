@@ -103,6 +103,17 @@ public final class KafkaTopics {
     public static final String AI_CHAT_CONFIRMATION_RESOLVED = "ai_chat.confirmation_resolved";
 
     // ──────────────────────────────────────────────
+    // Checkout (Producer: Product Service → Order Service)
+    // ──────────────────────────────────────────────
+    public static final String ORDER_CHECKOUT_SUBMITTED = "order.checkout_submitted"; // PS → OS: trigger order creation + saga
+
+    // ──────────────────────────────────────────────
+    // Payment → Product (Producer: Payment Service via Kafka)
+    // ──────────────────────────────────────────────
+    public static final String ORDER_PAID          = "order.paid";           // PS confirms reservation
+    public static final String ORDER_PAYMENT_FAILED = "order.payment_failed"; // PS releases reservation
+
+    // ──────────────────────────────────────────────
     // Request-Reply (MVP — thay thế gRPC tạm thời)
     // Cart↔Product · Order↔Product · Order↔Payment
     // Order↔Cart · Order↔Identity

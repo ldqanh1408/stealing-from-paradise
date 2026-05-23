@@ -1,11 +1,18 @@
 openapi: "3.0.3"
 info:
-  title: Order Service - Checkout API
+  title: Order Service - Checkout API (Deprecated)
   description: |
-    Creates orders from cart with multi-vendor split.
-    Produces one parent order and N sub-orders (one per seller).
-    Validates stock, address, and initiates payment via Axon Saga.
-  version: "5.4"
+    **DEPRECATED as of 2026-05-23.**
+
+    The checkout flow has been redesigned. Order creation is now triggered by the
+    `order.checkout_submitted` Kafka event from Product Service.
+
+    - `POST /v1/checkout/preview` (Product Service) — validates cart items, returns preview_token
+    - `POST /v1/checkout/submit` (Product Service) — reserves stock, emits `order.checkout_submitted`
+    - `POST /orders/checkout` — **no longer accepts direct client requests**
+
+    This endpoint is kept for backward compatibility only and throws UnsupportedOperationException.
+  version: "6.0"
   contact:
     name: Order Service Team
 servers:
@@ -13,210 +20,20 @@ servers:
     description: Local development
 tags:
   - name: Checkout
-    description: Order creation from cart
+    description: DEPRECATED — use Product Service endpoints
 paths:
   /orders/checkout:
     post:
       tags:
         - Checkout
-      summary: Create order from cart (multi-vendor split)
+      summary: "[DEPRECATED] Use Product Service POST /v1/checkout/submit instead"
       description: |
-        Validates cart items, shipping address, and stock availability.
-        Groups items by seller and creates one sub-order per seller under a parent order.
-        Initiates payment via ParentOrderPaymentSaga.
-        Produces `order.created` and `order.checkout_created` Kafka events.
-      operationId: checkout
+        This endpoint is no longer used for client-initiated checkout.
+        Throws UnsupportedOperationException if called directly.
+        Order creation is now triggered by the `order.checkout_submitted` Kafka event.
+      operationId: checkoutDeprecated
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CheckoutRequest"
-            example:
-              address_id: 7
-              item_ids: [201, 202]
       responses:
-        "201":
-          description: Order created successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CheckoutResponse"
-        "401":
-          description: Not authenticated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: Address not valid or checkout session duplicate
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "422":
-          description: Items out of stock or invalid item_ids
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  schemas:
-    CheckoutRequest:
-      type: object
-      required:
-        - address_id
-        - item_ids
-      properties:
-        address_id:
-          type: integer
-          format: int64
-          description: ID of the shipping address (must exist and belong to user)
-          example: 7
-        item_ids:
-          type: array
-          description: Cart item IDs to check out (1-50, no duplicates)
-          minItems: 1
-          maxItems: 50
-          uniqueItems: true
-          items:
-            type: integer
-            format: int64
-          example: [201, 202]
-
-    CheckoutResponse:
-      type: object
-      properties:
-        parent_order_id:
-          type: integer
-          format: int64
-          description: ID of the created parent order
-          example: 55
-        orders:
-          type: array
-          description: List of sub-orders (one per seller)
-          items:
-            $ref: "#/components/schemas/SubOrderSummary"
-        shipping_address:
-          $ref: "#/components/schemas/ShippingAddressSnapshot"
-        total_amount:
-          type: number
-          format: double
-          description: Sum of all sub-order final_amt
-          example: 1200000
-        total_items:
-          type: integer
-          description: Total quantity of all items
-          example: 3
-        created_at:
-          type: string
-          format: date-time
-          example: "2026-10-01T10:00:00Z"
-
-    SubOrderSummary:
-      type: object
-      properties:
-        order_id:
-          type: integer
-          format: int64
-          example: 100
-        order_code:
-          type: string
-          description: Human-readable display code (OR-YYYYMMDD-{id})
-          example: "OR-20251001-100"
-        seller_id:
-          type: integer
-          format: int64
-          example: 5
-        total_amt:
-          type: number
-          format: double
-          example: 700000
-        final_amt:
-          type: number
-          format: double
-          example: 650000
-        status:
-          type: string
-          enum: [PENDING]
-          example: "PENDING"
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/OrderItemSummary"
-        created_at:
-          type: string
-          format: date-time
-          example: "2026-10-01T10:00:00Z"
-
-    OrderItemSummary:
-      type: object
-      properties:
-        order_item_id:
-          type: integer
-          format: int64
-          example: 501
-        sku_code:
-          type: string
-          example: "NK-AIR-RED-XL"
-        name_snapshot:
-          type: string
-          example: "Ao Thun Nike Air"
-        image_snapshot:
-          type: string
-          format: uri
-          example: "https://cdn.marketplace.vn/products-media/products/5/101/uuid.jpg"
-        price_snapshot:
-          type: number
-          format: double
-          example: 350000
-        quantity:
-          type: integer
-          example: 2
-
-    ShippingAddressSnapshot:
-      type: object
-      properties:
-        address_id:
-          type: integer
-          format: int64
-          example: 7
-        full_address:
-          type: string
-          example: "123 Nguyen Trai, Phuong 2, Q.3, TP.HCM"
-        province_id:
-          type: integer
-          example: 79
-        district_id:
-          type: integer
-          example: 760
-
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error code
-        message:
-          type: string
-          description: Human-readable error message
-        details:
-          type: array
-          description: Per-item errors (for 422)
-          items:
-            type: object
-            properties:
-              item_id:
-                type: integer
-                format: int64
-              reason:
-                type: string
+        "501":
+          description: Deprecated endpoint — use Product Service checkout endpoints

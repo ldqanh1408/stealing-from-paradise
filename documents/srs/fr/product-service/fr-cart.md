@@ -71,25 +71,38 @@
 
 ---
 
-## FR-PRODUCT-021: Cart Integrity at Checkout Preview
+## FR-PRODUCT-021: Checkout Preview
 
 | Attribute | Value |
 |-----------|-------|
 | **Priority** | CRITICAL |
-| **Actor** | System (internal validation) |
-| **Endpoint** | Internal (triggered at Checkout Preview stage) |
-| **Description** | Before entering Checkout Preview, validate ALL cart items: price must match current, stock must be sufficient, variant must be active. If any check fails, return 409 Conflict -- UI must force cart refresh. |
-| **Acceptance Criteria** | AC1: Price mismatch -> 409. AC2: Insufficient stock -> 409. AC3: Inactive variant -> 409. AC4: All checks pass -> return preview_token with 10 min TTL. |
+| **Actor** | Customer (JWT required) |
+| **Endpoint** | `POST /v1/checkout/preview` |
+| **Description** | Validates ALL cart items: price must match snapshot, stock must be sufficient, variant must be active. If all pass, returns a `preview_token` (TTL 10 min) stored in Redis. If any check fails, returns 409 Conflict with per-item error details -- UI must force cart refresh before retrying. |
+| **Acceptance Criteria** | AC1: Price mismatch -> 409 with `PRICE_CHANGED` detail. AC2: Insufficient stock -> 409 with `INSUFFICIENT_STOCK` detail. AC3: Inactive/unavailable variant -> 409 with `VARIANT_INACTIVE` detail. AC4: All checks pass -> returns `preview_token` + `expires_at` (10 min TTL). AC5: Token is invalidated after successful checkout. |
 | **Related** | ENTITY-PRODUCT-007, BR-PRODUCT-011, BR-PRODUCT-012 |
 
 ---
 
-## FR-PRODUCT-022: Cart Cleanup on Events
+## FR-PRODUCT-022: Checkout Submit
+
+| Attribute | Value |
+|-----------|-------|
+| **Priority** | CRITICAL |
+| **Actor** | Customer (JWT required) |
+| **Endpoint** | `POST /v1/checkout/submit` |
+| **Description** | Receives a valid `preview_token` and address. Re-validates all items one final time. On success: reserves stock (PENDING), stores checkout session in Redis (TTL 15 min), emits `order.checkout_submitted` Kafka event to Order Service, and invalidates the `preview_token`. On failure: returns 409 Conflict with details. |
+| **Acceptance Criteria** | AC1: Missing/invalid `preview_token` -> 409. AC2: Stock or price changed since preview -> 409 Conflict with details. AC3: All checks pass -> stock reserved (PENDING), `order.checkout_submitted` event sent, `preview_token` invalidated, returns `session_id`. AC4: On `order.paid` event -> confirmReservation(). AC5: On `order.payment_failed` event -> releaseReservation(). |
+| **Related** | ENTITY-PRODUCT-007, ENTITY-PRODUCT-008, KafkaTopics.ORDER_CHECKOUT_SUBMITTED, KafkaTopics.ORDER_PAID, KafkaTopics.ORDER_PAYMENT_FAILED |
+
+---
+
+## FR-PRODUCT-023: Cart Cleanup on Events
 
 | Attribute | Value |
 |-----------|-------|
 | **Priority** | MEDIUM |
 | **Actor** | System (Kafka consumer) |
-| **Description** | Consume events to maintain cart integrity: (a) `order.checkout_created` -- remove checked-out items from cart; (b) `flash_sale.session_ended` -- JOB-07 removes expired flash sale items; (c) `order.cancelled` -- unlock inventory. |
-| **Acceptance Criteria** | AC1: Checked-out items removed on `order.checkout_created`. AC2: Expired flash items removed on `flash_sale.session_ended`. AC3: Inventory unlocked on `order.cancelled`. |
+| **Description** | Consume events to maintain cart integrity: (a) `order.cancelled` -- release stock reservations; (b) `flash_sale.session_ended` -- JOB-07 removes expired flash sale items; (c) `order.returned` -- restore stock. |
+| **Acceptance Criteria** | AC1: Stock released on `order.cancelled`. AC2: Expired flash items removed on `flash_sale.session_ended`. AC3: Stock restored on `order.returned`. |
 | **Related** | ENTITY-PRODUCT-006, ENTITY-PRODUCT-007, KAFKA_EVENTS.md |

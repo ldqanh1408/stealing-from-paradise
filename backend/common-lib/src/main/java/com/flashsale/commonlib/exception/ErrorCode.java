@@ -11,6 +11,7 @@ public enum ErrorCode {
     NOT_FOUND("RES_001",       "Không tìm thấy tài nguyên",          404),
     ALREADY_EXISTS("RES_002",  "Tài nguyên đã tồn tại",              409),
     OPTIMISTIC_LOCK("RES_003", "Xung đột dữ liệu, thử lại",         409),
+    CONFLICT("RES_004",         "Xung đột dữ liệu",                   409),
     // Business
     INSUFFICIENT_STOCK("BIZ_001",     "Không đủ hàng",                 400),
     ORDER_NOT_CANCELLABLE("BIZ_002",  "Đơn hàng không thể hủy",        400),

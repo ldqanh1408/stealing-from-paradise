@@ -5,15 +5,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.orderservice.axon.event.ParentOrderPaymentFailedEvent;
 import com.flashsale.orderservice.axon.event.ParentOrderPaymentSucceededEvent;
+import com.flashsale.orderservice.domain.model.ParentOrder;
+import com.flashsale.orderservice.domain.repository.ParentOrderRepository;
 import com.flashsale.orderservice.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -23,6 +27,8 @@ public class PaymentKafkaEventBridge {
     private final ObjectMapper objectMapper;
     private final EventGateway eventGateway;
     private final OrderRepository orderRepository;
+    private final ParentOrderRepository parentOrderRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "order-service-group")
     public void onPaymentSuccess(String message) {
@@ -33,7 +39,10 @@ public class PaymentKafkaEventBridge {
                 log.warn("Ignore payment.success without parent_order_id");
                 return;
             }
+
             eventGateway.publish(new ParentOrderPaymentSucceededEvent(parentOrderId));
+
+            publishOrderPaidEvent(parentOrderId);
         } catch (Exception e) {
             log.error("Error bridging payment.success to Axon event: {}", e.getMessage(), e);
         }
@@ -48,10 +57,75 @@ public class PaymentKafkaEventBridge {
                 log.warn("Ignore payment.failed without parent_order_id");
                 return;
             }
+
             String reason = payload.get("reason") != null ? payload.get("reason").toString() : "Thanh toan that bai";
             eventGateway.publish(new ParentOrderPaymentFailedEvent(parentOrderId, reason));
+
+            publishOrderPaymentFailedEvent(parentOrderId, reason);
         } catch (Exception e) {
             log.error("Error bridging payment.failed to Axon event: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    public void publishOrderPaidEvent(Long parentOrderId) {
+        Optional<ParentOrder> parentOpt = parentOrderRepository.findById(parentOrderId);
+        if (parentOpt.isEmpty()) {
+            log.warn("ParentOrder {} not found for order.paid event", parentOrderId);
+            return;
+        }
+
+        ParentOrder parent = parentOpt.get();
+        String sessionId = parent.getSessionId();
+
+        Map<String, Object> event = Map.of(
+                "event_id", "evt_" + System.currentTimeMillis(),
+                "event_type", "order.paid",
+                "parent_order_id", parentOrderId,
+                "session_id", sessionId != null ? sessionId : "",
+                "customer_id", parent.getCustomerId(),
+                "total_amount", parent.getTotalAmt(),
+                "timestamp", java.time.Instant.now().toString()
+        );
+
+        try {
+            kafkaTemplate.send(KafkaTopics.ORDER_PAID,
+                    String.valueOf(parentOrderId),
+                    objectMapper.writeValueAsString(event));
+            log.info("Published order.paid: parentOrderId={}, sessionId={}", parentOrderId, sessionId);
+        } catch (Exception e) {
+            log.error("Failed to publish order.paid event: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    public void publishOrderPaymentFailedEvent(Long parentOrderId, String reason) {
+        Optional<ParentOrder> parentOpt = parentOrderRepository.findById(parentOrderId);
+        if (parentOpt.isEmpty()) {
+            log.warn("ParentOrder {} not found for order.payment_failed event", parentOrderId);
+            return;
+        }
+
+        ParentOrder parent = parentOpt.get();
+        String sessionId = parent.getSessionId();
+
+        Map<String, Object> event = Map.of(
+                "event_id", "evt_" + System.currentTimeMillis(),
+                "event_type", "order.payment_failed",
+                "parent_order_id", parentOrderId,
+                "session_id", sessionId != null ? sessionId : "",
+                "customer_id", parent.getCustomerId(),
+                "reason", reason,
+                "timestamp", java.time.Instant.now().toString()
+        );
+
+        try {
+            kafkaTemplate.send(KafkaTopics.ORDER_PAYMENT_FAILED,
+                    String.valueOf(parentOrderId),
+                    objectMapper.writeValueAsString(event));
+            log.info("Published order.payment_failed: parentOrderId={}, sessionId={}", parentOrderId, sessionId);
+        } catch (Exception e) {
+            log.error("Failed to publish order.payment_failed event: {}", e.getMessage(), e);
         }
     }
 

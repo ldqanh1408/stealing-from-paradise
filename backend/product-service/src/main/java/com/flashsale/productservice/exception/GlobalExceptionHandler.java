@@ -22,11 +22,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ApiResponse<Void>> handleAppException(AppException ex) {
         log.error("AppException: code={}, message={}", ex.getErrorCode(), ex.getMessage());
-        
+
         HttpStatus status = switch (ex.getErrorCode()) {
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case ALREADY_EXISTS -> HttpStatus.CONFLICT;
             case OPTIMISTIC_LOCK -> HttpStatus.CONFLICT;
+            case CONFLICT -> HttpStatus.CONFLICT;
             case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case INSUFFICIENT_STOCK -> HttpStatus.UNPROCESSABLE_ENTITY;
@@ -34,8 +35,14 @@ public class GlobalExceptionHandler {
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
 
+        String message = ex.getMessage();
+        if (ex.getErrorCode() == ErrorCode.CONFLICT && message != null && message.startsWith("{")) {
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.error(ex.getErrorCode().name(), message));
+        }
+
         return ResponseEntity.status(status)
-                .body(ApiResponse.error(ex.getErrorCode().name(), ex.getMessage()));
+                .body(ApiResponse.error(ex.getErrorCode().name(), message));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

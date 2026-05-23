@@ -23,6 +23,9 @@ public class ParentOrder {
     @Column(name = "customer_id", nullable = false)
     private Long customerId;
 
+    @Column(name = "session_id")
+    private String sessionId;
+
     @Column(name = "total_amt", nullable = false)
     private BigDecimal totalAmt;
 

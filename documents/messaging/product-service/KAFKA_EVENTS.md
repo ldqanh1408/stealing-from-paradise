@@ -8,6 +8,46 @@
 
 ## Events Produced
 
+### order.checkout_submitted
+
+| Field | Value |
+|-------|-------|
+| **Consumers** | Order Service |
+| **Trigger** | Buyer submits checkout via `POST /v1/checkout/submit` (Product Service) |
+| **Retention** | 7 days |
+| **Partition Key** | `customer_id` |
+
+**Payload:**
+```json
+{
+  "event_id": "evt_20260523_001",
+  "event_type": "order.checkout_submitted",
+  "timestamp": "2026-05-23T17:10:00Z",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "customer_id": 42,
+  "preview_token": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "items": [
+    {
+      "cart_item_id": "uuid",
+      "variant_id": "uuid",
+      "sku_code": "NK-AIR-RED-XL",
+      "product_name": "Ao Thun Nike Air",
+      "price_snapshot": 350000,
+      "quantity": 2,
+      "seller_id": 5
+    }
+  ],
+  "total_amount": 1200000,
+  "total_items": 2,
+  "address_snapshot": "{\"address_id\":7,\"province_id\":79,\"district_id\":760,\"full_address\":\"123 Nguyen Trai...\"}"
+}
+```
+
+**Consumer actions:**
+- Order Service: Consumes event, creates ParentOrder + sub-orders, starts payment saga
+
+---
+
 ### product.created
 
 | Field | Value |
@@ -343,19 +383,28 @@
 
 ## Events Consumed
 
-### order.created (from Order Service)
+### order.paid (from Order Service)
 
 | Field | Value |
 |-------|-------|
 | **Module** | Inventory |
-| **Action** | Confirm all PENDING stock reservations for the given `sessionId` |
+| **Action** | Confirm all PENDING stock reservations for the given `session_id`. Calls `confirmReservation()` to set status to CONFIRMED. |
+| **Trigger** | Payment success — Payment Service publishes `payment.success`, Order Service re-publishes as `order.paid` |
+
+### order.payment_failed (from Order Service)
+
+| Field | Value |
+|-------|-------|
+| **Module** | Inventory |
+| **Action** | Release all PENDING stock reservations for the given `session_id`. Calls `releaseReservation()` to restore stock and set status to RELEASED. |
+| **Trigger** | Payment failure — Payment Service publishes `payment.failed`, Order Service re-publishes as `order.payment_failed` |
 
 ### order.cancelled (from Order Service)
 
 | Field | Value |
 |-------|-------|
 | **Module** | Inventory |
-| **Action** | Release all PENDING stock reservations for the given `sessionId`, unlock stock |
+| **Action** | Release all PENDING stock reservations for the given `session_id`, unlock stock |
 
 ### order.returned (from Order Service)
 

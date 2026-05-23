@@ -1,0 +1,31 @@
+package com.flashsale.productservice.dto.checkout;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CheckoutPreviewError {
+
+    private String error;
+    private String message;
+    private List<PreviewItemError> details;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class PreviewItemError {
+        private String cartItemId;
+        private String variantId;
+        private String reason;
+        private String currentValue;
+        private String expectedValue;
+    }
+}

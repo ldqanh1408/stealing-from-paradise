@@ -2,6 +2,7 @@ package com.flashsale.productservice.consumer;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.productservice.entity.StockReservation;
 import com.flashsale.productservice.repository.StockReservationRepository;
 import com.flashsale.productservice.service.InventoryService;
@@ -24,67 +25,18 @@ public class OrderEventConsumer {
     private final StockReservationRepository reservationRepository;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "${kafka.topics.order-created:order.created}", groupId = "product-service-group")
-    public void onOrderCreated(ConsumerRecord<String, String> record, Acknowledgment ack) {
-        try {
-            JsonNode payload = objectMapper.readTree(record.value());
-            String orderId = payload.has("orderId") ? payload.get("orderId").asText() : null;
-            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText() : null;
-
-            log.info("Received order.created event: orderId={}, sessionId={}", orderId, sessionId);
-
-            if (sessionId != null) {
-                List<StockReservation> pendingReservations = reservationRepository
-                        .findBySessionIdAndStatus(sessionId, com.flashsale.productservice.entity.ReservationStatus.PENDING);
-
-                for (StockReservation reservation : pendingReservations) {
-                    try {
-                        inventoryService.confirmReservation(reservation.getId());
-                        log.info("Confirmed reservation: reservationId={}, variantId={}, quantity={}",
-                                reservation.getId(), reservation.getVariantId(), reservation.getQuantity());
-                    } catch (Exception e) {
-                        log.error("Failed to confirm reservation: {}", reservation.getId(), e);
-                    }
-                }
-
-                log.info("Order created processing complete: orderId={}, sessionId={}, confirmedCount={}",
-                        orderId, sessionId, pendingReservations.size());
-            }
-
-            ack.acknowledge();
-        } catch (Exception e) {
-            log.error("Error processing order.created event: {}", record.value(), e);
-            ack.acknowledge();
-        }
-    }
-
+    /**
+     * Nhận order.cancelled → release stock reservations.
+     */
     @KafkaListener(topics = "${kafka.topics.order-cancelled:order.cancelled}", groupId = "product-service-group")
     public void onOrderCancelled(ConsumerRecord<String, String> record, Acknowledgment ack) {
         try {
             JsonNode payload = objectMapper.readTree(record.value());
-            String orderId = payload.has("orderId") ? payload.get("orderId").asText() : null;
-            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText() : null;
+            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
+                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
 
-            log.info("Received order.cancelled event: orderId={}, sessionId={}", orderId, sessionId);
-
-            if (sessionId != null) {
-                List<StockReservation> pendingReservations = reservationRepository
-                        .findBySessionIdAndStatus(sessionId, com.flashsale.productservice.entity.ReservationStatus.PENDING);
-
-                for (StockReservation reservation : pendingReservations) {
-                    try {
-                        inventoryService.releaseReservation(reservation.getId());
-                        log.info("Released reservation: reservationId={}, variantId={}, quantity={}",
-                                reservation.getId(), reservation.getVariantId(), reservation.getQuantity());
-                    } catch (Exception e) {
-                        log.error("Failed to release reservation: {}", reservation.getId(), e);
-                    }
-                }
-
-                log.info("Order cancelled processing complete: orderId={}, sessionId={}, releasedCount={}",
-                        orderId, sessionId, pendingReservations.size());
-            }
-
+            log.info("Received order.cancelled event: sessionId={}", sessionId);
+            processRelease(sessionId);
             ack.acknowledge();
         } catch (Exception e) {
             log.error("Error processing order.cancelled event: {}", record.value(), e);
@@ -92,14 +44,57 @@ public class OrderEventConsumer {
         }
     }
 
+    /**
+     * Nhận order.paid → confirm stock reservations.
+     * Đây là thời điểm thanh toán thành công — stock reservation được xác nhận vĩnh viễn.
+     */
+    @KafkaListener(topics = "${kafka.topics.order-paid:order.paid}", groupId = "product-service-group")
+    public void onOrderPaid(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        try {
+            JsonNode payload = objectMapper.readTree(record.value());
+            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
+                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
+
+            log.info("Received order.paid event: sessionId={}", sessionId);
+            processConfirm(sessionId);
+            ack.acknowledge();
+        } catch (Exception e) {
+            log.error("Error processing order.paid event: {}", record.value(), e);
+            ack.acknowledge();
+        }
+    }
+
+    /**
+     * Nhận order.payment_failed → release stock reservations.
+     * Thanh toán thất bại → stock được giải phóng cho người khác mua.
+     */
+    @KafkaListener(topics = "${kafka.topics.order-payment-failed:order.payment_failed}", groupId = "product-service-group")
+    public void onOrderPaymentFailed(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        try {
+            JsonNode payload = objectMapper.readTree(record.value());
+            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
+                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
+
+            log.info("Received order.payment_failed event: sessionId={}", sessionId);
+            processRelease(sessionId);
+            ack.acknowledge();
+        } catch (Exception e) {
+            log.error("Error processing order.payment_failed event: {}", record.value(), e);
+            ack.acknowledge();
+        }
+    }
+
+    /**
+     * Nhận order.returned → restore stock.
+     */
     @KafkaListener(topics = "${kafka.topics.order-returned:order.returned}", groupId = "product-service-group")
     public void onOrderReturned(ConsumerRecord<String, String> record, Acknowledgment ack) {
         try {
             JsonNode payload = objectMapper.readTree(record.value());
-            String orderId = payload.has("orderId") ? payload.get("orderId").asText() : null;
-            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText() : null;
+            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
+                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
 
-            log.info("Received order.returned event: orderId={}, sessionId={}", orderId, sessionId);
+            log.info("Received order.returned event: sessionId={}", sessionId);
 
             if (payload.has("items") && payload.get("items").isArray()) {
                 for (JsonNode item : payload.get("items")) {
@@ -118,11 +113,57 @@ public class OrderEventConsumer {
                 }
             }
 
-            log.info("Order returned processing complete: orderId={}", orderId);
+            log.info("Order returned processing complete: sessionId={}", sessionId);
             ack.acknowledge();
         } catch (Exception e) {
             log.error("Error processing order.returned event: {}", record.value(), e);
             ack.acknowledge();
         }
+    }
+
+    private void processConfirm(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            log.warn("order.paid event has no sessionId — cannot confirm reservations");
+            return;
+        }
+
+        List<StockReservation> pending = reservationRepository
+                .findBySessionIdAndStatus(sessionId,
+                        com.flashsale.productservice.entity.ReservationStatus.PENDING);
+
+        for (StockReservation reservation : pending) {
+            try {
+                inventoryService.confirmReservation(reservation.getId());
+                log.info("Confirmed reservation: reservationId={}, variantId={}, quantity={}",
+                        reservation.getId(), reservation.getVariantId(), reservation.getQuantity());
+            } catch (Exception e) {
+                log.error("Failed to confirm reservation: {}", reservation.getId(), e);
+            }
+        }
+
+        log.info("order.paid processing complete: sessionId={}, confirmedCount={}", sessionId, pending.size());
+    }
+
+    private void processRelease(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            log.warn("Event has no sessionId — cannot release reservations");
+            return;
+        }
+
+        List<StockReservation> pending = reservationRepository
+                .findBySessionIdAndStatus(sessionId,
+                        com.flashsale.productservice.entity.ReservationStatus.PENDING);
+
+        for (StockReservation reservation : pending) {
+            try {
+                inventoryService.releaseReservation(reservation.getId());
+                log.info("Released reservation: reservationId={}, variantId={}, quantity={}",
+                        reservation.getId(), reservation.getVariantId(), reservation.getQuantity());
+            } catch (Exception e) {
+                log.error("Failed to release reservation: {}", reservation.getId(), e);
+            }
+        }
+
+        log.info("Stock release processing complete: sessionId={}, releasedCount={}", sessionId, pending.size());
     }
 }

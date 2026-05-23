@@ -1,0 +1,333 @@
+package com.flashsale.productservice.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.exception.AppException;
+import com.flashsale.commonlib.exception.ErrorCode;
+import com.flashsale.productservice.dto.checkout.CheckoutPreviewError;
+import com.flashsale.productservice.dto.checkout.CheckoutPreviewRequest;
+import com.flashsale.productservice.dto.checkout.CheckoutPreviewResponse;
+import com.flashsale.productservice.entity.Cart;
+import com.flashsale.productservice.entity.CartItem;
+import com.flashsale.productservice.entity.ProductVariant;
+import com.flashsale.productservice.entity.VariantStatus;
+import com.flashsale.productservice.repository.CartItemRepository;
+import com.flashsale.productservice.repository.CartRepository;
+import com.flashsale.productservice.repository.ProductVariantRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class CheckoutPreviewService {
+
+    private static final String PREVIEW_TOKEN_PREFIX = "checkout:preview:";
+    private static final Duration PREVIEW_TOKEN_TTL = Duration.ofMinutes(10);
+
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+    private final ProductVariantRepository variantRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    @Transactional(readOnly = true)
+    public ApiResponse<CheckoutPreviewResponse> generatePreview(
+            CheckoutPreviewRequest request, Long customerId) {
+
+        List<String> itemIds = request.getItemIds();
+        List<UUID> uuidItemIds = itemIds.stream()
+                .map(this::parseUUID)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (uuidItemIds.isEmpty()) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Không có item_ids hợp lệ");
+        }
+
+        Cart cart = cartRepository.findByCustomerIdAndDeletedAtIsNull(customerId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy giỏ hàng"));
+
+        List<CartItem> cartItems = cartItemRepository.findByIdsAndCartIdAndNotDeleted(uuidItemIds, cart.getId());
+        if (cartItems.size() != uuidItemIds.size()) {
+            Set<UUID> foundIds = cartItems.stream().map(CartItem::getId).collect(Collectors.toSet());
+            List<String> missing = uuidItemIds.stream()
+                    .filter(id -> !foundIds.contains(id))
+                    .map(UUID::toString)
+                    .toList();
+            throw new AppException(ErrorCode.NOT_FOUND, "Một số item không tìm thấy trong giỏ hàng: " + missing);
+        }
+
+        List<CheckoutPreviewError.PreviewItemError> errors = new ArrayList<>();
+        List<CheckoutPreviewResponse.PreviewItem> validItems = new ArrayList<>();
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        int totalItems = 0;
+
+        List<ProductVariant> variants = variantRepository.findAllById(
+                cartItems.stream().map(CartItem::getVariantId).toList());
+        Map<UUID, ProductVariant> variantMap = variants.stream()
+                .collect(Collectors.toMap(ProductVariant::getId, v -> v));
+
+        for (CartItem item : cartItems) {
+            ProductVariant variant = variantMap.get(item.getVariantId());
+
+            if (variant == null || variant.getDeletedAt() != null) {
+                errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                        .cartItemId(item.getId().toString())
+                        .variantId(item.getVariantId().toString())
+                        .reason("VARIANT_UNAVAILABLE")
+                        .currentValue("deleted or inactive")
+                        .expectedValue("active variant")
+                        .build());
+                continue;
+            }
+
+            if (variant.getStatus() != VariantStatus.ACTIVE) {
+                errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                        .cartItemId(item.getId().toString())
+                        .variantId(item.getVariantId().toString())
+                        .reason("VARIANT_INACTIVE")
+                        .currentValue(variant.getStatus().name())
+                        .expectedValue("ACTIVE")
+                        .build());
+                continue;
+            }
+
+            if (variant.getPrice().compareTo(item.getPriceSnapshot()) != 0) {
+                errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                        .cartItemId(item.getId().toString())
+                        .variantId(item.getVariantId().toString())
+                        .reason("PRICE_CHANGED")
+                        .currentValue(variant.getPrice().toString())
+                        .expectedValue(item.getPriceSnapshot().toString())
+                        .build());
+                continue;
+            }
+
+            if (variant.getStockQuantity() < item.getQuantity()) {
+                errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                        .cartItemId(item.getId().toString())
+                        .variantId(item.getVariantId().toString())
+                        .reason("INSUFFICIENT_STOCK")
+                        .currentValue(String.valueOf(variant.getStockQuantity()))
+                        .expectedValue(String.valueOf(item.getQuantity()))
+                        .build());
+                continue;
+            }
+
+            if (variant.getStockQuantity() == 0) {
+                errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                        .cartItemId(item.getId().toString())
+                        .variantId(item.getVariantId().toString())
+                        .reason("OUT_OF_STOCK")
+                        .currentValue("0")
+                        .expectedValue(String.valueOf(item.getQuantity()))
+                        .build());
+                continue;
+            }
+
+            BigDecimal subtotal = item.getPriceSnapshot().multiply(BigDecimal.valueOf(item.getQuantity()));
+            validItems.add(CheckoutPreviewResponse.PreviewItem.builder()
+                    .cartItemId(item.getId().toString())
+                    .variantId(item.getVariantId().toString())
+                    .skuCode(variant.getVariantCode())
+                    .productName(item.getVariantNameSnapshot())
+                    .variantName(variant.getVariantName())
+                    .priceSnapshot(item.getPriceSnapshot())
+                    .quantity(item.getQuantity())
+                    .imageUrl(item.getVariantImageSnapshot())
+                    .subtotal(subtotal)
+                    .fsItemId(null)
+                    .build());
+            totalAmount = totalAmount.add(subtotal);
+            totalItems += item.getQuantity();
+        }
+
+        if (!errors.isEmpty()) {
+            CheckoutPreviewError error = CheckoutPreviewError.builder()
+                    .error("CART_ITEMS_CHANGED")
+                    .message("Một số sản phẩm trong giỏ hàng đã thay đổi. Vui lòng làm mới giỏ hàng.")
+                    .details(errors)
+                    .build();
+            throw new AppException(ErrorCode.CONFLICT, objectMapper.writeValueAsString(error));
+        }
+
+        String previewToken = UUID.randomUUID().toString();
+        Instant expiresAt = Instant.now().plus(PREVIEW_TOKEN_TTL);
+
+        CheckoutPreviewResponse response = CheckoutPreviewResponse.builder()
+                .previewToken(previewToken)
+                .expiresAt(expiresAt)
+                .customerId(customerId)
+                .sellers(groupBySeller(validItems))
+                .totalItems(totalItems)
+                .totalAmount(totalAmount)
+                .allValid(true)
+                .build();
+
+        String tokenValue = buildTokenValue(response);
+        redisTemplate.opsForValue().set(
+                PREVIEW_TOKEN_PREFIX + previewToken,
+                tokenValue,
+                PREVIEW_TOKEN_TTL
+        );
+
+        log.info("Checkout preview generated: token={}, customerId={}, itemCount={}",
+                previewToken, customerId, validItems.size());
+        return ApiResponse.success(response);
+    }
+
+    @Transactional(readOnly = true)
+    public CheckoutPreviewResponse validateAndGetPreview(String previewToken, Long customerId) {
+        if (previewToken == null || previewToken.isBlank()) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "preview_token là bắt buộc");
+        }
+
+        String key = PREVIEW_TOKEN_PREFIX + previewToken;
+        String value = redisTemplate.opsForValue().get(key);
+        if (value == null) {
+            throw new AppException(ErrorCode.NOT_FOUND, "preview_token không tồn tại hoặc đã hết hạn");
+        }
+
+        try {
+            CheckoutPreviewResponse cached = objectMapper.readValue(value, CheckoutPreviewResponse.class);
+            if (!cached.getCustomerId().equals(customerId)) {
+                throw new AppException(ErrorCode.FORBIDDEN, "preview_token không thuộc về bạn");
+            }
+            return cached;
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse preview token: {}", previewToken, e);
+            throw new AppException(ErrorCode.INTERNAL_ERROR, "Lỗi khi xác thực preview_token");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void revalidateStock(CheckoutPreviewResponse preview) {
+        Set<String> variantIds = preview.getSellers().stream()
+                .flatMap(s -> s.getItems().stream())
+                .map(CheckoutPreviewResponse.PreviewItem::getVariantId)
+                .collect(Collectors.toSet());
+
+        List<ProductVariant> variants = variantRepository.findAllById(
+                variantIds.stream().map(UUID::fromString).toList());
+        Map<String, ProductVariant> variantMap = variants.stream()
+                .collect(Collectors.toMap(v -> v.getId().toString(), v -> v));
+
+        List<CheckoutPreviewError.PreviewItemError> errors = new ArrayList<>();
+
+        for (CheckoutPreviewResponse.PreviewSellerGroup seller : preview.getSellers()) {
+            for (CheckoutPreviewResponse.PreviewItem item : seller.getItems()) {
+                ProductVariant variant = variantMap.get(item.getVariantId());
+
+                if (variant == null || variant.getDeletedAt() != null) {
+                    errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                            .cartItemId(item.getCartItemId())
+                            .variantId(item.getVariantId())
+                            .reason("VARIANT_UNAVAILABLE")
+                            .build());
+                    continue;
+                }
+
+                if (variant.getStatus() != VariantStatus.ACTIVE) {
+                    errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                            .cartItemId(item.getCartItemId())
+                            .variantId(item.getVariantId())
+                            .reason("VARIANT_INACTIVE")
+                            .build());
+                    continue;
+                }
+
+                if (variant.getPrice().compareTo(item.getPriceSnapshot()) != 0) {
+                    errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                            .cartItemId(item.getCartItemId())
+                            .variantId(item.getVariantId())
+                            .reason("PRICE_CHANGED")
+                            .currentValue(variant.getPrice().toString())
+                            .expectedValue(item.getPriceSnapshot().toString())
+                            .build());
+                    continue;
+                }
+
+                if (variant.getStockQuantity() < item.getQuantity()) {
+                    errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                            .cartItemId(item.getCartItemId())
+                            .variantId(item.getVariantId())
+                            .reason("INSUFFICIENT_STOCK")
+                            .currentValue(String.valueOf(variant.getStockQuantity()))
+                            .expectedValue(String.valueOf(item.getQuantity()))
+                            .build());
+                }
+            }
+        }
+
+        if (!errors.isEmpty()) {
+            String errorJson;
+            try {
+                errorJson = objectMapper.writeValueAsString(CheckoutPreviewError.builder()
+                        .error("STOCK_CHANGED")
+                        .message("Tồn kho hoặc giá đã thay đổi. Vui lòng làm mới giỏ hàng.")
+                        .details(errors)
+                        .build());
+            } catch (JsonProcessingException e) {
+                errorJson = "{\"error\":\"STOCK_CHANGED\"}";
+            }
+            throw new AppException(ErrorCode.CONFLICT, errorJson);
+        }
+    }
+
+    public void invalidateToken(String previewToken) {
+        if (previewToken != null && !previewToken.isBlank()) {
+            redisTemplate.delete(PREVIEW_TOKEN_PREFIX + previewToken);
+            log.debug("Preview token invalidated: {}", previewToken);
+        }
+    }
+
+    public StringRedisTemplate getRedisTemplate() {
+        return redisTemplate;
+    }
+
+    private List<CheckoutPreviewResponse.PreviewSellerGroup> groupBySeller(
+            List<CheckoutPreviewResponse.PreviewItem> items) {
+        Map<Long, List<CheckoutPreviewResponse.PreviewItem>> bySeller = new LinkedHashMap<>();
+        for (CheckoutPreviewResponse.PreviewItem item : items) {
+            bySeller.computeIfAbsent(0L, k -> new ArrayList<>()).add(item);
+        }
+
+        return bySeller.entrySet().stream()
+                .map(e -> CheckoutPreviewResponse.PreviewSellerGroup.builder()
+                        .sellerId(e.getKey())
+                        .items(e.getValue())
+                        .subtotal(e.getValue().stream()
+                                .map(CheckoutPreviewResponse.PreviewItem::getSubtotal)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add))
+                        .build())
+                .toList();
+    }
+
+    private UUID parseUUID(String s) {
+        try {
+            return UUID.fromString(s);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private String buildTokenValue(CheckoutPreviewResponse response) {
+        try {
+            return objectMapper.writeValueAsString(response);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize preview response", e);
+            return "{}";
+        }
+    }
+}

@@ -164,42 +164,66 @@ sequenceDiagram
 sequenceDiagram
     actor Customer
     participant PS as Product Service
-    participant PG as PostgreSQL
+    participant Redis
 
-    Customer->>PS: POST /checkout/preview (cart items)
-    PS->>PG: Re-validate ALL items (price, stock, status)
+    Customer->>PS: POST /v1/checkout/preview (item_ids[])
+    PS->>PS: Validate ALL items (price, stock, status)
     alt Any validation fails
-        PS-->>Customer: 409 Conflict (cart data changed, refresh required)
+        PS-->>Customer: 409 Conflict (per-item details)
     else All valid
-        PS->>PS: Generate preview_token (TTL 10 min)
-        PS-->>Customer: 200 (preview_token, expires_at)
+        PS->>Redis: SET preview_token TTL 10min
+        PS-->>Customer: 200 (preview_token, expires_at, items summary)
     end
 ```
 
-### 2.6 Place Order with Stock Reservation
+### 2.6 Place Order (Checkout Submit)
 
 ```mermaid
 sequenceDiagram
     actor Customer
-    participant OS as Order Service
     participant PS as Product Service
-    participant PG as PostgreSQL
     participant Redis
+    participant OS as Order Service
     participant PayS as Payment Service
 
-    Customer->>OS: POST /orders (preview_token, payment_method)
-    OS->>PS: Reserve stock (request-reply: order.stock_check)
-    PS->>Redis: DECRBY stock:{variant_id} {quantity}
-    PS->>PG: UPDATE product_variant SET stock = stock - qty WHERE stock >= qty AND version = N
-    alt Stock insufficient (rows_affected=0)
-        PS->>Redis: INCR (rollback)
-        PS-->>OS: 409 Out of stock
-    else Stock reserved
-        PS->>PG: INSERT stock_reservation (status=pending, expires_at=NOW()+15min)
-        PS-->>OS: Stock reserved (session_id)
-        OS->>PayS: Create payment intent
-        PayS-->>OS: Payment intent created
-        OS-->>Customer: 201 Order created (pending payment)
+    Note over Customer,PayS: Step 1: Checkout Preview
+    Customer->>PS: POST /v1/checkout/preview (item_ids[])
+    PS->>PS: Validate ALL items (price, stock, variant)
+    alt Validation fails
+        PS-->>Customer: 409 Conflict (per-item details)
+    else All valid
+        PS->>Redis: SET preview_token TTL 10min
+        PS-->>Customer: 200 (preview_token, expires_at)
+    end
+
+    Note over Customer,PayS: Step 2: Checkout Submit
+    Customer->>PS: POST /v1/checkout/submit (preview_token, address_snapshot)
+    PS->>PS: Validate preview_token (Redis)
+    PS->>PS: Re-validate stock for ALL items
+    PS->>Redis: Reserve stock (DECR + stock_reservation PENDING)
+    PS->>Redis: SET checkout:session:{sessionId} TTL 15min
+    PS->>OS: Kafka: order.checkout_submitted (session_id, items, address)
+    PS-->>Customer: 200 (session_id, total)
+
+    Note over Customer,PayS: Step 3: Order Creation + Saga
+    OS->>OS: Create ParentOrder + N sub-orders
+    OS->>PayS: Create payment intent
+    PayS-->>OS: Payment intent created
+    OS-->>Customer: Order confirmed (pending payment)
+
+    Note over Customer,PayS: Step 4: Payment Resolution
+    alt Payment success
+        PayS->>OS: payment.success
+        OS->>PayS: Kafka: order.paid
+        OS->>OS: Update order PAID
+        PayS->>PS: Kafka: order.paid
+        PS->>PS: confirmReservation() → CONFIRMED
+    else Payment failed
+        PayS->>OS: payment.failed
+        OS->>PayS: Kafka: order.payment_failed
+        OS->>OS: Update order CANCELLED
+        PayS->>PS: Kafka: order.payment_failed
+        PS->>PS: releaseReservation() → RELEASED
     end
 ```
 
@@ -215,14 +239,16 @@ sequenceDiagram
 
     Stripe->>PayS: Webhook payment_intent.succeeded
     PayS->>Kafka: payment.success
-    Kafka->>OS: Mark orders PAID
-    Kafka->>PS: Confirm stock reservation (status=confirmed)
+    Kafka->>OS: Consume → update orders PAID
+    Kafka->>PayS: order.paid
+    PayS->>PS: Consume → confirmReservation()
 
     alt Payment fails
         Stripe->>PayS: Webhook payment_intent.payment_failed
         PayS->>Kafka: payment.failed
-        Kafka->>OS: Keep PENDING / unlock stock
-        Kafka->>PS: Release reservation (status=released)
+        Kafka->>OS: Consume → update orders CANCELLED
+        Kafka->>PayS: order.payment_failed
+        PayS->>PS: Consume → releaseReservation()
     end
 ```
 

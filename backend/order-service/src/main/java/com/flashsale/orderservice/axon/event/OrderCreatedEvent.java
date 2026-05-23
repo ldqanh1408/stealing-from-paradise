@@ -2,6 +2,7 @@ package com.flashsale.orderservice.axon.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
 import java.math.BigDecimal;
 
 @Getter
@@ -14,4 +15,5 @@ public class OrderCreatedEvent {
     private String orderCode;
     private BigDecimal totalAmount;
     private boolean isFlashSale;
+    private String sessionId;
 }
