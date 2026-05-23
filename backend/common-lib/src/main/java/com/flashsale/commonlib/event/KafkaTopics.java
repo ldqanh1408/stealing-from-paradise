@@ -13,7 +13,6 @@ public final class KafkaTopics {
     public static final String PRODUCT_REJECTED         = "product.rejected";
     public static final String PRODUCT_UPDATED          = "product.updated";
     public static final String PRODUCT_DELETED          = "product.deleted";
-    public static final String PRODUCT_AUTO_HIDDEN      = "product.auto_hidden";
     public static final String INVENTORY_ADJUSTED       = "inventory.adjusted";
     public static final String VARIANT_PRICE_UPDATED    = "variant.price_updated";
     public static final String VARIANT_STOCK_UPDATED    = "variant.stock_updated";

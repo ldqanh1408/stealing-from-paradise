@@ -77,7 +77,14 @@ public class InventoryService {
         emitEvent(KafkaTopics.INVENTORY_ADJUSTED, variant.getId().toString(),
                 Map.of("variantId", variant.getId(), "delta", quantity, "reason", "RESTOCK"));
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "stockQuantity", variant.getStockQuantity()));
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", variant.getProductId()),
+                        Map.entry("stockQuantity", variant.getStockQuantity()),
+                        Map.entry("status", variant.getStatus().name()),
+                        Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
 
         return ApiResponse.success(toInventoryResponse(variant));
     }
@@ -122,7 +129,14 @@ public class InventoryService {
         emitEvent(KafkaTopics.INVENTORY_ADJUSTED, variant.getId().toString(),
                 Map.of("variantId", variant.getId(), "delta", delta, "reason", source != null ? source : "MANUAL"));
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "stockQuantity", variant.getStockQuantity()));
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", variant.getProductId()),
+                        Map.entry("stockQuantity", variant.getStockQuantity()),
+                        Map.entry("status", variant.getStatus().name()),
+                        Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
 
         return ApiResponse.success(toInventoryResponse(variant));
     }
@@ -198,7 +212,14 @@ public class InventoryService {
         variantRepository.save(variant);
 
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "stockQuantity", variant.getStockQuantity()));
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", variant.getProductId()),
+                        Map.entry("stockQuantity", variant.getStockQuantity()),
+                        Map.entry("status", variant.getStatus().name()),
+                        Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
         emitEvent(KafkaTopics.STOCK_RESERVATION_RELEASED, reservation.getId().toString(),
                 Map.of("reservationId", reservation.getId(), "variantId", reservation.getVariantId(), "quantity", reservation.getQuantity()));
 
@@ -250,7 +271,15 @@ public class InventoryService {
         variantRepository.save(variant);
 
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "stockQuantity", variant.getStockQuantity(), "reason", "ORDER_RETURN"));
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", variant.getProductId()),
+                        Map.entry("stockQuantity", variant.getStockQuantity()),
+                        Map.entry("status", variant.getStatus().name()),
+                        Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
+                        Map.entry("timestamp", LocalDateTime.now().toString()),
+                        Map.entry("reason", "ORDER_RETURN")
+                ));
 
         inventorySyncService.updateVariantRedisStock(variantId, variant.getStockQuantity());
         recomputeProductStatus(variant.getProductId());
@@ -321,5 +350,16 @@ public class InventoryService {
         } catch (Exception e) {
             log.error("Failed to emit Kafka event: topic={}, key={}", topic, key, e);
         }
+    }
+
+    private String getVariantStockStatus(VariantStatus status) {
+        if (status == null) {
+            return "unknown";
+        }
+        return switch (status) {
+            case ACTIVE -> "in_stock";
+            case OUT_OF_STOCK -> "out_of_stock";
+            case INACTIVE -> "unavailable";
+        };
     }
 }

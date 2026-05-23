@@ -84,9 +84,22 @@ public class VariantService {
         inventoryService.initializeVariantRedisStock(variant.getId(), variant.getStockQuantity());
 
         emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "price", variant.getPrice()));
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", productId),
+                        Map.entry("price", variant.getPrice()),
+                        Map.entry("originalPrice", variant.getOriginalPrice() != null ? variant.getOriginalPrice() : ""),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "stockQuantity", variant.getStockQuantity()));
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", productId),
+                        Map.entry("stockQuantity", variant.getStockQuantity()),
+                        Map.entry("status", variant.getStatus().name()),
+                        Map.entry("stockStatus", getStockStatus(variant.getStatus())),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
 
         return ApiResponse.success(toVariantResponse(variant));
     }
@@ -115,7 +128,13 @@ public class VariantService {
             if (request.getPrice() != null) {
                 variant.setPrice(request.getPrice());
                 emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
-                        Map.of("variantId", variant.getId(), "price", request.getPrice()));
+                        Map.ofEntries(
+                                Map.entry("variantId", variant.getId()),
+                                Map.entry("productId", variant.getProductId()),
+                                Map.entry("price", request.getPrice()),
+                                Map.entry("originalPrice", variant.getOriginalPrice() != null ? variant.getOriginalPrice() : ""),
+                                Map.entry("timestamp", LocalDateTime.now().toString())
+                        ));
             }
             if (request.getOriginalPrice() != null) {
                 variant.setOriginalPrice(request.getOriginalPrice());
@@ -124,7 +143,14 @@ public class VariantService {
                 variant.setStockQuantity(request.getStockQuantity());
                 updateVariantStatus(variant);
                 emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                        Map.of("variantId", variant.getId(), "stockQuantity", request.getStockQuantity()));
+                        Map.ofEntries(
+                                Map.entry("variantId", variant.getId()),
+                                Map.entry("productId", variant.getProductId()),
+                                Map.entry("stockQuantity", request.getStockQuantity()),
+                                Map.entry("status", variant.getStatus().name()),
+                                Map.entry("stockStatus", getStockStatus(variant.getStatus())),
+                                Map.entry("timestamp", LocalDateTime.now().toString())
+                        ));
                 inventoryService.updateVariantRedisStock(variant.getId(), request.getStockQuantity());
                 inventoryService.recomputeProductStatus(variant.getProductId());
             }
@@ -172,6 +198,17 @@ public class VariantService {
         } else {
             variant.setStatus(VariantStatus.ACTIVE);
         }
+    }
+
+    private String getStockStatus(VariantStatus status) {
+        if (status == null) {
+            return "unknown";
+        }
+        return switch (status) {
+            case ACTIVE -> "in_stock";
+            case OUT_OF_STOCK -> "out_of_stock";
+            case INACTIVE -> "unavailable";
+        };
     }
 
     private VariantResponse toVariantResponse(ProductVariant variant) {

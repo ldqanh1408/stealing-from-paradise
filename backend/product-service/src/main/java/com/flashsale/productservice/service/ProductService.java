@@ -116,7 +116,12 @@ public class ProductService {
 
         product = productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(), Map.of("productId", product.getId()));
+        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("status", product.getStatus().name()),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
 
         return ApiResponse.success(toProductResponse(product));
     }
@@ -201,7 +206,15 @@ public class ProductService {
         product.setSubmittedAt(LocalDateTime.now());
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_PENDING_REVIEW, product.getId().toString(), Map.of("productId", product.getId()));
+        emitEvent(KafkaTopics.PRODUCT_PENDING_REVIEW, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("sellerId", product.getSellerId()),
+                        Map.entry("categoryId", product.getCategoryId() != null ? product.getCategoryId() : ""),
+                        Map.entry("name", product.getName()),
+                        Map.entry("submittedAt", product.getSubmittedAt().toString()),
+                        Map.entry("rejectCount", product.getRejectCount())
+                ));
 
         return ApiResponse.success(null);
     }
@@ -227,7 +240,12 @@ public class ProductService {
         product.setStatus(ProductStatus.ACTIVE);
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(), Map.of("productId", product.getId()));
+        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("status", product.getStatus().name()),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
 
         return ApiResponse.success(null);
     }
@@ -249,7 +267,12 @@ public class ProductService {
         product.setStatus(ProductStatus.INACTIVE);
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(), Map.of("productId", product.getId()));
+        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("status", product.getStatus().name()),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
 
         return ApiResponse.success(null);
     }

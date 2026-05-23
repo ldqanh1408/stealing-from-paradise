@@ -32,7 +32,6 @@ create_topic "product.approved"
 create_topic "product.rejected"
 create_topic "product.updated"
 create_topic "product.deleted"
-create_topic "product.auto_hidden"
 create_topic "inventory.adjusted"
 
 echo ""
