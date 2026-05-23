@@ -2,75 +2,83 @@ package com.flashsale.productservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
-import com.flashsale.productservice.dto.request.CartRequest;
-import com.flashsale.productservice.dto.response.CartResponse;
+import com.flashsale.productservice.dto.cart.*;
 import com.flashsale.productservice.service.CartService;
+import com.flashsale.productservice.service.InventoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
-@RequestMapping("/v1/cart")
+@RequestMapping
 @RequiredArgsConstructor
-@Slf4j
 public class CartController {
 
     private final CartService cartService;
+    private final InventoryService inventoryService;
 
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/cart")
+    @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<CartResponse>> getCart(
-            @AuthenticationPrincipal UserDetailsImpl user) {
-        CartResponse cart = cartService.getCart(user.getId());
-        return ResponseEntity.ok(ApiResponse.success(cart));
+            @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
+        return ResponseEntity.ok(cartService.getCart(user));
     }
 
-    @PostMapping("/items")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<CartResponse>> addItem(
-            @AuthenticationPrincipal UserDetailsImpl user,
-            @Valid @RequestBody CartRequest req) {
-        CartResponse cart = cartService.addItemToCart(
-                user.getId(), req.getSkuCode(), req.getQuantity(), req.getFsItemId());
-        return ResponseEntity.ok(ApiResponse.success(cart));
-    }
-
-    @PutMapping("/items/{itemId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<CartResponse>> updateItem(
-            @AuthenticationPrincipal UserDetailsImpl user,
-            @PathVariable String itemId,
-            @Valid @RequestBody UpdateCartItemRequest req) {
-        CartResponse cart = cartService.updateCartItem(user.getId(), itemId, req.getQuantity());
-        return ResponseEntity.ok(ApiResponse.success(cart));
-    }
-
-    @DeleteMapping("/items/{itemId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<Void>> removeItem(
-            @AuthenticationPrincipal UserDetailsImpl user,
-            @PathVariable String itemId) {
-        cartService.removeCartItem(user.getId(), itemId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Đã xóa sản phẩm khỏi giỏ hàng"));
-    }
-
-    @DeleteMapping
-    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/cart")
+    @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<Void>> clearCart(
-            @AuthenticationPrincipal UserDetailsImpl user) {
-        cartService.clearCart(user.getId());
-        return ResponseEntity.ok(ApiResponse.success(null, "Đã xóa toàn bộ giỏ hàng"));
+            @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
+        return ResponseEntity.ok(cartService.clearCart(user));
     }
 
-    @lombok.Data
-    public static class UpdateCartItemRequest {
-        @jakarta.validation.constraints.NotNull
-        @jakarta.validation.constraints.Min(0)
-        @jakarta.validation.constraints.Max(1000)
-        private Integer quantity;
+    @PostMapping("/cart/items")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<CartResponse>> addItem(
+            @Valid @RequestBody AddCartItemRequest request,
+            @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
+        return ResponseEntity.ok(cartService.addItem(request, user));
+    }
+
+    @PutMapping("/cart/items/{itemId}")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<CartResponse>> updateItem(
+            @PathVariable UUID itemId,
+            @Valid @RequestBody UpdateCartItemRequest request,
+            @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
+        return ResponseEntity.ok(cartService.updateItem(itemId, request, user));
+    }
+
+    @DeleteMapping("/cart/items/{itemId}")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<CartResponse>> removeItem(
+            @PathVariable UUID itemId,
+            @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
+        return ResponseEntity.ok(cartService.removeItem(itemId, user));
+    }
+
+    @PostMapping("/inventory/{variantId}/reserve")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<ReservationResponse>> reserveStock(
+            @PathVariable UUID variantId,
+            @RequestParam int quantity,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
+            @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
+        if (sessionId == null || sessionId.isBlank()) {
+            sessionId = user.getId() + "-" + System.currentTimeMillis();
+        }
+        return ResponseEntity.ok(inventoryService.reserveStock(variantId, quantity, sessionId));
+    }
+
+    @PostMapping("/inventory/reservations/{reservationId}/release")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<Void>> releaseReservation(
+            @PathVariable UUID reservationId,
+            @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
+        return ResponseEntity.ok(inventoryService.releaseReservation(reservationId));
     }
 }
