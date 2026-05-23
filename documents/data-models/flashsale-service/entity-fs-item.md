@@ -65,7 +65,7 @@ erDiagram
 
 ---
 
-## Business Rule: Dynamic Price Calculation (BR-FLASHSALE-008)
+## Business Rule: Dynamic Price Calculation (BR-FLASHSALE-007)
 
 ```
 flash_price is NOT stored in FS_ITEMS.
@@ -94,7 +94,7 @@ Example:
 | Reference | Description |
 |-----------|-------------|
 | BR-FLASHSALE-002 | Registration deadline window |
-| BR-FLASHSALE-008 | Dynamic flash price formula |
+| BR-FLASHSALE-007 | Dynamic flash price formula |
 | ENTITY-FLASHSALE-001 | Parent FS_SESSIONS table |
 | UC-FLASHSALE-002 | Seller registers product |
 | UC-FLASHSALE-005 | Customer purchases flash item |

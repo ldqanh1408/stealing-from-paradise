@@ -107,8 +107,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Consumers** | Product Service (Inventory) |
-| **Trigger** | Redis Lua script completes atomic purchase |
+| **Consumers** | Checkout Service (inventory reservation) |
+| **Trigger** | Customer submits flash sale purchase |
 
 **Payload:**
 ```json
@@ -128,7 +128,7 @@
 ```
 
 **Consumer Actions:**
-- **Product Service (Inventory)**: Updates sold count and remaining stock cache in Redis
+- **Checkout Service**: Handles inventory reservation, stock deduction, and order creation
 
 ---
 
@@ -224,8 +224,8 @@ Redis Worker at end_time
     -> Product Service resets prices
       -> flash_sale.price_sync (deactivate) [Search Service]
 
-Customer purchases (Redis Lua)
-  -> flash_sale.item_purchased [Product Service - Inventory]
+Customer purchases
+  -> flash_sale.item_purchased [Checkout Service]
 ```
 
 ---
@@ -235,5 +235,3 @@ Customer purchases (Redis Lua)
 | Key | Type | Purpose |
 |-----|------|---------|
 | `flash_sale:triggers` | Sorted Set | Time-based triggers for session start/end |
-| `flash_sale:stock:{fs_item_id}` | String | Stock counter for Redis Lua atomic decrement |
-| `flash_sale:user:{session_id}:{user_id}` | String | Per-user purchase count for limit enforcement |

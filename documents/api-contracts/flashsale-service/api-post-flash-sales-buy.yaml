@@ -2,10 +2,11 @@ openapi: "3.0.3"
 info:
   title: Flash Sale Purchase API
   description: |
-    High-concurrency flash sale purchase endpoint using Redis Lua atomic scripts.
+    Flash sale purchase endpoint. Flash Sale Service validates session status and
+    calculates the flash price, then forwards to Checkout Service for inventory
+    and order management.
     Service: flashsale-service (port :8085)
     Base URL: /api/v1
-    Concurrency target: 50k+ req/s
   version: "1.0.0"
 
 servers:
@@ -15,20 +16,13 @@ servers:
 paths:
   /flash-sales/{sessionId}/buy:
     post:
-      summary: Purchase Flash Sale Item (Redis Lua)
+      summary: Purchase Flash Sale Item
       description: |
-        Processes a flash sale purchase atomically via Redis Lua script.
-        Prevents oversell under high concurrency (50k+ req/s).
+        Processes a flash sale purchase. Flash Sale Service validates the session
+        is ACTIVE, calculates the flash price, and emits `flash_sale.item_purchased`
+        to trigger Checkout Service for inventory reservation and order creation.
         
-        The Lua script performs atomic:
-        - Stock availability check
-        - Per-user purchase limit check
-        - Stock decrement
-        - User purchase count increment
-        - Order creation
-        - Kafka event publication
-        
-        Dynamic price calculation (BR-FLASHSALE-008):
+        Dynamic price calculation (BR-FLASHSALE-007):
         flash_price = sku.price * (1 - discount_applied / 100)
       operationId: purchaseFlashSaleItem
       tags:
@@ -115,7 +109,7 @@ paths:
                 error: "SESSION_NOT_FOUND"
                 message: "Flash sale session does not exist"
         '409':
-          description: Sold out — stock exhausted (Redis atomic check)
+          description: Product out of stock
           content:
             application/json:
               schema:
@@ -230,44 +224,19 @@ components:
 
 tags:
   - name: Purchase
-    description: Flash sale purchase — Redis Lua atomic, 50k+ req/s
+    description: Flash sale purchase — forwards to Checkout Service
 
 x-flashsale:
-  redis_lua_script: |
-    -- Atomic flash sale purchase
-    local stock_key = KEYS[1]   -- flash_sale:stock:{fs_item_id}
-    local limit_key = KEYS[2]   -- flash_sale:user:{session_id}:{user_id}
-    local quantity = tonumber(ARGV[1])
-    local limit = tonumber(ARGV[2])
-    
-    local stock = tonumber(redis.call('GET', stock_key) or '0')
-    if stock < quantity then
-      return {err = 'SOLD_OUT'}
-    end
-    
-    local user_count = tonumber(redis.call('GET', limit_key) or '0')
-    if user_count + quantity > limit then
-      return {err = 'LIMIT_EXCEEDED'}
-    end
-    
-    redis.call('DECRBY', stock_key, quantity)
-    redis.call('INCRBY', limit_key, quantity)
-    
-    redis.call('PUBLISH', 'flash_sale.item_purchased',
-      string.format('{"fs_item_id":%s,"quantity":%d}', KEYS[1], quantity))
-    
-    return {ok = 'SUCCESS'}
   kafka_events:
     produced:
       - topic: flash_sale.item_purchased
-        trigger: Successful Redis Lua purchase
+        trigger: Successful purchase
         consumers:
-          - Product Service (Inventory update)
+          - Checkout Service (inventory reservation and order creation)
   business_rules:
-    - BR-FLASHSALE-005: Redis Lua atomic buy
-    - BR-FLASHSALE-008: Dynamic flash price calculation
+    - BR-FLASHSALE-007: Dynamic flash price calculation
   functional_requirements:
-    - FR-FLASHSALE-009: Purchase via Redis Lua
+    - FR-FLASHSALE-009: Purchase (forward to Checkout)
     - FR-FLASHSALE-010: Dynamic flash price
   use_cases:
     - UC-FLASHSALE-005: Purchase flash item

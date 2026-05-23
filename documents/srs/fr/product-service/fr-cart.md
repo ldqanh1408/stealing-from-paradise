@@ -26,7 +26,7 @@
 | **Priority** | HIGH |
 | **Actor** | Customer (JWT required) |
 | **Endpoint** | `POST /cart/items` |
-| **Description** | Add a variant (SKU) to the cart. If already present, increment quantity. Snapshot price, variant name, and image at add time. Validate stock availability. Emits `cart.item_added` Kafka event. |
+| **Description** | Add a variant (SKU) to the cart. If already present, increment quantity. Snapshot price, variant name, and image at add time. Validate stock availability.|
 | **Acceptance Criteria** | AC1: UPSERT behavior (increment if exists, create if not). AC2: quantity > 0, <= 1000. AC3: Returns 422 if insufficient stock. AC4: Returns 422 if variant inactive. AC5: Emits Kafka event. |
 | **Related** | ENTITY-PRODUCT-007, UC-PRODUCT-009, BR-PRODUCT-010, BR-PRODUCT-011, BR-PRODUCT-012 |
 

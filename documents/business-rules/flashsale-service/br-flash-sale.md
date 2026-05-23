@@ -110,33 +110,7 @@ Valid transitions:
 
 ---
 
-## BR-FLASHSALE-005: Redis Lua Atomic Buy
-
-**Rule:** Flash sale purchases are processed atomically via Redis Lua scripts to prevent oversell at high concurrency (50k+ req/s).
-
-| Property | Value |
-|----------|-------|
-| **Engine** | Redis Lua Script (atomic execution) |
-| **Key operations** | Stock decrement, per-user limit check, sold counter increment |
-| **Concurrency model** | Single-threaded Redis ensures atomicity |
-
-```
-Lua Script Atomic Operations:
-1. GET flash_sale:stock:{fs_item_id}  -> remaining stock
-2. IF stock <= 0 -> RETURN SOLD_OUT (409)
-3. GET flash_sale:user_limit:{session_id}:{user_id} -> user buy count
-4. IF user_buy_count + requested_qty > limit_per_user -> RETURN LIMIT_EXCEEDED (400)
-5. DECR flash_sale:stock:{fs_item_id} BY quantity
-6. INCR flash_sale:user_limit:{session_id}:{user_id} BY quantity
-7. PUBLISH flash_sale.item_purchased event
-8. RETURN SUCCESS
-```
-
-**Related:** UC-FLASHSALE-005, FR-FLASHSALE-009, Kafka event: `flash_sale.item_purchased`
-
----
-
-## BR-FLASHSALE-006: One Reminder Per Customer Per Session
+## BR-FLASHSALE-005: One Reminder Per Customer Per Session
 
 **Rule:** A customer can set at most one reminder per flash sale session.
 
@@ -157,7 +131,7 @@ ELSE
 
 ---
 
-## BR-FLASHSALE-007: Soft Delete
+## BR-FLASHSALE-006: Soft Delete
 
 **Rule:** Session deletion sets `deleted_at` timestamp instead of physically removing the row.
 
@@ -180,7 +154,7 @@ ELSE
 
 ---
 
-## BR-FLASHSALE-008: Dynamic Flash Price Calculation
+## BR-FLASHSALE-007: Dynamic Flash Price Calculation
 
 **Rule:** Flash sale price is never stored. It is calculated dynamically at purchase time using the formula:
 
@@ -204,11 +178,11 @@ Example:
 No snapshot: If variant.price changes before purchase, the new price is used.
 ```
 
-**Related:** ENTITY-FLASHSALE-002, UC-FLASHSALE-005, FR-FLASHSALE-010
+**Related:** ENTITY-FLASHSALE-002, UC-FLASHSALE-005, FR-FLASHSALE-009
 
 ---
 
-## BR-FLASHSALE-009: Session Update Restrictions
+## BR-FLASHSALE-008: Session Update Restrictions
 
 **Rule:** Session can only be updated when status is UPCOMING.
 
@@ -226,11 +200,11 @@ ELSE
   THEN recalculate registration_deadline = start_time - 15min
 ```
 
-**Related:** UC-FLASHSALE-001, FR-FLASHSALE-006
+**Related:** UC-FLASHSALE-001, FR-FLASHSALE-005
 
 ---
 
-## BR-FLASHSALE-010: Unique Product Per Session
+## BR-FLASHSALE-009: Unique Product Per Session
 
 **Rule:** A product can only be registered once per flash sale session.
 
@@ -259,12 +233,11 @@ ELSE
 | BR-FLASHSALE-002 | Registration deadline auto-calc | DB + App | FS_SESSIONS | UC-002 |
 | BR-FLASHSALE-003 | Discount range (0,100] | DB | FS_SESSIONS | UC-001 |
 | BR-FLASHSALE-004 | Status transitions | DB + App | FS_SESSIONS | UC-006 |
-| BR-FLASHSALE-005 | Redis Lua atomic buy | Redis | FS_ITEMS | UC-005 |
-| BR-FLASHSALE-006 | 1 reminder/customer/session | App | FS_REMINDERS | UC-004 |
-| BR-FLASHSALE-007 | Soft delete | App | FS_SESSIONS | -- |
-| BR-FLASHSALE-008 | Dynamic price calculation | App | FS_ITEMS | UC-005 |
-| BR-FLASHSALE-009 | Update only UPCOMING | App | FS_SESSIONS | UC-001 |
-| BR-FLASHSALE-010 | Unique product per session | DB | FS_ITEMS | UC-002 |
+| BR-FLASHSALE-005 | 1 reminder/customer/session | App | FS_REMINDERS | UC-004 |
+| BR-FLASHSALE-006 | Soft delete | App | FS_SESSIONS | -- |
+| BR-FLASHSALE-007 | Dynamic price calculation | App | FS_ITEMS | UC-005 |
+| BR-FLASHSALE-008 | Update only UPCOMING | App | FS_SESSIONS | UC-001 |
+| BR-FLASHSALE-009 | Unique product per session | DB | FS_ITEMS | UC-002 |
 
 ---
 

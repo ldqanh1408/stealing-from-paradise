@@ -22,7 +22,6 @@ paths:
         Add a variant (SKU) to the cart. If the variant is already in the cart,
         the quantity is incremented (UPSERT behavior).
         Price, variant name, and image are snapshotted at add time.
-        Emits `cart.item_added` Kafka event.
       tags: [Cart]
       security:
         - BearerAuth: []

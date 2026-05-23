@@ -43,7 +43,7 @@ Users view flash sale sessions and their items. Public endpoint returns UPCOMING
 | Step | Actor | Action |
 |------|-------|--------|
 | 1 | User | Sends `GET /flash-sales/active` |
-| 2 | System | Reads from Redis cache (high-concurrency, 50k+ req/s) |
+| 2 | System | Reads from database (high-concurrency via read replicas) |
 | 3 | System | Returns `200 OK` with active sessions |
 
 ### Admin (GET /flash-sales with ADMIN JWT)

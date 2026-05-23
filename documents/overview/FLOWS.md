@@ -135,7 +135,6 @@ sequenceDiagram
         PS-->>Customer: 422 Insufficient stock
     else Stock OK
         PS->>PG: UPSERT cart_item (price_snapshot = current price)
-        PS->>Kafka: cart.item_added
         PS-->>Customer: 200 Cart updated
     end
 ```
@@ -315,13 +314,12 @@ sequenceDiagram
 
 ---
 
-## 6. Flash Sale Purchase (Redis Lua Atomic)
+## 6. Flash Sale Purchase
 
 ```mermaid
 sequenceDiagram
     actor Customer
     participant FS as Flash Sale Service
-    participant Redis
     participant PG as PostgreSQL
     participant PS as Product Service
 
@@ -330,20 +328,8 @@ sequenceDiagram
     FS->>PS: Get sku.price from product_variant
     PS-->>FS: sku_price = 250000
     FS->>FS: flash_price = 250000 * (1 - 20/100) = 200000
-    FS->>Redis: EVAL Lua script:
-    Note over Redis: 1. Check stock > 0
-    Note over Redis: 2. Check user limit
-    Note over Redis: 3. DECRBY stock
-    Note over Redis: 4. INCRBY user count
-    alt Stock exhausted
-        Redis-->>FS: SOLD_OUT
-        FS-->>Customer: 409 SOLD_OUT
-    else Limit exceeded
-        Redis-->>FS: LIMIT_EXCEEDED
-        FS-->>Customer: 400 LIMIT_EXCEEDED
-    else Success
-        Redis-->>FS: SUCCESS + order_id
-        FS->>FS: Publish flash_sale.item_purchased
-        FS-->>Customer: 201 Created (order, timeout_at)
-    end
+    FS->>FS: Emit flash_sale.item_purchased
+    FS->>CS: flash_sale.item_purchased (Kafka)
+    CS-->>FS: Order created (201)
+    FS-->>Customer: 201 Created (order, timeout_at)
 ```

@@ -71,7 +71,6 @@ inactive → active (seller republishes)
 | Produce | `product.created/updated/deleted` | Index in Search Service |
 | Produce | `variant.price_updated` | Update search index |
 | Produce | `variant.stock_updated` | Update search index |
-| Produce | `cart.item_added` | Analytics |
 | Produce | `flash_sale.price_sync` | Activate/deactivate flash prices in search |
 | Consume | `order.created` | Lock stock |
 | Consume | `order.cancelled` | Release stock |

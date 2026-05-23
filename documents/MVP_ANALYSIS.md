@@ -30,7 +30,7 @@
 - Identity: register/login/logout/refresh, profile, addresses, admin lock/unlock
 - Catalog: browse public, category tree, product detail, seller CRUD, image upload, inventory
 - Cart: view, add, update qty, remove, clear
-- Flash Sale: list, register product (seller), buy (Redis Lua), reminders
+- Flash Sale: list, register product (seller), buy, reminders
 - Order: checkout, list, detail, buyer cancel (PENDING/PAID), seller ship, buyer confirm received, return-refund (RTS)
 - Payment: Stripe Connect onboarding, payment-intent, webhook, refund (admin approve/reject), seller transfer payouts
 - Notification: SSE/WS stream, list, mark read

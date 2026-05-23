@@ -50,11 +50,7 @@
        variant_image_snapshot -- snapshot of product_variant.image_url
      )
 
-7. System emits cart.item_added Kafka event:
-   Topic: cart.item_added
-   Payload: { user_id, sku_code, quantity, timestamp }
-
-8. Returns 200 with { cart_item_id, sku_code, product_name, quantity, unit_price, subtotal, message }
+7. Returns 200 with { cart_item_id, sku_code, product_name, quantity, unit_price, subtotal, message }
 ```
 
 ---

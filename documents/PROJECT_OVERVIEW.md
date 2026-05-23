@@ -44,7 +44,7 @@ So với các hệ thống thương mại điện tử truyền thống, đề t
 
 **Saga Pattern cho checkout đa service.** Quá trình thanh toán liên quan đến Product Service (đặt trước tồn kho), Order Service (tạo đơn), Payment Service (xử lý Stripe) được điều phối bởi Saga, đảm bảo tính nhất quán phân tán mà không cần lock toàn bộ hệ thống.
 
-**Flash Sale với Redis Lua script đảm bảo tính nguyên tử.** Script Lua chạy atomic trên Redis xử lý đồng thời 50.000+ request/giây mà không xảy ra race condition hay oversell — điều không thể đạt được với database transaction thông thường ở quy mô này.
+**Flash Sale với đồng bộ giá qua Kafka** Session flash sale được quản lý với Redis ZSET cho transition trạng thái, giá flash sale được đồng bộ qua Kafka tới Search Service và tồn kho được xử lý bởi Checkout Service.
 
 **Tìm kiếm tiếng Việt với Elasticsearch và ICU Analyzer.** Hệ thống xây dựng pipeline phân tích văn bản riêng cho tiếng Việt, xử lý đúng từ có dấu/không dấu, tên riêng, và từ ghép — vốn là điểm yếu của full-text search thông thường.
 

@@ -184,7 +184,7 @@
 
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /flash-sale/sessions/{sessionId}/buy | Buy (Lua atomic) |
+| POST | /flash-sale/sessions/{sessionId}/buy | Purchase flash item |
 | POST | /flash-sale/sessions/{sessionId}/reminders | Register reminder |
 
 ### JWT Required

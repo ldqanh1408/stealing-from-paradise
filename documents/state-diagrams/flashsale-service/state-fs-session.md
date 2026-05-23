@@ -24,7 +24,7 @@ stateDiagram-v2
     state ACTIVE {
         [*] --> PurchasesOpen
         PurchasesOpen --> ProcessingPurchase : POST /flash-sales/{id}/buy
-        ProcessingPurchase --> PurchasesOpen : Purchase complete\n(BR-FLASHSALE-005)
+        ProcessingPurchase --> PurchasesOpen : Purchase complete\n(BR-FLASHSALE-007)
     }
 
     ACTIVE --> ENDED : UC-FLASHSALE-006\nRedis trigger at end_time\n(BR-FLASHSALE-004)
@@ -90,7 +90,7 @@ stateDiagram-v2
 
 ---
 
-## Soft Delete (BR-FLASHSALE-007)
+## Soft Delete (BR-FLASHSALE-006)
 
 ```
 Soft delete is available ONLY from UPCOMING state (and requires no registered items).
@@ -110,7 +110,7 @@ It sets deleted_at = NOW() — the row remains in the database but is filtered f
 | Reference | Description |
 |-----------|-------------|
 | BR-FLASHSALE-004 | Status transition rules |
-| BR-FLASHSALE-007 | Soft delete rule |
+| BR-FLASHSALE-006 | Soft delete rule |
 | UC-FLASHSALE-001 | Admin creates session |
 | UC-FLASHSALE-006 | System transitions session status |
 | ENTITY-FLASHSALE-001 | FS_SESSIONS table |

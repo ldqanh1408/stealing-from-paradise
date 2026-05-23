@@ -4,24 +4,22 @@
 
 ## Overview
 
-Manages flash sale sessions, product registration, and real-time inventory. Uses Redis ZSET-based activation scheduling for near-zero-latency session start/end transitions. Stock cache in Redis; persistent data in PostgreSQL.
+Manages flash sale sessions, product registration, and price promotion. Uses Redis ZSET-based activation scheduling for near-zero-latency session start/end transitions. Persistent data in PostgreSQL.
 
 ## Key Database Tables
 
 | Table | Purpose |
 |---|---|
 | `fs_sessions` | Flash sale sessions (start/end, status, name) |
-| `fs_items` | Products in a session (product_id, sale_price, stock, limit_per_user) |
+| `fs_items` | Products in a session (product_id, discount_applied, limit_per_user) |
 | `fs_reminders` | User reminders for upcoming sessions |
 
 ## Redis Data Structures
 
 | Key Pattern | Type | Purpose |
 |---|---|---|
-| `fs:session:{id}:stock:{productId}` | String | Cached stock count |
-| `fs:session:{id}:sold:{userId}:{productId}` | String | Per-user purchase count |
 | `fs:activations` | ZSET | Scheduled session activation (score = epoch) |
-| `fs:session:{id}:state` | String | Session state (PENDING/ACTIVE/ENDED) |
+| `fs:session:{id}:state` | String | Session state (UPCOMING/ACTIVE/ENDED) |
 
 ## Running Locally
 
@@ -59,13 +57,12 @@ VALUES ('Spring Sale', '2026-05-15 10:00:00+07', '2026-05-15 14:00:00+07', 'PEND
 
 ### Register Products
 ```sql
-INSERT INTO fs_items (session_id, product_id, sale_price, stock, limit_per_user)
-VALUES ('<session-uuid>', '<product-uuid>', 149000, 200, 2);
+INSERT INTO fs_items (session_id, product_id, discount_applied, seller_id)
+VALUES (<session_id>, '<product-uuid>', 20.00, '<seller-uuid>');
 ```
 
-### Check Redis Stock Cache
+### Check Session Scheduler
 ```bash
-redis-cli GET "fs:session:<id>:stock:<product-id>"
 redis-cli ZRANGE fs:activations 0 4 WITHSCORES   # next 5 sessions
 ```
 
@@ -88,7 +85,4 @@ redis-cli ZREM fs:activations "<id>"               # remove stale entry
 | Symptom | Likely Cause | Check |
 |---|---|---|
 | Session didn't activate on time | ZSET worker not polling | Check worker thread in logs; `redis-cli INFO clients` |
-| Stock overselling | Race condition or cache drift | Compare `GET fs:session:...:stock` with DB `fs_items.stock` |
-| Redis stock key missing | Key expired or never populated | `redis-cli TTL fs:session:...`; re-warm from DB |
-| Session stuck in PENDING | ZSET entry missing | `redis-cli ZSCORE fs:activations "<id>"` — if nil, re-insert |
-| High latency at session start | Cold cache or connection pool exhausted | Pre-warm stock; `redis-cli SLOWLOG GET 10` |
+| Session stuck in UPCOMING | ZSET entry missing | `redis-cli ZSCORE fs:activations "<id>"` — if nil, re-insert |

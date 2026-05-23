@@ -31,7 +31,7 @@ An admin creates a new flash sale session defining the time window and default d
 | 4 | System | Calculates `registration_deadline = start_time - 15 minutes` (BR-FLASHSALE-002) |
 | 5 | System | Inserts row into `fs_sessions` with `status = UPCOMING` |
 | 6 | System | Registers triggers in Redis ZSET: `ZADD flash_sale:triggers <start_time_ms>`, `ZADD flash_sale:triggers <end_time_ms>` |
-| 7 | System | Publishes Kafka event `flash_sale.session_created` (FR-FLASHSALE-012) |
+| 7 | System | Publishes Kafka event `flash_sale.session_created` (FR-FLASHSALE-011) |
 | 8 | System | Returns `201 Created` with complete session object |
 
 ---
