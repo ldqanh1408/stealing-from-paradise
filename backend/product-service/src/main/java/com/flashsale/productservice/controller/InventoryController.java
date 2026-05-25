@@ -35,7 +35,7 @@ public class InventoryController {
             @PathVariable String skuCode,
             @Valid @RequestBody RestockRequest request,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        return ResponseEntity.ok(inventoryService.restock(skuCode, request.getQuantity(), user));
+        return ResponseEntity.ok(inventoryService.restock(skuCode, request.getQuantity(), request.getVersion(), user));
     }
 
     @PostMapping("/seller/inventory/adjust")
@@ -45,7 +45,7 @@ public class InventoryController {
             @RequestParam String skuCode,
             @AuthenticationPrincipal UserDetailsImpl user) {
         String reason = request.getReason() != null ? request.getReason().name() : "MANUAL";
-        return ResponseEntity.ok(inventoryService.adjustStock(skuCode, request.getDelta(), reason, user));
+        return ResponseEntity.ok(inventoryService.adjustStock(skuCode, request.getDelta(), request.getVersion(), reason, user));
     }
 
     @GetMapping("/seller/inventory/{skuCode}/logs")
