@@ -19,6 +19,10 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
 
     Optional<ProductVariant> findByVariantCode(String code);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT v FROM ProductVariant v WHERE v.variantCode = :code AND v.deletedAt IS NULL")
+    Optional<ProductVariant> findByVariantCodeWithPessimisticLock(@Param("code") String code);
+
     List<ProductVariant> findByProductIdAndDeletedAtIsNull(UUID productId);
 
     @Modifying

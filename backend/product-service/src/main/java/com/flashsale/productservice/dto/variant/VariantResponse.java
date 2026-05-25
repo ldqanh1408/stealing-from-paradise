@@ -26,6 +26,7 @@ public class VariantResponse {
     private Integer stockQuantity;
     private String status;
     private String imageUrl;
+    private Integer version;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

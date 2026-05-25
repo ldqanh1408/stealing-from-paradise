@@ -15,11 +15,9 @@ import com.flashsale.productservice.entity.VariantStatus;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.productservice.repository.ProductRepository;
 import com.flashsale.productservice.repository.ProductVariantRepository;
-import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -118,53 +116,53 @@ public class VariantService {
             throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to update this variant");
         }
 
-        try {
-            if (request.getVariantName() != null) {
-                variant.setVariantName(request.getVariantName());
-            }
-            if (request.getVariantAttributes() != null) {
-                variant.setVariantAttributes(serializeAttributes(request.getVariantAttributes()));
-            }
-            if (request.getPrice() != null) {
-                variant.setPrice(request.getPrice());
-                emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
-                        Map.ofEntries(
-                                Map.entry("variantId", variant.getId()),
-                                Map.entry("productId", variant.getProductId()),
-                                Map.entry("price", request.getPrice()),
-                                Map.entry("originalPrice", variant.getOriginalPrice() != null ? variant.getOriginalPrice() : ""),
-                                Map.entry("timestamp", LocalDateTime.now().toString())
-                        ));
-            }
-            if (request.getOriginalPrice() != null) {
-                variant.setOriginalPrice(request.getOriginalPrice());
-            }
-            if (request.getStockQuantity() != null) {
-                variant.setStockQuantity(request.getStockQuantity());
-                updateVariantStatus(variant);
-                emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                        Map.ofEntries(
-                                Map.entry("variantId", variant.getId()),
-                                Map.entry("productId", variant.getProductId()),
-                                Map.entry("stockQuantity", request.getStockQuantity()),
-                                Map.entry("status", variant.getStatus().name()),
-                                Map.entry("stockStatus", getStockStatus(variant.getStatus())),
-                                Map.entry("timestamp", LocalDateTime.now().toString())
-                        ));
-                inventoryService.updateVariantRedisStock(variant.getId(), request.getStockQuantity());
-                inventoryService.recomputeProductStatus(variant.getProductId());
-            }
-            if (request.getStatus() != null) {
-                variant.setStatus(VariantStatus.valueOf(request.getStatus().toUpperCase()));
-            }
-            if (request.getImageUrl() != null) {
-                variant.setImageUrl(request.getImageUrl());
-            }
-
-            variant = variantRepository.saveAndFlush(variant);
-        } catch (OptimisticLockException | ObjectOptimisticLockingFailureException e) {
-            throw new AppException(ErrorCode.OPTIMISTIC_LOCK, "Variant was modified by another request. Please retry.");
+        if (request.getVersion() != null && !variant.getVersion().equals(request.getVersion())) {
+            throw new AppException(ErrorCode.OPTIMISTIC_LOCK, "Variant was modified by another request. Please refresh and retry.");
         }
+
+        if (request.getVariantName() != null) {
+            variant.setVariantName(request.getVariantName());
+        }
+        if (request.getVariantAttributes() != null) {
+            variant.setVariantAttributes(serializeAttributes(request.getVariantAttributes()));
+        }
+        if (request.getPrice() != null) {
+            variant.setPrice(request.getPrice());
+            emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
+                    Map.ofEntries(
+                            Map.entry("variantId", variant.getId()),
+                            Map.entry("productId", variant.getProductId()),
+                            Map.entry("price", request.getPrice()),
+                            Map.entry("originalPrice", variant.getOriginalPrice() != null ? variant.getOriginalPrice() : ""),
+                            Map.entry("timestamp", LocalDateTime.now().toString())
+                    ));
+        }
+        if (request.getOriginalPrice() != null) {
+            variant.setOriginalPrice(request.getOriginalPrice());
+        }
+        if (request.getStockQuantity() != null) {
+            variant.setStockQuantity(request.getStockQuantity());
+            updateVariantStatus(variant);
+            emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
+                    Map.ofEntries(
+                            Map.entry("variantId", variant.getId()),
+                            Map.entry("productId", variant.getProductId()),
+                            Map.entry("stockQuantity", request.getStockQuantity()),
+                            Map.entry("status", variant.getStatus().name()),
+                            Map.entry("stockStatus", getStockStatus(variant.getStatus())),
+                            Map.entry("timestamp", LocalDateTime.now().toString())
+                    ));
+            inventoryService.updateVariantRedisStock(variant.getId(), request.getStockQuantity());
+            inventoryService.recomputeProductStatus(variant.getProductId());
+        }
+        if (request.getStatus() != null) {
+            variant.setStatus(VariantStatus.valueOf(request.getStatus().toUpperCase()));
+        }
+        if (request.getImageUrl() != null) {
+            variant.setImageUrl(request.getImageUrl());
+        }
+
+        variant = variantRepository.saveAndFlush(variant);
 
         return ApiResponse.success(toVariantResponse(variant));
     }
@@ -223,6 +221,7 @@ public class VariantService {
                 .stockQuantity(variant.getStockQuantity())
                 .status(variant.getStatus().name())
                 .imageUrl(variant.getImageUrl())
+                .version(variant.getVersion())
                 .createdAt(variant.getCreatedAt())
                 .updatedAt(variant.getUpdatedAt())
                 .build();

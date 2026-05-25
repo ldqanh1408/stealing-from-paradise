@@ -415,6 +415,7 @@ public class ProductService {
                 .stockQuantity(variant.getStockQuantity())
                 .status(variant.getStatus().name())
                 .imageUrl(variant.getImageUrl())
+                .version(variant.getVersion())
                 .createdAt(variant.getCreatedAt())
                 .updatedAt(variant.getUpdatedAt())
                 .build();

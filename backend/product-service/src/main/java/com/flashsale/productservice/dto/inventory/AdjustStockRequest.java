@@ -15,6 +15,8 @@ public class AdjustStockRequest {
     @NotNull(message = "Delta is required")
     private Integer delta;
 
+    private Integer version;
+
     private AdjustmentReason reason;
 
     public enum AdjustmentReason {

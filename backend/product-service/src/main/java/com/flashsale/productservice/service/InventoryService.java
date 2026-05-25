@@ -12,11 +12,9 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.productservice.repository.ProductRepository;
 import com.flashsale.productservice.repository.ProductVariantRepository;
 import com.flashsale.productservice.repository.StockReservationRepository;
-import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,9 +46,8 @@ public class InventoryService {
     }
 
     @Transactional
-    public ApiResponse<InventoryResponse> restock(String variantCode, int quantity, UserDetailsImpl user) {
-        ProductVariant variant = variantRepository.findByVariantCode(variantCode)
-                .filter(v -> v.getDeletedAt() == null)
+    public ApiResponse<InventoryResponse> restock(String variantCode, int quantity, Integer version, UserDetailsImpl user) {
+        ProductVariant variant = variantRepository.findByVariantCodeWithPessimisticLock(variantCode)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
         Product product = productRepository.findById(variant.getProductId())
@@ -85,7 +82,7 @@ public class InventoryService {
     }
 
     @Transactional
-    public ApiResponse<InventoryResponse> adjustStock(String variantCode, int delta, String source, UserDetailsImpl user) {
+    public ApiResponse<InventoryResponse> adjustStock(String variantCode, int delta, Integer version, String source, UserDetailsImpl user) {
         ProductVariant variant = variantRepository.findByVariantCode(variantCode)
                 .filter(v -> v.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
@@ -98,25 +95,25 @@ public class InventoryService {
             throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to adjust stock for this variant");
         }
 
-        try {
-            int newQuantity = variant.getStockQuantity() + delta;
-            if (newQuantity < 0) {
-                throw new AppException(ErrorCode.INSUFFICIENT_STOCK, "Stock adjustment would result in negative quantity");
-            }
-            variant.setStockQuantity(newQuantity);
-
-            if (variant.getStatus() != VariantStatus.INACTIVE) {
-                if (newQuantity == 0) {
-                    variant.setStatus(VariantStatus.OUT_OF_STOCK);
-                } else if (variant.getStatus() == VariantStatus.OUT_OF_STOCK) {
-                    variant.setStatus(VariantStatus.ACTIVE);
-                }
-            }
-
-            variant = variantRepository.saveAndFlush(variant);
-        } catch (OptimisticLockException | ObjectOptimisticLockingFailureException e) {
-            throw new AppException(ErrorCode.OPTIMISTIC_LOCK, "Variant was modified by another request. Please retry.");
+        if (version != null && !variant.getVersion().equals(version)) {
+            throw new AppException(ErrorCode.OPTIMISTIC_LOCK, "Variant was modified by another request. Please refresh and retry.");
         }
+
+        int newQuantity = variant.getStockQuantity() + delta;
+        if (newQuantity < 0) {
+            throw new AppException(ErrorCode.INSUFFICIENT_STOCK, "Stock adjustment would result in negative quantity");
+        }
+        variant.setStockQuantity(newQuantity);
+
+        if (variant.getStatus() != VariantStatus.INACTIVE) {
+            if (newQuantity == 0) {
+                variant.setStatus(VariantStatus.OUT_OF_STOCK);
+            } else if (variant.getStatus() == VariantStatus.OUT_OF_STOCK) {
+                variant.setStatus(VariantStatus.ACTIVE);
+            }
+        }
+
+        variant = variantRepository.saveAndFlush(variant);
 
         recomputeProductStatus(variant.getProductId());
 
@@ -182,8 +179,7 @@ public class InventoryService {
         reservation.setStatus(ReservationStatus.RELEASED);
         reservationRepository.save(reservation);
 
-        ProductVariant variant = variantRepository.findById(reservation.getVariantId())
-                .filter(v -> v.getDeletedAt() == null)
+        ProductVariant variant = variantRepository.findByIdWithPessimisticLock(reservation.getVariantId())
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
         variant.setStockQuantity(variant.getStockQuantity() + reservation.getQuantity());
@@ -238,8 +234,7 @@ public class InventoryService {
 
     @Transactional
     public void restoreStockOnReturn(UUID variantId, int quantity) {
-        ProductVariant variant = variantRepository.findById(variantId)
-                .filter(v -> v.getDeletedAt() == null)
+        ProductVariant variant = variantRepository.findByIdWithPessimisticLock(variantId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
         variant.setStockQuantity(variant.getStockQuantity() + quantity);

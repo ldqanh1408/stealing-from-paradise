@@ -14,4 +14,6 @@ public class RestockRequest {
 
     @Positive(message = "Quantity must be greater than 0")
     private Integer quantity;
+
+    private Integer version;
 }
