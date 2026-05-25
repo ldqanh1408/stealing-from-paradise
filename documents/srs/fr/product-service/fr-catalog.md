@@ -52,7 +52,7 @@
 | **Priority** | HIGH |
 | **Actor** | Seller (JWT SELLER role) |
 | **Endpoint** | `POST /products` |
-| **Description** | Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Emits `product.created` Kafka event. |
+| **Description** | Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Product starts in `draft` status. No Kafka event emitted at creation — indexing is deferred until `product.activated`. |
 | **Acceptance Criteria** | AC1: Name 5-200 chars. AC2: Description max 10000 chars. AC3: category_id must be leaf. AC4: Images 1-10 URLs, JPEG/PNG/WebP. AC5: Returns 201 with product_id. |
 | **Related** | ENTITY-PRODUCT-002, UC-PRODUCT-003, BR-PRODUCT-002, BR-PRODUCT-006 |
 

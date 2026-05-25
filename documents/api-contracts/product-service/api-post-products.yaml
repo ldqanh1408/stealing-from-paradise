@@ -20,7 +20,8 @@ paths:
       summary: Create a new product
       description: |
         Seller creates a product. Category must be a leaf node.
-        Emits `product.created` Kafka event.
+        Product starts in `draft` status. No Kafka event emitted at creation.
+        Indexing is deferred until `product.activated` (after admin approval + seller publish).
       tags: [Products]
       security:
         - BearerAuth: []

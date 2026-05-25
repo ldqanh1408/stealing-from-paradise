@@ -98,7 +98,6 @@ paths:
       description: |
         Dùng khi buyer rời khỏi checkout hoặc payment.failed.
         Idempotent — gọi lần thứ 2 trả 200 không thay đổi.
-        Emit `stock.reservation.released`.
       tags: [Inventory, StockReservation]
       security:
         - BearerAuth: []

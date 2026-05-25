@@ -5,6 +5,7 @@
 > **Service**: search-service (Port 8091)
 > **Index**: `skus` (Elasticsearch)
 > **Source**: BR-SEARCH-001
+> **Updated**: 2026-05-25 (clarified EMPTY→INDEXED trigger, added product.rejected to REMOVED, added sku_id↔variant_id cross-reference)
 
 ---
 
@@ -24,14 +25,14 @@
 
 | From | To | Trigger | UC/BR Reference |
 |------|----|---------|-----------------|
-| [EMPTY] | INDEXED | POST /search/reindex (UC-SEARCH-003) or `product.approved` event | UC-SEARCH-003, BR-SEARCH-001-06 |
+| [EMPTY] | INDEXED | `product.activated` event (Kafka — approved+published product) OR POST /search/reindex (UC-SEARCH-003) | UC-SEARCH-003, BR-SEARCH-001-06 |
 | INDEXED | UPDATED | Partial update via Kafka event (price/stock change) | BR-SEARCH-001-03 |
 | UPDATED | INDEXED | Update completed successfully | BR-SEARCH-001-03 |
 | INDEXED | UPDATED | Update_by_query via Kafka (product fields) | BR-SEARCH-001-03 |
-| INDEXED | HIDDEN | `product.auto_hidden` (post-MVP) or `account.locked` (post-MVP) event | BR-SEARCH-001-03 |
-| HIDDEN | INDEXED | Product reactivated or account unlocked | BR-SEARCH-001-03 |
-| INDEXED | REMOVED | `product.deleted` or `product.rejected` event | BR-SEARCH-001-03 |
-| REMOVED | INDEXED | Product re-approved (`product.approved` event) | BR-SEARCH-001-03 |
+| INDEXED | HIDDEN | `product.deactivated` event (seller unpublishes) or `account.locked` (post-MVP) | BR-SEARCH-001-03 |
+| HIDDEN | INDEXED | Product reactivated via `product.activated` (re-publish) or account unlocked | BR-SEARCH-001-03 |
+| INDEXED | REMOVED | `product.deleted` event | BR-SEARCH-001-03 |
+| REMOVED | INDEXED | Product re-created and re-published (`product.activated`) | BR-SEARCH-001-03 |
 | INDEXED | INDEXED | Reindex completes (alias swap to new index) | UC-SEARCH-003, BR-SEARCH-001-06 |
 
 ---
@@ -41,14 +42,14 @@
 ```mermaid
 stateDiagram-v2
     [*] --> EMPTY : Index created
-    EMPTY --> INDEXED : Reindex / product.approved\n(UC-SEARCH-003)
+    EMPTY --> INDEXED : product.activated (Kafka)\nor POST /search/reindex (API)\n(UC-SEARCH-003)
     INDEXED --> UPDATED : Partial update (price, stock)\n(BR-SEARCH-001-03)
     UPDATED --> INDEXED : Update complete
     INDEXED --> UPDATED : Update_by_query (product fields)\n(BR-SEARCH-001-03)
-    INDEXED --> HIDDEN : product.auto_hidden (post-MVP) / account.locked (post-MVP)
-    HIDDEN --> INDEXED : Product reactivated / account unlocked (post-MVP)
-    INDEXED --> REMOVED : product.deleted / product.rejected
-    REMOVED --> INDEXED : product.approved (re-approved)
+    INDEXED --> HIDDEN : product.deactivated\nor account.locked (post-MVP)
+    HIDDEN --> INDEXED : product.activated (re-publish)\nor account unlocked
+    INDEXED --> REMOVED : product.deleted
+    REMOVED --> INDEXED : product.activated (re-published)
     INDEXED --> INDEXED : Reindex completes (alias swap)
     REMOVED --> [*]
 ```
@@ -63,8 +64,10 @@ stateDiagram-v2
 | HIDDEN | `is_active = false`, document present but excluded from queries |
 | UPDATED | Transient state; resolves immediately to INDEXED |
 | REMOVED | Document does not exist in current active index |
-| Any | `sku_id` never changes |
+| Any | `sku_id` (synonym: `variant_id` from Product Service) never changes |
 | Any | `product_id` never changes |
+
+> **Note**: `sku_id` in the ES document is equivalent to `variant_id` in the Product Service. The ES field is named `sku_id` to reflect the Elasticsearch document primary key; the Kafka event payloads use `variantId` from the source service.
 
 ---
 
@@ -74,4 +77,6 @@ stateDiagram-v2
 |--------|--------|
 | BR-SEARCH-001 | Search business rules |
 | UC-SEARCH-003 | Reindex use case |
+| UC-SEARCH-001 | Search use case (Kafka ingestion) |
 | ENTITY-SEARCH-001 | SKU document mapping |
+| KAFKA_EVENTS.md | Search Service Kafka events (source of truth for topics) |

@@ -4,6 +4,7 @@
 > **Database**: Elasticsearch
 > **Architecture**: SKU-first, field collapsing by product_id
 > **Source**: 02_API_search_service.md, 03_database_tables.md, KAFKA_EVENTS.md
+> **Updated**: 2026-05-25 (product.activated is sole ES indexing trigger; removed product.rejected consumer; added product.activated/deactivated handling)
 
 ---
 
@@ -34,12 +35,21 @@
 
 | Condition | Action |
 |-----------|--------|
-| SKU price changes | POST _update on single document (fields: price, original_price, has_discount, discount_pct) |
-| SKU stock changes | POST _update on single document (fields: stock_status) |
-| Product name/description changes | Update_by_query WHERE product_id = :id |
-| Product deleted | Delete documents WHERE product_id = :id, OR set `is_active = false` |
-| Flash sale activated | Bulk update: price = flash_price, original_price preserved, has_discount = true |
-| Flash sale deactivated | Bulk update: price = original_price, has_discount = false, discount_pct = 0 |
+| SKU price changes | POST _update on single document (fields: `price`, `original_price`, `has_discount`, `discount_pct`) |
+| SKU stock changes | POST _update on single document (fields: `stock_status`) |
+| Product name/description changes | Update_by_query WHERE `product_id` = :id (fields: `product_name`, `product_description`, `product_slug`, `product_attributes`, `category_id`, `category_path`, `thumbnail_url`, `seller_name`) |
+| Product category changes | Update_by_query WHERE `product_id` = :id (fields: `category_id`, `category_path`) |
+| Product activated | Bulk-index all SKU documents for this product (`product.activated` event — sole indexing trigger) |
+| Product deactivated | Set `is_active = false` on all documents for this product (do NOT delete — allows fast reactivation) |
+| Product deleted | Delete documents WHERE `product_id` = :id |
+| Product rejected | No action — product was never indexed at this point |
+| Flash sale activated | Bulk update: `price` = `flash_price`, `original_price` preserved, `has_discount` = true, `flash_session_id` = session_id |
+| Flash sale deactivated | Bulk update: `price` = `original_price`, `has_discount` = false, `discount_pct` = 0, `flash_session_id` = null |
+| Inventory adjusted | POST _update on single document (fields: `stock_status`) |
+| Seller locked (post-MVP) | Update_by_query WHERE `seller_id` = :id: set `is_active = false` |
+| Seller unlocked (post-MVP) | Update_by_query WHERE `seller_id` = :id: set `is_active` = true |
+
+> **Field update scope**: Fields intrinsic to a single SKU (`price`, `stock_status`) use single-document `_update`. Fields spanning multiple SKUs under one product (`product_name`, `category_path`) use `update_by_query`. Fields that are SKU-invariant (e.g., `product_created_at`) are never updated after initial indexing.
 
 ---
 
@@ -108,10 +118,12 @@ All sorts include a deterministic tiebreaker field as secondary sort.
 | Ref ID | Target |
 |--------|--------|
 | UC-SEARCH-001 | Search products |
-| UC-SEARCH-002 | Filter results |
 | UC-SEARCH-003 | Reindex |
 | FR-SEARCH-001 | Full-text search |
 | FR-SEARCH-002 | Filter/facets |
-| FR-SEARCH-003 | Reindex |
+| FR-SEARCH-003 | Autocomplete / suggestions |
+| FR-SEARCH-004 | Reindex management |
+| FR-SEARCH-005 | Kafka event consumption |
 | STATE-SEARCH-001 | [state-search-index.md](../../state-diagrams/search-service/state-search-index.md) |
 | ENTITY-SEARCH-001 | SKU document mapping |
+| KAFKA_EVENTS.md | [KAFKA_EVENTS.md](../../messaging/search-service/KAFKA_EVENTS.md) |

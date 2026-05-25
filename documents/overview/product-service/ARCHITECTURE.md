@@ -39,12 +39,14 @@ Product catalog management, variant/price/stock management, category management,
 | stock_reservations | Pending stock holds during checkout (15min TTL) |
 
 ## Product Lifecycle
+
 ```
-active → out_of_stock (all variants stock=0)
-active → inactive (seller unpublishes)
-out_of_stock → active (restock)
-inactive → active (seller republishes)
+draft → pending → approved → active ↔ out_of_stock
+                      ↓               ↓
+                  rejected      inactive
 ```
+
+> Products are visible on the marketplace only when in `active` or `out_of_stock` state. The Search Service indexes products only when they transition from `approved` to `active` (via `product.activated` event).
 
 ## API Endpoints
 
@@ -68,8 +70,13 @@ inactive → active (seller republishes)
 
 | Direction | Topic | Purpose |
 |-----------|-------|---------|
-| Produce | `product.created/updated/deleted` | Index in Search Service |
-| Produce | `variant.price_updated` | Update search index |
+| Produce | `product.activated` | Index product in Search Service (sole indexing trigger: `approved → active`) |
+| Produce | `product.deactivated` | Remove/hide product from Search Service (`active/out_of_stock → inactive`) |
+| Produce | `product.updated` | Update product fields in Search Service (name, description, attributes, images) |
+| Produce | `product.deleted` | Remove product from Search Service |
+| Produce | `product.pending_review` | Notify admins of pending review |
+| Produce | `product.approved` | Notify seller — product approved |
+| Produce | `product.rejected` | Notify seller with rejection reason |
 | Produce | `variant.stock_updated` | Update search index |
 | Produce | `flash_sale.price_sync` | Activate/deactivate flash prices in search |
 | Consume | `order.created` | Lock stock |

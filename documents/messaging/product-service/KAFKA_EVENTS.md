@@ -2,7 +2,7 @@
 
 > Service: product-service (Port 8090)
 > Source: `docs/services/product-service/KAFKA_EVENTS.md`, `docs/services/product-service/02_API_product_service.md`
-> Generated: 2026-05-10 | Updated: 2026-05-23 (payload alignment + product.auto_hidden removed)
+> Generated: 2026-05-10 | Updated: 2026-05-25 (product lifecycle aligned: product.created removed (no downstream consumers); product.activated/deactivated are sole ES indexing triggers)
 
 ---
 
@@ -48,50 +48,31 @@
 
 ---
 
-### product.created
-
-| Field | Value |
-|-------|-------|
-| **Consumers** | Search Service |
-| **Trigger** | Seller creates product via `POST /products` |
-
-**Payload:**
-```json
-{
-  "topic": "product.created",
-  "payload": {
-    "productId": "uuid",
-    "sellerId": "uuid",
-    "name": "Ao Thun Nike Air Nam",
-    "categoryId": "uuid",
-    "status": "active",
-    "timestamp": "2026-04-15T10:00:00Z"
-  }
-}
-```
-
----
-
 ### product.updated
 
 | Field | Value |
 |-------|-------|
-| **Consumers** | Search Service |
-| **Trigger** | Seller updates product via `PUT /products/{id}`, publish via `POST /seller/products/{id}/publish`, unpublish via `POST /seller/products/{id}/unpublish` |
+| **Consumers** | Search Service (field updates), Notification Service |
+| **Trigger** | Seller updates product fields (name, description, attributes, images) via `PUT /products/{id}` while product is `active` or `inactive` |
+
+> Publish/unpublish transitions emit `product.activated`/`product.deactivated` instead. `product.updated` handles field-level changes only (name, description, attributes, images).
 
 **Payload:**
 ```json
 {
   "topic": "product.updated",
-  "payload": {
-    "productId": "uuid",
-    "status": "ACTIVE",
-    "timestamp": "2026-04-15T10:00:00Z"
+  "event_id": "evt_20260525_003",
+  "event_type": "product.updated",
+  "timestamp": "2026-04-15T10:00:00Z",
+  "source_service": "product-service",
+  "version": 1,
+  "data": {
+    "productId": "uuid"
   }
 }
 ```
 
-> Note: `productId` is sufficient for Search Service to look up full product details from the database. Additional fields (`name`, `categoryId`) are not included to minimize payload size.
+> Note: `productId` is sufficient for Search Service to look up full product details from the database and update the ES index. Publish/unpublish transitions use `product.activated`/`product.deactivated` instead.
 
 ---
 
@@ -106,10 +87,14 @@
 ```json
 {
   "topic": "product.deleted",
-  "payload": {
+  "event_id": "evt_20260525_004",
+  "event_type": "product.deleted",
+  "timestamp": "2026-04-15T10:00:00Z",
+  "source_service": "product-service",
+  "version": 1,
+  "data": {
     "productId": "uuid",
-    "sellerId": "uuid",
-    "timestamp": "2026-04-15T10:00:00Z"
+    "sellerId": "uuid"
   }
 }
 ```
@@ -270,7 +255,7 @@
 | Field | Value |
 |-------|-------|
 | **Producer** | product-service (`POST /admin/products/{id}/approve`) |
-| **Consumers** | notification-service (notify seller), search-service (pre-warm; ES indexing on subsequent `product.activated`) |
+| **Consumers** | notification-service (notify seller) |
 | **Trigger** | Admin approves a pending product (`pending → approved`) |
 | **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
@@ -298,7 +283,7 @@
 
 **Downstream effects:**
 - Notification Service: NOTIF-PRODUCT-APPROVED to seller -- "San pham cua ban da duoc duyet, hay publish de mo ban".
-- Search Service: pre-warm cache; actual ES upsert chi xay ra khi seller publish (`product.activated`).
+- Product remains `approved` (not yet active). Search Service indexing is triggered when seller publishes (`product.activated`).
 
 ---
 
@@ -309,6 +294,7 @@
 | **Producer** | product-service (`POST /admin/products/{id}/reject`) |
 | **Consumers** | notification-service (notify seller with reason) |
 | **Trigger** | Admin rejects a pending product (`pending → rejected`) |
+| **Note** | No Search Service consumer — product has never been indexed at this point. |
 | **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
@@ -336,6 +322,74 @@
 **Downstream effects:**
 - Notification Service: NOTIF-PRODUCT-REJECTED to seller, body includes `{rejectReason}` so seller biet phai sua gi.
 - Product Service (self): tang counter `rejectCount`; neu >=3 → lock product khoi auto-resubmit (BR-PRODUCT-009.8).
+
+---
+
+### product.activated
+
+|| Field | Value |
+|-------|-------|
+| **Consumers** | Search Service (primary), Notification Service (optional) |
+| **Trigger** | Seller publishes product (`approved → active` via `POST /seller/products/{id}/publish`) |
+| **Retention** | 30 days |
+| **Partition Key** | `product_id` |
+
+> This is the **sole event that triggers Elasticsearch indexing** for a product. Search Service consumes this to bulk-index all SKU documents.
+
+**Payload:**
+```json
+{
+  "topic": "product.activated",
+  "event_id": "evt_20260525_001",
+  "event_type": "product.activated",
+  "timestamp": "2026-05-25T10:00:00Z",
+  "source_service": "product-service",
+  "version": 1,
+  "data": {
+    "productId": "uuid",
+    "sellerId": 42,
+    "name": "Ao Thun Nike Air Nam",
+    "categoryId": "uuid",
+    "status": "active"
+  }
+}
+```
+
+**Downstream effects:**
+- Search Service: Bulk-index all SKU documents into Elasticsearch `skus` index.
+
+---
+
+### product.deactivated
+
+|| Field | Value |
+|-------|-------|
+| **Consumers** | Search Service (primary), Notification Service (optional) |
+| **Trigger** | Seller unpublishes product (`active/out_of_stock → inactive` via `POST /seller/products/{id}/unpublish`) |
+| **Retention** | 30 days |
+| **Partition Key** | `product_id` |
+
+> This is the event that removes or hides a product from the search index. Search Service consumes this to set `is_active = false` or remove documents.
+
+**Payload:**
+```json
+{
+  "topic": "product.deactivated",
+  "event_id": "evt_20260525_002",
+  "event_type": "product.deactivated",
+  "timestamp": "2026-05-25T11:00:00Z",
+  "source_service": "product-service",
+  "version": 1,
+  "data": {
+    "productId": "uuid",
+    "sellerId": 42,
+    "status": "inactive"
+  }
+}
+```
+
+**Downstream effects:**
+- Search Service: Set `is_active = false` in ES documents (do NOT delete, so reactivation is fast).
 
 ---
 

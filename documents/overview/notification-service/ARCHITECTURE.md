@@ -55,7 +55,7 @@ Consumer-only — listens to 20+ topics:
 - From order: `order.created`, `order.shipped`, `order.delivered`, `order.cancelled`
 - From payment: `payment.success`, `payment.failed`, `refund.requested`, `refund.admin_approved`, `refund.rejected`
 - From flashsale: `flash_sale.session_started`, `flash_sale.session_ended`
-- From product: `product.created`, `product.updated`
+- From product: `product.updated`
 - From ai-chat: `ai_chat.message_sent`
 
 ## SSE Architecture

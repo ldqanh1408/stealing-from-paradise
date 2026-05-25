@@ -6,7 +6,7 @@
 | **Actor** | Seller (JWT SELLER role) |
 | **Priority** | HIGH |
 | **Precondition** | Seller authenticated; category_id must be a leaf category |
-| **Postcondition** | New product created with status=active; Kafka event emitted |
+| **Postcondition** | New product created with status=draft; no Kafka event emitted — indexing is deferred until seller publishes (product.activated) |
 
 ---
 
@@ -33,17 +33,15 @@
    - id (UUID)
 
 5. System inserts product row with:
-   - status = 'active'
+   - status = 'draft'
    - seller_id from JWT
 
 6. If images provided, system creates product_image rows
    with variant_id=NULL (common images)
 
-7. Emits product.created Kafka event
-   Topic: product.created
-   Payload: { product_id, seller_id, name, category_id, status, timestamp }
+7. Returns 201 with { product_id, seller_id, name, category_id, status, created_at }
 
-8. Returns 201 with { product_id, seller_id, name, category_id, status, created_at }
+> **Note:** No Kafka event is emitted on product creation. Search indexing is deferred until the seller publishes the product (transition `approved → active`), which emits `product.activated`.
 ```
 
 ---

@@ -13,7 +13,6 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 > **NEW events** (5):
 > - `stock.reservation.expired` (product → order, notification) — MUST
 > - `order.payment_timeout` (order → order self, notification) — MUST
-> - `stock.reservation.confirmed` / `released` (product, audit) — SHOULD
 > - `seller.transfer.eligible` / `paid_out` / `failed` (payment → notification) — SHOULD
 >
 > **OBSOLETE events** (xóa khỏi catalog):
@@ -42,7 +41,7 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 | Service | Produces | Consumes |
 |---------|----------|----------|
 | identity-service | — (does NOT produce domain events) | order.delivered, order.cancelled, refund.admin_approved, refund.rejected |
-| product-service | product.*, category.*, inventory.*, stock.reservation.*, order.paid, order.payment_failed | order.paid, order.payment_failed, order.cancelled, order.returned |
+| product-service | product.*, category.*, inventory.*, order.paid, order.payment_failed | order.paid, order.payment_failed, order.cancelled, order.returned |
 | order-service | order.*, order.payment_timeout, seller.order_cancelled, order.checkout_submitted, order.paid, order.payment_failed | payment.*, refund.*, stock.reservation.expired, order.checkout_submitted |
 | payment-service | payment.*, stripe.*, seller.transfer.*, payout.*, refund.stripe_auto | payment.requested, order.delivered, order.cancelled |
 | refund-service | refund.* | refund.requested, refund.full_requested, order.returned, order.refunds.request, order.payment_status.request |

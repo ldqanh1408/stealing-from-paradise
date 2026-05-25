@@ -100,8 +100,6 @@
 
 | Event | Producer | Consumer | Mục đích |
 |-------|----------|----------|----------|
-| `stock.reservation.confirmed` | product-service | (audit only) | Quan sát saga checkout |
-| `stock.reservation.released` | product-service | (audit only) | Khi `payment.failed`/buyer cancel |
 | `seller.transfer.eligible` | payment-service (JOB-23 PayoutScheduler) | notification-service | Hết 30 ngày return window → đủ điều kiện payout |
 | `seller.transfer.paid_out` | payment-service (Stripe payout webhook) | notification-service | Stripe payout thành công |
 | `seller.transfer.failed` | payment-service | notification-service, audit | Retry exhausted |

@@ -5,6 +5,7 @@
 > **Index**: `skus`
 > **Architecture**: SKU-first with field collapsing by `product_id`
 > **Source**: database-entities.md Section 10, 03_database_tables.md
+> **Updated**: 2026-05-25 (product.activated is sole ES indexing trigger; removed product.created/approved/rejected)
 
 ---
 
@@ -79,16 +80,17 @@
 
 Triggered via Kafka events from the Product Service (consumer-only):
 
-| Kafka Topic | ES Action | Scope |
-|-------------|-----------|-------|
-| `product.approved` | Bulk index all SKU documents | Product + all SKUs |
-| `product.updated` | Update_by_query by `product_id` | Product-level fields |
-| `product.deleted` | Delete documents or set `is_active = false` | All SKUs of product |
-| `product.auto_hidden` (post-MVP) | Update `is_active = false` | All SKUs of product |
-| `inventory.adjusted` | Partial update: `stock_status` | Single SKU |
-| `category.updated` | Update_by_query by `category_id` | Category fields |
-| `order.created` | Update `sold_count` (optional) | Affected products |
-| `account.locked` (post-MVP) | Update_by_query by `seller_id`: set hidden | All SKUs of seller |
+| Kafka Topic | ES Action | Scope | Notes |
+|-------------|-----------|-------|-------|
+| `product.activated` | Bulk index all SKU documents | Product + all SKUs | **Primary indexing event** — product must be approved + published |
+| `product.deactivated` | Set `is_active = false` | All SKUs of product | Do NOT delete — allows fast reactivation |
+| `product.updated` | Update_by_query by `product_id` | Product-level fields | Name, description, attributes, images |
+| `product.deleted` | Delete documents by `product_id` | All SKUs of product | Permanent removal |
+| `inventory.adjusted` | Partial update: `stock_status` | Single SKU | |
+| `category.updated` | Update_by_query by `category_id` | Category fields | |
+| `order.created` | Update `sold_count` | Affected products | Optional |
+| `account.locked` (post-MVP) | Update_by_query by `seller_id`: set `is_active = false` | All SKUs of seller | |
+| `account.unlocked` (post-MVP) | Update_by_query by `seller_id`: restore `is_active = true` | All SKUs of seller | |
 
 ---
 
@@ -107,12 +109,15 @@ Triggered via Kafka events from the Product Service (consumer-only):
 
 | Ref ID | Type | Description |
 |--------|------|-------------|
-| UC-SEARCH-001 | Use Case | Full-text search products |
-| UC-SEARCH-002 | Use Case | Filter search results |
+| UC-SEARCH-001 | Use Case | Full-text search products (includes filtering) |
+| UC-SEARCH-002 | Use Case | DEPRECATED -- merged into UC-SEARCH-001 |
 | UC-SEARCH-003 | Use Case | Trigger reindex |
 | BR-SEARCH-001 | Business Rule | Search business rules |
 | ST-SEARCH-001 | State Diagram | Index lifecycle states |
 | FR-SEARCH-001 | Functional Req | Full-text search |
 | FR-SEARCH-002 | Functional Req | Filtering and facets |
-| FR-SEARCH-003 | Functional Req | Reindex management |
+| FR-SEARCH-003 | Functional Req | Autocomplete / suggestions |
+| FR-SEARCH-004 | Functional Req | Reindex management |
+| FR-SEARCH-005 | Functional Req | Kafka event consumption |
 | DB-10 | Database Section | database-entities.md Section 10 |
+| KAFKA_EVENTS.md | Kafka Events | Search Service Kafka events (source of truth) |
