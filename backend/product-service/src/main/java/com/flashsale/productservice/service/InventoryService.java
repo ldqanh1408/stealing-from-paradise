@@ -220,8 +220,6 @@ public class InventoryService {
                         Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
                         Map.entry("timestamp", LocalDateTime.now().toString())
                 ));
-        emitEvent(KafkaTopics.STOCK_RESERVATION_RELEASED, reservation.getId().toString(),
-                Map.of("reservationId", reservation.getId(), "variantId", reservation.getVariantId(), "quantity", reservation.getQuantity()));
 
         inventorySyncService.updateVariantRedisStock(variant.getId(), variant.getStockQuantity());
         recomputeProductStatus(variant.getProductId());

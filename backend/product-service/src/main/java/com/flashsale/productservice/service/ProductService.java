@@ -72,13 +72,11 @@ public class ProductService {
                 .categoryId(request.getCategoryId())
                 .attributes(serializeAttributes(request.getAttributes()))
                 .sellerId(user.getId())
-                .status(ProductStatus.ACTIVE)
+                .status(ProductStatus.DRAFT)
                 .rejectCount(0)
                 .build();
 
         product = productRepository.save(product);
-
-        emitEvent(KafkaTopics.PRODUCT_CREATED, product.getId().toString(), Map.of("productId", product.getId()));
 
         return ApiResponse.success(toProductResponse(product));
     }
