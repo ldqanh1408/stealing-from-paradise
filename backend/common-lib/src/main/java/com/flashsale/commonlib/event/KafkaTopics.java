@@ -7,13 +7,11 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     // Product  (Producer: Product Service / Identity Service)
     // ──────────────────────────────────────────────
-    public static final String PRODUCT_CREATED          = "product.created";
     public static final String PRODUCT_PENDING_REVIEW   = "product.pending_review";
     public static final String PRODUCT_APPROVED         = "product.approved";
     public static final String PRODUCT_REJECTED         = "product.rejected";
     public static final String PRODUCT_UPDATED          = "product.updated";
     public static final String PRODUCT_DELETED          = "product.deleted";
-    public static final String INVENTORY_ADJUSTED       = "inventory.adjusted";
     public static final String VARIANT_PRICE_UPDATED    = "variant.price_updated";
     public static final String VARIANT_STOCK_UPDATED    = "variant.stock_updated";
 
@@ -75,8 +73,6 @@ public final class KafkaTopics {
     // Stock Reservation (Producer: Product Service)
     // ──────────────────────────────────────────────
     public static final String STOCK_RESERVATION_EXPIRED   = "stock.reservation.expired";
-    public static final String STOCK_RESERVATION_CONFIRMED = "stock.reservation.confirmed";
-    public static final String STOCK_RESERVATION_RELEASED  = "stock.reservation.released";
 
     // ──────────────────────────────────────────────
     // Category (Producer: Product Service)

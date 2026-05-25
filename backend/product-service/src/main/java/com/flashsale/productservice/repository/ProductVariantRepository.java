@@ -2,7 +2,9 @@ package com.flashsale.productservice.repository;
 
 import com.flashsale.productservice.entity.ProductVariant;
 import com.flashsale.productservice.entity.VariantStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,4 +38,8 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
 
     @Query("SELECT v FROM ProductVariant v WHERE v.originalPrice IS NOT NULL AND v.deletedAt IS NULL")
     List<ProductVariant> findByOriginalPriceNotNull();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT v FROM ProductVariant v WHERE v.id = :id AND v.deletedAt IS NULL")
+    Optional<ProductVariant> findByIdWithPessimisticLock(@Param("id") UUID id);
 }

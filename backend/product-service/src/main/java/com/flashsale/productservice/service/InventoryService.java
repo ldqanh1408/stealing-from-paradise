@@ -15,7 +15,6 @@ import com.flashsale.productservice.repository.StockReservationRepository;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -31,16 +30,13 @@ import java.util.UUID;
 @Slf4j
 public class InventoryService {
 
-    private static final String STOCK_RESERVED_KEY_PREFIX = "stock:reserved:";
     private static final int RESERVATION_TTL_MINUTES = 15;
 
     private final ProductVariantRepository variantRepository;
     private final StockReservationRepository reservationRepository;
     private final ProductRepository productRepository;
-    private final StringRedisTemplate redisTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final InventorySyncService inventorySyncService;
 
     @Transactional(readOnly = true)
     public ApiResponse<InventoryResponse> getInventory(String variantCode) {
@@ -71,11 +67,8 @@ public class InventoryService {
         }
         variantRepository.save(variant);
 
-        inventorySyncService.updateVariantRedisStock(variant.getId(), variant.getStockQuantity());
         recomputeProductStatus(variant.getProductId());
 
-        emitEvent(KafkaTopics.INVENTORY_ADJUSTED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "delta", quantity, "reason", "RESTOCK"));
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
                 Map.ofEntries(
                         Map.entry("variantId", variant.getId()),
@@ -83,7 +76,9 @@ public class InventoryService {
                         Map.entry("stockQuantity", variant.getStockQuantity()),
                         Map.entry("status", variant.getStatus().name()),
                         Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
-                        Map.entry("timestamp", LocalDateTime.now().toString())
+                        Map.entry("timestamp", LocalDateTime.now().toString()),
+                        Map.entry("delta", quantity),
+                        Map.entry("reason", "RESTOCK")
                 ));
 
         return ApiResponse.success(toInventoryResponse(variant));
@@ -123,11 +118,8 @@ public class InventoryService {
             throw new AppException(ErrorCode.OPTIMISTIC_LOCK, "Variant was modified by another request. Please retry.");
         }
 
-        inventorySyncService.updateVariantRedisStock(variant.getId(), variant.getStockQuantity());
         recomputeProductStatus(variant.getProductId());
 
-        emitEvent(KafkaTopics.INVENTORY_ADJUSTED, variant.getId().toString(),
-                Map.of("variantId", variant.getId(), "delta", delta, "reason", source != null ? source : "MANUAL"));
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
                 Map.ofEntries(
                         Map.entry("variantId", variant.getId()),
@@ -135,7 +127,9 @@ public class InventoryService {
                         Map.entry("stockQuantity", variant.getStockQuantity()),
                         Map.entry("status", variant.getStatus().name()),
                         Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
-                        Map.entry("timestamp", LocalDateTime.now().toString())
+                        Map.entry("timestamp", LocalDateTime.now().toString()),
+                        Map.entry("delta", delta),
+                        Map.entry("reason", source != null ? source : "MANUAL")
                 ));
 
         return ApiResponse.success(toInventoryResponse(variant));
@@ -147,43 +141,33 @@ public class InventoryService {
             throw new AppException(ErrorCode.BAD_REQUEST, "Quantity must be positive");
         }
 
-        ProductVariant variant = variantRepository.findById(variantId)
-                .filter(v -> v.getDeletedAt() == null)
+        ProductVariant variant = variantRepository.findByIdWithPessimisticLock(variantId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
-        String redisKey = STOCK_RESERVED_KEY_PREFIX + variantId;
-        Long currentReserved = redisTemplate.opsForValue().decrement(redisKey, quantity);
-
-        if (currentReserved != null && currentReserved < 0) {
-            redisTemplate.opsForValue().increment(redisKey, quantity);
-            throw new AppException(ErrorCode.INSUFFICIENT_STOCK, "Insufficient stock available");
+        if (variant.getStockQuantity() < quantity) {
+            throw new AppException(ErrorCode.INSUFFICIENT_STOCK,
+                    String.format("Requested %d, available %d", quantity, variant.getStockQuantity()));
         }
 
-        try {
-            StockReservation reservation = StockReservation.builder()
-                    .variantId(variantId)
-                    .sessionId(sessionId)
-                    .quantity(quantity)
-                    .status(ReservationStatus.PENDING)
-                    .expiresAt(LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES))
-                    .build();
+        StockReservation reservation = StockReservation.builder()
+                .variantId(variantId)
+                .sessionId(sessionId)
+                .quantity(quantity)
+                .status(ReservationStatus.PENDING)
+                .expiresAt(LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES))
+                .build();
 
-            reservation = reservationRepository.save(reservation);
+        reservation = reservationRepository.save(reservation);
 
-            variant.setStockQuantity(variant.getStockQuantity() - quantity);
-            if (variant.getStockQuantity() <= 0) {
-                variant.setStatus(VariantStatus.OUT_OF_STOCK);
-            }
-            variantRepository.save(variant);
-
-            inventorySyncService.updateVariantRedisStock(variantId, variant.getStockQuantity());
-            recomputeProductStatus(variant.getProductId());
-
-            return ApiResponse.success(toReservationResponse(reservation));
-        } catch (Exception e) {
-            redisTemplate.opsForValue().increment(redisKey, quantity);
-            throw e;
+        variant.setStockQuantity(variant.getStockQuantity() - quantity);
+        if (variant.getStockQuantity() <= 0) {
+            variant.setStatus(VariantStatus.OUT_OF_STOCK);
         }
+        variantRepository.save(variant);
+
+        recomputeProductStatus(variant.getProductId());
+
+        return ApiResponse.success(toReservationResponse(reservation));
     }
 
     @Transactional
@@ -197,9 +181,6 @@ public class InventoryService {
 
         reservation.setStatus(ReservationStatus.RELEASED);
         reservationRepository.save(reservation);
-
-        String redisKey = STOCK_RESERVED_KEY_PREFIX + reservation.getVariantId();
-        redisTemplate.opsForValue().increment(redisKey, reservation.getQuantity());
 
         ProductVariant variant = variantRepository.findById(reservation.getVariantId())
                 .filter(v -> v.getDeletedAt() == null)
@@ -221,7 +202,6 @@ public class InventoryService {
                         Map.entry("timestamp", LocalDateTime.now().toString())
                 ));
 
-        inventorySyncService.updateVariantRedisStock(variant.getId(), variant.getStockQuantity());
         recomputeProductStatus(variant.getProductId());
 
         return ApiResponse.success(null);
@@ -279,12 +259,7 @@ public class InventoryService {
                         Map.entry("reason", "ORDER_RETURN")
                 ));
 
-        inventorySyncService.updateVariantRedisStock(variantId, variant.getStockQuantity());
         recomputeProductStatus(variant.getProductId());
-    }
-
-    public void initializeVariantRedisStock(UUID variantId, int stockQuantity) {
-        inventorySyncService.initializeVariantStock(variantId, stockQuantity);
     }
 
     public void recomputeProductStatus(UUID productId) {
