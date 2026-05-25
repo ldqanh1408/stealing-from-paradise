@@ -117,7 +117,6 @@
 | 5 | `category.updated` | Update_by_query by category_id | Category fields |
 | 6 | `variant.price_updated` | Partial _update | Single document price fields |
 | 7 | `variant.stock_updated` | Partial _update | Single document stock_status |
-| 8 | `inventory.adjusted` | Partial _update | Single document stock_status |
 | 9 | `flash_sale.price_sync` | Bulk update | Activate/deactivate flash prices |
 
 **Acceptance Criteria**:

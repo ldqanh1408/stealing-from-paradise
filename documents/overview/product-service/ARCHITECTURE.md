@@ -3,7 +3,7 @@
 > Service: product-service (SVC-007, Port 8090)
 > Database: PostgreSQL
 > Source: `documents` micro-docs
-> Generated: 2026-05-10
+> Generated: 2026-05-10 | Updated: 2026-05-25 (`inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event; updated header date)
 
 ---
 
@@ -19,9 +19,9 @@ Product catalog management, variant/price/stock management, category management,
 ## Key Features
 - Seller product CRUD with variant matrix (color, size, etc.)
 - Category management by admin
-- SKU-first inventory with stock quantity tracking
+- SKU-first inventory with stock quantity tracking via PostgreSQL with pessimistic locking for reservations
 - Cart with lazy price/stock validation on view
-- Stock reservation via Redis DECR + DB optimistic locking (version field)
+- Stock reservation via DB pessimistic locking (SELECT ... FOR UPDATE)
 - Product image upload via MinIO presigned URLs
 - Flash sale price sync (activate/deactivate)
 - Checkout preview with TTL token

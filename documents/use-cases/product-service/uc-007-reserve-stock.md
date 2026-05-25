@@ -1,6 +1,6 @@
 # UC-PRODUCT-007: Reserve Stock (System, During Checkout)
 
-| Attribute | Value |
+|| Attribute | Value |
 |-----------|-------|
 | **ID** | UC-PRODUCT-007 |
 | **Actor** | System (triggered by Order Service via Kafka or request-reply) |
@@ -32,28 +32,23 @@
 ```
 1. Order Service emits order.created event after creating order
 
-2. Redis Layer 1 (Fast Check): DECRBY stock:{variant_id} {quantity}
-   - IF stock becomes negative: INCRBY rollback immediately, return error
+2. DB Transaction with Pessimistic Lock:
+   a) SELECT ... FOR UPDATE on product_variant (acquires row lock)
 
-3. DB Transaction Layer 2:
-   a) INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
+   b) IF stock_quantity < requested quantity:
+      ROLLBACK lock, return error "out of stock"
+
+   c) INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
       VALUES (:vid, :sid, :qty, 'pending', NOW() + INTERVAL '15 minutes')
 
-   b) UPDATE product_variant
+   d) UPDATE product_variant
       SET stock_quantity = stock_quantity - :qty,
-          version = version + 1,
           status = CASE WHEN stock_quantity - :qty = 0 THEN 'out_of_stock' ELSE status END
       WHERE id = :vid
-        AND stock_quantity >= :qty
-        AND version = :currentVersion
 
-4. IF rows_affected = 0:
-   - Rollback: Redis INCRBY, DELETE reservation, return error
-   - Tra loi "Het hang"
+3. Product status recomputed in same transaction
 
-5. Product status recomputed in same transaction
-
-6. Returns success -> Order Service proceeds to payment
+4. Returns success -> Order Service proceeds to payment
 ```
 
 ### Phase 3: Confirm or Release
@@ -67,34 +62,32 @@ Payment Succeeds (payment.success event):
 Payment Fails (payment.failed event):
   UPDATE stock_reservation SET status = 'released'
   WHERE session_id = :sid
-  -- Redis INCR stock:{variant_id} {quantity}
-  -- DB: UPDATE product_variant SET stock_quantity = stock_quantity + qty
+  -- DB: UPDATE product_variant SET stock_quantity += qty (version field handles concurrency)
 
 Cleanup Job (runs every 1-5 min):
   SELECT * FROM stock_reservation
   WHERE status = 'pending' AND expires_at < NOW()
-  -- For each: release (set released, INCR Redis, restore DB stock)
+  -- For each: release (set released, restore DB stock)
 ```
 
 ---
 
 ## Error Scenarios
 
-| Scenario | Response |
-|----------|----------|
-| Insufficient stock | Stock check returns available=false |
-| Concurrent reservation | Optimistic lock fails -> retry |
-| Expired reservation | Cleanup job auto-releases |
+|| Scenario | Response |
+||----------|----------|
+| Insufficient stock | Pessimistic lock acquired, stock check fails -> 422 Insufficient stock |
+| Concurrent reservation | Pessimistic lock serializes requests (second request waits for first to complete) |
 
 ---
 
 ## Related Requirements
 
-| Ref ID | Description |
-|--------|-------------|
+|| Ref ID | Description |
+||--------|-------------|
 | FR-PRODUCT-014 | Reserve stock during checkout |
 | FR-PRODUCT-015 | Release expired reservations |
+| BR-PRODUCT-005 | Pessimistic locking for concurrent reservations |
 | BR-PRODUCT-007 | Reservation expiry (15 min TTL) |
-| BR-PRODUCT-008 | Optimistic lock for concurrent reservations |
 | ENTITY-PRODUCT-005 | STOCK_RESERVATION |
 | state-stock-reservation.md | pending -> confirmed / released |

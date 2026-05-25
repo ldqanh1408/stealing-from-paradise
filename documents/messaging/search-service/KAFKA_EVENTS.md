@@ -174,16 +174,6 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 }
 ```
 
----
-
-### inventory.adjusted (from Product Service)
-
-|| Field | Value |
-|-------|-------|
-| **GroupId** | search-service-product-group |
-| **Action** | Update inventory/stock data in ES index (partial _update: stock_status) |
-
----
 
 ### flash_sale.price_sync (from Product Service)
 
@@ -273,7 +263,7 @@ Search Service does NOT participate in any Kafka request-reply patterns.
 
 | Group ID | Topics | Concurrency | Notes |
 |----------|--------|-------------|-------|
-| search-service-product-group | product.activated, product.deactivated, product.updated, product.deleted, category.updated, variant.price_updated, variant.stock_updated, inventory.adjusted | 3 | Idempotent by event_id |
+| search-service-product-group | product.activated, product.deactivated, product.updated, product.deleted, category.updated, variant.price_updated, variant.stock_updated | 3 | Idempotent by event_id |
 | search-service-flashsale-group | flash_sale.price_sync | 1 | Sequential processing required |
 
 ---

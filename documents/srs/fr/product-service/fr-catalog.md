@@ -155,7 +155,7 @@ Product listing, filtering, and search functionality has been moved to **Search 
 | **Priority** | HIGH |
 | **Actor** | Seller (JWT SELLER role, owner) |
 | **Endpoint** | `PUT /variants/{id}/stock`, `POST /seller/inventory/adjust`, `PUT /inventory/{skuCode}/restock` |
-| **Description** | Update variant stock quantity. Uses optimistic locking (version column). Emits `variant.stock_updated` or `inventory.adjusted` Kafka event. Triggers variant and product status recomputation. |
+| **Description** | Update variant stock quantity. Uses optimistic locking (version column). Emits `variant.stock_updated` Kafka event. Triggers variant and product status recomputation. Triggers variant and product status recomputation. |
 | **Acceptance Criteria** | AC1: Stock never negative. AC2: Optimistic lock prevents lost updates. AC3: Variant status auto-changes to out_of_stock when stock=0, active when stock>0. |
 | **Related** | ENTITY-PRODUCT-003, UC-PRODUCT-006, BR-PRODUCT-005 |
 

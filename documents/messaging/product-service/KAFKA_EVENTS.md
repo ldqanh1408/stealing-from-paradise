@@ -2,7 +2,7 @@
 
 > Service: product-service (Port 8090)
 > Source: `docs/services/product-service/KAFKA_EVENTS.md`, `docs/services/product-service/02_API_product_service.md`
-> Generated: 2026-05-10 | Updated: 2026-05-25 (product lifecycle aligned: product.created removed (no downstream consumers); product.activated/deactivated are sole ES indexing triggers)
+> Generated: 2026-05-10 | Updated: 2026-05-25 (Redis removed from inventory reservation -- pessimistic locking now guards stock mutations; `inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event for Search Service indexing; `variant.stock_updated` now carries `delta` and `reason` fields for audit trail)
 
 ---
 
@@ -138,7 +138,7 @@
 | Field | Value |
 |-------|-------|
 | **Consumers** | Search Service |
-| **Trigger** | Stock adjustment, variant creation, reservation release/return, or variant status change |
+| **Trigger** | Stock adjustment (restock/adjust), variant creation, reservation release/return, or variant status change |
 
 **Payload:**
 ```json
@@ -150,10 +150,14 @@
     "stockQuantity": 50,
     "status": "ACTIVE",
     "stockStatus": "in_stock",
-    "timestamp": "2026-04-15T10:00:00Z"
+    "timestamp": "2026-04-15T10:00:00Z",
+    "delta": 10,
+    "reason": "RESTOCK"
   }
 }
 ```
+
+> `delta` is the quantity change (+/-) and `reason` is the source of the change (e.g., "RESTOCK", "MANUAL", "ORDER_RETURN", "RELEASE"). These fields are included for audit purposes.
 
 | `stockStatus` values | Meaning |
 |---------------------|---------|
@@ -161,17 +165,6 @@
 | `out_of_stock` | Variant has zero stock |
 | `unavailable` | Variant is inactive |
 | `unknown` | Status could not be determined |
-
----
-
-### inventory.adjusted
-
-| Field | Value |
-|-------|-------|
-| **Consumers** | Search Service |
-| **Trigger** | Seller restocks or adjusts stock via `POST /seller/inventory/restock` or `POST /seller/inventory/adjust` |
-
----
 
 ---
 

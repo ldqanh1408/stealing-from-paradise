@@ -86,7 +86,7 @@ Triggered via Kafka events from the Product Service (consumer-only):
 | `product.deactivated` | Set `is_active = false` | All SKUs of product | Do NOT delete — allows fast reactivation |
 | `product.updated` | Update_by_query by `product_id` | Product-level fields | Name, description, attributes, images |
 | `product.deleted` | Delete documents by `product_id` | All SKUs of product | Permanent removal |
-| `inventory.adjusted` | Partial update: `stock_status` | Single SKU | |
+| `variant.stock_updated` | Partial _update: `stock_status` | Single SKU | |
 | `category.updated` | Update_by_query by `category_id` | Category fields | |
 | `order.created` | Update `sold_count` | Affected products | Optional |
 | `account.locked` (post-MVP) | Update_by_query by `seller_id`: set `is_active = false` | All SKUs of seller | |

@@ -57,7 +57,7 @@ CANCELLED (terminal for PENDING/PAID)                              │
 | Precondition (BUYER) | `orders.status IN (PENDING, PAID)` AND user is the order customer |
 | Precondition (SELLER) | `orders.status = PAID` AND user is the order seller (BR-ORDER-021) |
 | Postcondition | `orders.status = CANCELLED`, `cancelled_by = BUYER\|SELLER`, `cancel_reason = {reason}` |
-| Side Effect | Stock released via `inventory.adjusted`, `order.cancelled` Kafka event; nếu SELLER hủy thêm `seller.order_cancelled` (BR-ORDER-026) |
+| Side Effect | Stock released via `variant.stock_updated` (emitted by Product Service on stock restore), `order.cancelled` Kafka event; nếu SELLER hủy thêm `seller.order_cancelled` (BR-ORDER-026) |
 
 **Kafka Event Produced:** `order.cancelled` (luôn); `seller.order_cancelled` (khi `cancelled_by = SELLER`).
 
@@ -285,8 +285,8 @@ CANCELLED (terminal for PENDING/PAID)                              │
 | Trigger | Action |
 |---------|--------|
 | Checkout fails (stock insufficient) | Release all reservations immediately |
-| Order cancelled (BUYER/SELLER) | Release reserved stock via `inventory.adjusted` |
-| Order auto-cancelled (JOB-13) | Release reserved stock via `inventory.adjusted` |
+| Order cancelled (BUYER/SELLER) | Release reserved stock via `variant.stock_updated` (Product Service) |
+| Order auto-cancelled (JOB-13) | Release reserved stock via `variant.stock_updated` (Product Service) |
 | Reservation TTL expires (>15 min) | Product Service auto-releases |
 
 ---

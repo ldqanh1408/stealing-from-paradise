@@ -66,7 +66,6 @@
 | `category.updated` | skus | Update_by_query | Update category fields by category_id |
 | `variant.price_updated` | skus | Partial _update | Update price fields on single document |
 | `variant.stock_updated` | skus | Partial _update | Update stock_status on single document |
-| `inventory.adjusted` | skus | Partial _update | Update stock_status on single document |
 | `flash_sale.price_sync` | skus | Bulk update | Apply/remove flash prices |
 | `order.created` | skus | Partial _update | Update sold_count (optional) |
 | `account.locked` (post-MVP) | skus | Update_by_query | Hide all SKUs from seller |

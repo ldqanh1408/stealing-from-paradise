@@ -183,7 +183,7 @@ paths:
       operationId: restock
       summary: Add stock (seller)
       description: |
-        Add quantity to variant stock. Emits `inventory.adjusted` Kafka event.
+        Add quantity to variant stock. Emits `variant.stock_updated` Kafka event.
         Re-activates variant if it was out_of_stock.
       tags: [Inventory]
       security:

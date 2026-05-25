@@ -3,7 +3,7 @@
 > Service: search-service (SVC-008, Port 8091)
 > Database: Elasticsearch
 > Source: `documents` micro-docs
-> Generated: 2026-05-10 | Updated: 2026-05-25 (product.activated is sole ES indexing trigger; removed product.created/approved/rejected consumers)
+> Generated: 2026-05-10 | Updated: 2026-05-25 (product.activated is sole ES indexing trigger; removed product.created/approved/rejected consumers; `inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event for Search Service)
 
 ---
 
@@ -61,7 +61,6 @@ Full-text product search with Vietnamese language support. Consumer-only service
 | Consume | `category.updated` | Product Service | Reindex category (update_by_query by category_id) |
 | Consume | `variant.price_updated` | Product Service | Update price (partial _update on single document) |
 | Consume | `variant.stock_updated` | Product Service | Update stock status (partial _update on single document) |
-| Consume | `inventory.adjusted` | Product Service | Update inventory (partial _update: stock_status) |
 | Consume | `flash_sale.price_sync` | Product Service | Apply/remove flash prices (bulk update) |
 
 ## Reindex Flow

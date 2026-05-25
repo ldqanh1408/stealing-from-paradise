@@ -36,7 +36,7 @@ Buyer cancels their own order while still cancellable (PENDING or PAID before sh
 | 3 | System | Verifies user is order owner (403 if not) |
 | 4 | System | Checks order.status IN (PENDING, PAID) AND tracking_number IS NULL if PAID (409 otherwise) |
 | 5 | System | Updates ORDERS: status=CANCELLED, cancelled_by=BUYER, cancel_reason=reason |
-| 6 | System | Releases reserved stock via `inventory.adjusted` Kafka event |
+| 6 | System | Releases reserved stock via `variant.stock_updated` Kafka event (emitted by Product Service) |
 | 7 | System | Produces `order.cancelled` Kafka event |
 | 8 | System | Returns 200 with order_id, status, cancelled_by, cancel_reason |
 
@@ -96,7 +96,7 @@ Buyer cancels their own order while still cancellable (PENDING or PAID before sh
 | Topic | Payload Key Fields |
 |-------|-------------------|
 | `order.cancelled` | order_id, parent_order_id, customer_id, seller_id, cancelled_by=BUYER, cancel_reason, total_amount |
-| `inventory.adjusted` | variant_id, quantity_delta (+N, release) |
+| `variant.stock_updated` | variant_id, quantity_delta (+N, release), stockQuantity, status |
 
 > Buyer cancel does NOT emit `seller.order_cancelled`. That topic is reserved for seller-initiated cancel (UC-008).
 

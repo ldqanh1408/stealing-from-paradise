@@ -28,8 +28,8 @@
 
 4. Product status recomputed in same transaction
 
-5. Emits inventory.adjusted Kafka event:
-   Topic: inventory.adjusted
+5. Emits variant.stock_updated Kafka event:
+   Topic: variant.stock_updated
    Payload: { sku_code, delta: +50, reason, new_stock }
 
 6. Returns 200
@@ -57,7 +57,7 @@
 
 5. Product status recomputed in same transaction
 
-6. Emits variant.stock_updated Kafka event
+6. (No separate event -- variant.stock_updated already emitted)
 
 7. Returns 200
 ```

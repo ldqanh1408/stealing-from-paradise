@@ -118,7 +118,7 @@ After SHIPPING the seller MUST use Return-To-Sender (UC-ORDER-006) instead — d
 |-------|-------------------|-----------|
 | `order.cancelled` | order_id, parent_order_id, customer_id, seller_id, cancelled_by=SELLER, cancel_reason, total_amount | product-service (release stock), identity-service (audit), notification-service |
 | `seller.order_cancelled` | order_id, parent_order_id, seller_id, customer_id, cancel_reason, transaction_id, refund_amount, currency, cancelled_at | payment-service (auto-refund), notification-service (buyer apology), product-service (idempotent stock release) |
-| `inventory.adjusted` | variant_id, quantity_delta (+N, release) | search-service (reindex), product-service (stock counter) |
+| `variant.stock_updated` | variant_id, quantity_delta (+N, release), stockQuantity, status, stockStatus | search-service (reindex) |
 
 > Both `order.cancelled` and `seller.order_cancelled` are emitted in parallel. Subscribers MUST dedupe by `event_id`. See [KAFKA_EVENTS.md](../../messaging/order-service/KAFKA_EVENTS.md#sellerorder_cancelled).
 

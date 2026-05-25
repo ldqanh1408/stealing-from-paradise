@@ -54,6 +54,5 @@ PHẦN II — EVENT GỬI ĐI (Producers)
   product.auto_hidden       → Search, Notification
   variant.price_updated     → Search
   variant.stock_updated     → Search (InventoryService + VariantService + FlashSaleEventConsumer)
-  inventory.adjusted        → Search
-  flash_sale.price_sync      → Search
+  flash_sale.price_sync     → Search
   category.updated          → Search

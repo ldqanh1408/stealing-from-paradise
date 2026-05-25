@@ -124,7 +124,7 @@ paths:
         Seller adjusts stock by a positive or negative delta.
         Negative delta reduces stock_available (must not go negative).
         Positive delta increases stock_total.
-        Emits inventory.adjusted Kafka event.
+        Emits `variant.stock_updated` Kafka event.
         Referenced by FR-PRODUCT-014.
       tags:
         - Inventory
