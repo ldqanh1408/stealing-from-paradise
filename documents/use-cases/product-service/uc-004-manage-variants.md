@@ -1,4 +1,4 @@
-# UC-PRODUCT-004: Manage Variants (Seller)
+﻿# UC-PRODUCT-004: Manage Variants (Seller)
 
 | Attribute | Value |
 |-----------|-------|
@@ -34,25 +34,29 @@
 ### Update Variant
 ```
 1. Seller calls PUT /seller/variants/{variantId}
-   Body: { variant_name?, price?, original_price?, status?, image_url? }
+   Body: { variant_name?, price?, original_price?, status?, image_url?, stock_quantity?, version? }
 
 2. System validates ownership via product.seller_id
 
-3. System updates variant fields
+3. System validates version (if provided):
+   - IF version provided and not equal to current version: return 409 CONFLICT
+   - This prevents concurrent modification of the same variant
 
-4. IF price changed:
+4. System updates variant fields
+
+5. IF price changed:
    - Emits variant.price_updated Kafka event
    - Search Service updates Elasticsearch price index
 
-5. IF status changed:
+6. IF status changed:
    - Emits variant.stock_updated Kafka event
    - Triggers product.status recomputation
 
-6. Product status recomputed in same transaction:
+7. Product status recomputed in same transaction:
    - Has active variant with stock > 0 -> active
    - All variants stock = 0 -> out_of_stock
 
-7. Returns 200
+8. Returns 200 with updated variant (including new version)
 ```
 
 ### Delete Variant
@@ -74,6 +78,7 @@
 | variant_code already exists | 409 |
 | Variant referenced by active orders | 409 |
 | Invalid price (0 or negative) | 422 |
+| Version mismatch (concurrent modification) | 409 |
 
 ---
 

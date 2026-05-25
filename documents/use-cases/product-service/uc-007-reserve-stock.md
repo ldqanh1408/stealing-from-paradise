@@ -62,12 +62,12 @@ Payment Succeeds (payment.success event):
 Payment Fails (payment.failed event):
   UPDATE stock_reservation SET status = 'released'
   WHERE session_id = :sid
-  -- DB: UPDATE product_variant SET stock_quantity += qty (version field handles concurrency)
+  -- DB: UPDATE product_variant SET stock_quantity += qty (pessimistic lock via SELECT FOR UPDATE)
 
 Cleanup Job (runs every 1-5 min):
   SELECT * FROM stock_reservation
   WHERE status = 'pending' AND expires_at < NOW()
-  -- For each: release (set released, restore DB stock)
+  -- For each: release (set released, restore DB stock via pessimistic lock)
 ```
 
 ---

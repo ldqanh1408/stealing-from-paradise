@@ -1,10 +1,10 @@
-# State Diagram: STOCK_RESERVATION
+﻿# State Diagram: STOCK_RESERVATION
 
 **Stable ID:** `STATE-PRODUCT-003`
 
 |> **Entity**: ENTITY-PRODUCT-005 (STOCK_RESERVATION)
 |> **Status Column**: `stock_reservation.status` (VARCHAR 50)
-|> **Last Updated**: 2026-05-25 (Redis removed -- pessimistic locking now guards stock mutations)
+|> **Last Updated**: 2026-05-25 (pessimistic locking now guards ALL stock mutations: reserve, release, restore, restock; version field enables proactive optimistic lock for seller inventory updates)
 
 ---
 
@@ -74,7 +74,7 @@ stateDiagram-v2
 ||------------|-----------|-------------|
 || `[*]` -> `pending` | SELECT FOR UPDATE, stock_quantity -= qty | -- |
 || `pending` -> `confirmed` | (none, already deducted) | -- |
-|| `pending` -> `released` | UPDATE stock_quantity += qty (optimistic lock on version) | -- |
+|| `pending` -> `released` | UPDATE stock_quantity += qty (pessimistic lock on product_variant row) | -- |
 
 ---
 
