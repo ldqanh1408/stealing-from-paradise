@@ -11,17 +11,17 @@
 
 ```mermaid
 erDiagram
-    CART ||--o{ CART_ITEM : "cart_id"
+    CART ||--o{ CART_ITEM : "customer_id"
     PRODUCT_VARIANT ||--o{ CART_ITEM : "variant_id"
 
     CART_ITEM {
-        uuid id PK
-        uuid cart_id "FK CASCADE"
-        uuid variant_id "FK"
+        bigint customer_id PK "(customer_id, variant_id)"
+        uuid variant_id PK "(customer_id, variant_id)"
         int quantity "DEFAULT 1"
         decimal price_snapshot
         varchar variant_name_snapshot
         text variant_image_snapshot
+        bigint seller_id
         timestamp created_at
         timestamp updated_at
     }
@@ -32,28 +32,33 @@ erDiagram
 ## Data Dictionary
 
 | # | Field | Type | Constraints | Meaning |
-|---|--------|------|-------------|---------|
-| 1 | `id` | UUID | PK | Unique cart item identifier |
-| 2 | `cart_id` | UUID | NOT NULL, FK → cart.id ON DELETE CASCADE | Parent cart |
-| 3 | `variant_id` | UUID | NOT NULL, FK → product_variant.id | The SKU in the cart |
-| 4 | `quantity` | INT | NOT NULL, DEFAULT 1 | Desired quantity; > 0 and <= 1000 per API validation |
-| 5 | `price_snapshot` | DECIMAL(18,2) | NOT NULL | Price at time of adding to cart; used for change detection |
-| 6 | `variant_name_snapshot` | VARCHAR(500) | NULLABLE | Cached variant name for display even if variant is deleted |
-| 7 | `variant_image_snapshot` | TEXT | NULLABLE | Cached image URL for display even if image is removed |
+|---|-------|------|-------------|---------|
+| 1 | `customer_id` | BIGINT | PK (composite), NOT NULL | Customer who owns this cart item |
+| 2 | `variant_id` | UUID | PK (composite), NOT NULL, FK → product_variant.id | The SKU in the cart |
+| 3 | `quantity` | INT | NOT NULL, DEFAULT 1 | Desired quantity; > 0 and <= 1000 per API validation |
+| 4 | `price_snapshot` | DECIMAL(18,2) | NOT NULL | Price at time of adding to cart; used for change detection |
+| 5 | `variant_name_snapshot` | VARCHAR(500) | NOT NULL | Cached variant name for display even if variant is deleted |
+| 6 | `variant_image_snapshot` | TEXT | NULLABLE | Cached image URL for display even if image is removed |
+| 7 | `seller_id` | BIGINT | NOT NULL | Seller who owns the product |
 | 8 | `created_at` | TIMESTAMP | Auto-set | When item was added to cart |
 | 9 | `updated_at` | TIMESTAMP | Auto-set | Last quantity/price update |
 
-**UNIQUE(cart_id, variant_id)** — each variant appears at most once per cart.
+**COMPOSITE PK(customer_id, variant_id)** — each variant appears at most once per customer.
+No soft-delete (`deleted_at`) column. Cart items are **hard-deleted** when:
+- Customer manually removes them via `DELETE /cart/items/{variantId}`
+- Customer clears cart via `DELETE /cart`
+- Checkout completed (payment succeeded) — `order.paid` event triggers hard delete
+- Checkout cancelled/failed (payment failed) — `order.payment_failed` event triggers hard delete
 
 ---
 
 ## Indexes
 
 | Index Name | Fields | Type | Purpose |
-|------------|---------|------|---------|
-| `idx_cart_item_cart` | `(cart_id)` | B-tree | Fetch all items for a given cart |
-| `idx_cart_item_variant` | `(variant_id)` | B-tree | Find carts containing a specific variant |
-| `idx_cart_item_cart_variant` | `(cart_id, variant_id)` | PostgreSQL UNIQUE constraint | Enforces one entry per variant per cart; enables UPSERT |
+|-----------|--------|------|---------|
+| `uk_cart_items_customer_variant` | `(customer_id, variant_id)` | PostgreSQL UNIQUE constraint | Enforces one entry per variant per customer; enables UPSERT |
+| `idx_cart_items_customer` | `(customer_id)` | B-tree | Fetch all items for a given customer |
+| `idx_cart_items_variant` | `(variant_id)` | B-tree | Find carts containing a specific variant |
 
 ---
 

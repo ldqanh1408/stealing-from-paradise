@@ -11,12 +11,10 @@
 
 ```mermaid
 erDiagram
-    CART ||--o{ CART_ITEM : "cart_id"
+    CART ||--o{ CART_ITEM : "customer_id"
 
     CART {
-        uuid id PK
-        uuid customer_id UK "1 customer = 1 cart"
-        varchar status "active"
+        bigint customer_id PK "PK = customer_id"
         timestamp created_at
         timestamp updated_at
     }
@@ -27,31 +25,19 @@ erDiagram
 ## Data Dictionary
 
 | # | Field | Type | Constraints | Meaning |
-|---|--------|------|-------------|---------|
-| 1 | `id` | UUID | PK | Unique cart identifier |
-| 2 | `customer_id` | UUID | UNIQUE NOT NULL | Customer ID from Identity Service; exactly 1 active cart per customer |
-| 3 | `status` | VARCHAR(50) | NOT NULL, DEFAULT 'active' | Cart state: currently always `active` |
-| 4 | `created_at` | TIMESTAMP | Auto-set | Row creation timestamp |
-| 5 | `updated_at` | TIMESTAMP | Auto-set | Last modification timestamp |
+|---|-------|------|-------------|---------|
+| 1 | `customer_id` | BIGINT | PK, NOT NULL | Customer ID from Identity Service; exactly 1 cart per customer |
+| 2 | `created_at` | TIMESTAMP | Auto-set | Row creation timestamp |
+| 3 | `updated_at` | TIMESTAMP | Auto-set | Last modification timestamp |
 
 ---
 
-## Indexes
+## Design Rationale
 
-| Index Name | Fields | Type | Purpose |
-|------------|---------|------|---------|
-| `idx_cart_customer` | `(customer_id)` | PostgreSQL UNIQUE constraint | Fast cart lookup by customer; enforces 1-cart-per-customer |
-
----
-
-## Business Rules Summary
-
-| Rule | Detail |
-|------|--------|
-| One cart per customer | UNIQUE constraint on `customer_id` enforces 1 active cart per customer |
-| Cart auto-creation | Cart is lazily created on first `POST /cart/items` |
-| Cart cleared on checkout | When `order.checkout_created` event is consumed, checked-out items are removed |
-| Expired flash-sale items | When `flash_sale.session_ended` event arrives, JOB-07 removes expired flash items |
+- **PK = customer_id**: Each customer has exactly one cart. No separate UUID PK needed.
+- Cart record is created lazily on first `POST /cart/items`.
+- Cart is never deleted — only its items are removed.
+- No `status` or `deleted_at` columns needed.
 
 ---
 

@@ -6,7 +6,7 @@
 | **Actor** | Customer (JWT required) |
 | **Priority** | HIGH |
 | **Precondition** | Cart item exists and belongs to customer |
-| **Postcondition** | Cart item removed from cart |
+| **Postcondition** | Cart item hard-deleted from cart |
 
 ---
 
@@ -15,20 +15,19 @@
 ### Remove Single Item
 ```
 1. Customer clicks "Xoa" button on a cart item
-2. Frontend calls DELETE /cart/items/{itemId}
+2. Frontend calls DELETE /cart/items/{variantId}
 3. System validates:
-   - cart_item exists and belongs to customer's cart -> 404 if not
-4. System deletes cart_item row
-5. Returns 200
+   - cart_item exists (customer_id, variant_id) -> 404 if not
+4. System hard-deletes cart_item row by (customer_id, variant_id)
+5. Returns 200 with updated cart
 ```
 
-### Clear Entire Cart (Delete All Items)
+### Clear Entire Cart
 ```
 1. Customer clicks "Xoa tat ca" or similar
 2. Frontend calls DELETE /cart
 3. System validates cart exists for customer
-4. System deletes all cart_item rows (CASCADE)
-   - Cart record itself is retained (status stays active)
+4. System hard-deletes all cart_item rows for the customer
 5. Returns 200
 ```
 
@@ -39,8 +38,7 @@
 ```
 Cart page:
   Individual "Xoa" link/button per item
-    -> Confirmation dialog (optional)
-    -> DELETE /cart/items/{itemId}
+    -> DELETE /cart/items/{variantId}
     -> Item removed from UI
     -> Cart totals recalculated
 
@@ -53,13 +51,13 @@ Cart page:
 
 ---
 
-## Post-Removal Behavior
+## Hard Delete Strategy
 
-```
-- If all items removed: cart remains with status=active, ready for new items
-- If checked-out items: removed automatically via order.checkout_created Kafka event
-- If flash sale expired items: removed by JOB-07 (flash_sale.session_ended event)
-```
+Cart items are **hard-deleted** (no `deleted_at` column). Items are removed from the `cart_items` table entirely on:
+- Customer removes an item
+- Customer clears cart
+- Checkout succeeded (`order.paid` event)
+- Checkout failed (`order.payment_failed` event)
 
 ---
 
@@ -68,8 +66,7 @@ Cart page:
 | Scenario | Response |
 |----------|----------|
 | Cart item not found | 404 |
-| Cart item belongs to different user | 404 |
-| Cart not found (for DELETE /cart) | No error; idempotent |
+| Cart not found (for DELETE /cart) | Idempotent; no error |
 
 ---
 

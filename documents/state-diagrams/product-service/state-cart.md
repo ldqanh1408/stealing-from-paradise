@@ -3,8 +3,7 @@
 **Stable ID:** `STATE-PRODUCT-002`
 
 > **Entity**: ENTITY-PRODUCT-006 (CART)
-> **Status Column**: `cart.status` (VARCHAR 50)
-> **Last Updated**: 2026-05-09
+> **Last Updated**: 2026-05-26
 
 ---
 
@@ -17,7 +16,7 @@ stateDiagram-v2
     active --> active : Items added/updated/removed
     active --> active : Cart cleared (DELETE /cart)
 
-    active --> converted : Checkout completed (order.checkout_created)
+    active --> converted : Checkout completed (order.paid event received)
 
     converted --> [*]
 ```
@@ -29,10 +28,10 @@ stateDiagram-v2
 | # | From | To | Trigger | Actor | Business Rule | Use Case |
 |---|------|-----|---------|-------|---------------|----------|
 | 1 | `[*]` | `active` | `POST /cart/items` with no existing cart -> lazy creation | System | BR-PRODUCT-009 | UC-PRODUCT-009 |
-| 2 | `active` | `active` | `PUT /cart/items/{id}` (update quantity) | Customer | BR-PRODUCT-012 | UC-PRODUCT-010 |
-| 3 | `active` | `active` | `DELETE /cart/items/{id}` (remove item) | Customer | -- | UC-PRODUCT-011 |
-| 4 | `active` | `active` | `DELETE /cart` (clear all items, cart retained) | Customer | -- | UC-PRODUCT-008 |
-| 5 | `active` | `converted` | `order.checkout_created` event received; checked-out items removed | System (Order Service) | -- | UC-PRODUCT-007 |
+| 2 | `active` | `active` | `PUT /cart/items/{variantId}` (update quantity) | Customer | BR-PRODUCT-012 | UC-PRODUCT-010 |
+| 3 | `active` | `active` | `DELETE /cart/items/{variantId}` (remove item) | Customer | Hard delete | UC-PRODUCT-011 |
+| 4 | `active` | `active` | `DELETE /cart` (clear all items, cart retained) | Customer | Hard delete all | UC-PRODUCT-011 |
+| 5 | `active` | `converted` | `order.paid` event received; cart items hard-deleted by (customer_id, variant_id) | System | -- | UC-PRODUCT-007 |
 | 6 | `converted` | `[*]` | Cart items cleared; cart record may be retained or archived | System | -- | -- |
 
 ---
@@ -42,21 +41,26 @@ stateDiagram-v2
 ```
   Customer browses -> no cart exists yet
 
-  First POST /cart/items -> Cart auto-created (status=active)
+  First POST /cart/items -> Cart auto-created (PK = customer_id)
   |
   +--> GET /cart -> view items
-  +--> PUT /cart/items/{id} -> adjust quantities
-  +--> DELETE /cart/items/{id} -> remove items
-  +--> DELETE /cart -> clear all items (cart persists)
+  +--> PUT /cart/items/{variantId} -> adjust quantities
+  +--> DELETE /cart/items/{variantId} -> hard delete item
+  +--> DELETE /cart -> hard delete all items (cart persists)
 
   Customer checks out:
   |
   +--> Checkout Preview validates cart integrity
   |    (price match, stock available, variant active)
   |
-  +--> Order placed (order.checkout_created event)
-       -> Checked-out items removed from cart
-       -> Cart remains active for future items
+  +--> order.checkout_submitted event -> Order Service creates order
+  +--> Payment succeeds
+  |    -> order.paid event (with session_id + user_id)
+  |    -> Stock reservation confirmed
+  |    -> Cart items hard-deleted: DELETE cart_items WHERE (customer_id, variant_id) IN (...)
+  +--> Payment fails
+       -> order.payment_failed event (with session_id + user_id)
+       -> Stock reservation released
 ```
 
 ---
@@ -65,20 +69,19 @@ stateDiagram-v2
 
 | Kafka Event | Action | Module |
 |-------------|--------|--------|
-| `order.checkout_created` | Remove checked-out items from cart | Cart |
-| `flash_sale.session_ended` | JOB-07 removes expired flash sale items from all carts | Cart |
-| `order.cancelled` | Unlock inventory (stock_reservation released) | Inventory |
+| `order.paid` | Confirm stock reservation + hard-delete cart items by (user_id, variant_id) | Inventory + Cart |
+| `order.payment_failed` | Release stock reservation | Inventory + Cart |
+| `order.returned` | Restore stock (for returned items) | Inventory |
+| `flash_sale.session_ended` | Remove expired flash sale items from all carts | Cart |
 
 ---
 
-## Constraints
+## Key Design Changes (2026-05-26)
 
-| Rule | Detail |
-|------|--------|
-| One cart per customer | UNIQUE(customer_id) |
-| Cart never deleted | Cart record persists; only items are cleared |
-| No TTL on cart items | Unlike stock reservations, cart items persist indefinitely |
-| Flash sale cleanup | JOB-07 removes expired flash items asynchronously |
+- **No soft-delete**: Cart items are hard-deleted. No `deleted_at` column.
+- **Composite PK**: `cart_items.PK = (customer_id, variant_id)` instead of UUID.
+- **Cart PK = customer_id**: No separate UUID PK for Cart entity.
+- **No cart_item_id in stock_reservation**: Cart items identified by `(user_id, variant_id)` via Kafka event payload.
 
 ---
 
@@ -89,8 +92,8 @@ stateDiagram-v2
 | ENTITY-PRODUCT-006 | CART |
 | ENTITY-PRODUCT-007 | CART_ITEM |
 | BR-PRODUCT-009 | One cart per customer |
+| BR-PRODUCT-010 | Hard delete strategy |
 | FR-PRODUCT-016 | Get customer cart |
 | FR-PRODUCT-020 | Clear entire cart |
-| FR-PRODUCT-022 | Cart cleanup on events |
 | UC-PRODUCT-008 | View cart |
 | UC-PRODUCT-009 | Add to cart |

@@ -1,6 +1,6 @@
 # UC-PRODUCT-007: Reserve Stock (System, During Checkout)
 
-|| Attribute | Value |
+| Attribute | Value |
 |-----------|-------|
 | **ID** | UC-PRODUCT-007 |
 | **Actor** | System (triggered by Order Service via Kafka or request-reply) |
@@ -28,11 +28,15 @@
 4. IF any unavailable: Order Service rejects checkout
 ```
 
-### Phase 2: Reserve Stock (On order.created Event)
+### Phase 2: Reserve Stock (On order.checkout_submitted Event)
 ```
-1. Order Service emits order.created event after creating order
+1. Order Service emits order.checkout_submitted event after creating order
+   Payload includes:
+   - session_id: unique checkout session ID
+   - customer_id: buyer's user ID
+   - items: [{ variantId, quantity, skuCode, priceSnapshot, sellerId, ... }]
 
-2. DB Transaction with Pessimistic Lock:
+2. Product Service: DB Transaction with Pessimistic Lock for each variant:
    a) SELECT ... FOR UPDATE on product_variant (acquires row lock)
 
    b) IF stock_quantity < requested quantity:
@@ -54,12 +58,14 @@
 ### Phase 3: Confirm or Release
 
 ```
-Payment Succeeds (payment.success event):
+Payment Succeeds (order.paid event with session_id + customer_id):
   UPDATE stock_reservation SET status = 'confirmed'
   WHERE session_id = :sid
   -- Stock already deducted, no further action
+  -- HARD DELETE cart_items WHERE (customer_id, variant_id) IN (...)
+     via: CartItemRepository.deleteAllByCustomerIdAndVariantIds(userId, variantIds)
 
-Payment Fails (payment.failed event):
+Payment Fails (order.payment_failed event with session_id + customer_id):
   UPDATE stock_reservation SET status = 'released'
   WHERE session_id = :sid
   -- DB: UPDATE product_variant SET stock_quantity += qty (pessimistic lock via SELECT FOR UPDATE)
@@ -72,10 +78,22 @@ Cleanup Job (runs every 1-5 min):
 
 ---
 
+## Cart Item Deletion Flow
+
+When `order.paid` or `order.payment_failed` is received:
+1. Extract `session_id` and `customer_id` (userId) from event payload
+2. Find all `stock_reservation` records matching `session_id`
+3. For each reservation: extract `variant_id`
+4. Hard-delete: `DELETE FROM cart_items WHERE customer_id = :cid AND variant_id IN (:variantIds)`
+
+No `cart_item_id` stored in `stock_reservation`. Composite key `(customer_id, variant_id)` used instead.
+
+---
+
 ## Error Scenarios
 
-|| Scenario | Response |
-||----------|----------|
+| Scenario | Response |
+|----------|----------|
 | Insufficient stock | Pessimistic lock acquired, stock check fails -> 422 Insufficient stock |
 | Concurrent reservation | Pessimistic lock serializes requests (second request waits for first to complete) |
 
@@ -83,8 +101,8 @@ Cleanup Job (runs every 1-5 min):
 
 ## Related Requirements
 
-|| Ref ID | Description |
-||--------|-------------|
+| Ref ID | Description |
+|--------|-------------|
 | FR-PRODUCT-014 | Reserve stock during checkout |
 | FR-PRODUCT-015 | Release expired reservations |
 | BR-PRODUCT-005 | Pessimistic locking for concurrent reservations |
