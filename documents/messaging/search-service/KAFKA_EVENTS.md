@@ -3,7 +3,7 @@
 > Service: search-service (SVC-008, Port 8091)
 > Database: Elasticsearch (index: skus)
 > Source: `documents/messaging/KAFKA_CATALOG.md`, `documents/overview/search-service/ARCHITECTURE.md`
-> Generated: 2026-05-10 | Updated: 2026-05-25 (overhaul: product.activated is sole ES indexing trigger; removed product.created/rejected/approved from consumer list)
+> Generated: 2026-05-10 | Updated: 2026-05-26 (removed `discount_pct` from `flash_sale.price_sync` activate payload -- derived field, unused in filter/sort/response)
 
 ---
 
@@ -18,7 +18,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 | **GroupId** | search-service-product-group |
 | **Action** | Bulk-index all SKU documents for this product into Elasticsearch `skus` index. This is the **sole event that triggers initial ES indexing** for a product. |
 
-> A product reaches `product.activated` only after: `draft → pending (submit) → approved (admin) → active (seller publish)`. Products in `draft`, `pending`, `rejected` states are never indexed.
+> A product reaches `product.activated` only after: `draft -> pending (submit) -> approved (admin) -> active (seller publish)`. Products in `draft`, `pending`, `rejected` states are never indexed.
 
 **Payload:**
 ```json
@@ -194,8 +194,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
       "product_id": "uuid",
       "flash_price": 160000,
       "original_price": 200000,
-      "has_discount": true,
-      "discount_pct": 20
+      "has_discount": true
     }
   ],
   "timestamp": "2026-05-10T08:00:00Z"
@@ -246,25 +245,25 @@ Search Service does NOT participate in any Kafka request-reply patterns.
 2. Search Service queries Product Service REST API for all ACTIVE products only
    (draft/pending/approved/rejected/inactive products are excluded)
 3. Bulk-index into ES via _bulk API
-4. Atomic alias swap: skus_v{N} → skus (zero-downtime rotation)
+4. Atomic alias swap: skus_v{N} -> skus (zero-downtime rotation)
 ```
 
 ### Vietnamese Text Analysis
 
-| Problem | Solution |
-|---------|----------|
-| No-diacritic typing | `asciifolding` filter with `preserve_original: true` |
-| Spelling errors | `fuzziness: AUTO` in query |
-| Synonyms | Synonym filter: `synonyms/vi_product.txt` |
+|| Problem | Solution |
+||---------|----------|
+|| No-diacritic typing | `asciifolding` filter with `preserve_original: true` |
+|| Spelling errors | `fuzziness: AUTO` in query |
+|| Synonyms | Synonym filter: `synonyms/vi_product.txt` |
 
 ---
 
 ## Consumer Groups
 
-| Group ID | Topics | Concurrency | Notes |
-|----------|--------|-------------|-------|
-| search-service-product-group | product.activated, product.deactivated, product.updated, product.deleted, category.updated, variant.price_updated, variant.stock_updated | 3 | Idempotent by event_id |
-| search-service-flashsale-group | flash_sale.price_sync | 1 | Sequential processing required |
+|| Group ID | Topics | Concurrency | Notes |
+||----------|--------|-------------|-------|
+|| search-service-product-group | product.activated, product.deactivated, product.updated, product.deleted, category.updated, variant.price_updated, variant.stock_updated | 3 | Idempotent by event_id |
+|| search-service-flashsale-group | flash_sale.price_sync | 1 | Sequential processing required |
 
 ---
 
@@ -284,8 +283,8 @@ processedEventCache.markProcessed(event.event_id);
 
 The following events from the previous design are **removed** because products are never indexed before admin approval:
 
-| Event | Reason for Removal |
-|-------|-------------------|
-| `product.created` | Product starts as `draft`; indexing deferred until `product.activated` |
-| `product.approved` | Does not change ES state; pre-warm removed — actual indexing via `product.activated` |
-| `product.rejected` | Product was never indexed; no ES action needed |
+|| Event | Reason for Removal |
+||-------|--------------------|
+|| `product.created` | Product starts as `draft`; indexing deferred until `product.activated` |
+|| `product.approved` | Does not change ES state; pre-warm removed -- actual indexing via `product.activated` |
+|| `product.rejected` | Product was never indexed; no ES action needed |

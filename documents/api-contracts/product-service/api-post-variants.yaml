@@ -380,6 +380,10 @@ components:
         reason:
           type: string
           example: "Hang bi hong trong kho"
+        version:
+          type: integer
+          nullable: true
+          description: Optional. Current variant version for optimistic locking. If provided and mismatched, returns 409 CONFLICT.
 
     StockResponse:
       type: object

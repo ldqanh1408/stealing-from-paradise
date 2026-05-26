@@ -266,7 +266,6 @@ components:
       type: object
       required:
         - quantity
-        - reason
       properties:
         quantity:
           type: integer
@@ -286,7 +285,6 @@ components:
       required:
         - sku_code
         - delta
-        - reason
       properties:
         sku_code:
           type: string
@@ -298,6 +296,10 @@ components:
           type: string
           maxLength: 500
           description: Reason for the adjustment
+        version:
+          type: integer
+          nullable: true
+          description: Optional. Current variant version for optimistic locking. If provided and mismatched, returns 409 CONFLICT.
 
     InventoryLogEntry:
       type: object

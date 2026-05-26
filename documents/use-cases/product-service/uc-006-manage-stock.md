@@ -15,14 +15,14 @@
 ### Restock (Add Inventory)
 ```
 1. Seller calls PUT /inventory/{skuCode}/restock
-   Body: { quantity: 50, version?: currentVersion }
+   Body: { quantity: 50 }
 
 2. System validates:
    - skuCode exists and seller owns the parent product (404 if not)
    - quantity > 0 (422 if not)
-   - IF version provided, verify it matches current version (409 if mismatch)
 
 3. System acquires PESSIMISTIC LOCK on product_variant (SELECT ... FOR UPDATE)
+   - Serializes concurrent restock requests; no version check needed
 
 4. System updates product_variant:
    - stock_quantity += quantity
@@ -73,12 +73,12 @@
 
 ## Error Scenarios
 
-| Scenario | Response |
+| Scenario | Endpoint | Response |
 |----------|----------|
-| SKU not found or not owned | 404 |
-| Negative stock result | 422 |
-| Version mismatch (concurrent modification) | 409 |
-| Invalid quantity | 422 |
+| SKU not found or not owned | All | 404 |
+| Negative stock result | adjustStock | 422 |
+| Version mismatch (concurrent modification) | adjustStock | 409 |
+| Invalid quantity | restock | 422 |
 
 ---
 
