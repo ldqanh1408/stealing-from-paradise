@@ -6,12 +6,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
+/**
+ * One cart per customer. PK = customer_id.
+ * Cart record is created lazily on first POST /cart/items.
+ * Cart is never deleted; only its items are removed.
+ */
 @Entity
-@Table(name = "carts", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_carts_customer_id", columnNames = "customer_id")
-})
+@Table(name = "carts")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,17 +22,8 @@ import java.util.UUID;
 public class Cart {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
-
-    @Column(name = "customer_id", nullable = false, unique = true)
+    @Column(name = "customer_id", nullable = false, updatable = false)
     private Long customerId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 50)
-    @Builder.Default
-    private CartStatus status = CartStatus.ACTIVE;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -39,7 +32,4 @@ public class Cart {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
 }

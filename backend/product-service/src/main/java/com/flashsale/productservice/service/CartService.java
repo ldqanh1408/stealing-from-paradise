@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,32 +28,27 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository variantRepository;
-    private final StockReservationRepository reservationRepository;
 
     @Transactional
     public ApiResponse<CartResponse> getCart(UserDetailsImpl user) {
-        Cart cart = cartRepository.findByCustomerIdAndDeletedAtIsNull(user.getId())
-                .orElse(null);
-
-        if (cart == null) {
-            cart = Cart.builder()
+        Optional<Cart> cartOpt = cartRepository.findByCustomerId(user.getId());
+        if (cartOpt.isEmpty()) {
+            return ApiResponse.success(CartResponse.builder()
                     .customerId(user.getId())
-                    .build();
-            cart = cartRepository.save(cart);
+                    .items(Collections.emptyList())
+                    .totalItems(0)
+                    .subtotal(BigDecimal.ZERO)
+                    .hasPriceChanges(false)
+                    .groupedBySeller(Collections.emptyMap())
+                    .build());
         }
-
-        return ApiResponse.success(toCartResponse(cart));
+        return ApiResponse.success(toCartResponse(cartOpt.get()));
     }
 
     @Transactional
     public ApiResponse<CartResponse> addItem(AddCartItemRequest request, UserDetailsImpl user) {
-        Cart cart = cartRepository.findByCustomerIdAndDeletedAtIsNull(user.getId())
-                .orElseGet(() -> {
-                    Cart newCart = Cart.builder()
-                            .customerId(user.getId())
-                            .build();
-                    return cartRepository.save(newCart);
-                });
+        cartRepository.findByCustomerId(user.getId())
+                .orElseGet(() -> cartRepository.save(Cart.builder().customerId(user.getId()).build()));
 
         ProductVariant variant = variantRepository.findById(request.getVariantId())
                 .filter(v -> v.getDeletedAt() == null)
@@ -64,11 +58,11 @@ public class CartService {
             throw new AppException(ErrorCode.BAD_REQUEST, "Variant is not available for purchase");
         }
 
-        Optional<CartItem> existingItem = cartItemRepository.findByCartIdAndVariantIdAndDeletedAtIsNull(
-                cart.getId(), request.getVariantId());
+        Optional<CartItem> existingOpt = cartItemRepository.findByCustomerIdAndVariantId(
+                user.getId(), request.getVariantId());
 
-        if (existingItem.isPresent()) {
-            CartItem item = existingItem.get();
+        if (existingOpt.isPresent()) {
+            CartItem item = existingOpt.get();
             item.setQuantity(item.getQuantity() + request.getQuantity());
             cartItemRepository.save(item);
         } else {
@@ -77,7 +71,7 @@ public class CartService {
                     .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
 
             CartItem newItem = CartItem.builder()
-                    .cartId(cart.getId())
+                    .customerId(user.getId())
                     .variantId(variant.getId())
                     .quantity(request.getQuantity())
                     .priceSnapshot(variant.getPrice())
@@ -88,65 +82,75 @@ public class CartService {
             cartItemRepository.save(newItem);
         }
 
+        Cart cart = cartRepository.findByCustomerId(user.getId()).get();
         return ApiResponse.success(toCartResponse(cart));
+    }
 
     @Transactional
-    public ApiResponse<CartResponse> updateItem(UUID itemId, UpdateCartItemRequest request, UserDetailsImpl user) {
-        Cart cart = cartRepository.findByCustomerIdAndDeletedAtIsNull(user.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Cart not found"));
-
-        CartItem item = cartItemRepository.findById(itemId)
-                .filter(i -> i.getCartId().equals(cart.getId()))
-                .filter(i -> i.getDeletedAt() == null)
+    public ApiResponse<CartResponse> updateItem(UUID variantId, UpdateCartItemRequest request, UserDetailsImpl user) {
+        CartItem item = cartItemRepository.findByCustomerIdAndVariantId(user.getId(), variantId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Cart item not found"));
 
         ProductVariant variant = variantRepository.findById(item.getVariantId())
                 .filter(v -> v.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
-        if (request.getQuantity() > variant.getStockQuantity()) {
+        if (variant.getStatus() != VariantStatus.ACTIVE) {
+            throw new AppException(ErrorCode.BAD_REQUEST,
+                    "Variant is no longer available for purchase: " + variant.getStatus().name());
+        }
+
+        if (variant.getStockQuantity() < request.getQuantity()) {
             throw new AppException(ErrorCode.INSUFFICIENT_STOCK,
                     "Requested quantity exceeds available stock: " + variant.getStockQuantity());
+        }
+
+        if (variant.getPrice().compareTo(item.getPriceSnapshot()) != 0) {
+            item.setPriceSnapshot(variant.getPrice());
+        }
+        if (!variant.getVariantName().equals(item.getVariantNameSnapshot())) {
+            item.setVariantNameSnapshot(variant.getVariantName());
+        }
+        if (variant.getImageUrl() != null && !variant.getImageUrl().equals(item.getVariantImageSnapshot())) {
+            item.setVariantImageSnapshot(variant.getImageUrl());
         }
 
         item.setQuantity(request.getQuantity());
         cartItemRepository.save(item);
 
+        Cart cart = cartRepository.findByCustomerId(user.getId()).get();
         return ApiResponse.success(toCartResponse(cart));
     }
 
     @Transactional
-    public ApiResponse<CartResponse> removeItem(UUID itemId, UserDetailsImpl user) {
-        Cart cart = cartRepository.findByCustomerIdAndDeletedAtIsNull(user.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Cart not found"));
-
-        CartItem item = cartItemRepository.findById(itemId)
-                .filter(i -> i.getCartId().equals(cart.getId()))
-                .filter(i -> i.getDeletedAt() == null)
+    public ApiResponse<CartResponse> removeItem(UUID variantId, UserDetailsImpl user) {
+        cartItemRepository.findByCustomerIdAndVariantId(user.getId(), variantId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Cart item not found"));
 
-        item.setDeletedAt(LocalDateTime.now());
-        cartItemRepository.save(item);
+        cartItemRepository.deleteByCustomerIdAndVariantId(user.getId(), variantId);
 
-        return ApiResponse.success(toCartResponse(cart));
+        Optional<Cart> cartOpt = cartRepository.findByCustomerId(user.getId());
+        if (cartOpt.isPresent()) {
+            return ApiResponse.success(toCartResponse(cartOpt.get()));
+        }
+        return ApiResponse.success(CartResponse.builder()
+                .customerId(user.getId())
+                .items(Collections.emptyList())
+                .totalItems(0)
+                .subtotal(BigDecimal.ZERO)
+                .hasPriceChanges(false)
+                .groupedBySeller(Collections.emptyMap())
+                .build());
     }
 
     @Transactional
     public ApiResponse<Void> clearCart(UserDetailsImpl user) {
-        Cart cart = cartRepository.findByCustomerIdAndDeletedAtIsNull(user.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Cart not found"));
-
-        List<CartItem> items = cartItemRepository.findByCartIdAndDeletedAtIsNull(cart.getId());
-        for (CartItem item : items) {
-            item.setDeletedAt(LocalDateTime.now());
-            cartItemRepository.save(item);
-        }
-
+        cartItemRepository.deleteAllByCustomerId(user.getId());
         return ApiResponse.success(null);
     }
 
     private CartResponse toCartResponse(Cart cart) {
-        List<CartItem> items = cartItemRepository.findByCartIdAndDeletedAtIsNull(cart.getId());
+        List<CartItem> items = cartItemRepository.findByCustomerId(cart.getCustomerId());
         List<CartItemResponse> itemResponses = items.stream()
                 .map(this::toCartItemResponse)
                 .collect(Collectors.toList());
@@ -166,7 +170,6 @@ public class CartService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return CartResponse.builder()
-                .id(cart.getId())
                 .customerId(cart.getCustomerId())
                 .items(itemResponses)
                 .totalItems(totalItems)
@@ -189,7 +192,6 @@ public class CartService {
         BigDecimal subtotal = item.getPriceSnapshot().multiply(BigDecimal.valueOf(item.getQuantity()));
 
         return CartItemResponse.builder()
-                .id(item.getId())
                 .variantId(item.getVariantId())
                 .variantCode(variant != null ? variant.getVariantCode() : null)
                 .variantName(variant != null ? variant.getVariantName() : item.getVariantNameSnapshot())
@@ -205,5 +207,4 @@ public class CartService {
                 .sellerId(item.getSellerId())
                 .build();
     }
-
 }

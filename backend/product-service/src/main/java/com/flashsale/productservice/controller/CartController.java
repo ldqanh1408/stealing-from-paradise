@@ -44,21 +44,21 @@ public class CartController {
         return ResponseEntity.ok(cartService.addItem(request, user));
     }
 
-    @PutMapping("/cart/items/{itemId}")
+    @PutMapping("/cart/items/{variantId}")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<CartResponse>> updateItem(
-            @PathVariable UUID itemId,
+            @PathVariable UUID variantId,
             @Valid @RequestBody UpdateCartItemRequest request,
             @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
-        return ResponseEntity.ok(cartService.updateItem(itemId, request, user));
+        return ResponseEntity.ok(cartService.updateItem(variantId, request, user));
     }
 
-    @DeleteMapping("/cart/items/{itemId}")
+    @DeleteMapping("/cart/items/{variantId}")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<CartResponse>> removeItem(
-            @PathVariable UUID itemId,
+            @PathVariable UUID variantId,
             @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
-        return ResponseEntity.ok(cartService.removeItem(itemId, user));
+        return ResponseEntity.ok(cartService.removeItem(variantId, user));
     }
 
     @PostMapping("/inventory/{variantId}/reserve")

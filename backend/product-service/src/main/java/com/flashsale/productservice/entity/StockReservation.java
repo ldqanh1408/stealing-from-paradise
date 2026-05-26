@@ -1,5 +1,6 @@
 package com.flashsale.productservice.entity;
 
+import com.flashsale.productservice.entity.ProductVariant;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

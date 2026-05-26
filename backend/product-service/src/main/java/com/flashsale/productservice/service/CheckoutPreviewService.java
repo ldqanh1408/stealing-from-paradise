@@ -32,8 +32,8 @@ Thứ tự validate stock thống nhất cho cả Preview và Submit
 1. variant == null || deleted?     → VARIANT_UNAVAILABLE  (+sellerId)
 2. status != ACTIVE?              → VARIANT_INACTIVE      (+sellerId)
 3. price != priceSnapshot?        → PRICE_CHANGED         (+sellerId)
-4. stockQuantity == 0?            → OUT_OF_STOCK          (+sellerId)  ← THÊM MỚI
-5. stockQuantity < quantity?      → INSUFFICIENT_STOCK   (+sellerId)
+4. stockQuantity == 0?            → OUT_OF_STOCK          (+sellerId)
+5. stockQuantity < quantity?       → INSUFFICIENT_STOCK    (+sellerId)
 */
 
 @Service
@@ -54,27 +54,48 @@ public class CheckoutPreviewService {
     public ApiResponse<CheckoutPreviewResponse> generatePreview(
             CheckoutPreviewRequest request, Long customerId) {
 
-        List<String> itemIds = request.getItemIds();
-        List<UUID> uuidItemIds = itemIds.stream()
-                .map(this::parseUUID)
-                .filter(Objects::nonNull)
-                .toList();
-
-        if (uuidItemIds.isEmpty()) {
+        List<String> rawItemIds = request.getItemIds();
+        if (rawItemIds == null || rawItemIds.isEmpty()) {
             throw new AppException(ErrorCode.BAD_REQUEST, "Không có item_ids hợp lệ");
         }
 
-        Cart cart = cartRepository.findByCustomerIdAndDeletedAtIsNull(customerId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy giỏ hàng"));
+        // Parse "customerId:variantId" format
+        List<ParsedItemKey> parsedItems = new ArrayList<>();
+        List<String> invalid = new ArrayList<>();
+        for (String raw : rawItemIds) {
+            try {
+                parsedItems.add(ParsedItemKey.parse(raw));
+            } catch (IllegalArgumentException e) {
+                invalid.add(raw);
+            }
+        }
+        if (!invalid.isEmpty()) {
+            throw new AppException(ErrorCode.BAD_REQUEST,
+                    "item_ids không hợp lệ: " + invalid);
+        }
 
-        List<CartItem> cartItems = cartItemRepository.findByIdsAndCartIdAndNotDeleted(uuidItemIds, cart.getId());
-        if (cartItems.size() != uuidItemIds.size()) {
-            Set<UUID> foundIds = cartItems.stream().map(CartItem::getId).collect(Collectors.toSet());
-            List<String> missing = uuidItemIds.stream()
-                    .filter(id -> !foundIds.contains(id))
-                    .map(UUID::toString)
+        // Validate all customerId in request match authenticated customer
+        for (ParsedItemKey pk : parsedItems) {
+            if (!pk.customerId.equals(customerId)) {
+                throw new AppException(ErrorCode.FORBIDDEN,
+                        "Không được phép checkout items của người khác");
+            }
+        }
+
+        List<UUID> variantIds = parsedItems.stream()
+                .map(pk -> pk.variantId)
+                .toList();
+
+        List<CartItem> cartItems = cartItemRepository.findByCustomerIdAndVariantIds(customerId, variantIds);
+        if (cartItems.size() != variantIds.size()) {
+            Set<UUID> foundVariants = cartItems.stream()
+                    .map(CartItem::getVariantId)
+                    .collect(Collectors.toSet());
+            List<UUID> missing = variantIds.stream()
+                    .filter(id -> !foundVariants.contains(id))
                     .toList();
-            throw new AppException(ErrorCode.NOT_FOUND, "Một số item không tìm thấy trong giỏ hàng: " + missing);
+            throw new AppException(ErrorCode.NOT_FOUND,
+                    "Một số item không tìm thấy trong giỏ hàng: " + missing);
         }
 
         List<CheckoutPreviewError.PreviewItemError> errors = new ArrayList<>();
@@ -82,8 +103,7 @@ public class CheckoutPreviewService {
         BigDecimal totalAmount = BigDecimal.ZERO;
         int totalItems = 0;
 
-        List<ProductVariant> variants = variantRepository.findAllById(
-                cartItems.stream().map(CartItem::getVariantId).toList());
+        List<ProductVariant> variants = variantRepository.findAllById(variantIds);
         Map<UUID, ProductVariant> variantMap = variants.stream()
                 .collect(Collectors.toMap(ProductVariant::getId, v -> v));
 
@@ -92,7 +112,7 @@ public class CheckoutPreviewService {
 
             if (variant == null || variant.getDeletedAt() != null) {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                        .cartItemId(item.getId().toString())
+                        .customerId(item.getCustomerId())
                         .variantId(item.getVariantId().toString())
                         .sellerId(item.getSellerId())
                         .reason("VARIANT_UNAVAILABLE")
@@ -104,7 +124,7 @@ public class CheckoutPreviewService {
 
             if (variant.getStatus() != VariantStatus.ACTIVE) {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                        .cartItemId(item.getId().toString())
+                        .customerId(item.getCustomerId())
                         .variantId(item.getVariantId().toString())
                         .sellerId(item.getSellerId())
                         .reason("VARIANT_INACTIVE")
@@ -116,7 +136,7 @@ public class CheckoutPreviewService {
 
             if (variant.getPrice().compareTo(item.getPriceSnapshot()) != 0) {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                        .cartItemId(item.getId().toString())
+                        .customerId(item.getCustomerId())
                         .variantId(item.getVariantId().toString())
                         .sellerId(item.getSellerId())
                         .reason("PRICE_CHANGED")
@@ -128,7 +148,7 @@ public class CheckoutPreviewService {
 
             if (variant.getStockQuantity() == 0) {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                        .cartItemId(item.getId().toString())
+                        .customerId(item.getCustomerId())
                         .variantId(item.getVariantId().toString())
                         .sellerId(item.getSellerId())
                         .reason("OUT_OF_STOCK")
@@ -140,7 +160,7 @@ public class CheckoutPreviewService {
 
             if (variant.getStockQuantity() < item.getQuantity()) {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                        .cartItemId(item.getId().toString())
+                        .customerId(item.getCustomerId())
                         .variantId(item.getVariantId().toString())
                         .sellerId(item.getSellerId())
                         .reason("INSUFFICIENT_STOCK")
@@ -152,7 +172,7 @@ public class CheckoutPreviewService {
 
             BigDecimal subtotal = item.getPriceSnapshot().multiply(BigDecimal.valueOf(item.getQuantity()));
             validItems.add(CheckoutPreviewResponse.PreviewItem.builder()
-                    .cartItemId(item.getId().toString())
+                    .customerId(item.getCustomerId())
                     .variantId(item.getVariantId().toString())
                     .skuCode(variant.getVariantCode())
                     .productName(item.getVariantNameSnapshot())
@@ -246,7 +266,7 @@ public class CheckoutPreviewService {
 
                 if (variant == null || variant.getDeletedAt() != null) {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("VARIANT_UNAVAILABLE")
@@ -256,7 +276,7 @@ public class CheckoutPreviewService {
 
                 if (variant.getStatus() != VariantStatus.ACTIVE) {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("VARIANT_INACTIVE")
@@ -266,7 +286,7 @@ public class CheckoutPreviewService {
 
                 if (variant.getPrice().compareTo(item.getPriceSnapshot()) != 0) {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("PRICE_CHANGED")
@@ -278,7 +298,7 @@ public class CheckoutPreviewService {
 
                 if (variant.getStockQuantity() == 0) {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("OUT_OF_STOCK")
@@ -290,7 +310,7 @@ public class CheckoutPreviewService {
 
                 if (variant.getStockQuantity() < item.getQuantity()) {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("INSUFFICIENT_STOCK")
@@ -346,20 +366,33 @@ public class CheckoutPreviewService {
                 .toList();
     }
 
-    private UUID parseUUID(String s) {
-        try {
-            return UUID.fromString(s);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
     private String buildTokenValue(CheckoutPreviewResponse response) {
         try {
             return objectMapper.writeValueAsString(response);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize preview response", e);
             return "{}";
+        }
+    }
+
+    private static class ParsedItemKey {
+        final Long customerId;
+        final UUID variantId;
+
+        ParsedItemKey(Long customerId, UUID variantId) {
+            this.customerId = customerId;
+            this.variantId = variantId;
+        }
+
+        static ParsedItemKey parse(String raw) {
+            String[] parts = raw.split(":");
+            if (parts.length != 2) {
+                throw new IllegalArgumentException("Invalid format: " + raw);
+            }
+            return new ParsedItemKey(
+                    Long.parseLong(parts[0]),
+                    UUID.fromString(parts[1])
+            );
         }
     }
 }

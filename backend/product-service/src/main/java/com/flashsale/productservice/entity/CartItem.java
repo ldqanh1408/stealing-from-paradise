@@ -5,17 +5,22 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
+/**
+ * Cart item with composite PK = (customer_id, variant_id).
+ * No soft-delete: hard delete on checkout completion or customer action.
+ */
 @Entity
 @Table(name = "cart_items", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_cart_items_cart_variant", columnNames = {"cart_id", "variant_id"})
+    @UniqueConstraint(name = "uk_cart_items_customer_variant", columnNames = {"customer_id", "variant_id"})
 }, indexes = {
-    @Index(name = "idx_cart_items_cart_id", columnList = "cart_id"),
-    @Index(name = "idx_cart_items_variant_id", columnList = "variant_id")
+    @Index(name = "idx_cart_items_customer", columnList = "customer_id"),
+    @Index(name = "idx_cart_items_variant", columnList = "variant_id")
 })
+@IdClass(CartItem.CartItemId.class)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,19 +29,12 @@ import java.util.UUID;
 public class CartItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @Column(name = "customer_id", nullable = false)
+    private Long customerId;
 
-    @Column(name = "cart_id", nullable = false)
-    private UUID cartId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cart_id", insertable = false, updatable = false)
-    private Cart cart;
-
+    @Id
     @Column(name = "variant_id", nullable = false)
-    private UUID variantId;
+    private java.util.UUID variantId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variant_id", insertable = false, updatable = false)
@@ -65,6 +63,11 @@ public class CartItem {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CartItemId implements Serializable {
+        private Long customerId;
+        private java.util.UUID variantId;
+    }
 }

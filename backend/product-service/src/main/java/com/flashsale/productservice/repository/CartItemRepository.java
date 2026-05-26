@@ -2,6 +2,7 @@ package com.flashsale.productservice.repository;
 
 import com.flashsale.productservice.entity.CartItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -11,12 +12,30 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface CartItemRepository extends JpaRepository<CartItem, UUID> {
+public interface CartItemRepository extends JpaRepository<CartItem, CartItem.CartItemId> {
 
-    Optional<CartItem> findByCartIdAndVariantIdAndDeletedAtIsNull(UUID cartId, UUID variantId);
+    Optional<CartItem> findByCustomerIdAndVariantId(Long customerId, UUID variantId);
 
-    List<CartItem> findByCartIdAndDeletedAtIsNull(UUID cartId);
+    List<CartItem> findByCustomerId(Long customerId);
 
-    @Query("SELECT ci FROM CartItem ci WHERE ci.id IN :ids AND ci.cartId = :cartId AND ci.deletedAt IS NULL")
-    List<CartItem> findByIdsAndCartIdAndNotDeleted(@Param("ids") List<UUID> ids, @Param("cartId") UUID cartId);
+    @Query("SELECT ci FROM CartItem ci WHERE ci.customerId = :customerId AND ci.variantId IN :variantIds")
+    List<CartItem> findByCustomerIdAndVariantIds(
+            @Param("customerId") Long customerId,
+            @Param("variantIds") List<UUID> variantIds);
+
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.customerId = :customerId AND ci.variantId = :variantId")
+    void deleteByCustomerIdAndVariantId(
+            @Param("customerId") Long customerId,
+            @Param("variantId") UUID variantId);
+
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.customerId = :customerId")
+    void deleteAllByCustomerId(@Param("customerId") Long customerId);
+
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.customerId = :customerId AND ci.variantId IN :variantIds")
+    void deleteAllByCustomerIdAndVariantIds(
+            @Param("customerId") Long customerId,
+            @Param("variantIds") List<UUID> variantIds);
 }

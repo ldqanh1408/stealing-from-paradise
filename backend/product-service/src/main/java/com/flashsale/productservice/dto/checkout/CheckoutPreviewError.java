@@ -22,7 +22,7 @@ public class CheckoutPreviewError {
     @AllArgsConstructor
     @Builder
     public static class PreviewItemError {
-        private String cartItemId;
+        private Long customerId;
         private String variantId;
         private Long sellerId;
         private String reason;

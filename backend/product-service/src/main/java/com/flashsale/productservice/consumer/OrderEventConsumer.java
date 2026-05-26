@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.productservice.entity.StockReservation;
+import com.flashsale.productservice.repository.CartItemRepository;
 import com.flashsale.productservice.repository.StockReservationRepository;
 import com.flashsale.productservice.service.InventoryService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -23,20 +25,32 @@ public class OrderEventConsumer {
 
     private final InventoryService inventoryService;
     private final StockReservationRepository reservationRepository;
+    private final CartItemRepository cartItemRepository;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Nhận order.cancelled → release stock reservations.
-     */
+    private Long extractUserId(JsonNode payload) {
+        if (payload.has("userId")) return payload.get("userId").asLong();
+        if (payload.has("user_id")) return payload.get("user_id").asLong();
+        if (payload.has("customerId")) return payload.get("customerId").asLong();
+        if (payload.has("customer_id")) return payload.get("customer_id").asLong();
+        return null;
+    }
+
+    private String extractSessionId(JsonNode payload) {
+        if (payload.has("sessionId")) return payload.get("sessionId").asText();
+        if (payload.has("session_id")) return payload.get("session_id").asText();
+        return null;
+    }
+
     @KafkaListener(topics = "${kafka.topics.order-cancelled:order.cancelled}", groupId = "product-service-group")
     public void onOrderCancelled(ConsumerRecord<String, String> record, Acknowledgment ack) {
         try {
             JsonNode payload = objectMapper.readTree(record.value());
-            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
-                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
+            String sessionId = extractSessionId(payload);
+            Long userId = extractUserId(payload);
 
-            log.info("Received order.cancelled event: sessionId={}", sessionId);
-            processRelease(sessionId);
+            log.info("Received order.cancelled event: sessionId={}, userId={}", sessionId, userId);
+            processRelease(sessionId, userId);
             ack.acknowledge();
         } catch (Exception e) {
             log.error("Error processing order.cancelled event: {}", record.value(), e);
@@ -44,19 +58,15 @@ public class OrderEventConsumer {
         }
     }
 
-    /**
-     * Nhận order.paid → confirm stock reservations.
-     * Đây là thời điểm thanh toán thành công — stock reservation được xác nhận vĩnh viễn.
-     */
     @KafkaListener(topics = "${kafka.topics.order-paid:order.paid}", groupId = "product-service-group")
     public void onOrderPaid(ConsumerRecord<String, String> record, Acknowledgment ack) {
         try {
             JsonNode payload = objectMapper.readTree(record.value());
-            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
-                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
+            String sessionId = extractSessionId(payload);
+            Long userId = extractUserId(payload);
 
-            log.info("Received order.paid event: sessionId={}", sessionId);
-            processConfirm(sessionId);
+            log.info("Received order.paid event: sessionId={}, userId={}", sessionId, userId);
+            processConfirm(sessionId, userId);
             ack.acknowledge();
         } catch (Exception e) {
             log.error("Error processing order.paid event: {}", record.value(), e);
@@ -64,19 +74,15 @@ public class OrderEventConsumer {
         }
     }
 
-    /**
-     * Nhận order.payment_failed → release stock reservations.
-     * Thanh toán thất bại → stock được giải phóng cho người khác mua.
-     */
     @KafkaListener(topics = "${kafka.topics.order-payment-failed:order.payment_failed}", groupId = "product-service-group")
     public void onOrderPaymentFailed(ConsumerRecord<String, String> record, Acknowledgment ack) {
         try {
             JsonNode payload = objectMapper.readTree(record.value());
-            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
-                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
+            String sessionId = extractSessionId(payload);
+            Long userId = extractUserId(payload);
 
-            log.info("Received order.payment_failed event: sessionId={}", sessionId);
-            processRelease(sessionId);
+            log.info("Received order.payment_failed event: sessionId={}, userId={}", sessionId, userId);
+            processRelease(sessionId, userId);
             ack.acknowledge();
         } catch (Exception e) {
             log.error("Error processing order.payment_failed event: {}", record.value(), e);
@@ -84,15 +90,11 @@ public class OrderEventConsumer {
         }
     }
 
-    /**
-     * Nhận order.returned → restore stock.
-     */
     @KafkaListener(topics = "${kafka.topics.order-returned:order.returned}", groupId = "product-service-group")
     public void onOrderReturned(ConsumerRecord<String, String> record, Acknowledgment ack) {
         try {
             JsonNode payload = objectMapper.readTree(record.value());
-            String sessionId = payload.has("sessionId") ? payload.get("sessionId").asText()
-                    : (payload.has("session_id") ? payload.get("session_id").asText() : null);
+            String sessionId = extractSessionId(payload);
 
             log.info("Received order.returned event: sessionId={}", sessionId);
 
@@ -121,7 +123,7 @@ public class OrderEventConsumer {
         }
     }
 
-    private void processConfirm(String sessionId) {
+    private void processConfirm(String sessionId, Long userId) {
         if (sessionId == null || sessionId.isBlank()) {
             log.warn("order.paid event has no sessionId — cannot confirm reservations");
             return;
@@ -141,10 +143,23 @@ public class OrderEventConsumer {
             }
         }
 
+        if (userId != null && !pending.isEmpty()) {
+            List<UUID> variantIds = pending.stream()
+                    .map(StockReservation::getVariantId)
+                    .distinct()
+                    .toList();
+            try {
+                cartItemRepository.deleteAllByCustomerIdAndVariantIds(userId, variantIds);
+                log.info("Hard-deleted cart items after payment: userId={}, variantIds={}", userId, variantIds);
+            } catch (Exception e) {
+                log.error("Failed to delete cart items: userId={}, variantIds={}", userId, variantIds, e);
+            }
+        }
+
         log.info("order.paid processing complete: sessionId={}, confirmedCount={}", sessionId, pending.size());
     }
 
-    private void processRelease(String sessionId) {
+    private void processRelease(String sessionId, Long userId) {
         if (sessionId == null || sessionId.isBlank()) {
             log.warn("Event has no sessionId — cannot release reservations");
             return;
@@ -164,6 +179,19 @@ public class OrderEventConsumer {
             }
         }
 
-        log.info("Stock release processing complete: sessionId={}, releasedCount={}", sessionId, pending.size());
+        // if (userId != null && !pending.isEmpty()) {
+        //     List<UUID> variantIds = pending.stream()
+        //             .map(StockReservation::getVariantId)
+        //             .distinct()
+        //             .toList();
+        //     try {
+        //         cartItemRepository.deleteAllByCustomerIdAndVariantIds(userId, variantIds);
+        //         log.info("Hard-deleted cart items on release: userId={}, variantIds={}", userId, variantIds);
+        //     } catch (Exception e) {
+        //         log.error("Failed to delete cart items on release: userId={}, variantIds={}", userId, variantIds, e);
+        //     }
+        // }
+
+        // log.info("Stock release processing complete: sessionId={}, releasedCount={}", sessionId, pending.size());
     }
 }

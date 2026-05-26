@@ -38,7 +38,7 @@ public class CheckoutPreviewResponse {
     @AllArgsConstructor
     @Builder
     public static class PreviewItem {
-        private String cartItemId;
+        private Long customerId;
         private String variantId;
         private String skuCode;
         private String productName;

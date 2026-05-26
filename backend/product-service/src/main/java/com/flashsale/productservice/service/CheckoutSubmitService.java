@@ -50,17 +50,17 @@ public class CheckoutSubmitService {
 
         String sessionId = UUID.randomUUID().toString();
         List<Map<String, Object>> orderItems = new ArrayList<>();
+        List<UUID> variantIds = new ArrayList<>();
         int totalItems = 0;
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (CheckoutPreviewResponse.PreviewSellerGroup sg : preview.getSellers()) {
             for (CheckoutPreviewResponse.PreviewItem item : sg.getItems()) {
+                UUID variantId = UUID.fromString(item.getVariantId());
+                variantIds.add(variantId);
+
                 try {
-                    inventoryService.reserveStock(
-                            UUID.fromString(item.getVariantId()),
-                            item.getQuantity(),
-                            sessionId
-                    );
+                    inventoryService.reserveStock(variantId, item.getQuantity(), sessionId);
                 } catch (AppException e) {
                     log.warn("Stock reservation failed for variant {}: {}",
                             item.getVariantId(), e.getMessage());
@@ -69,7 +69,7 @@ public class CheckoutSubmitService {
                 }
 
                 Map<String, Object> orderItem = new LinkedHashMap<>();
-                orderItem.put("cart_item_id", item.getCartItemId());
+                orderItem.put("customer_id", item.getCustomerId());
                 orderItem.put("variant_id", item.getVariantId());
                 orderItem.put("sku_code", item.getSkuCode());
                 orderItem.put("product_name", item.getProductName());
@@ -151,7 +151,7 @@ public class CheckoutSubmitService {
 
                 if (variant == null || variant.getDeletedAt() != null) {
                     errors.add(PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("VARIANT_UNAVAILABLE")
@@ -161,7 +161,7 @@ public class CheckoutSubmitService {
 
                 if (variant.getStatus() != VariantStatus.ACTIVE) {
                     errors.add(PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("VARIANT_INACTIVE")
@@ -171,7 +171,7 @@ public class CheckoutSubmitService {
 
                 if (variant.getPrice().compareTo(item.getPriceSnapshot()) != 0) {
                     errors.add(PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("PRICE_CHANGED")
@@ -183,7 +183,7 @@ public class CheckoutSubmitService {
 
                 if (variant.getStockQuantity() == 0) {
                     errors.add(PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("OUT_OF_STOCK")
@@ -195,7 +195,7 @@ public class CheckoutSubmitService {
 
                 if (variant.getStockQuantity() < item.getQuantity()) {
                     errors.add(PreviewItemError.builder()
-                            .cartItemId(item.getCartItemId())
+                            .customerId(item.getCustomerId())
                             .variantId(item.getVariantId())
                             .sellerId(item.getSellerId())
                             .reason("INSUFFICIENT_STOCK")

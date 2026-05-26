@@ -16,7 +16,6 @@ import java.util.UUID;
 @Builder
 public class CartResponse {
 
-    private UUID id;
     private Long customerId;
     private List<CartItemResponse> items;
     private Integer totalItems;
