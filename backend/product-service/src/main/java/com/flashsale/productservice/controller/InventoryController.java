@@ -35,7 +35,7 @@ public class InventoryController {
             @PathVariable String skuCode,
             @Valid @RequestBody RestockRequest request,
             @AuthenticationPrincipal UserDetailsImpl user) {
-        return ResponseEntity.ok(inventoryService.restock(skuCode, request.getQuantity(), request.getVersion(), user));
+        return ResponseEntity.ok(inventoryService.restock(skuCode, request.getQuantity(), user));
     }
 
     @PostMapping("/seller/inventory/adjust")

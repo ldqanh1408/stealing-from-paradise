@@ -46,7 +46,7 @@ public class InventoryService {
     }
 
     @Transactional
-    public ApiResponse<InventoryResponse> restock(String variantCode, int quantity, Integer version, UserDetailsImpl user) {
+    public ApiResponse<InventoryResponse> restock(String variantCode, int quantity, UserDetailsImpl user) {
         ProductVariant variant = variantRepository.findByVariantCodeWithPessimisticLock(variantCode)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
