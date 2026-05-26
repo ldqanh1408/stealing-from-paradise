@@ -48,5 +48,6 @@ public class CheckoutPreviewResponse {
         private String imageUrl;
         private BigDecimal subtotal;
         private Long fsItemId;
+        private Long sellerId;
     }
 }

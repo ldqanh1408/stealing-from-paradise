@@ -24,6 +24,7 @@ public class CheckoutPreviewError {
     public static class PreviewItemError {
         private String cartItemId;
         private String variantId;
+        private Long sellerId;
         private String reason;
         private String currentValue;
         private String expectedValue;

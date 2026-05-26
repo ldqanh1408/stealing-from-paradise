@@ -27,6 +27,15 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/*
+Thứ tự validate stock thống nhất cho cả Preview và Submit
+1. variant == null || deleted?     → VARIANT_UNAVAILABLE  (+sellerId)
+2. status != ACTIVE?              → VARIANT_INACTIVE      (+sellerId)
+3. price != priceSnapshot?        → PRICE_CHANGED         (+sellerId)
+4. stockQuantity == 0?            → OUT_OF_STOCK          (+sellerId)  ← THÊM MỚI
+5. stockQuantity < quantity?      → INSUFFICIENT_STOCK   (+sellerId)
+*/
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -85,6 +94,7 @@ public class CheckoutPreviewService {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
                         .cartItemId(item.getId().toString())
                         .variantId(item.getVariantId().toString())
+                        .sellerId(item.getSellerId())
                         .reason("VARIANT_UNAVAILABLE")
                         .currentValue("deleted or inactive")
                         .expectedValue("active variant")
@@ -96,6 +106,7 @@ public class CheckoutPreviewService {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
                         .cartItemId(item.getId().toString())
                         .variantId(item.getVariantId().toString())
+                        .sellerId(item.getSellerId())
                         .reason("VARIANT_INACTIVE")
                         .currentValue(variant.getStatus().name())
                         .expectedValue("ACTIVE")
@@ -107,20 +118,10 @@ public class CheckoutPreviewService {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
                         .cartItemId(item.getId().toString())
                         .variantId(item.getVariantId().toString())
+                        .sellerId(item.getSellerId())
                         .reason("PRICE_CHANGED")
                         .currentValue(variant.getPrice().toString())
                         .expectedValue(item.getPriceSnapshot().toString())
-                        .build());
-                continue;
-            }
-
-            if (variant.getStockQuantity() < item.getQuantity()) {
-                errors.add(CheckoutPreviewError.PreviewItemError.builder()
-                        .cartItemId(item.getId().toString())
-                        .variantId(item.getVariantId().toString())
-                        .reason("INSUFFICIENT_STOCK")
-                        .currentValue(String.valueOf(variant.getStockQuantity()))
-                        .expectedValue(String.valueOf(item.getQuantity()))
                         .build());
                 continue;
             }
@@ -129,8 +130,21 @@ public class CheckoutPreviewService {
                 errors.add(CheckoutPreviewError.PreviewItemError.builder()
                         .cartItemId(item.getId().toString())
                         .variantId(item.getVariantId().toString())
+                        .sellerId(item.getSellerId())
                         .reason("OUT_OF_STOCK")
                         .currentValue("0")
+                        .expectedValue(String.valueOf(item.getQuantity()))
+                        .build());
+                continue;
+            }
+
+            if (variant.getStockQuantity() < item.getQuantity()) {
+                errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                        .cartItemId(item.getId().toString())
+                        .variantId(item.getVariantId().toString())
+                        .sellerId(item.getSellerId())
+                        .reason("INSUFFICIENT_STOCK")
+                        .currentValue(String.valueOf(variant.getStockQuantity()))
                         .expectedValue(String.valueOf(item.getQuantity()))
                         .build());
                 continue;
@@ -148,6 +162,7 @@ public class CheckoutPreviewService {
                     .imageUrl(item.getVariantImageSnapshot())
                     .subtotal(subtotal)
                     .fsItemId(null)
+                    .sellerId(item.getSellerId())
                     .build());
             totalAmount = totalAmount.add(subtotal);
             totalItems += item.getQuantity();
@@ -233,6 +248,7 @@ public class CheckoutPreviewService {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("VARIANT_UNAVAILABLE")
                             .build());
                     continue;
@@ -242,6 +258,7 @@ public class CheckoutPreviewService {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("VARIANT_INACTIVE")
                             .build());
                     continue;
@@ -251,9 +268,22 @@ public class CheckoutPreviewService {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("PRICE_CHANGED")
                             .currentValue(variant.getPrice().toString())
                             .expectedValue(item.getPriceSnapshot().toString())
+                            .build());
+                    continue;
+                }
+
+                if (variant.getStockQuantity() == 0) {
+                    errors.add(CheckoutPreviewError.PreviewItemError.builder()
+                            .cartItemId(item.getCartItemId())
+                            .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
+                            .reason("OUT_OF_STOCK")
+                            .currentValue("0")
+                            .expectedValue(String.valueOf(item.getQuantity()))
                             .build());
                     continue;
                 }
@@ -262,6 +292,7 @@ public class CheckoutPreviewService {
                     errors.add(CheckoutPreviewError.PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("INSUFFICIENT_STOCK")
                             .currentValue(String.valueOf(variant.getStockQuantity()))
                             .expectedValue(String.valueOf(item.getQuantity()))
@@ -300,7 +331,8 @@ public class CheckoutPreviewService {
             List<CheckoutPreviewResponse.PreviewItem> items) {
         Map<Long, List<CheckoutPreviewResponse.PreviewItem>> bySeller = new LinkedHashMap<>();
         for (CheckoutPreviewResponse.PreviewItem item : items) {
-            bySeller.computeIfAbsent(0L, k -> new ArrayList<>()).add(item);
+            Long sellerId = item.getSellerId() != null ? item.getSellerId() : 0L;
+            bySeller.computeIfAbsent(sellerId, k -> new ArrayList<>()).add(item);
         }
 
         return bySeller.entrySet().stream()

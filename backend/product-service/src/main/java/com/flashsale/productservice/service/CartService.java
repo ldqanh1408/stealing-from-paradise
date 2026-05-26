@@ -188,8 +188,6 @@ public class CartService {
 
         BigDecimal subtotal = item.getPriceSnapshot().multiply(BigDecimal.valueOf(item.getQuantity()));
 
-        Long sellerId = item.getSellerId() != null ? item.getSellerId() : getSellerIdForVariant(item.getVariantId());
-
         return CartItemResponse.builder()
                 .id(item.getId())
                 .variantId(item.getVariantId())
@@ -204,16 +202,8 @@ public class CartService {
                 .outOfStock(outOfStock)
                 .unavailable(unavailable)
                 .insufficientStock(insufficientStock)
-                .sellerId(sellerId)
+                .sellerId(item.getSellerId())
                 .build();
-    }
-
-    private Long getSellerIdForVariant(UUID variantId) {
-        return variantRepository.findById(variantId)
-                .map(v -> productRepository.findById(v.getProductId())
-                        .map(Product::getSellerId)
-                        .orElse(0L))
-                .orElse(0L);
     }
 
 }

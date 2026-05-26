@@ -77,7 +77,7 @@ public class CheckoutSubmitService {
                 orderItem.put("price_snapshot", item.getPriceSnapshot());
                 orderItem.put("quantity", item.getQuantity());
                 orderItem.put("image_url", item.getImageUrl());
-                orderItem.put("seller_id", sg.getSellerId());
+                orderItem.put("seller_id", item.getSellerId());
                 orderItem.put("fs_item_id", item.getFsItemId());
                 orderItems.add(orderItem);
 
@@ -153,6 +153,7 @@ public class CheckoutSubmitService {
                     errors.add(PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("VARIANT_UNAVAILABLE")
                             .build());
                     continue;
@@ -162,6 +163,7 @@ public class CheckoutSubmitService {
                     errors.add(PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("VARIANT_INACTIVE")
                             .build());
                     continue;
@@ -171,9 +173,22 @@ public class CheckoutSubmitService {
                     errors.add(PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("PRICE_CHANGED")
                             .currentValue(variant.getPrice().toString())
                             .expectedValue(item.getPriceSnapshot().toString())
+                            .build());
+                    continue;
+                }
+
+                if (variant.getStockQuantity() == 0) {
+                    errors.add(PreviewItemError.builder()
+                            .cartItemId(item.getCartItemId())
+                            .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
+                            .reason("OUT_OF_STOCK")
+                            .currentValue("0")
+                            .expectedValue(String.valueOf(item.getQuantity()))
                             .build());
                     continue;
                 }
@@ -182,6 +197,7 @@ public class CheckoutSubmitService {
                     errors.add(PreviewItemError.builder()
                             .cartItemId(item.getCartItemId())
                             .variantId(item.getVariantId())
+                            .sellerId(item.getSellerId())
                             .reason("INSUFFICIENT_STOCK")
                             .currentValue(String.valueOf(variant.getStockQuantity()))
                             .expectedValue(String.valueOf(item.getQuantity()))
