@@ -3,7 +3,7 @@
 > Service: search-service (SVC-008, Port 8091)
 > Database: Elasticsearch
 > Source: `documents` micro-docs
-> Generated: 2026-05-10 | Updated: 2026-05-25 (product.activated is sole ES indexing trigger; removed product.created/approved/rejected consumers; `inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event for Search Service)
+> Generated: 2026-05-10 | Updated: 2026-05-26 (product.activated is sole ES indexing trigger; removed product.created/approved/rejected consumers; `inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event; removed `sold_count` and date fields -- sort simplified to relevance/price only)
 
 ---
 
@@ -22,8 +22,8 @@ Full-text product search with Vietnamese language support. Consumer-only service
 
 - Full-text search with Vietnamese text analysis (no-diacritic, fuzzy, synonyms)
 - SKU-first indexing with field collapsing by product_id
-- Faceted filtering (category, price range, brand, rating)
-- Sort by price, newest, relevance with stable tiebreaker (sort_id)
+- Fixed filter parameters (category, price range, stock, flash sale)
+- Sort by relevance or price with stable tiebreaker (sort_id)
 - Flash sale price overlays via `flash_sale.price_sync` events
 - Pagination up to 10,000 results (ES max_result_window)
 
@@ -48,7 +48,7 @@ Full-text product search with Vietnamese language support. Consumer-only service
 
 | Document | Index | Key Fields |
 |----------|-------|------------|
-| SearchDocument | skus | product_id, sku_id, name, description, category_id, price, flash_price, stock_status, seller_id, created_at |
+| SearchDocument | skus | product_id, sku_id, name, description, category_id, price, stock_status, seller_id |
 
 ## Kafka Integration (Consumer-Only)
 

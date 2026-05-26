@@ -5,7 +5,7 @@ info:
     Elasticsearch-backed full-text product search with Vietnamese text analysis.
     SKU-first architecture with field collapsing by product_id.
     Search service (Port 8091). Public endpoints for search, admin for reindex.
-  version: "5.4"
+  version: "5.6"
   contact:
     name: Search Service Team
 
@@ -21,7 +21,7 @@ paths:
       description: |
         Search products by keywords with Vietnamese text analysis.
         Results are collapsed by product_id (SKU-first architecture).
-        Supports filtering, sorting, and facet aggregations.
+        Supports filtering and sorting with fixed filter parameters.
       tags:
         - Search
       security: []
@@ -74,8 +74,6 @@ paths:
               - relevance
               - price_asc
               - price_desc
-              - newest
-              - sold_desc
             default: relevance
           description: Sort order
         - name: page
@@ -233,18 +231,6 @@ components:
         is_flash:
           type: boolean
           example: true
-        created_at:
-          type: string
-          format: date-time
-          example: "2026-04-01T08:00:00Z"
-
-    FacetBucket:
-      type: object
-      properties:
-        value:
-          type: string
-        count:
-          type: integer
 
     SearchResponse:
       type: object
@@ -265,17 +251,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProductCard"
-        filters:
-          type: object
-          properties:
-            colors:
-              type: array
-              items:
-                $ref: "#/components/schemas/FacetBucket"
-            sizes:
-              type: array
-              items:
-                $ref: "#/components/schemas/FacetBucket"
 
     SuggestResponse:
       type: object

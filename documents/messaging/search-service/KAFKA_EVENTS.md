@@ -3,7 +3,7 @@
 > Service: search-service (SVC-008, Port 8091)
 > Database: Elasticsearch (index: skus)
 > Source: `documents/messaging/KAFKA_CATALOG.md`, `documents/overview/search-service/ARCHITECTURE.md`
-> Generated: 2026-05-10 | Updated: 2026-05-26 (removed `discount_pct` from `flash_sale.price_sync` activate payload -- derived field, unused in filter/sort/response)
+> Generated: 2026-05-10 | Updated: 2026-05-26 (removed `discount_pct` from `flash_sale.price_sync` activate payload -- derived field, unused in filter/sort/response; removed `order.created` consumer -- `sold_count` field removed from index)
 
 ---
 
@@ -13,7 +13,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### product.activated (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
 | **Action** | Bulk-index all SKU documents for this product into Elasticsearch `skus` index. This is the **sole event that triggers initial ES indexing** for a product. |
@@ -42,7 +42,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### product.deactivated (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
 | **Action** | Set `is_active = false` on all ES documents for this product (do NOT delete, so reactivation is fast). Product remains in index but is excluded from search results. |
@@ -67,7 +67,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### product.updated (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
 | **Action** | Update existing product document in ES index (update_by_query by product_id). Used for field-level changes (name, description, attributes, images) while product is already active or inactive. |
@@ -92,7 +92,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### product.deleted (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
 | **Action** | Remove all ES documents for this product (delete by product_id). |
@@ -116,7 +116,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### category.updated (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
 | **Action** | Reindex all products in the updated category (update_by_query by category_id) |
@@ -125,7 +125,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### variant.price_updated (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
 | **Action** | Update price field in ES document for the affected variant (partial _update on single document) |
@@ -151,7 +151,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### variant.stock_updated (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
 | **Action** | Update stock_status field in ES document (partial _update on single document) |
@@ -177,7 +177,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ### flash_sale.price_sync (from Product Service)
 
-|| Field | Value |
+| Field | Value |
 |-------|-------|
 | **GroupId** | search-service-flashsale-group |
 | **Action** | `activate`: apply flash prices to ES documents; `deactivate`: reset to original prices (bulk update) |
@@ -250,20 +250,20 @@ Search Service does NOT participate in any Kafka request-reply patterns.
 
 ### Vietnamese Text Analysis
 
-|| Problem | Solution |
-||---------|----------|
-|| No-diacritic typing | `asciifolding` filter with `preserve_original: true` |
-|| Spelling errors | `fuzziness: AUTO` in query |
-|| Synonyms | Synonym filter: `synonyms/vi_product.txt` |
+| Problem | Solution |
+|---------|----------|
+| No-diacritic typing | `asciifolding` filter with `preserve_original: true` |
+| Spelling errors | `fuzziness: AUTO` in query |
+| Synonyms | Synonym filter: `synonyms/vi_product.txt` |
 
 ---
 
 ## Consumer Groups
 
-|| Group ID | Topics | Concurrency | Notes |
-||----------|--------|-------------|-------|
-|| search-service-product-group | product.activated, product.deactivated, product.updated, product.deleted, category.updated, variant.price_updated, variant.stock_updated | 3 | Idempotent by event_id |
-|| search-service-flashsale-group | flash_sale.price_sync | 1 | Sequential processing required |
+| Group ID | Topics | Concurrency | Notes |
+|----------|--------|-------------|-------|
+| search-service-product-group | product.activated, product.deactivated, product.updated, product.deleted, category.updated, variant.price_updated, variant.stock_updated | 3 | Idempotent by event_id |
+| search-service-flashsale-group | flash_sale.price_sync | 1 | Sequential processing required |
 
 ---
 
@@ -281,10 +281,12 @@ processedEventCache.markProcessed(event.event_id);
 
 ## Events No Longer Consumed
 
-The following events from the previous design are **removed** because products are never indexed before admin approval:
+The following events from the previous design are **removed**:
 
-|| Event | Reason for Removal |
-||-------|--------------------|
-|| `product.created` | Product starts as `draft`; indexing deferred until `product.activated` |
-|| `product.approved` | Does not change ES state; pre-warm removed -- actual indexing via `product.activated` |
-|| `product.rejected` | Product was never indexed; no ES action needed |
+| Event | Reason for Removal |
+|-------|--------------------|
+| `product.created` | Product starts as `draft`; indexing deferred until `product.activated` |
+| `product.approved` | Does not change ES state; pre-warm removed -- actual indexing via `product.activated` |
+| `product.rejected` | Product was never indexed; no ES action needed |
+| `inventory.adjusted` | Replaced by `variant.stock_updated` |
+| `order.created` | `sold_count` field removed from index; `sold_desc` sort no longer supported (v5.6) |
