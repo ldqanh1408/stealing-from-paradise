@@ -1,66 +1,82 @@
 package com.flashsale.searchservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
-import com.flashsale.searchservice.domain.model.SearchProduct;
+import com.flashsale.searchservice.dto.ReindexResponse;
 import com.flashsale.searchservice.dto.SearchResponse;
+import com.flashsale.searchservice.dto.SuggestResponse;
+import com.flashsale.searchservice.service.ReindexService;
+import com.flashsale.searchservice.service.SearchQueryService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.SearchHit;
-import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.data.elasticsearch.core.query.Criteria;
-import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @RestController
-@RequestMapping("/v1/search")
+@RequestMapping("/api/v1/search")
 @RequiredArgsConstructor
 public class SearchController {
 
-    private final ElasticsearchOperations elasticsearchOperations;
+    private final SearchQueryService searchQueryService;
+    private final ReindexService reindexService;
 
-    @GetMapping
-    public ApiResponse<SearchResponse> search(
-            @RequestParam(defaultValue = "") String q,
-            @RequestParam(required = false) String category,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+    @GetMapping("/products")
+    public ResponseEntity<ApiResponse<SearchResponse>> searchProducts(
+            @RequestParam(required = false) String q,
+            @RequestParam(name = "category_id", required = false) String categoryId,
+            @RequestParam(name = "price_min", required = false) Double priceMin,
+            @RequestParam(name = "price_max", required = false) Double priceMax,
+            @RequestParam(name = "in_stock", required = false, defaultValue = "true") Boolean inStock,
+            @RequestParam(name = "is_flash", required = false) Boolean isFlash,
+            @RequestParam(required = false, defaultValue = "relevance") String sort,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size
+    ) {
+        SearchResponse response = searchQueryService.search(
+                q, categoryId, priceMin, priceMax, inStock, isFlash, sort, page, size
+        );
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 
-        List<Criteria> mustCriteria = new ArrayList<>();
-        mustCriteria.add(new Criteria("status").is("APPROVED"));
+    @GetMapping("/products/suggest")
+    public ResponseEntity<ApiResponse<SuggestResponse>> suggestProducts(
+            @RequestParam String q,
+            @RequestParam(required = false, defaultValue = "5") int size
+    ) {
+        SuggestResponse response = searchQueryService.suggest(q, size);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 
-        if (q != null && !q.isBlank()) {
-            mustCriteria.add(new Criteria("name").contains(q)
-                    .or(new Criteria("description").contains(q)));
+    @PostMapping("/reindex")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> triggerReindex() {
+        ReindexService.ReindexStatus status = reindexService.triggerReindex();
+
+        if ("IN_PROGRESS".equals(status.getStatus())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("REINDEX_IN_PROGRESS", status.getMessage()));
         }
 
-        if (category != null && !category.isBlank()) {
-            mustCriteria.add(new Criteria("categoryId").is(category));
-        }
-
-        Criteria composite = new Criteria();
-        for (Criteria c : mustCriteria) {
-            composite = composite.and(c);
-        }
-
-        CriteriaQuery query = new CriteriaQuery(composite, PageRequest.of(page, size));
-
-        SearchHits<SearchProduct> hits = elasticsearchOperations.search(query, SearchProduct.class);
-
-        List<SearchProduct> content = hits.getSearchHits().stream()
-                .map(SearchHit::getContent)
-                .toList();
-
-        SearchResponse response = SearchResponse.builder()
-                .content(content)
-                .totalHits(hits.getTotalHits())
-                .page(page)
-                .size(size)
+        ReindexResponse response = ReindexResponse.builder()
+                .status(status.getStatus())
+                .documentCount(status.getDocumentCount())
+                .durationMs(status.getDurationMs())
+                .message(status.getMessage())
                 .build();
 
-        return ApiResponse.success(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/reindex/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ReindexResponse>> getReindexStatus() {
+        ReindexService.ReindexStatus status = reindexService.getStatus();
+        ReindexResponse response = ReindexResponse.builder()
+                .status(status.getStatus())
+                .documentCount(status.getDocumentCount())
+                .durationMs(status.getDurationMs())
+                .message(status.getMessage())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

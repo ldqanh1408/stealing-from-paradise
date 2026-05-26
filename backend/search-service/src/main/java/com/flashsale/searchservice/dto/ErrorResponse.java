@@ -5,16 +5,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SearchResponse {
-    private int totalResults;
-    private int page;
-    private int size;
-    private int totalPages;
-    private List<ProductCard> products;
+public class ErrorResponse {
+    private String error;
+    private String message;
 }

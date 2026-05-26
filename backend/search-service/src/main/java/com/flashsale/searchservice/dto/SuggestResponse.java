@@ -11,10 +11,6 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SearchResponse {
-    private int totalResults;
-    private int page;
-    private int size;
-    private int totalPages;
-    private List<ProductCard> products;
+public class SuggestResponse {
+    private List<String> suggestions;
 }

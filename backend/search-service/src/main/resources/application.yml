@@ -2,15 +2,15 @@ server:
   port: 8091
 spring:
   main:
-    allow-bean-definition-overriding: true  # Fix potential bean conflicts
-    lazy-initialization: false               # Initialize all beans at startup
+    allow-bean-definition-overriding: true
+    lazy-initialization: false
   application:
     name: search-service
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   threads:
     virtual:
-      enabled: true             # Virtual Threads Java 21+ — bật cho MVC, không cần cho WebFlux
+      enabled: true
   jackson:
     deserialization:
       fail-on-unknown-properties: false
@@ -20,7 +20,7 @@ spring:
     socket-keep-alive: true
     socket-timeout: 60000
     repository:
-      type: none  # Don't auto-create indices on startup
+      type: none
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
     producer:
@@ -38,6 +38,21 @@ spring:
       enable-auto-commit: false
       properties:
         spring.json.trusted.packages: com.flashsale.*
+  webflux:
+    timeout: 30000
+
+search:
+  elasticsearch:
+    index-name: skus
+    index-alias: skus
+    max-result-window: 10000
+  kafka:
+    product-group: search-service-product-group
+    flashsale-group: search-service-flashsale-group
+  product-service:
+    base-url: ${PRODUCT_SERVICE_URL:http://localhost:8080}
+    timeout-seconds: 30
+
 eureka:
   instance:
     prefer-ip-address: true
@@ -50,3 +65,8 @@ eureka:
     fetch-registry: true
     register-with-eureka: true
     enabled: true
+
+spring.data.redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  timeout: 2000ms

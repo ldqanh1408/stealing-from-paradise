@@ -9,6 +9,8 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     public static final String PRODUCT_PENDING_REVIEW   = "product.pending_review";
     public static final String PRODUCT_APPROVED         = "product.approved";
+    public static final String PRODUCT_ACTIVATED        = "product.activated";
+    public static final String PRODUCT_DEACTIVATED      = "product.deactivated";
     public static final String PRODUCT_REJECTED         = "product.rejected";
     public static final String PRODUCT_UPDATED          = "product.updated";
     public static final String PRODUCT_DELETED          = "product.deleted";
