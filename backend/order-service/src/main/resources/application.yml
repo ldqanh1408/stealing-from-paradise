@@ -52,6 +52,12 @@ spring:
 axon:
   axonserver:
     servers: ${AXON_SERVER:localhost:8124}
+    # Explicit context prevents the client from connecting to a different
+    # context when Axon Server restarts. Must match AXONIQ_AXONSERVER_CONTEXTS.
+    context: default
+    # Unique component name so Axon Server can distinguish this client from
+    # other services (flashsale-service, payment-service, product-service).
+    component-name: ${spring.application.name}
   eventhandling:
     poolsize: 10
   serializer:

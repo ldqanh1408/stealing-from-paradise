@@ -1,0 +1,118 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1779802111826,
+  "projectRoot": "D:\\dev\\stealing-from-paradise",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "scripts"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1779802111803,
+      "keyFiles": [
+        "docker-compose.infra-only.yml",
+        "docker-compose.yml",
+        "pom.xml"
+      ]
+    },
+    "documents": {
+      "path": "documents",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1779802111803,
+      "keyFiles": [
+        "BAO_CAO_DE_TAI.md",
+        "code_vs_doc_comparison.md",
+        "CONTRADICTIONS.md",
+        "database-entities.md",
+        "ERD_DIAGRAMS.md"
+      ]
+    },
+    "frontend": {
+      "path": "frontend",
+      "purpose": null,
+      "fileCount": 8,
+      "lastAccessed": 1779802111809,
+      "keyFiles": [
+        "docker compose.yml",
+        "package-lock.json",
+        "tsconfig.json"
+      ]
+    },
+    "nginx": {
+      "path": "nginx",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1779802111809,
+      "keyFiles": [
+        "docker-compose.prod-pulled.yml",
+        "docker-entrypoint.sh",
+        "Dockerfile",
+        "reverse-proxy.conf"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1779802111810,
+      "keyFiles": [
+        "generate-report.js"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "documents\\BAO_CAO_DE_TAI.md",
+      "accessCount": 31,
+      "lastAccessed": 1779807971503,
+      "type": "file"
+    },
+    {
+      "path": "documents\\iwant.txt",
+      "accessCount": 1,
+      "lastAccessed": 1779802265646,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

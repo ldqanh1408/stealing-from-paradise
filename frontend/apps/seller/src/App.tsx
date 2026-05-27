@@ -11,7 +11,6 @@ const SellerOrdersPage       = lazy(() => import('@/pages/SellerOrdersPage'));
 const SellerOrderDetailPage  = lazy(() => import('@/pages/SellerOrderDetailPage'));
 const StripeOnboardingPage   = lazy(() => import('@/pages/StripeOnboardingPage'));
 const SellerPaymentsPage     = lazy(() => import('@/pages/SellerPaymentsPage'));
-const TrustScorePage         = lazy(() => import('@/pages/TrustScorePage'));
 const SellerSettingsPage      = lazy(() => import('@/pages/SellerSettingsPage'));
 
 const AUTH_LINKS = [
@@ -20,7 +19,6 @@ const AUTH_LINKS = [
   { label: 'Đơn hàng', to: '/orders' },
   { label: 'Thu nhập', to: '/payments' },
   { label: 'Stripe', to: '/stripe-onboarding' },
-  { label: 'Trust Score', to: '/trust-score' },
   { label: 'Cài đặt', to: '/settings' },
 ];
 
@@ -47,7 +45,6 @@ export default function App() {
                 <Route path="/stripe/return"  element={<Navigate to="/stripe-onboarding?from=stripe" replace />} />
                 <Route path="/stripe/refresh" element={<Navigate to="/stripe-onboarding?refresh=1"  replace />} />
                 <Route path="/payments"          element={<PrivateRoute role="SELLER"><SellerPaymentsPage /></PrivateRoute>} />
-                <Route path="/trust-score"        element={<PrivateRoute role="SELLER"><TrustScorePage /></PrivateRoute>} />
                 <Route path="/settings"           element={<PrivateRoute role="SELLER"><SellerSettingsPage /></PrivateRoute>} />
 
                 <Route path="/"  element={<Navigate to="/dashboard" replace />} />

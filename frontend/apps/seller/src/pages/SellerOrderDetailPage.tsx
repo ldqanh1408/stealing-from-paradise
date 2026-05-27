@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi } from '@shared/api/order.api';
@@ -23,10 +24,135 @@ function formatDate(iso?: string) {
   });
 }
 
+function TrackingModal({ orderId, orderCode, onClose, onSuccess }: { orderId: number; orderCode: string; onClose: () => void; onSuccess: () => void }) {
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [carrier, setCarrier] = useState('');
+  const [error, setError] = useState('');
+
+  const mut = useMutation({
+    mutationFn: () => orderApi.updateTracking(orderId, {
+      trackingNumber: trackingNumber.trim(),
+      carrier: carrier.trim() || undefined,
+    }),
+    onSuccess: () => { onSuccess(); onClose(); },
+    onError: (err: any) => setError(err?.response?.data?.message || 'Cập nhật thất bại'),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Cập nhật vận đơn</h3>
+        <p className="text-sm text-gray-500 mb-5">Đơn hàng <strong>{orderCode}</strong></p>
+        {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mã vận đơn *</label>
+            <input
+              type="text"
+              value={trackingNumber}
+              onChange={e => setTrackingNumber(e.target.value)}
+              placeholder="vd: VN123456789"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Đơn vị vận chuyển</label>
+            <select
+              value={carrier}
+              onChange={e => setCarrier(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Chọn đơn vị</option>
+              <option value="GHN">Giao Hàng Nhanh (GHN)</option>
+              <option value="GHTK">Giao Hàng Tiết Kiệm (GHTK)</option>
+              <option value="VNPOST">Vietnam Post (VNPOST)</option>
+              <option value="J&T">J&T Express</option>
+              <option value="NINJAVAN">Ninja Van</option>
+              <option value="BEST">Best Express</option>
+              <option value="OTHER">Khác</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
+          <button
+            onClick={() => mut.mutate()}
+            disabled={!trackingNumber.trim() || mut.isPending}
+            className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {mut.isPending ? 'Đang lưu...' : 'Xác nhận giao hàng'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReturnToSenderModal({ orderId, orderCode, onClose, onSuccess }: { orderId: number; orderCode: string; onClose: () => void; onSuccess: () => void }) {
+  const [returnTracking, setReturnTracking] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+
+  const mut = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('return_tracking_number', returnTracking.trim());
+      if (note.trim()) fd.append('note', note.trim());
+      return orderApi.returnToSender(orderId, fd);
+    },
+    onSuccess: () => { onSuccess(); onClose(); },
+    onError: (err: any) => setError(err?.response?.data?.message || 'Thao tác thất bại'),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Hoàn hàng về người gửi</h3>
+        <p className="text-sm text-gray-500 mb-5">Đơn hàng <strong>{orderCode}</strong></p>
+        {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mã vận đơn hoàn *</label>
+            <input
+              type="text"
+              value={returnTracking}
+              onChange={e => setReturnTracking(e.target.value)}
+              placeholder="Mã vận đơn hàng hoàn về"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Ghi chú</label>
+            <textarea
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="Lý do hoàn hàng..."
+              rows={2}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
+          <button
+            onClick={() => mut.mutate()}
+            disabled={!returnTracking.trim() || mut.isPending}
+            className="flex-1 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-700 disabled:opacity-50"
+          >
+            {mut.isPending ? 'Đang xử lý...' : 'Xác nhận hoàn hàng'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SellerOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const id = Number(orderId);
   const queryClient = useQueryClient();
+  const [showTracking, setShowTracking] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ['seller-order', id],
@@ -49,6 +175,11 @@ export default function SellerOrderDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
     },
   });
+
+  const onMutationSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['seller-order', id] });
+    queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
+  };
 
   if (id <= 0) {
     return (
@@ -80,7 +211,6 @@ export default function SellerOrderDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <a href="/orders" className="text-gray-400 hover:text-gray-600 text-2xl">←</a>
         <div>
@@ -89,7 +219,6 @@ export default function SellerOrderDetailPage() {
         </div>
       </div>
 
-      {/* Status */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 flex items-center gap-4 flex-wrap">
         <span className={`px-3 py-1.5 rounded-full text-sm font-semibold ${st.bg} ${st.color}`}>
           {st.label}
@@ -104,22 +233,40 @@ export default function SellerOrderDetailPage() {
             {order.carrier && <span className="text-gray-400"> ({order.carrier})</span>}
           </div>
         )}
-        {order.status === 'PENDING' && (
-          <button
-            onClick={() => {
-              if (confirm(`Hủy đơn ${order.orderCode}? Hành động này không thể hoàn tác.`)) {
-                cancelMut.mutate('Người bán hủy đơn');
-              }
-            }}
-            disabled={cancelMut.isPending}
-            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-medium disabled:opacity-50"
-          >
-            {cancelMut.isPending ? 'Đang huỷ...' : 'Huỷ đơn'}
-          </button>
-        )}
+
+        <div className="flex gap-2">
+          {order.status === 'PAID' && (
+            <button
+              onClick={() => setShowTracking(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors"
+            >
+              📦 Cập nhật vận đơn
+            </button>
+          )}
+          {order.status === 'SHIPPING' && (
+            <button
+              onClick={() => setShowReturn(true)}
+              className="px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-xl text-sm font-medium transition-colors"
+            >
+              ↩ Hoàn hàng
+            </button>
+          )}
+          {order.status === 'PENDING' && (
+            <button
+              onClick={() => {
+                if (confirm(`Hủy đơn ${order.orderCode}? Hành động này không thể hoàn tác.`)) {
+                  cancelMut.mutate('Người bán hủy đơn');
+                }
+              }}
+              disabled={cancelMut.isPending}
+              className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              {cancelMut.isPending ? 'Đang huỷ...' : 'Huỷ đơn'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Buyer info */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
         <h2 className="font-bold text-gray-900 mb-3">👤 Thông tin khách hàng</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -132,17 +279,14 @@ export default function SellerOrderDetailPage() {
             <p className="font-medium text-gray-900">{order.buyerName ? `@${order.buyerId}` : '—'}</p>
           </div>
           {order.shippingAddress && (
-            <>
-              <div className="col-span-2">
-                <p className="text-gray-500 text-xs">Địa chỉ giao hàng</p>
-                <p className="font-medium text-gray-900">{order.shippingAddress.fullAddress}</p>
-              </div>
-            </>
+            <div className="col-span-2">
+              <p className="text-gray-500 text-xs">Địa chỉ giao hàng</p>
+              <p className="font-medium text-gray-900">{order.shippingAddress.fullAddress}</p>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Payment info */}
       {paymentData && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
           <h2 className="font-bold text-gray-900 mb-3">💳 Thông tin thanh toán</h2>
@@ -169,7 +313,6 @@ export default function SellerOrderDetailPage() {
         </div>
       )}
 
-      {/* Order items */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-6">
         <div className="px-5 py-4 border-b border-gray-50">
           <h2 className="font-bold text-gray-900">📦 Sản phẩm ({order.items?.length ?? 0})</h2>
@@ -204,7 +347,6 @@ export default function SellerOrderDetailPage() {
         ))}
       </div>
 
-      {/* Price summary */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h2 className="font-bold text-gray-900 mb-3">💰 Tổng kết</h2>
         <div className="space-y-2 text-sm">
@@ -218,6 +360,23 @@ export default function SellerOrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {showTracking && (
+        <TrackingModal
+          orderId={id}
+          orderCode={order.orderCode}
+          onClose={() => setShowTracking(false)}
+          onSuccess={onMutationSuccess}
+        />
+      )}
+      {showReturn && (
+        <ReturnToSenderModal
+          orderId={id}
+          orderCode={order.orderCode}
+          onClose={() => setShowReturn(false)}
+          onSuccess={onMutationSuccess}
+        />
+      )}
     </div>
   );
 }

@@ -8,31 +8,57 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
 import java.time.LocalDateTime;
 
-@Document(collection = "notifications")
+@Document(collection = "mg_notifications")
 @CompoundIndex(name = "idx_user_read", def = "{'user_id': 1, 'is_read': 1}")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Notification {
+
     @Id
     private String id;
 
     @Indexed
+    @Field("user_id")
     private Long userId;
 
-    private String type;  // ORDER_CREATED | PAYMENT_SUCCESS | REFUND_APPROVED | etc.
-    private String title;
-    private String message;
+    /**
+     * Notification type from the Type Catalog.
+     * Values: ORDER_CREATED, ORDER_SHIPPED, ORDER_DELIVERED, ORDER_CANCELLED,
+     *         ORDER_RETURNED, ORDER_PAID, PAYMENT_FAILED, REFUND_REQUESTED,
+     *         REFUND_APPROVED, REFUND_REJECTED, FLASH_SALE_STARTING, FLASH_SALE_ENDED,
+     *         PRODUCT_APPROVED, PRODUCT_REJECTED,
+     *         TRANSFER_ELIGIBLE, TRANSFER_PAID_OUT, TRANSFER_FAILED,
+     *         STOCK_RESERVATION_EXPIRED, CHAT_MESSAGE, CHAT_TOOL_CALL, CHAT_CONFIRMATION
+     */
+    private String type;
 
+    private String title;
+
+    private String body;
+
+    /** JSON string with supplementary data: template_id, deeplink, entity IDs, etc. */
+    private String metadata;
+
+    @Field("is_read")
     @Builder.Default
     private Boolean isRead = false;
 
-    private String deeplink;
+    /** Priority: URGENT / HIGH / NORMAL / LOW */
+    @Builder.Default
+    private String priority = "NORMAL";
 
-    @Indexed(expireAfterSeconds = 7776000)  // 90 days TTL
-    private LocalDateTime createdAt;
+    /** Timestamp when the notification was marked as read (nullable). */
+    @Field("read_at")
+    private LocalDateTime readAt;
+
+    @Indexed(expireAfterSeconds = 7776000)  // 90-day TTL
+    @Field("created_at")
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
 }
-

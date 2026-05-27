@@ -1,5 +1,6 @@
 server:
   port: 8090
+
 spring:
   application:
     name: product-service
@@ -7,7 +8,7 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   threads:
     virtual:
-      enabled: true             # Virtual Threads Java 21+ — bật cho MVC, không cần cho WebFlux
+      enabled: true
   jackson:
     deserialization:
       fail-on-unknown-properties: false
@@ -27,23 +28,56 @@ spring:
       enable-auto-commit: false
       properties:
         spring.json.trusted.packages: com.flashsale.*
-  mongodb:
-    host: ${MONGO_HOST:localhost}
-    port: 27017
-    database: ${DB_NAME_PRODUCT:fs_product}
-    username: ${MONGO_INITDB_ROOT_USERNAME}
-    password: ${MONGO_INITDB_ROOT_PASSWORD}
-    authentication-database: admin
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  sql:
+    init:
+      mode: never
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME_PRODUCT:product_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: 6379
       password: ${REDIS_PASSWORD:}
       timeout: 60000ms
+  task:
+    execution:
+      pool:
+        core-size: 4
+        max-size: 16
+        queue-capacity: 100
+
 minio:
   url: ${MINIO_URL:http://localhost:9000}
   access-key: ${MINIO_ROOT_USER:minioadmin}
   secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
+  bucket: ${MINIO_BUCKET:product-images}
+
 eureka:
   instance:
     prefer-ip-address: true
@@ -56,3 +90,25 @@ eureka:
     fetch-registry: true
     register-with-eureka: true
     enabled: true
+
+reservation:
+  cleanup:
+    interval-ms: 180000
+  ttl-minutes: 15
+
+kafka:
+  topics:
+    order-created: order.created
+    order-cancelled: order.cancelled
+    order-returned: order.returned
+    flash-sale-session-started: flash_sale.session_started
+    flash-sale-session-ended: flash_sale.session_ended
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized

@@ -6,7 +6,6 @@ export interface SellerDashboardStats {
   totalProducts: number;
   ordersToday: number;
   revenueMonth: number;
-  trustScore: number;
   pendingOrders: number;
   activeProducts: number;
 }
@@ -68,6 +67,9 @@ export interface SellerProduct {
   productId: string;
   name: string;
   category: string;
+  categoryId?: string;
+  categoryName?: string;
+  categorySlug?: string;
   price: number;
   originalPrice?: number;
   status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED' | 'PUBLISHED';
@@ -144,7 +146,7 @@ export const sellerApi = {
 
   /** Delete a product (seller owner) */
   deleteProduct: (productId: string) =>
-    apiClient.delete<ApiResponse<void>>(`/products/${productId}`),
+    apiClient.delete<ApiResponse<void>>(`/seller/products/${productId}`),
 
   /** Update a product */
   updateProduct: (productId: string, data: { name: string; description: string; categoryId: string; images?: string[] }) =>

@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <name>FlashSale Parent</name>
-    <description>He thong Microservices Flash Sale (Java 25 &amp; Spring Boot)</description>
+    <description>He thong Microservices Flash Sale (Java 24 &amp; Spring Boot)</description>
 
     <modules>
         <module>common-lib</module>
@@ -18,17 +18,18 @@
         <module>api-gateway</module>
         <module>flashsale-service</module>
         <module>search-service</module>
-        <module>worker-service</module>
+        <module>chat-service</module>
         <module>notification-service</module>
         <module>identity-service</module>
         <module>product-service</module>
+        <module>refund-service</module>
         <module>order-service</module>
         <module>payment-service</module>
         <module>dev-data-runner</module>
     </modules>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>24</java.version>
         <spring-boot.version>4.0.4</spring-boot.version>
         <spring-cloud.version>2025.1.1</spring-cloud.version>
         <spring-boot-maven-plugin.version>4.0.4</spring-boot-maven-plugin.version>
@@ -86,6 +87,30 @@
                 </includes>
             </resource>
         </resources>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot-maven-plugin.version}</version>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -105,26 +130,6 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot-maven-plugin.version}</version>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

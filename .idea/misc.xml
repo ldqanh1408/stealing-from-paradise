@@ -29,11 +29,14 @@
         <option value="$PROJECT_DIR$/backend/cart-service/pom.xml" />
         <option value="$PROJECT_DIR$/backend/flashsale-api/pom.xml" />
         <option value="$PROJECT_DIR$/backend/common-lib/pom.xml" />
+        <option value="$PROJECT_DIR$/backend/chat-service/pom.xml" />
+        <option value="$PROJECT_DIR$/backend/refund-service/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">
       <set>
         <option value="$PROJECT_DIR$/backend/cart-service/pom.xml" />
+        <option value="$PROJECT_DIR$/backend/worker-service/pom.xml" />
         <option value="$PROJECT_DIR$/flash-sale-service/pom.xml" />
       </set>
     </option>

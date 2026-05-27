@@ -2,20 +2,6 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, type UserProfileResponse } from '@shared/api/user.api';
 
-function TierBadge({ tier, score }: { tier?: string; score: number }) {
-  const cfg =
-    score >= 90 ? { label: 'Diamond', emoji: '💎', color: 'text-blue-600 bg-blue-50 border-blue-200' } :
-    score >= 80 ? { label: 'Gold', emoji: '🥇', color: 'text-amber-600 bg-amber-50 border-amber-200' } :
-    score >= 70 ? { label: 'Silver', emoji: '🥈', color: 'text-gray-600 bg-gray-50 border-gray-200' } :
-                 { label: 'Bronze', emoji: '🥉', color: 'text-orange-600 bg-orange-50 border-orange-200' };
-
-  return (
-    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border ${cfg.color}`}>
-      {cfg.emoji} {tier ?? cfg.label}
-    </span>
-  );
-}
-
 function StatusBadge({ status }: { status: string }) {
   const colors =
     status === 'ACTIVE'  ? 'bg-green-100 text-green-700' :
@@ -23,19 +9,6 @@ function StatusBadge({ status }: { status: string }) {
     status === 'BANNED'  ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-600';
   return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${colors}`}>{status}</span>;
-}
-
-function ScoreBar({ score }: { score: number }) {
-  const pct = Math.round(score);
-  const color = pct >= 80 ? 'bg-green-500' : pct >= 60 ? 'bg-yellow-500' : pct >= 40 ? 'bg-orange-500' : 'bg-red-500';
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-sm font-semibold text-gray-700 w-10 text-right">{score}</span>
-    </div>
-  );
 }
 
 function AvatarUpload({
@@ -262,7 +235,6 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3 mb-1 flex-wrap">
                   <h2 className="text-xl font-bold text-gray-900">{data.fullName || data.username}</h2>
                   <StatusBadge status={data.status} />
-                  <TierBadge tier={data.trustTier} score={data.trustScore} />
                 </div>
                 <p className="text-gray-500 text-sm">@{data.username}</p>
                 <p className="text-gray-400 text-xs mt-1">Tham gia {fmtDate(data.createdAt)}</p>
@@ -274,20 +246,6 @@ export default function ProfilePage() {
                 Chỉnh sửa
               </button>
             </div>
-          </div>
-
-          {/* Trust Score */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-gray-900">Điểm tin cậy</h3>
-              <span className="text-2xl font-black text-gray-900">{data.trustScore}</span>
-            </div>
-            <ScoreBar score={data.trustScore} />
-            <p className="text-xs text-gray-400 mt-2">
-              {data.trustScore >= 80 ? 'Bạn là người mua đáng tin cậy!' :
-               data.trustScore >= 60 ? 'Cố gắng giữ điểm cao để có trải nghiệm tốt hơn.' :
-               'Điểm thấp có thể ảnh hưởng đến giới hạn mua hàng.'}
-            </p>
           </div>
 
           {/* Info Grid */}

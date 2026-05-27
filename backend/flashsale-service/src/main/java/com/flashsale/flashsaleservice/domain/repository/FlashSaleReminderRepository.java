@@ -7,5 +7,5 @@ import reactor.core.publisher.Mono;
 
 @Repository
 public interface FlashSaleReminderRepository extends ReactiveCrudRepository<FlashSaleReminder, Long> {
-    Mono<FlashSaleReminder> findByUserIdAndSessionId(Long userId, Long sessionId);
+    Mono<FlashSaleReminder> findByCustomerIdAndSessionId(Long customerId, Long sessionId);
 }

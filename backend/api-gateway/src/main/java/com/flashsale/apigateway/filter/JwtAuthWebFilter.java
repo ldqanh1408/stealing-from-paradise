@@ -48,6 +48,7 @@ public class JwtAuthWebFilter implements WebFilter {
         "/api/v1/auth/forgot-password",
         "/api/v1/auth/reset-password",
         "/api/v1/stripe/webhooks",
+        "/api/ai/suggest",
         "/actuator/health",
         "/actuator/info"
     );
@@ -82,7 +83,7 @@ public class JwtAuthWebFilter implements WebFilter {
         // No token present — return 401 for protected endpoints
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             if (requestPath.startsWith("/api/v1/users/me")
-                    || requestPath.startsWith("/api/v1/loyalty")
+
                     || requestPath.startsWith("/api/v1/cart")
                     || requestPath.startsWith("/api/v1/orders")
                     || requestPath.startsWith("/api/v1/support")

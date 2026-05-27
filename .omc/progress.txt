@@ -1,0 +1,55 @@
+# Ralph Progress Log — Refactor Backend to Docs Spec
+Started: 2026-05-11 | Completed: 2026-05-11
+
+## Final Status: 11/13 stories COMPLETE, 2 deferred
+
+### COMPLETED STORIES
+
+**US-001** — common-lib payloads & topics
+- 5 new payload classes, 12 new KafkaTopics constants
+- Files: common-lib/.../event/payload/{StockReservationExpired,OrderPaymentTimeout,SellerTransfer{Eligible,PaidOut,Failed}}Payload.java
+
+**US-002** — notification-service entity & repository
+- Notification.java: @Document("mg_notifications"), readAt field, priority field
+- NotificationRepository.java: ReactiveMongoRepository with reactive queries
+
+**US-003** — notification-service REST controller
+- NotificationController.java: 5 endpoints (SSE stream, paginated history, mark read, mark all read, unread count)
+
+**US-004** — notification-service Kafka consumers (25+ handlers across 6 classes)
+- OrderEventConsumer (7 handlers), PaymentEventConsumer (5), FlashSaleEventConsumer (3), ProductEventConsumer (3), TransferEventConsumer (4), ChatEventConsumer (3)
+
+**US-005** — chat-service foundation
+- pom.xml updated, application.yaml fixed, @EnableDiscoveryClient added
+- 4 MongoDB entities, 4 ReactiveMongoRepositories, KafkaProducerConfig, SecurityConfig
+
+**US-008** — identity-service Kafka consumers
+- IdentityEventConsumer.java: 4 @KafkaListener methods
+
+**US-009** — identity-service admin listing
+- AdminController: GET /v1/admin/users (paginated + filters), GET /v1/admin/users/{userId}
+- UserService: listUsers() with JPA Specification, getAdminUserDetail()
+
+**US-010** — api-gateway routes
+- RouteConfig: /api/ai/** → lb://chat-service
+- JwtAuthWebFilter: /api/ai/suggest added to public paths
+
+**US-011** — payment-service transfer events
+- PayoutScheduler: seller.transfer.eligible/paid_out/failed events
+- KafkaTopicConfig: 3 new seller transfer topic declarations
+
+**US-012** — order-service payment timeout + stock reservation
+- OrderProcessingSaga.onPaymentTimeout(): order.payment_timeout event
+- StockReservationExpiredConsumer.java: auto-cancel on stock reservation TTL
+
+**US-013** — Global verification: ALL 9 SERVICES COMPILE (JDK 25)
+- common-lib, notification-service, chat-service, identity-service, order-service, payment-service, api-gateway, discovery-service, dev-data-runner — all exit code 0
+
+### DEFERRED (post-MVP scope)
+- US-006: chat REST controller with SSE — requires Spring AI ChatClient + OpenAI API key
+- US-007: chat tool calling framework — depends on US-006
+
+### Total changes:
+- 22 files modified
+- 24 new files created
+- 46 total file changes across 9 services

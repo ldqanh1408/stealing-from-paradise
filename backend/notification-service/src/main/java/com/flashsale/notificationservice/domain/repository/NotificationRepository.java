@@ -1,13 +1,32 @@
 package com.flashsale.notificationservice.domain.repository;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.stereotype.Repository;
 import com.flashsale.notificationservice.domain.model.Notification;
-import java.util.List;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
+import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Repository
-public interface NotificationRepository extends MongoRepository<Notification, String> {
-    List<Notification> findByUserIdOrderByCreatedAtDesc(Long userId);
-    List<Notification> findByUserIdAndIsReadFalse(Long userId);
-}
+public interface NotificationRepository extends ReactiveMongoRepository<Notification, String> {
 
+    /**
+     * Find unread notifications for a user, ordered by creation time descending.
+     */
+    Flux<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(Long userId);
+
+    /**
+     * Count unread notifications for a user.
+     */
+    Mono<Long> countByUserIdAndIsReadFalse(Long userId);
+
+    /**
+     * Find a single notification by its ID and the owning user ID (ownership check).
+     */
+    Mono<Notification> findByIdAndUserId(String id, Long userId);
+
+    /**
+     * Paginated notification history for a user, ordered by creation time descending.
+     */
+    Flux<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+}

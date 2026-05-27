@@ -45,6 +45,27 @@ const rawAxios = axios.create();
 
 const REFRESH_ERROR_CODES = new Set(['AUTH_003', 'AUTH_002']);
 
+// ─── Callback handler to clear state without circular dependency ───
+let onAuthFailure: (() => void) | null = null;
+let isRedirectingToLogin = false;
+
+export function registerAuthFailureHandler(handler: () => void) {
+  onAuthFailure = handler;
+}
+
+export function handleAuthFailure() {
+  const isAtLogin = window.location.pathname === '/login';
+  if (!isRedirectingToLogin && !isAtLogin) {
+    isRedirectingToLogin = true;
+    Cookies.remove('accessToken');
+    Cookies.remove('refreshToken');
+    if (onAuthFailure) {
+      onAuthFailure();
+    }
+    window.location.href = '/login';
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -55,6 +76,12 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const status = error.response?.status;
     const errorCode = (error.response?.data as any)?.errorCode;
+
+    // Bỏ qua nếu là request liên quan đến auth (đăng nhập, đăng ký, refresh, logout) để tránh loop hoặc reload trang khi gõ sai mật khẩu
+    const isAuthRequest = originalRequest.url?.includes('/auth/');
+    if (isAuthRequest) {
+      return Promise.reject(error);
+    }
 
     // 401 → attempt token refresh
     if (status === 401 && !originalRequest._retry) {
@@ -91,9 +118,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as AxiosError, null);
-        Cookies.remove('accessToken');
-        Cookies.remove('refreshToken');
-        window.location.href = '/login';
+        handleAuthFailure();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -102,9 +127,7 @@ apiClient.interceptors.response.use(
 
     // 401 from refresh endpoint itself → token truly invalid, logout
     if (status === 401 && originalRequest._retry && REFRESH_ERROR_CODES.has(errorCode)) {
-      Cookies.remove('accessToken');
-      Cookies.remove('refreshToken');
-      window.location.href = '/login';
+      handleAuthFailure();
     }
 
     return Promise.reject(error);

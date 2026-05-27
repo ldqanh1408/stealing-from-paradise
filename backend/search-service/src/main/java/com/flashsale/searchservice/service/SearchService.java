@@ -1,34 +1,18 @@
 package com.flashsale.searchservice.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flashsale.commonlib.event.KafkaTopics;
-import com.flashsale.commonlib.event.payload.ProductApprovedPayload;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
-
-@Service
-@RequiredArgsConstructor
-@Slf4j
+/**
+ * Placeholder kept for potential future extension.
+ * All search query routing is currently handled directly by SearchQueryService.
+ */
 public class SearchService {
 
-    private final ObjectMapper objectMapper;
+    private final SearchQueryService searchQueryService;
 
-    @KafkaListener(topics = KafkaTopics.PRODUCT_APPROVED, groupId = "search-service-group")
-    public void onProductApproved(String message) {
-        try {
-            ProductApprovedPayload payload = objectMapper.readValue(message, ProductApprovedPayload.class);
-            log.info("Indexing approved product: {}", payload.getProductId());
-            // TODO: Index to Elasticsearch
-        } catch (Exception e) {
-            log.error("Failed to process product.approved event: {}", e.getMessage(), e);
-        }
+    public SearchService(SearchQueryService searchQueryService) {
+        this.searchQueryService = searchQueryService;
     }
 
     public void search(String query, int page, int size) {
-        log.info("Searching: {}", query);
-        // TODO: Query Elasticsearch
+        searchQueryService.search(query, null, null, null, true, null, "relevance", page, size);
     }
 }
-

@@ -1,13 +1,15 @@
-# ============================================================
-# PROD Profile — product-service
-# Active when SPRING_PROFILES_ACTIVE=prod
-# ============================================================
+spring:
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
 logging:
   level:
     root: INFO
     com.flashsale: INFO
-    org.springframework.data.mongodb: WARN
-    com.mongodb: WARN
 
 dev-data:
   enabled: false

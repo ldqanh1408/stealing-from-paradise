@@ -1,0 +1,33 @@
+Bạn là một chuyên gia hướng dẫn viết báo cáo khoa học và đồ án kỹ thuật. Hãy đóng vai trò là người cố vấn, dựa trên cấu trúc và các yêu cầu thực tế dưới đây để xây dựng/tối ưu hóa nội dung chi tiết cho đề tài của tôi. 
+
+Yêu cầu chung: Viết gãy gọn, tập trung vào tư duy kỹ thuật và cách giải quyết vấn đề, bỏ qua các lời cảm ơn rườm rà không cần thiết.
+
+### I. GIỚI THIỆU ĐỀ TÀI (Introduction)
+1. Bối cảnh thực tế: Mô tả rõ bối cảnh thực tế dẫn đến việc phát sinh nhu cầu/vấn đề cần giải quyết. Tại sao đề tài này lại cần thiết ở thời điểm hiện tại?
+2. Tóm tắt đề tài: Khái quát sản phẩm muốn xây dựng là gì. 
+3. Trọng tâm cốt lõi: Nhấn mạnh rằng cốt lõi của đề tài KHÔNG PHẢI là "tạo ra sản phẩm" thuần túy, mà là "phương pháp và quy trình công nghệ để xây dựng nên sản phẩm đó".
+
+### II. NỀN TẢNG LÝ THUYẾT & BÀI TOÁN (Theoretical Background & Problem Statement)
+1. Bài toán đặt ra & Yêu cầu: Định nghĩa rõ bài toán cụ thể cần giải quyết là gì? Các yêu cầu phi chức năng/chức năng cốt lõi (tiêu chí đánh giá, ràng buộc hệ thống).
+2. Tầm quan trọng: Đánh giá mức độ quan trọng và tầm ảnh hưởng khi giải quyết được các vấn đề trên.
+3. Biện chứng lựa chọn công nghệ:
+   - Dựa trực tiếp vào "Vấn đề" và "Yêu cầu" ở trên để lập luận lý do lựa chọn công nghệ cốt lõi này (Tại sao lại là nó mà không phải cái khác?).
+   - Nhấn mạnh tầm quan trọng: Nếu không có công nghệ này thì hệ thống sẽ ra sao? (Không đạt performance, không giải quyết được bài toán, v.v.). Định vị đây là nền tảng "sống còn" của đề tài.
+4. Ràng buộc áp dụng (Trong phần thiết kế): Khi đưa công nghệ này vào thực tế hệ thống, nó đòi hỏi những điều kiện gì? Có những ràng buộc kỹ thuật nào cần tuân thủ?
+
+### III. GIẢI PHÁP & MÔ HÌNH VẬN HÀNH (Solution & Architecture)
+1. Từ bối cảnh đến bài toán: Kết nối logic từ bối cảnh sử dụng thực tế để làm nổi bật dòng chảy của bài toán.
+2. Mô hình vận hành (Operational Model): 
+   - Mô tả chi tiết các công đoạn người dùng tương tác và sử dụng phần mềm theo từng bước cụ thể.
+   - Định hình tư duy để vẽ sơ đồ (Flowchart/Architecture): Sử dụng các chuẩn chuẩn hóa có sẵn (như UML, BPMN, Architecture Diagram...) để tăng tính thuyết phục với hội đồng, thay vì tự chế tùy ý.
+3. Tương tác Đầu vào - Đầu ra: Định nghĩa rõ ràng Input là gì? Quy trình xử lý biến đổi nó thành các Output cụ thể ($Out_1, Out_2, Out_3...$) như thế nào?
+
+### IV. KẾT QUẢ & ĐÁNH GIÁ (Results & Evaluation)
+1. Đánh giá khách quan: Phân tích thẳng vào kết quả đạt được. Điểm tốt (Ưu điểm) là gì? Điểm dở (Hạn chế/Khuyết điểm) là gì?
+2. Tuyệt đối không viết các lời cảm ơn dư thừa, tập trung hoàn toàn vào tính khoa học của kết quả.
+
+---
+[BỔ SUNG THÔNG TIN ĐỀ TÀI CỦA BẠN VÀO ĐÂY]
+- Tên đề tài: ...
+- Công nghệ chính định sử dụng: ...
+- Vấn đề thực tế bạn muốn giải quyết: ...

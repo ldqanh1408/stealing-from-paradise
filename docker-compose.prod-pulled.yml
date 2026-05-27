@@ -45,12 +45,16 @@ services:
     image: ghcr.io/${IMAGE_PREFIX}/payment-service:prod-latest
     env_file: .env.production
 
+  refund-service:
+    image: ghcr.io/${IMAGE_PREFIX}/refund-service:prod-latest
+    env_file: .env.production
+
   order-service:
     image: ghcr.io/${IMAGE_PREFIX}/order-service:prod-latest
     env_file: .env.production
 
-  worker-service:
-    image: ghcr.io/${IMAGE_PREFIX}/worker-service:prod-latest
+  chat-service:
+    image: ghcr.io/${IMAGE_PREFIX}/chat-service:prod-latest
     env_file: .env.production
 
   flashsale-service:

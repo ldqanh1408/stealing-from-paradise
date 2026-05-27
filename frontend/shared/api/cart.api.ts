@@ -22,7 +22,6 @@ export interface CartItem {
 export interface CartSeller {
   sellerId: number;
   sellerName: string;
-  sellerTrustScore?: number;
   items: CartItem[];
   sellerSubtotal?: number;
 }

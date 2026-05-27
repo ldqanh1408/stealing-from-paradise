@@ -1,0 +1,39 @@
+openapi: "3.0.3"
+info:
+  title: Order Service - Checkout API (Deprecated)
+  description: |
+    **DEPRECATED as of 2026-05-23.**
+
+    The checkout flow has been redesigned. Order creation is now triggered by the
+    `order.checkout_submitted` Kafka event from Product Service.
+
+    - `POST /v1/checkout/preview` (Product Service) — validates cart items, returns preview_token
+    - `POST /v1/checkout/submit` (Product Service) — reserves stock, emits `order.checkout_submitted`
+    - `POST /orders/checkout` — **no longer accepts direct client requests**
+
+    This endpoint is kept for backward compatibility only and throws UnsupportedOperationException.
+  version: "6.0"
+  contact:
+    name: Order Service Team
+servers:
+  - url: http://localhost:8083/api/v1
+    description: Local development
+tags:
+  - name: Checkout
+    description: DEPRECATED — use Product Service endpoints
+paths:
+  /orders/checkout:
+    post:
+      tags:
+        - Checkout
+      summary: "[DEPRECATED] Use Product Service POST /v1/checkout/submit instead"
+      description: |
+        This endpoint is no longer used for client-initiated checkout.
+        Throws UnsupportedOperationException if called directly.
+        Order creation is now triggered by the `order.checkout_submitted` Kafka event.
+      operationId: checkoutDeprecated
+      security:
+        - bearerAuth: []
+      responses:
+        "501":
+          description: Deprecated endpoint — use Product Service checkout endpoints

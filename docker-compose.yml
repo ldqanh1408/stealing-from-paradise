@@ -215,7 +215,7 @@ services:
     env_file: .env
     networks: [*network]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s http://localhost:8761/actuator/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8761/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -242,7 +242,7 @@ services:
       redis: { condition: service_started }
     networks: [*network]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s http://localhost:8080/actuator/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -272,7 +272,6 @@ services:
       postgres: { condition: service_started }
       redis: { condition: service_started }
       kafka: { condition: service_started }
-      kafka-init: { condition: service_completed_successfully }
     networks: [*network]
 
   payment-service:
@@ -305,7 +304,42 @@ services:
       axonserver: { condition: service_started }
     networks: [*network]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s http://localhost:8082/actuator/health > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8082/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 150s
+
+  refund-service:
+    build:
+      context: ./backend/refund-service
+      dockerfile: Dockerfile.dev
+    container_name: fs-refund
+    restart: unless-stopped
+    ports: ["${PORT_REFUND:-8094}:8094"]
+    env_file: .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - EUREKA_URI=${EUREKA_URI}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - KAFKA_SERVER=${KAFKA_SERVER}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - STRIPE_PLATFORM_FEE_PERCENTAGE=${STRIPE_PLATFORM_FEE_PERCENTAGE}
+      - AXON_SERVER=${AXON_SERVER}
+      - JWT_SECRET=${JWT_SECRET}
+      - TZ=${TZ}
+      - JVM_OPTS=${JVM_OPTS_REFUND}
+    depends_on:
+      postgres: { condition: service_started }
+      kafka: { condition: service_started }
+      axonserver: { condition: service_started }
+    networks: [*network]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8094/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 8
@@ -320,6 +354,7 @@ services:
     ports: ["${PORT_ORDER:-8083}:8083"]
     env_file: .env
     environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
       - DB_HOST=${DB_HOST}
       - DB_NAME=${DB_NAME}
@@ -331,10 +366,16 @@ services:
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_ORDER}
     depends_on:
-      postgres: { condition: service_started }
+      postgres: { condition: service_healthy }
       kafka: { condition: service_started }
-      axonserver: { condition: service_started }
+      axonserver: { condition: service_healthy }
     networks: [*network]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8083/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
 
   flashsale-service:
     build:
@@ -442,29 +483,31 @@ services:
       kafka: { condition: service_started }
     networks: [*network]
 
-  worker-service:
+  chat-service:
     build:
-      context: ./backend/worker-service
+      context: ./backend/chat-service
       dockerfile: Dockerfile.dev
-    container_name: fs-worker
+    container_name: fs-chat
     restart: unless-stopped
-    ports: ["${PORT_WORKER:-8086}:8086"]
+    ports: ["${PORT_CHAT:-8093}:8093"]
     env_file: .env
     environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME=${DB_NAME}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - MONGO_HOST=${MONGO_HOST}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - DB_NAME_CHAT=${DB_NAME_CHAT:-fs_chat}
       - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
-      - JVM_OPTS=${JVM_OPTS_WORKER}
+      - JVM_OPTS=${JVM_OPTS_CHAT}
+      - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
+      - SPRING_AI_OPENAI_BASE_URL=${SPRING_AI_OPENAI_BASE_URL}
+      - SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL=${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL}
     depends_on:
-      postgres: { condition: service_started }
+      mongo: { condition: service_started }
       kafka: { condition: service_started }
-      axonserver: { condition: service_started }
     networks: [*network]
 
   # ================================================================
@@ -558,7 +601,7 @@ services:
       customer-app: { condition: service_started }
     networks: [*network]
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:${NGINX_PORT:-80}/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:${NGINX_PORT:-80}/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3

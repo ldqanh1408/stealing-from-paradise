@@ -382,6 +382,122 @@ function ConfirmReceivedModal({ order, onClose, onSuccess }: { order: Order; onC
   );
 }
 
+// ─── SubOrder Timeline Component ─────────────────────────────────────────────
+function SubOrderTimeline({ subOrder, paymentPaidAt }: { subOrder: Order; paymentPaidAt?: string }) {
+  const status = subOrder.status;
+
+  if (status === 'CANCELLED') {
+    return (
+      <div className="px-5 py-6 bg-gray-50/30 border-b border-gray-100">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600 shrink-0">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-red-700">Đơn hàng đã bị hủy</h4>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Hủy bởi: {subOrder.cancelledBy || 'Hệ thống'} · Lý do: {subOrder.cancelReason || 'Không có lý do'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Vào lúc {formatDate(subOrder.updatedAt)}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const steps = [
+    {
+      key: 'PENDING',
+      label: 'Chờ xác nhận',
+      active: true,
+      time: subOrder.createdAt,
+    },
+    {
+      key: 'PAID',
+      label: 'Đã thanh toán',
+      active: ['PAID', 'SHIPPING', 'DELIVERED', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(status),
+      time: paymentPaidAt || (['PAID', 'SHIPPING', 'DELIVERED'].includes(status) ? subOrder.createdAt : undefined),
+    },
+    {
+      key: 'SHIPPING',
+      label: 'Đang giao hàng',
+      active: ['SHIPPING', 'DELIVERED'].includes(status),
+      time: status === 'SHIPPING' ? subOrder.updatedAt : (status === 'DELIVERED' ? subOrder.createdAt : undefined),
+      subtext: subOrder.trackingNumber ? `${subOrder.carrier || 'Đơn vị vận chuyển'}: ${subOrder.trackingNumber}` : undefined,
+    },
+    {
+      key: 'DELIVERED',
+      label: 'Đã nhận hàng',
+      active: status === 'DELIVERED',
+      time: status === 'DELIVERED' ? subOrder.updatedAt : undefined,
+    },
+  ];
+
+  return (
+    <div className="px-5 py-6 bg-gray-50/30 border-b border-gray-100">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-2">
+        {steps.map((step, index) => {
+          const isCompleted = step.active;
+          const isCurrent = (index === 0 && status === 'PENDING') ||
+            (index === 1 && status === 'PAID') ||
+            (index === 2 && status === 'SHIPPING') ||
+            (index === 3 && status === 'DELIVERED');
+
+          return (
+            <div key={step.key} className="flex-1 flex sm:flex-col items-center gap-3 sm:gap-2 w-full relative">
+              {index < steps.length - 1 && (
+                <div className="hidden sm:block absolute left-[50%] right-[-50%] top-4 h-0.5 bg-gray-200 z-0">
+                  <div
+                    className={`h-full bg-blue-600 transition-all duration-300 ${
+                      steps[index + 1].active ? 'w-full' : 'w-0'
+                    }`}
+                  />
+                </div>
+              )}
+
+              <div
+                className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all ${
+                  isCompleted
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : isCurrent
+                    ? 'bg-white border-blue-600 text-blue-600 ring-4 ring-blue-50'
+                    : 'bg-white border-gray-200 text-gray-400'
+                }`}
+              >
+                {isCompleted ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <span className="text-xs font-semibold">{index + 1}</span>
+                )}
+              </div>
+
+              <div className="flex-1 sm:text-center">
+                <p
+                  className={`text-sm font-semibold ${
+                    isCurrent ? 'text-blue-600' : isCompleted ? 'text-gray-900' : 'text-gray-400'
+                  }`}
+                >
+                  {step.label}
+                </p>
+                {step.time && (
+                  <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(step.time)}</p>
+                )}
+                {step.subtext && (
+                  <p className="text-[10px] text-blue-600 font-medium mt-0.5">{step.subtext}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Order Detail Page ────────────────────────────────────────────────────────
 export default function OrderDetailPage() {
   const { parentOrderId } = useParams<{ parentOrderId: string }>();
@@ -525,6 +641,9 @@ export default function OrderDetailPage() {
                   <p className="text-xs text-gray-400">{formatDate(subOrder.createdAt)}</p>
                 </div>
               </div>
+
+              {/* Status Timeline */}
+              <SubOrderTimeline subOrder={subOrder} paymentPaidAt={paymentData?.paidAt} />
 
               {/* Order items */}
               <div className="px-5 py-4">

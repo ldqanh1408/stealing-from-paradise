@@ -153,7 +153,7 @@ export default function FlashSalePage() {
 
   const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
     queryKey: ['flash-sale-sessions'],
-    queryFn: () => flashSaleApi.getSessions({ size: 10 }).then(r => r.data.data),
+    queryFn: () => flashSaleApi.getSessions().then(r => r.data.data),
     staleTime: 1000 * 60,
   });
 

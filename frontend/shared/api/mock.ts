@@ -28,7 +28,6 @@ const MOCK_CART = {
     {
       sellerId: 1,
       sellerName: 'Shop Sony',
-      sellerTrustScore: 4.8,
       items: [
         {
           cartItemId: 1,
@@ -60,7 +59,6 @@ const MOCK_CART = {
     {
       sellerId: 2,
       sellerName: 'Uniqlo Vietnam',
-      sellerTrustScore: 4.5,
       items: [
         {
           cartItemId: 3,
@@ -792,6 +790,154 @@ let checkoutOrderData: Record<number, {
   createdAt: string;
 }> = {};
 
+// ─── Categories Mock Data ──────────────────────────────────────────────────
+export const MOCK_CATEGORIES = [
+  { id: 'cat_1', name: 'Thiết bị điện tử', slug: 'thiet-bi-dien-tu', description: 'Điện thoại, Laptop, Máy tính bảng', parentId: null, productCount: 15 },
+  { id: 'cat_2', name: 'Thời trang', slug: 'thoi-trang', description: 'Quần áo, giày dép, phụ kiện', parentId: null, productCount: 20 },
+  { id: 'cat_3', name: 'Gia dụng', slug: 'gia-dung', description: 'Đồ dùng nhà bếp, phòng khách', parentId: null, productCount: 8 },
+  { id: 'cat_4', name: 'Điện thoại', slug: 'dien-thoai', description: 'Điện thoại thông minh các hãng', parentId: 'cat_1', productCount: 10 },
+  { id: 'cat_5', name: 'Laptop', slug: 'laptop', description: 'Laptop văn phòng, gaming', parentId: 'cat_1', productCount: 5 }
+];
+
+// ─── Notifications Mock Data ────────────────────────────────────────────────
+export const MOCK_NOTIFICATIONS = [
+  {
+    id: 'notif_1',
+    userId: 1,
+    type: 'ORDER_STATUS',
+    title: 'Đơn hàng đã được xác nhận',
+    message: 'Đơn hàng #PO-20240101-1002 của bạn đã được người bán xác nhận và đang chuẩn bị giao.',
+    data: { orderId: 1002 },
+    read: false,
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString()
+  },
+  {
+    id: 'notif_2',
+    userId: 1,
+    type: 'PROMOTION',
+    title: 'Khuyến mãi Flash Sale 50%',
+    message: 'Sự kiện Flash Sale cực lớn sắp bắt đầu vào lúc 12:00 hôm nay. Đừng bỏ lỡ!',
+    data: { sessionId: 1 },
+    read: true,
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+  },
+  {
+    id: 'notif_3',
+    userId: 1,
+    type: 'REFUND_STATUS',
+    title: 'Yêu cầu trả hàng/hoàn tiền được chấp nhận',
+    message: 'Yêu cầu hoàn tiền cho đơn hàng #PO-20240101-1001 đã được duyệt. Số tiền sẽ hoàn lại vào tài khoản của bạn trong 2-3 ngày làm việc.',
+    data: { refundId: 1 },
+    read: false,
+    createdAt: new Date(Date.now() - 600000).toISOString()
+  }
+];
+
+// ─── AI Chat Mock Data ──────────────────────────────────────────────────────
+export const MOCK_CHAT_SESSIONS = [
+  { id: 'sess_1', status: 'ACTIVE', createdAt: new Date().toISOString() }
+];
+
+export const MOCK_CHAT_SUGGESTIONS = [
+  { text: 'Kiểm tra tình trạng đơn hàng mới nhất', icon: '📦' },
+  { text: 'Tôi muốn yêu cầu hoàn tiền', icon: '💰' },
+  { text: 'Tìm sản phẩm tai nghe chống ồn', icon: '🎧' }
+];
+
+export const MOCK_CHAT_HISTORY = [
+  { id: 'msg_1', sessionId: 'sess_1', role: 'SYSTEM', content: 'Bạn là một trợ lý AI hữu ích phục vụ cho sàn thương mại điện tử Stealing From Paradise.', sequenceNo: 1, createdAt: new Date(Date.now() - 100000).toISOString() },
+  { id: 'msg_2', sessionId: 'sess_1', role: 'ASSISTANT', content: 'Xin chào! Tôi có thể giúp gì cho bạn hôm nay?', sequenceNo: 2, createdAt: new Date(Date.now() - 90000).toISOString() }
+];
+
+// ─── Flash Sale Mock Data ───────────────────────────────────────────────────
+
+const MOCK_FLASH_SESSIONS = [
+  {
+    sessionId: 1,
+    name: 'Flash Sale 12:00 Trưa Nay',
+    status: 'ACTIVE',
+    startTime: new Date(Date.now() - 3600000).toISOString(),
+    endTime: new Date(Date.now() + 3600000).toISOString(),
+    secondsRemaining: 3600,
+    isEnded: false,
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    sessionId: 2,
+    name: 'Flash Sale 20:00 Tối Mai',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 86400000).toISOString(),
+    endTime: new Date(Date.now() + 90000000).toISOString(),
+    secondsRemaining: 90000,
+    isEnded: false,
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    updatedAt: new Date(Date.now() - 172800000).toISOString(),
+  },
+  {
+    sessionId: 3,
+    name: 'Flash Sale Tuần Trước',
+    status: 'ENDED',
+    startTime: new Date(Date.now() - 604800000).toISOString(),
+    endTime: new Date(Date.now() - 518400000).toISOString(),
+    secondsRemaining: 0,
+    isEnded: true,
+    createdAt: new Date(Date.now() - 691200000).toISOString(),
+    updatedAt: new Date(Date.now() - 518400000).toISOString(),
+  },
+];
+
+const MOCK_FLASH_ITEMS = [
+  {
+    id: 101,
+    sessionId: 1,
+    skuCode: 'SONY-WH-1000XM5-BK',
+    flashPrice: 4_990_000,
+    flashStock: 50,
+    limitPerUser: 2,
+    soldQty: 23,
+    status: 'ACTIVE',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 102,
+    sessionId: 1,
+    skuCode: 'KEY-K2-WHITE',
+    flashPrice: 1_590_000,
+    flashStock: 30,
+    limitPerUser: 1,
+    soldQty: 30,
+    status: 'SOLD_OUT',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: 103,
+    sessionId: 1,
+    skuCode: 'APP-AIRPODS-PRO2',
+    flashPrice: 4_490_000,
+    flashStock: 20,
+    limitPerUser: 1,
+    soldQty: 5,
+    status: 'ACTIVE',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 201,
+    sessionId: 2,
+    skuCode: 'UQ-TSHIRT-M',
+    flashPrice: 149_000,
+    flashStock: 100,
+    limitPerUser: 3,
+    soldQty: 0,
+    status: 'ACTIVE',
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    updatedAt: new Date(Date.now() - 172800000).toISOString(),
+  },
+];
+
 // ─── Mock handlers ───────────────────────────────────────────────────────────
 
 type MockHandler = (config: InternalAxiosRequestConfig) => Promise<any>;
@@ -1059,7 +1205,6 @@ const mockHandlers: MockHandler[] = [
           totalAmount: 2_190_000,
           status: 'PENDING',
           refunds: [{ refundId: Date.now(), orderId: parentId * 10, sellerId: 1, amount: 2_190_000, itemCount: 1 }],
-          loyalty_points_to_return: 219,
           estimatedDays: 3,
         },
         timestamp: Date.now(),
@@ -1220,8 +1365,6 @@ const mockHandlers: MockHandler[] = [
           role: 'BUYER',
           roles: ['BUYER'],
           status: 'ACTIVE',
-          trustScore: 85,
-          trustTier: 'Gold',
           avatarUrl: undefined,
         },
         timestamp: Date.now(),
@@ -1246,8 +1389,6 @@ const mockHandlers: MockHandler[] = [
           role: 'BUYER',
           roles: ['BUYER'],
           status: 'ACTIVE',
-          trustScore: 80,
-          trustTier: 'Bronze',
           avatarUrl: undefined,
         },
         timestamp: Date.now(),
@@ -1269,7 +1410,6 @@ const mockHandlers: MockHandler[] = [
           role: 'BUYER',
           roles: ['BUYER'],
           status: 'ACTIVE',
-          trustScore: 85,
         },
         timestamp: Date.now(),
       };
@@ -1293,12 +1433,6 @@ const mockHandlers: MockHandler[] = [
           avatarUrl: undefined,
           roles: ['BUYER'],
           status: 'ACTIVE',
-          trustScore: 85,
-          trustTier: 'Gold',
-          appealCount: 0,
-          productPostingSuspended: false,
-          lockReason: undefined,
-          lockedUntil: undefined,
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: '2024-01-15T12:00:00Z',
         },
@@ -1321,10 +1455,6 @@ const mockHandlers: MockHandler[] = [
           avatarUrl: body.avatarUrl,
           roles: ['BUYER'],
           status: 'ACTIVE',
-          trustScore: 85,
-          trustTier: 'Gold',
-          appealCount: 0,
-          productPostingSuspended: false,
           createdAt: '2024-01-01T00:00:00Z',
           updatedAt: new Date().toISOString(),
         },
@@ -1390,148 +1520,116 @@ const mockHandlers: MockHandler[] = [
       return { success: true, data: null, timestamp: Date.now() };
     }
 
-    // GET /users/me/trust-score/logs
-    const trustScoreMatch = url?.match(/^\/users\/me\/trust-score\/logs/);
-    if (trustScoreMatch && method === 'get') {
-      await sleep(300 + Math.random() * 100);
-      const logs = [
-        { logId: 3, eventCode: 'ORDER_COMPLETED', delta: 2, scoreAfter: 85, changedBy: 'SYSTEM', reason: 'Hoàn thành đơn hàng', createdAt: '2024-01-20T10:00:00Z' },
-        { logId: 2, eventCode: 'ORDER_COMPLETED', delta: 2, scoreAfter: 83, changedBy: 'SYSTEM', reason: 'Hoàn thành đơn hàng', createdAt: '2024-01-15T14:00:00Z' },
-        { logId: 1, eventCode: 'ACCOUNT_CREATED', delta: 80, scoreAfter: 81, changedBy: 'SYSTEM', reason: 'Tạo tài khoản', createdAt: '2024-01-01T00:00:00Z' },
-      ];
-      return {
-        success: true,
-        data: { content: logs, totalElements: logs.length, totalPages: 1, last: true },
-        timestamp: Date.now(),
-      };
-    }
-
-    // GET /loyalty/balance
-    if (url === '/loyalty/balance' && method === 'get') {
-      await sleep(300 + Math.random() * 100);
-      return {
-        success: true,
-        data: {
-          userId: 1,
-          loyaltyAccountId: 1,
-          availablePoints: 2500,
-          pendingPoints: 200,
-          expiredPoints: 50,
-          totalEarned: 5000,
-          totalUsed: 2450,
-          conversionRate: 100,
-          note: '100 điểm = 1.000đ',
-          maxUsablePerOrder: 50000,
-          maxUsablePercentage: 20,
-          expiryPolicy: {
-            expiryDays: 365,
-            nextExpiryDate: '2025-01-01T00:00:00Z',
-            pointsExpiringSoon: 50,
-          },
-          tierBenefits: {
-            tier: 'GOLD',
-            trustScore: 85,
-            earningRate: '1.5%/đơn',
-            maxDiscountRate: '10%/đơn',
-          },
-          recentTransactions: [
-            { transactionId: 5, type: 'EARN', delta: 300, status: 'COMPLETED', orderId: 4, orderCode: 'PO-20240123-0004', createdAt: '2024-01-23T11:05:00Z', expiresAt: '2025-01-01T00:00:00Z' },
-            { transactionId: 4, type: 'REDEEM', delta: -1000, status: 'COMPLETED', orderId: 3, orderCode: 'PO-20240122-0003', balanceAfter: 2300, createdAt: '2024-01-22T16:50:00Z' },
-            { transactionId: 3, type: 'EARN', delta: 500, status: 'COMPLETED', orderId: 2, orderCode: 'PO-20240120-0002', createdAt: '2024-01-20T09:20:00Z', expiresAt: '2025-01-01T00:00:00Z' },
-          ],
-        },
-        timestamp: Date.now(),
-      };
-    }
-
-    // GET /loyalty/transactions
-    const loyaltyTxMatch = url?.match(/^\/loyalty\/transactions/);
-    if (loyaltyTxMatch && method === 'get') {
-      await sleep(300 + Math.random() * 100);
-      const txs = [
-        { transactionId: 5, type: 'EARN', delta: 300, status: 'COMPLETED', orderId: 4, orderCode: 'PO-20240123-0004', balanceAfter: 2500, createdAt: '2024-01-23T11:05:00Z', expiresAt: '2025-01-01T00:00:00Z' },
-        { transactionId: 4, type: 'REDEEM', delta: -1000, status: 'COMPLETED', orderId: 3, orderCode: 'PO-20240122-0003', balanceAfter: 2300, createdAt: '2024-01-22T16:50:00Z' },
-        { transactionId: 3, type: 'EARN', delta: 500, status: 'COMPLETED', orderId: 2, orderCode: 'PO-20240120-0002', balanceAfter: 3300, createdAt: '2024-01-20T09:20:00Z', expiresAt: '2025-01-01T00:00:00Z' },
-        { transactionId: 2, type: 'EARN', delta: 200, status: 'PENDING', orderId: 1, orderCode: 'PO-20240115-0001', balanceAfter: 2800, createdAt: '2024-01-15T10:35:00Z' },
-        { transactionId: 1, type: 'EARN', delta: 80, status: 'COMPLETED', orderId: undefined, orderCode: undefined, balanceAfter: 2600, note: 'Tạo tài khoản', createdAt: '2024-01-01T00:00:00Z' },
-      ];
-      const page = params?.page ?? 0;
-      const size = params?.size ?? 20;
-      const start = page * size;
-      return {
-        success: true,
-        data: { content: txs.slice(start, start + size), totalElements: txs.length, totalPages: Math.ceil(txs.length / size), last: true },
-        timestamp: Date.now(),
-      };
-    }
-
-    // GET /loyalty/estimate
-    const loyaltyEstMatch = url?.match(/^\/loyalty\/estimate/);
-    if (loyaltyEstMatch && method === 'get') {
-      await sleep(200 + Math.random() * 100);
-      const orderAmount = params?.orderAmount ?? 100000;
-      return {
-        success: true,
-        data: {
-          orderAmount,
-          pointsToEarn: Math.floor(orderAmount / 100000 * 1.5),
-          pointsToEarnFormula: 'Số tiền × 1.5%',
-          availablePoints: 2500,
-          maxPointsUsable: Math.min(2500, Math.floor(orderAmount * 0.2 / 1000) * 1000),
-          maxPointsUsableFormula: 'min(số dư, 20% giá trị đơn)',
-          conversionRate: 100,
-          pointsRequested: undefined,
-          discountIfUse50: 5000,
-          capPercent: 20,
-        },
-        timestamp: Date.now(),
-      };
-    }
-
-    // GET /support/trust-score-appeal/presigned-url
-    const appealPresignedMatch = url?.match(/^\/support\/trust-score-appeal\/presigned-url/);
-    if (appealPresignedMatch && method === 'get') {
-      await sleep(200 + Math.random() * 100);
-      const objectKey = `appeal-evidence/appeal_${Date.now()}.jpg`;
-      return {
-        success: true,
-        data: {
-          presignedUrl: `https://minio.internal/${objectKey}`,
-          objectUrl: `https://cdn.flashsale.com/${objectKey}`,
-          expiresIn: 300,
-        },
-        timestamp: Date.now(),
-      };
-    }
-
-    // GET /support/trust-score-appeal
-    if (url === '/support/trust-score-appeal' && method === 'get') {
-      await sleep(300 + Math.random() * 100);
-      return { success: true, data: [], timestamp: Date.now() };
-    }
-
-    // POST /support/trust-score-appeal
-    if (url === '/support/trust-score-appeal' && method === 'post') {
-      await sleep(500 + Math.random() * 200);
-      const body = JSON.parse(data || '{}');
-      return {
-        success: true,
-        data: {
-          appealId: Date.now(),
-          logId: body.logId,
-          status: 'PENDING',
-          reason: body.reason,
-          evidenceUrls: body.evidenceUrls ?? [],
-          createdAt: new Date().toISOString(),
-        },
-        timestamp: Date.now(),
-      };
-    }
-
     // POST /users/me/roles/seller
     if (url === '/users/me/roles/seller' && method === 'post') {
       await sleep(500 + Math.random() * 200);
       return { success: true, data: null, timestamp: Date.now() };
+    }
+
+    return null;
+  },
+
+  // ─── Flash Sales ────────────────────────────────────────────────────────────
+  async ({ method, url, params, data }) => {
+    // GET /flash-sales — list sessions (public)
+    if (url === '/flash-sales' && method === 'get') {
+      await sleep(300 + Math.random() * 200);
+      const status = params?.status;
+      const filtered = status
+        ? MOCK_FLASH_SESSIONS.filter(s => s.status === status)
+        : MOCK_FLASH_SESSIONS;
+      return {
+        success: true,
+        data: { serverTime: Date.now(), sessions: filtered },
+        timestamp: Date.now(),
+      };
+    }
+
+    // GET /flash-sales/{sessionId} — session detail with items
+    const sessionDetailMatch = url?.match(/^\/flash-sales\/(\d+)$/);
+    if (sessionDetailMatch && method === 'get') {
+      await sleep(300 + Math.random() * 100);
+      const sessionId = parseInt(sessionDetailMatch[1]);
+      const session = MOCK_FLASH_SESSIONS.find(s => s.sessionId === sessionId);
+      if (!session) throw { response: { status: 404, data: { message: 'Session not found' } } };
+      const items = MOCK_FLASH_ITEMS.filter(i => i.sessionId === sessionId);
+      return {
+        success: true,
+        data: { session, items },
+        timestamp: Date.now(),
+      };
+    }
+
+    // POST /flash-sales — create session (admin)
+    if (url === '/flash-sales' && method === 'post') {
+      await sleep(400 + Math.random() * 200);
+      const body = JSON.parse(data || '{}');
+      const newSession = {
+        sessionId: Date.now(),
+        name: body.name,
+        status: 'UPCOMING',
+        startTime: body.startTime,
+        endTime: body.endTime,
+        secondsRemaining: Math.floor((new Date(body.endTime).getTime() - new Date(body.startTime).getTime()) / 1000),
+        isEnded: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      MOCK_FLASH_SESSIONS.push(newSession);
+      return { success: true, data: newSession, timestamp: Date.now() };
+    }
+
+    // PUT /flash-sales/{sessionId} — update session (admin)
+    const updateSessionMatch = url?.match(/^\/flash-sales\/(\d+)$/);
+    if (updateSessionMatch && method === 'put') {
+      await sleep(400 + Math.random() * 200);
+      const sessionId = parseInt(updateSessionMatch[1]);
+      const body = JSON.parse(data || '{}');
+      const session = MOCK_FLASH_SESSIONS.find(s => s.sessionId === sessionId);
+      if (!session) throw { response: { status: 404, data: { message: 'Session not found' } } };
+      if (body.name) session.name = body.name;
+      if (body.startTime) session.startTime = body.startTime;
+      if (body.endTime) session.endTime = body.endTime;
+      session.updatedAt = new Date().toISOString();
+      return { success: true, data: session, timestamp: Date.now() };
+    }
+
+    // DELETE /flash-sales/{sessionId} — delete session (admin)
+    if (updateSessionMatch && method === 'delete') {
+      await sleep(300 + Math.random() * 100);
+      const sessionId = parseInt(updateSessionMatch[1]);
+      const idx = MOCK_FLASH_SESSIONS.findIndex(s => s.sessionId === sessionId);
+      if (idx === -1) throw { response: { status: 404, data: { message: 'Session not found' } } };
+      MOCK_FLASH_SESSIONS.splice(idx, 1);
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+
+    // POST /flash-sales/{sessionId}/buy — buy flash sale item
+    const buyMatch = url?.match(/^\/flash-sales\/(\d+)\/buy$/);
+    if (buyMatch && method === 'post') {
+      await sleep(500 + Math.random() * 300);
+      const sessionId = parseInt(buyMatch[1]);
+      const body = JSON.parse(data || '{}');
+      const item = MOCK_FLASH_ITEMS.find(i => i.id === body.fsItemId && i.sessionId === sessionId);
+      if (!item) throw { response: { status: 404, data: { message: 'Item not found' } } };
+      if (item.status === 'SOLD_OUT') throw { response: { status: 400, data: { message: 'Sản phẩm đã hết hàng' } } };
+      const qty = body.quantity || 1;
+      if (qty > (item.flashStock - item.soldQty)) throw { response: { status: 400, data: { message: 'Không đủ số lượng' } } };
+      item.soldQty += qty;
+      if (item.soldQty >= item.flashStock) item.status = 'SOLD_OUT';
+      return {
+        success: true,
+        data: {
+          sessionId,
+          fsItemId: body.fsItemId,
+          skuCode: item.skuCode,
+          flashPrice: item.flashPrice,
+          quantity: qty,
+          totalAmount: item.flashPrice * qty,
+          purchasedAt: new Date().toISOString(),
+        },
+        timestamp: Date.now(),
+      };
     }
 
     return null;
@@ -1599,6 +1697,105 @@ const mockHandlers: MockHandler[] = [
         data: { refundId: refundId, status: 'REJECTED' },
         timestamp: Date.now(),
       };
+    }
+
+    // ─── Categories ─────────────────────────────────────────────────────────
+    if (url === '/categories' && method === 'get') {
+      await sleep(200);
+      return { success: true, data: MOCK_CATEGORIES, timestamp: Date.now() };
+    }
+    if (url === '/admin/categories' && method === 'post') {
+      await sleep(300);
+      const body = JSON.parse(data || '{}');
+      const newCategory = {
+        id: 'cat_' + Date.now(),
+        name: body.name,
+        slug: body.slug || body.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        description: body.description,
+        parentId: body.parentId || null,
+        productCount: 0,
+      };
+      MOCK_CATEGORIES.push(newCategory);
+      return { success: true, data: newCategory, timestamp: Date.now() };
+    }
+    const editCategoryMatch = url?.match(/^\/admin\/categories\/(.+)$/);
+    if (editCategoryMatch && method === 'put') {
+      await sleep(300);
+      const categoryId = editCategoryMatch[1];
+      const body = JSON.parse(data || '{}');
+      const category = MOCK_CATEGORIES.find(c => c.id === categoryId);
+      if (category) {
+        category.name = body.name;
+        category.slug = body.slug || body.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        category.description = body.description;
+        category.parentId = body.parentId || null;
+      }
+      return { success: true, data: category, timestamp: Date.now() };
+    }
+    if (editCategoryMatch && method === 'delete') {
+      await sleep(300);
+      const categoryId = editCategoryMatch[1];
+      const index = MOCK_CATEGORIES.findIndex(c => c.id === categoryId);
+      if (index !== -1) {
+        MOCK_CATEGORIES.splice(index, 1);
+      }
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+
+    // ─── Notifications ────────────────────────────────────────────────────────
+    if (url === '/notifications' && method === 'get') {
+      await sleep(200);
+      return MOCK_NOTIFICATIONS;
+    }
+    const readNotificationMatch = url?.match(/^\/notifications\/(.+)\/read$/);
+    if (readNotificationMatch && method === 'patch') {
+      const notifId = readNotificationMatch[1];
+      const notif = MOCK_NOTIFICATIONS.find(n => n.id === notifId);
+      if (notif) {
+        notif.read = true;
+      }
+      return notif;
+    }
+    if (url === '/notifications/read-all' && method === 'patch') {
+      MOCK_NOTIFICATIONS.forEach(n => n.read = true);
+      return { success: true, updated_count: MOCK_NOTIFICATIONS.length, user_id: 1 };
+    }
+    if (url === '/notifications/unread-count' && method === 'get') {
+      const unreadCount = MOCK_NOTIFICATIONS.filter(n => !n.read).length;
+      return { user_id: 1, unread_count: unreadCount };
+    }
+
+    // ─── AI Chat ─────────────────────────────────────────────────────────────
+    if (url === '/ai/sessions' && method === 'post') {
+      await sleep(300);
+      const newSession = {
+        id: 'sess_' + Date.now(),
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+      };
+      MOCK_CHAT_SESSIONS.push(newSession);
+      return { success: true, data: newSession, message: 'Session created', timestamp: Date.now() };
+    }
+    const closeSessionMatch = url?.match(/^\/ai\/sessions\/(.+)$/);
+    if (closeSessionMatch && method === 'delete') {
+      await sleep(300);
+      const sessId = closeSessionMatch[1];
+      const session = MOCK_CHAT_SESSIONS.find(s => s.id === sessId);
+      if (session) {
+        session.status = 'CLOSED';
+      }
+      return { success: true, data: null, message: 'Session closed', timestamp: Date.now() };
+    }
+    if (url === '/ai/chat/history' && method === 'get') {
+      await sleep(200);
+      return { success: true, data: MOCK_CHAT_HISTORY, timestamp: Date.now() };
+    }
+    if (url === '/ai/suggest' && method === 'get') {
+      return { success: true, data: MOCK_CHAT_SUGGESTIONS, timestamp: Date.now() };
+    }
+    if (url === '/ai/confirm' && method === 'post') {
+      await sleep(500);
+      return { success: true, data: null, message: 'Action confirmed', timestamp: Date.now() };
     }
 
     return null;

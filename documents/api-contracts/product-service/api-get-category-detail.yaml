@@ -1,0 +1,132 @@
+openapi: "3.0.3"
+info:
+  title: Product Service - Category Detail API
+  description: |
+    Lấy chi tiết một danh mục bao gồm danh mục con (cây phân cấp tự tham chiếu)
+    và breadcrumb dẫn về root.
+    Base URL: `/api/v1`
+    Service: product-service (Port 8090)
+  version: "5.4.0"
+
+servers:
+  - url: https://api.marketplace.vn/api/v1
+    description: Production
+  - url: http://localhost:8090/api/v1
+    description: Local development
+
+paths:
+  /categories/{categoryId}:
+    get:
+      operationId: getCategoryDetail
+      summary: Lấy chi tiết một danh mục
+      description: |
+        Trả về thông tin một danh mục, danh sách danh mục con trực tiếp,
+        và breadcrumb path từ root đến danh mục hiện tại.
+        Endpoint công khai, không yêu cầu xác thực.
+        Liên quan: UC-PRODUCT-002, FR-PRODUCT-002.
+      tags: [Categories]
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID danh mục
+      responses:
+        "200":
+          description: Chi tiết danh mục
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryDetailResponse"
+        "404":
+          description: Không tìm thấy danh mục
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    CategoryDetailResponse:
+      type: object
+      required: [id, name, slug, is_active, children, breadcrumb]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "8f1a2b3c-4d5e-6f70-8901-234567890abc"
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: NULL nếu là root
+          example: null
+        name:
+          type: string
+          maxLength: 255
+          example: "Áo Thun Nam"
+        slug:
+          type: string
+          maxLength: 255
+          example: "ao-thun-nam"
+        description:
+          type: string
+          nullable: true
+          example: "Tất cả áo thun dành cho nam giới"
+        image_url:
+          type: string
+          nullable: true
+          format: uri
+        sort_order:
+          type: integer
+          example: 0
+        is_active:
+          type: boolean
+          example: true
+        product_count:
+          type: integer
+          description: Số sản phẩm `active` thuộc danh mục này (cache 5 phút)
+          example: 142
+        children:
+          type: array
+          description: Danh mục con trực tiếp (1 level)
+          items:
+            $ref: "#/components/schemas/CategoryNode"
+        breadcrumb:
+          type: array
+          description: Đường dẫn từ root → danh mục hiện tại
+          items:
+            $ref: "#/components/schemas/CategoryNode"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CategoryNode:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        sort_order:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        message:
+          type: string

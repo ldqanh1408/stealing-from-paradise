@@ -90,6 +90,7 @@ $ServiceMap = @{
     "search"           = "search-service"
     "notification"     = "notification-service"
     "worker"           = "worker-service"
+    "chat"             = "chat-service"
     "postgres"         = "postgres"
     "mongo"            = "mongo"
     "redis"            = "redis"
@@ -115,7 +116,8 @@ $BackendServices = @(
     "product-service",
     "search-service",
     "notification-service",
-    "worker-service"
+    "worker-service",
+    "chat-service"
 )
 
 # Infrastructure services
@@ -144,6 +146,7 @@ $ServiceInfraDeps = @{
     "search-service"     = @("elasticsearch", "kafka")
     "notification-service" = @("mongo", "redis", "kafka")
     "worker-service"     = @("postgres", "kafka", "axonserver")
+    "chat-service"       = @("mongo", "kafka")
 }
 
 # ============================================================
@@ -479,6 +482,7 @@ function Invoke-MvnBuild {
         "search"        = "search-service"
         "notification"  = "notification-service"
         "worker"        = "worker-service"
+        "chat"          = "chat-service"
         "common-lib"    = "common-lib"
         "dev-data-runner" = "dev-data-runner"
     }
@@ -1122,7 +1126,7 @@ function Show-Logs {
         Write-Host "[flashsale-build] Streaming logs from backend containers..."
         Invoke-DockerCompose @("logs", "-f", "--", "discovery-service", "api-gateway", "identity-service",
             "payment-service", "order-service", "flashsale-service", "product-service",
-            "search-service", "notification-service", "worker-service")
+            "search-service", "notification-service", "worker-service", "chat-service")
         return
     }
 
@@ -1216,6 +1220,7 @@ function Invoke-SvcBuild {
         "search"        = "search-service"
         "notification"  = "notification-service"
         "worker"        = "worker-service"
+        "chat"          = "chat-service"
     }
 
     $backendDir = $serviceDirMap[$Service.ToLower()]
@@ -1317,7 +1322,7 @@ function Invoke-Restart {
         Write-Host "[flashsale-build] Restarting backend services..."
         Invoke-DockerCompose @("restart", "discovery-service", "api-gateway", "identity-service",
             "payment-service", "order-service", "flashsale-service", "product-service",
-            "search-service", "notification-service", "worker-service")
+            "search-service", "notification-service", "worker-service", "chat-service")
         return
     }
 
@@ -1370,7 +1375,7 @@ function Invoke-Reset {
         Write-Host "[flashsale-build] Resetting backend services (rebuild + restart)..."
         $beServices = @("discovery-service", "api-gateway", "identity-service",
             "payment-service", "order-service", "flashsale-service", "product-service",
-            "search-service", "notification-service", "worker-service")
+            "search-service", "notification-service", "worker-service", "chat-service")
         Invoke-DockerCompose (@("rm", "-s", "-f", "--") + $beServices)
         Invoke-DockerCompose (@("up", "-d", "--build", "--force-recreate") + $beServices)
         return
