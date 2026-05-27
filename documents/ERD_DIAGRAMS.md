@@ -242,7 +242,7 @@ erDiagram
 ```
 
 > **Constraint:** UNIQUE(session_id, product_id) on FS_ITEMS prevents duplicate registration.
-> **Redis alongside:** `flash_sale:stock:{fs_item_id}` (atomic counter), `flash_sale:triggers` (ZSET).
+> **Redis alongside:** `flash_sale:triggers` (ZSET), session state management.
 > **Cross-service:** `FS_ITEMS.id` ← ORDER_ITEMS.fs_item_id (nullable soft-ref).
 
 ---

@@ -183,7 +183,7 @@ paths:
       operationId: restock
       summary: Add stock (seller)
       description: |
-        Add quantity to variant stock. Emits `inventory.adjusted` Kafka event.
+        Add quantity to variant stock. Emits `variant.stock_updated` Kafka event.
         Re-activates variant if it was out_of_stock.
       tags: [Inventory]
       security:
@@ -380,6 +380,10 @@ components:
         reason:
           type: string
           example: "Hang bi hong trong kho"
+        version:
+          type: integer
+          nullable: true
+          description: Optional. Current variant version for optimistic locking. If provided and mismatched, returns 409 CONFLICT.
 
     StockResponse:
       type: object

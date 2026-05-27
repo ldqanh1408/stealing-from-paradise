@@ -7,7 +7,7 @@ info:
     `order.stock_check.request` — dùng khi checkout đồng bộ.
     Base URL: `/api/v1`
     Service: product-service (Port 8090)
-  version: "5.4.0"
+  version: "6.0.0"
 
 servers:
   - url: https://api.marketplace.vn/api/v1
@@ -98,7 +98,6 @@ paths:
       description: |
         Dùng khi buyer rời khỏi checkout hoặc payment.failed.
         Idempotent — gọi lần thứ 2 trả 200 không thay đổi.
-        Emit `stock.reservation.released`.
       tags: [Inventory, StockReservation]
       security:
         - BearerAuth: []

@@ -52,22 +52,34 @@
 | **Priority** | HIGH |
 | **Actor** | Seller (JWT SELLER role) |
 | **Endpoint** | `POST /products` |
-| **Description** | Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Emits `product.created` Kafka event. |
+| **Description** | Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Product starts in `draft` status. No Kafka event emitted at creation — indexing is deferred until `product.activated`. |
 | **Acceptance Criteria** | AC1: Name 5-200 chars. AC2: Description max 10000 chars. AC3: category_id must be leaf. AC4: Images 1-10 URLs, JPEG/PNG/WebP. AC5: Returns 201 with product_id. |
 | **Related** | ENTITY-PRODUCT-002, UC-PRODUCT-003, BR-PRODUCT-002, BR-PRODUCT-006 |
 
 ---
 
-## FR-PRODUCT-005: List/Search Products
+## FR-PRODUCT-005: List Products (DEPRECATED)
 
 | Attribute | Value |
 |-----------|-------|
-| **Priority** | HIGH |
+| **Priority** | N/A |
 | **Actor** | Public |
-| **Endpoint** | `GET /products` |
-| **Description** | List products with filtering by category, status, seller; sorting by price, created_at; pagination. Only `active` and `out_of_stock` products visible publicly; `inactive` excluded. |
-| **Acceptance Criteria** | AC1: Supports pagination. AC2: Supports category filter. AC3: Inactive products excluded from public results. |
-| **Related** | ENTITY-PRODUCT-002, UC-PRODUCT-001 |
+| **Endpoint** | ~~`GET /products`~~ |
+| **Status** | **DEPRECATED** - Moved to Search Service |
+| **Description** | ~~List products with filtering by category, status, seller; sorting by price, created_at; pagination. Only `active` and `out_of_stock` products visible publicly; `inactive` excluded.~~ |
+| **Acceptance Criteria** | ~~AC1: Supports pagination. AC2: Supports category filter. AC3: Inactive products excluded from public results.~~ |
+| **Related** | ~~ENTITY-PRODUCT-002, UC-PRODUCT-001~~, **UC-SEARCH-001** |
+
+### Deprecation Notice
+
+> **FR-PRODUCT-005 has been deprecated and replaced by FR-SEARCH-001 (UC-SEARCH-001).**
+
+Product listing, filtering, and search functionality has been moved to **Search Service** for a unified browsing and search experience.
+
+| Before | After |
+|--------|-------|
+| `GET /products` | `GET /search/products` |
+| `GET /products?category_id=X` | `GET /search/products?category_id=X` |
 
 ---
 
@@ -143,7 +155,7 @@
 | **Priority** | HIGH |
 | **Actor** | Seller (JWT SELLER role, owner) |
 | **Endpoint** | `PUT /variants/{id}/stock`, `POST /seller/inventory/adjust`, `PUT /inventory/{skuCode}/restock` |
-| **Description** | Update variant stock quantity. Uses optimistic locking (version column). Emits `variant.stock_updated` or `inventory.adjusted` Kafka event. Triggers variant and product status recomputation. |
+| **Description** | Update variant stock quantity. Uses optimistic locking (version column). Emits `variant.stock_updated` Kafka event. Triggers variant and product status recomputation. Triggers variant and product status recomputation. |
 | **Acceptance Criteria** | AC1: Stock never negative. AC2: Optimistic lock prevents lost updates. AC3: Variant status auto-changes to out_of_stock when stock=0, active when stock>0. |
 | **Related** | ENTITY-PRODUCT-003, UC-PRODUCT-006, BR-PRODUCT-005 |
 

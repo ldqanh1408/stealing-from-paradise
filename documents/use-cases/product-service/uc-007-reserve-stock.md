@@ -28,52 +28,65 @@
 4. IF any unavailable: Order Service rejects checkout
 ```
 
-### Phase 2: Reserve Stock (On order.created Event)
+### Phase 2: Reserve Stock (On order.checkout_submitted Event)
 ```
-1. Order Service emits order.created event after creating order
+1. Order Service emits order.checkout_submitted event after creating order
+   Payload includes:
+   - session_id: unique checkout session ID
+   - customer_id: buyer's user ID
+   - items: [{ variantId, quantity, skuCode, priceSnapshot, sellerId, ... }]
 
-2. Product Service creates stock_reservation:
-   INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
-   VALUES (:vid, :sid, :qty, 'pending', NOW() + INTERVAL '15 minutes')
+2. Product Service: DB Transaction with Pessimistic Lock for each variant:
+   a) SELECT ... FOR UPDATE on product_variant (acquires row lock)
 
-3. Redis Layer 1: DECRBY stock:{variant_id} {quantity}
+   b) IF stock_quantity < requested quantity:
+      ROLLBACK lock, return error "out of stock"
 
-4. DB Layer 2: UPDATE product_variant
-   SET stock_quantity = stock_quantity - :qty,
-       version = version + 1,
-       status = CASE WHEN stock_quantity - :qty = 0 THEN 'out_of_stock' ELSE status END
-   WHERE id = :vid
-     AND stock_quantity >= :qty
-     AND version = :currentVersion
+   c) INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
+      VALUES (:vid, :sid, :qty, 'pending', NOW() + INTERVAL '15 minutes')
 
-5. IF rows_affected = 0:
-   - Rollback: Redis INCR, return error
-   - Trả loi "Het hang"
+   d) UPDATE product_variant
+      SET stock_quantity = stock_quantity - :qty,
+          status = CASE WHEN stock_quantity - :qty = 0 THEN 'out_of_stock' ELSE status END
+      WHERE id = :vid
 
-6. Product status recomputed in same transaction
+3. Product status recomputed in same transaction
 
-7. Returns success -> Order Service proceeds to payment
+4. Returns success -> Order Service proceeds to payment
 ```
 
 ### Phase 3: Confirm or Release
 
 ```
-Payment Succeeds (payment.success event):
+Payment Succeeds (order.paid event with session_id + customer_id):
   UPDATE stock_reservation SET status = 'confirmed'
   WHERE session_id = :sid
   -- Stock already deducted, no further action
+  -- HARD DELETE cart_items WHERE (customer_id, variant_id) IN (...)
+     via: CartItemRepository.deleteAllByCustomerIdAndVariantIds(userId, variantIds)
 
-Payment Fails (payment.failed event):
+Payment Fails (order.payment_failed event with session_id + customer_id):
   UPDATE stock_reservation SET status = 'released'
   WHERE session_id = :sid
-  -- Redis INCR stock:{variant_id} {quantity}
-  -- DB: UPDATE product_variant SET stock_quantity = stock_quantity + qty
+  -- DB: UPDATE product_variant SET stock_quantity += qty (pessimistic lock via SELECT FOR UPDATE)
 
 Cleanup Job (runs every 1-5 min):
   SELECT * FROM stock_reservation
   WHERE status = 'pending' AND expires_at < NOW()
-  -- For each: release (set released, INCR Redis, restore DB stock)
+  -- For each: release (set released, restore DB stock via pessimistic lock)
 ```
+
+---
+
+## Cart Item Deletion Flow
+
+When `order.paid` or `order.payment_failed` is received:
+1. Extract `session_id` and `customer_id` (userId) from event payload
+2. Find all `stock_reservation` records matching `session_id`
+3. For each reservation: extract `variant_id`
+4. Hard-delete: `DELETE FROM cart_items WHERE customer_id = :cid AND variant_id IN (:variantIds)`
+
+No `cart_item_id` stored in `stock_reservation`. Composite key `(customer_id, variant_id)` used instead.
 
 ---
 
@@ -81,9 +94,8 @@ Cleanup Job (runs every 1-5 min):
 
 | Scenario | Response |
 |----------|----------|
-| Insufficient stock | Stock check returns available=false |
-| Concurrent reservation | Optimistic lock fails -> retry |
-| Expired reservation | Cleanup job auto-releases |
+| Insufficient stock | Pessimistic lock acquired, stock check fails -> 422 Insufficient stock |
+| Concurrent reservation | Pessimistic lock serializes requests (second request waits for first to complete) |
 
 ---
 
@@ -93,7 +105,7 @@ Cleanup Job (runs every 1-5 min):
 |--------|-------------|
 | FR-PRODUCT-014 | Reserve stock during checkout |
 | FR-PRODUCT-015 | Release expired reservations |
+| BR-PRODUCT-005 | Pessimistic locking for concurrent reservations |
 | BR-PRODUCT-007 | Reservation expiry (15 min TTL) |
-| BR-PRODUCT-008 | Optimistic lock for concurrent reservations |
 | ENTITY-PRODUCT-005 | STOCK_RESERVATION |
 | state-stock-reservation.md | pending -> confirmed / released |

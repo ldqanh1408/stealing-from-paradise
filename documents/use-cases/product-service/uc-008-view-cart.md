@@ -19,7 +19,7 @@
    - IF no cart exists: returns empty cart (no auto-create)
    - Cart auto-created on first POST /cart/items
 
-3. System fetches all cart_items for the cart
+3. System fetches all cart_items for the customer
 
 4. For each cart_item, system performs lazy evaluation:
 
@@ -34,7 +34,7 @@
         IF == 0: flag out_of_stock
         IF < quantity: flag insufficient_stock
 
-5. System groups items by seller_id (from product.seller_id)
+5. System groups items by seller_id
 
 6. System calculates:
    - subtotal per seller
@@ -49,35 +49,28 @@
 ## Response Structure
 ```json
 {
-  "cart_id": "uuid",
-  "user_id": 42,
-  "sellers": [
+  "customerId": 42,
+  "items": [
     {
-      "seller_id": 5,
-      "items": [
-        {
-          "cart_item_id": 201,
-          "sku_code": "NK-AIR-RED-XL",
-          "product_id": "uuid",
-          "product_name": "Ao Thun Nike Air",
-          "variant_name": "Do / XL",
-          "unit_price": 350000,
-          "quantity": 2,
-          "is_flash": false,
-          "subtotal": 700000,
-          "warnings": {
-            "price_changed": false,
-            "out_of_stock": false,
-            "unavailable": false
-          },
-          "added_at": "2026-04-14T15:30:00Z"
-        }
-      ],
-      "subtotal": 700000
+      "variantId": "uuid",
+      "skuCode": "NK-AIR-RED-XL",
+      "variantName": "Do / XL",
+      "priceSnapshot": 350000,
+      "currentPrice": 350000,
+      "priceChanged": false,
+      "quantity": 2,
+      "variantImageSnapshot": "...",
+      "subtotal": 700000,
+      "outOfStock": false,
+      "unavailable": false,
+      "insufficientStock": false,
+      "sellerId": 5
     }
   ],
-  "total_items": 3,
-  "total": 1200000
+  "totalItems": 3,
+  "subtotal": 1200000,
+  "hasPriceChanges": false,
+  "groupedBySeller": { "5": [...] }
 }
 ```
 

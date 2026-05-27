@@ -15,6 +15,7 @@ public class CheckoutRequest {
 
     @NotEmpty(message = "item_ids không được rỗng")
     @Size(min = 1, max = 50, message = "item_ids phải từ 1 đến 50 phần tử")
-    private List<String> itemIds;  // Cart item IDs (MongoDB String ObjectId)
+    private List<String> itemIds;
 
+    private String previewToken;
 }

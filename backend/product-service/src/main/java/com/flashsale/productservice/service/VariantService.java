@@ -1,23 +1,31 @@
 package com.flashsale.productservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
-import com.flashsale.productservice.domain.model.Inventory;
-import com.flashsale.productservice.domain.model.Product;
-import com.flashsale.productservice.domain.model.ProductVariant;
-import com.flashsale.productservice.domain.repository.InventoryRepository;
-import com.flashsale.productservice.domain.repository.ProductRepository;
-import com.flashsale.productservice.domain.repository.ProductVariantRepository;
-import com.flashsale.productservice.dto.request.CreateVariantRequest;
-import com.flashsale.productservice.dto.request.UpdateVariantRequest;
-import com.flashsale.productservice.dto.response.VariantResponse;
+import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.productservice.dto.variant.CreateVariantRequest;
+import com.flashsale.productservice.dto.variant.UpdateVariantRequest;
+import com.flashsale.productservice.dto.variant.VariantResponse;
+import com.flashsale.productservice.entity.Product;
+import com.flashsale.productservice.entity.ProductVariant;
+import com.flashsale.productservice.entity.VariantStatus;
+import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.productservice.repository.ProductRepository;
+import com.flashsale.productservice.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,90 +34,227 @@ public class VariantService {
 
     private final ProductVariantRepository variantRepository;
     private final ProductRepository productRepository;
-    private final InventoryRepository inventoryRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
+    private final com.flashsale.productservice.service.InventoryService inventoryService;
 
-    public List<VariantResponse> listVariants(String productId, Long sellerId) {
-        validateProductOwnership(productId, sellerId);
-
-        // Batch-load inventory by productId (1 query instead of N)
-        Map<String, Integer> stockBySku = inventoryRepository.findByProductId(productId).stream()
-                .collect(HashMap::new, (m, inv) -> m.put(inv.getSkuCode(), inv.getStockAvailable()), HashMap::putAll);
-
-        return variantRepository.findByProductId(productId)
-                .stream().map(v -> VariantResponse.from(v, stockBySku.getOrDefault(v.getSkuCode(), 0)))
-                .toList();
+    @Transactional(readOnly = true)
+    public ApiResponse<List<VariantResponse>> getVariantsByProduct(UUID productId) {
+        List<ProductVariant> variants = variantRepository.findByProductIdAndDeletedAtIsNull(productId);
+        List<VariantResponse> responses = variants.stream()
+                .map(this::toVariantResponse)
+                .collect(Collectors.toList());
+        return ApiResponse.success(responses);
     }
 
-    public VariantResponse createVariant(String productId, Long sellerId, CreateVariantRequest req) {
-        validateProductOwnership(productId, sellerId);
+    @Transactional
+    public ApiResponse<VariantResponse> createVariant(UUID productId, CreateVariantRequest request, UserDetailsImpl user) {
+        Product product = productRepository.findById(productId)
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
 
-        if (variantRepository.existsBySkuCode(req.getSkuCode())) {
-            throw new AppException(ErrorCode.ALREADY_EXISTS, "SKU code đã tồn tại: " + req.getSkuCode());
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to add variants to this product");
         }
+
+        if (variantRepository.findByVariantCode(request.getVariantCode()).isPresent()) {
+            throw new AppException(ErrorCode.ALREADY_EXISTS, "Variant code already exists");
+        }
+
+        VariantStatus initialStatus = request.getStockQuantity() != null && request.getStockQuantity() > 0
+                ? VariantStatus.ACTIVE
+                : VariantStatus.OUT_OF_STOCK;
 
         ProductVariant variant = ProductVariant.builder()
                 .productId(productId)
-                .skuCode(req.getSkuCode())
-                .tierName(req.getTierName())
-                .price(req.getPrice())
+                .variantCode(request.getVariantCode())
+                .variantName(request.getVariantName() != null ? request.getVariantName() : request.getVariantCode())
+                .variantAttributes(serializeAttributes(request.getVariantAttributes()))
+                .price(request.getPrice())
+                .originalPrice(request.getOriginalPrice())
+                .stockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0)
+                .status(initialStatus)
+                .imageUrl(request.getImageUrl())
                 .build();
 
         variant = variantRepository.save(variant);
 
-        // Auto-create inventory entry with zero stock
-        if (!inventoryRepository.existsBySkuCode(req.getSkuCode())) {
-            Inventory inventory = Inventory.builder()
-                    .skuCode(req.getSkuCode())
-                    .productId(productId)
-                    .stockTotal(0)
-                    .stockLocked(0)
-                    .stockAvailable(0)
-                    .stockFlashReserved(0)
-                    .build();
-            inventoryRepository.save(inventory);
+        inventoryService.initializeVariantRedisStock(variant.getId(), variant.getStockQuantity());
+
+        emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", productId),
+                        Map.entry("price", variant.getPrice()),
+                        Map.entry("originalPrice", variant.getOriginalPrice() != null ? variant.getOriginalPrice() : ""),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
+        emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("variantId", variant.getId()),
+                        Map.entry("productId", productId),
+                        Map.entry("stockQuantity", variant.getStockQuantity()),
+                        Map.entry("status", variant.getStatus().name()),
+                        Map.entry("stockStatus", getStockStatus(variant.getStatus())),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
+
+        return ApiResponse.success(toVariantResponse(variant));
+    }
+
+    @Transactional
+    public ApiResponse<VariantResponse> updateVariant(UUID variantId, UpdateVariantRequest request, UserDetailsImpl user) {
+        ProductVariant variant = variantRepository.findById(variantId)
+                .filter(v -> v.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
+
+        Product product = productRepository.findById(variant.getProductId())
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
+
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to update this variant");
         }
 
-        return VariantResponse.from(variant, 0);
+        if (request.getVersion() != null && !variant.getVersion().equals(request.getVersion())) {
+            throw new AppException(ErrorCode.OPTIMISTIC_LOCK, "Variant was modified by another request. Please refresh and retry.");
+        }
+
+        if (request.getVariantName() != null) {
+            variant.setVariantName(request.getVariantName());
+        }
+        if (request.getVariantAttributes() != null) {
+            variant.setVariantAttributes(serializeAttributes(request.getVariantAttributes()));
+        }
+        if (request.getPrice() != null) {
+            variant.setPrice(request.getPrice());
+            emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
+                    Map.ofEntries(
+                            Map.entry("variantId", variant.getId()),
+                            Map.entry("productId", variant.getProductId()),
+                            Map.entry("price", request.getPrice()),
+                            Map.entry("originalPrice", variant.getOriginalPrice() != null ? variant.getOriginalPrice() : ""),
+                            Map.entry("timestamp", LocalDateTime.now().toString())
+                    ));
+        }
+        if (request.getOriginalPrice() != null) {
+            variant.setOriginalPrice(request.getOriginalPrice());
+        }
+        if (request.getStockQuantity() != null) {
+            variant.setStockQuantity(request.getStockQuantity());
+            updateVariantStatus(variant);
+            emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
+                    Map.ofEntries(
+                            Map.entry("variantId", variant.getId()),
+                            Map.entry("productId", variant.getProductId()),
+                            Map.entry("stockQuantity", request.getStockQuantity()),
+                            Map.entry("status", variant.getStatus().name()),
+                            Map.entry("stockStatus", getStockStatus(variant.getStatus())),
+                            Map.entry("timestamp", LocalDateTime.now().toString())
+                    ));
+            inventoryService.updateVariantRedisStock(variant.getId(), request.getStockQuantity());
+            inventoryService.recomputeProductStatus(variant.getProductId());
+        }
+        if (request.getStatus() != null) {
+            variant.setStatus(VariantStatus.valueOf(request.getStatus().toUpperCase()));
+        }
+        if (request.getImageUrl() != null) {
+            variant.setImageUrl(request.getImageUrl());
+        }
+
+        variant = variantRepository.saveAndFlush(variant);
+
+        return ApiResponse.success(toVariantResponse(variant));
     }
 
-    public VariantResponse updateVariant(String variantId, Long sellerId, UpdateVariantRequest req) {
+    @Transactional
+    public ApiResponse<Void> deleteVariant(UUID variantId, UserDetailsImpl user) {
         ProductVariant variant = variantRepository.findById(variantId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant không tồn tại"));
+                .filter(v -> v.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
-        // Verify seller owns the parent product
-        validateProductOwnership(variant.getProductId(), sellerId);
-
-        if (req.getTierName() != null) variant.setTierName(req.getTierName());
-        if (req.getPrice() != null)    variant.setPrice(req.getPrice());
-
-        Integer stock = inventoryRepository.findBySkuCode(variant.getSkuCode())
-                .map(Inventory::getStockAvailable).orElse(0);
-        return VariantResponse.from(variantRepository.save(variant), stock);
-    }
-
-    public void deleteVariant(String variantId, Long sellerId) {
-        ProductVariant variant = variantRepository.findById(variantId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant không tồn tại"));
-
-        validateProductOwnership(variant.getProductId(), sellerId);
-
-        // Block deletion if inventory has locked stock
-        inventoryRepository.findBySkuCode(variant.getSkuCode()).ifPresent(inv -> {
-            if (inv.getStockLocked() != null && inv.getStockLocked() > 0) {
-                throw new AppException(ErrorCode.ALREADY_EXISTS,
-                        "Variant đang có stock_locked > 0, không thể xóa");
-            }
-        });
-
-        variantRepository.deleteById(variantId);
-    }
-
-    // ─── helpers ──────────────────────────────────────────────────────────────
-
-    private Product validateProductOwnership(String productId, Long sellerId) {
-        return productRepository.findByIdAndSellerId(productId, sellerId)
+        Product product = productRepository.findById(variant.getProductId())
                 .filter(p -> p.getDeletedAt() == null)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
-                        "Sản phẩm không tồn tại hoặc không thuộc seller"));
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
+
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to delete this variant");
+        }
+
+        variant.setDeletedAt(LocalDateTime.now());
+        variantRepository.save(variant);
+
+        return ApiResponse.success(null);
+    }
+
+    private void updateVariantStatus(ProductVariant variant) {
+        if (variant.getStatus() == VariantStatus.INACTIVE) {
+            return;
+        }
+        if (variant.getStockQuantity() == null || variant.getStockQuantity() <= 0) {
+            variant.setStatus(VariantStatus.OUT_OF_STOCK);
+        } else {
+            variant.setStatus(VariantStatus.ACTIVE);
+        }
+    }
+
+    private String getStockStatus(VariantStatus status) {
+        if (status == null) {
+            return "unknown";
+        }
+        return switch (status) {
+            case ACTIVE -> "in_stock";
+            case OUT_OF_STOCK -> "out_of_stock";
+            case INACTIVE -> "unavailable";
+        };
+    }
+
+    private VariantResponse toVariantResponse(ProductVariant variant) {
+        return VariantResponse.builder()
+                .id(variant.getId())
+                .productId(variant.getProductId())
+                .variantCode(variant.getVariantCode())
+                .variantName(variant.getVariantName())
+                .variantAttributes(deserializeAttributes(variant.getVariantAttributes()))
+                .price(variant.getPrice())
+                .originalPrice(variant.getOriginalPrice())
+                .stockQuantity(variant.getStockQuantity())
+                .status(variant.getStatus().name())
+                .imageUrl(variant.getImageUrl())
+                .version(variant.getVersion())
+                .createdAt(variant.getCreatedAt())
+                .updatedAt(variant.getUpdatedAt())
+                .build();
+    }
+
+    private String serializeAttributes(Map<String, Object> attributes) {
+        if (attributes == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(attributes);
+        } catch (JsonProcessingException e) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Invalid attributes format");
+        }
+    }
+
+    private Map<String, Object> deserializeAttributes(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, Map.class);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    private void emitEvent(String topic, String key, Map<String, Object> payload) {
+        try {
+            String value = objectMapper.writeValueAsString(payload);
+            kafkaTemplate.send(topic, key, value);
+        } catch (Exception e) {
+            log.error("Failed to emit Kafka event: topic={}, key={}", topic, key, e);
+        }
     }
 }

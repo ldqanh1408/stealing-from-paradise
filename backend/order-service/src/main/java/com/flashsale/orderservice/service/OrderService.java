@@ -1,14 +1,10 @@
 package com.flashsale.orderservice.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.dto.PageResponse;
-import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.flashsale.orderservice.axon.event.*;
-import com.flashsale.orderservice.client.dto.AddressInfo;
 import com.flashsale.orderservice.client.dto.CartItemInfo;
 import com.flashsale.orderservice.domain.model.Order;
 import com.flashsale.orderservice.domain.model.OrderItem;
@@ -26,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,7 +32,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,8 +42,6 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ParentOrderRepository parentOrderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final KafkaReplyService kafkaReplyService;
-    private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final EventGateway eventGateway;
     // Thời hạn giao hàng mặc định: 3 ngày
@@ -59,17 +51,21 @@ public class OrderService {
 
     @Transactional
     public CheckoutResponse checkout(Long userId, CheckoutRequest req) {
-        // 1. Validate địa chỉ giao hàng và lấy cart items song song (Kafka request-reply)
-        // Hai Kafka request này độc lập nên chạy song song để giảm latency từ 10s → 5s
-        CompletableFuture<AddressInfo> addressFuture = CompletableFuture.supplyAsync(
-                () -> fetchAddress(req.getAddressId(), userId));
-        CompletableFuture<List<CartItemInfo>> cartItemsFuture = CompletableFuture.supplyAsync(
-                () -> fetchCartItems(userId, req.getItemIds()));
-        CompletableFuture.allOf(addressFuture, cartItemsFuture).join();
+        // Order Service chỉ nhận order.checkout_submitted event từ Product Service
+        // Endpoint này không còn dùng trực tiếp nữa
+        throw new UnsupportedOperationException(
+                "Vui lòng sử dụng Product Service endpoint POST /v1/checkout/submit để thực hiện checkout");
+    }
 
-        AddressInfo address = addressFuture.join();
-        List<CartItemInfo> cartItems = cartItemsFuture.join();
-        if (cartItems.isEmpty()) {
+    /**
+     * Tạo order từ event order.checkout_submitted.
+     * Được gọi bởi OrderCheckoutConsumer khi nhận event từ Product Service.
+     */
+    @Transactional
+    public CheckoutResponse createOrderFromEvent(Long userId, List<CartItemInfo> cartItems,
+            Long addressId, String addressJson, String sessionId) {
+
+        if (cartItems == null || cartItems.isEmpty()) {
             throw new AppException(ErrorCode.VALIDATION_FAILED, "Không có item hợp lệ trong giỏ hàng");
         }
 
@@ -80,12 +76,12 @@ public class OrderService {
 
         BigDecimal finalAmt = totalAmt;
 
-        // 5. Group items by seller
+        // Group items by seller
         Map<Long, List<CartItemInfo>> itemsBySeller = cartItems.stream()
                 .collect(Collectors.groupingBy(CartItemInfo::getSellerId));
 
-        // 6. Build shipping address JSON
-        String shippingAddressJson = buildShippingAddressJson(address);
+        // Build shipping address JSON
+        String shippingAddressJson = addressJson != null ? addressJson : "{}";
 
         // 7. Tạo ParentOrder
         ParentOrder parentOrder = parentOrderRepository.save(ParentOrder.builder()
@@ -173,7 +169,8 @@ public class OrderService {
                 o.getSellerId(),
                 o.getOrderCode(),
                 o.getTotalAmt(),
-                Boolean.TRUE.equals(o.getIsFlashSale())
+                Boolean.TRUE.equals(o.getIsFlashSale()),
+                sessionId
         )));
 
         // 10. Emit parent-order event so Axon saga can orchestrate payment flow once per checkout
@@ -183,21 +180,16 @@ public class OrderService {
                 finalAmt
         ));
 
-        // 11. Publish order.checkout_completed → Cart Service xóa items (no Saga needed)
-        publishCheckoutCompleted(userId, req.getItemIds(), parentOrder.getId());
+        // 11. Cart items sẽ được xóa bởi Product Service sau khi checkout submit thành công
 
-        log.info("Checkout completed: parentOrderId={}, userId={}, totalAmt={}", parentOrder.getId(), userId, totalAmt);
+        log.info("Order created from event: parentOrderId={}, userId={}, totalAmt={}, sessionId={}",
+                parentOrder.getId(), userId, totalAmt, sessionId);
 
         return CheckoutResponse.builder()
                 .parentOrderId(parentOrder.getId())
                 .orders(subOrderResponses)
                 .totalAmount(totalAmt)
-                .shippingAddress(CheckoutResponse.ShippingAddressInfo.builder()
-                        .addressId(address.getAddressId())
-                        .fullAddress(address.getFullAddress())
-                        .provinceId(address.getProvinceId())
-                        .districtId(address.getDistrictId())
-                        .build())
+                .shippingAddress(null) // address đã được snapshot trong Order entity
                 .totalItems(cartItems.stream().mapToInt(CartItemInfo::getQuantity).sum())
                 .createdAt(parentOrder.getCreatedAt().toInstant(ZoneOffset.UTC))
                 .build();
@@ -514,75 +506,7 @@ public class OrderService {
                 .build();
     }
 
-    // ─── Kafka Producers (internal only) ──────────────────────────────────────
-
-    /** order.checkout_completed → cart-service removes purchased items. */
-    private void publishCheckoutCompleted(Long userId, List<String> itemIds, Long parentOrderId) {
-        Map<String, Object> event = Map.of(
-                "user_id", userId,
-                "item_ids", itemIds,
-                "parent_order_id", parentOrderId,
-                "timestamp", Instant.now().toString()
-        );
-        kafkaTemplate.send(KafkaTopics.ORDER_CHECKOUT_COMPLETED, String.valueOf(userId), toJson(event));
-    }
-
-    // ─── Kafka Request-Reply Helpers ──────────────────────────────────────────
-
-    private AddressInfo fetchAddress(Long addressId, Long userId) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("address_id", addressId);
-        request.put("user_id", userId);
-
-        Map<String, Object> response = kafkaReplyService.sendAndReceive(
-                KafkaTopics.ORDER_ADDRESS_REQUEST, request);
-
-        if (Boolean.TRUE.equals(response.get("error"))) {
-            throw new AppException(ErrorCode.NOT_FOUND, "Địa chỉ không tồn tại hoặc không thuộc về bạn");
-        }
-        return objectMapper.convertValue(response, AddressInfo.class);
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<CartItemInfo> fetchCartItems(Long userId, List<String> itemIds) {
-        Map<String, Object> request = new HashMap<>();
-        request.put("user_id", userId);
-        request.put("item_ids", itemIds);
-
-        Map<String, Object> response = kafkaReplyService.sendAndReceive(
-                KafkaTopics.ORDER_CART_ITEMS_REQUEST, request);
-
-        if (Boolean.TRUE.equals(response.get("error"))) {
-            throw new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy cart items");
-        }
-        Object items = response.get("items");
-        return objectMapper.convertValue(items, new TypeReference<List<CartItemInfo>>() {});
-    }
-
-    private String toJson(Object payload) {
-        try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize Kafka payload: {}", e.getMessage());
-            return "{}";
-        }
-    }
-
     // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    private String buildShippingAddressJson(AddressInfo address) {
-        try {
-            Map<String, Object> addr = Map.of(
-                    "full_address", address.getFullAddress(),
-                    "province_id", address.getProvinceId(),
-                    "district_id", address.getDistrictId()
-            );
-            return objectMapper.writeValueAsString(addr);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize shipping address", e);
-            return "{}";
-        }
-    }
 
     @SuppressWarnings("unchecked")
     private OrderDetailResponse.ShippingAddressInfo parseShippingAddress(String json) {

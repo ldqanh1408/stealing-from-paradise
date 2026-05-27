@@ -147,8 +147,8 @@ paths:
     get:
       summary: Get Active Sessions from Redis Cache
       description: |
-        Returns ACTIVE sessions from Redis cache.
-        Optimized for high-concurrency reads (50k+ req/s).
+        Returns ACTIVE sessions.
+        Optimized for high-concurrency reads.
         Lower latency than PostgreSQL query.
       operationId: getActiveFlashSales
       tags:

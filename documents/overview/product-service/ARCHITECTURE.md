@@ -3,7 +3,7 @@
 > Service: product-service (SVC-007, Port 8090)
 > Database: PostgreSQL
 > Source: `documents` micro-docs
-> Generated: 2026-05-10
+> Generated: 2026-05-10 | Updated: 2026-05-25 (`inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event; updated header date)
 
 ---
 
@@ -19,9 +19,9 @@ Product catalog management, variant/price/stock management, category management,
 ## Key Features
 - Seller product CRUD with variant matrix (color, size, etc.)
 - Category management by admin
-- SKU-first inventory with stock quantity tracking
+- SKU-first inventory with stock quantity tracking via PostgreSQL with pessimistic locking for reservations
 - Cart with lazy price/stock validation on view
-- Stock reservation via Redis DECR + DB optimistic locking (version field)
+- Stock reservation via DB pessimistic locking (SELECT ... FOR UPDATE)
 - Product image upload via MinIO presigned URLs
 - Flash sale price sync (activate/deactivate)
 - Checkout preview with TTL token
@@ -39,18 +39,19 @@ Product catalog management, variant/price/stock management, category management,
 | stock_reservations | Pending stock holds during checkout (15min TTL) |
 
 ## Product Lifecycle
+
 ```
-active → out_of_stock (all variants stock=0)
-active → inactive (seller unpublishes)
-out_of_stock → active (restock)
-inactive → active (seller republishes)
+draft → pending → approved → active ↔ out_of_stock
+                      ↓               ↓
+                  rejected      inactive
 ```
+
+> Products are visible on the marketplace only when in `active` or `out_of_stock` state. The Search Service indexes products only when they transition from `approved` to `active` (via `product.activated` event).
 
 ## API Endpoints
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/v1/products` | Public | Browse catalog with filters |
 | GET | `/v1/products/{id}` | Public | Product detail with variants |
 | POST | `/v1/products` | SELLER | Create product |
 | PUT | `/v1/products/{id}` | SELLER | Update product |
@@ -63,14 +64,20 @@ inactive → active (seller republishes)
 | DELETE | `/v1/cart/items/{id}` | BUYER | Remove from cart |
 | GET | `/v1/inventory` | SELLER | View inventory |
 
+> **Note:** Product listing and filtering has been moved to **Search Service** (`GET /search/products`).
+
 ## Kafka Integration
 
 | Direction | Topic | Purpose |
 |-----------|-------|---------|
-| Produce | `product.created/updated/deleted` | Index in Search Service |
-| Produce | `variant.price_updated` | Update search index |
+| Produce | `product.activated` | Index product in Search Service (sole indexing trigger: `approved → active`) |
+| Produce | `product.deactivated` | Remove/hide product from Search Service (`active/out_of_stock → inactive`) |
+| Produce | `product.updated` | Update product fields in Search Service (name, description, attributes, images) |
+| Produce | `product.deleted` | Remove product from Search Service |
+| Produce | `product.pending_review` | Notify admins of pending review |
+| Produce | `product.approved` | Notify seller — product approved |
+| Produce | `product.rejected` | Notify seller with rejection reason |
 | Produce | `variant.stock_updated` | Update search index |
-| Produce | `cart.item_added` | Analytics |
 | Produce | `flash_sale.price_sync` | Activate/deactivate flash prices in search |
 | Consume | `order.created` | Lock stock |
 | Consume | `order.cancelled` | Release stock |

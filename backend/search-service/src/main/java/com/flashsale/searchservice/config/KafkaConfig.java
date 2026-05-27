@@ -2,11 +2,10 @@ package com.flashsale.searchservice.config;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
-import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -16,19 +15,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-@EnableKafka
 public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${spring.kafka.consumer.group-id}")
-    private String groupId;
+    @Value("${search.kafka.product-group:search-service-product-group}")
+    private String productGroupId;
 
-    // ─── Consumer ─────────────────────────────────────────────────────────────
+    @Value("${search.kafka.flashsale-group:search-service-flashsale-group}")
+    private String flashSaleGroupId;
 
-    @Bean
-    public ConsumerFactory<String, String> consumerFactory() {
+    private ConsumerFactory<String, String> buildConsumerFactory(String groupId) {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -41,11 +39,34 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+    public ConsumerFactory<String, String> productConsumerFactory() {
+        return buildConsumerFactory(productGroupId);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+            @Qualifier("productConsumerFactory") ConsumerFactory<String, String> productConsumerFactory) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
+        factory.setConsumerFactory(productConsumerFactory);
         factory.setConcurrency(3);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.BATCH);
+        factory.setMissingTopicsFatal(false);
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, String> flashSaleConsumerFactory() {
+        return buildConsumerFactory(flashSaleGroupId);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> flashSaleKafkaListenerContainerFactory(
+            @Qualifier("flashSaleConsumerFactory") ConsumerFactory<String, String> flashSaleConsumerFactory) {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(flashSaleConsumerFactory);
+        factory.setConcurrency(1);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.BATCH);
         factory.setMissingTopicsFatal(false);
         return factory;

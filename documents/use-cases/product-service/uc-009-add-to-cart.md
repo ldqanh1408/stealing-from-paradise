@@ -6,7 +6,7 @@
 | **Actor** | Customer (JWT required) |
 | **Priority** | HIGH |
 | **Precondition** | Customer authenticated; variant exists and is active with stock > 0 |
-| **Postcondition** | Cart item created or quantity incremented; Kafka event emitted |
+| **Postcondition** | Cart item created or quantity incremented |
 
 ---
 
@@ -20,41 +20,32 @@
    Body: { sku_code: "NK-AIR-RED-XL", quantity: 2, fs_item_id: null }
 ```
 
-### From Buy Now ("Mua ngay")
-```
-1. Same as above, but frontend routes to Checkout Preview after adding
-```
-
 ### Server Processing
 ```
 4. System validates:
    a. sku_code exists and variant is active -> 422 if not
-   b. stock_quantity >= requested quantity -> 422 if insufficient
-   c. quantity > 0 and <= 1000 -> 422 if invalid
-   d. fs_item_id (if provided): must be valid flash sale item -> 422 if not
+   b. quantity > 0 and <= 1000 -> 422 if invalid
+   c. fs_item_id (if provided): must be valid flash sale item -> 422 if not
 
 5. System looks up or creates cart:
    SELECT cart WHERE customer_id = :cid
    IF not found: INSERT cart (customer_id) -> lazy creation
 
 6. System checks if variant already in cart:
-   SELECT cart_item WHERE cart_id = :cartId AND variant_id = :vid
+   SELECT cart_item WHERE customer_id = :cid AND variant_id = :vid
 
    IF exists:
      UPDATE cart_item SET quantity = quantity + :newQty
    ELSE:
      INSERT cart_item (
-       cart_id, variant_id, quantity,
+       customer_id, variant_id, quantity,
        price_snapshot,        -- snapshot of product_variant.price
-       variant_name_snapshot, -- snapshot of product_variant.variant_name
-       variant_image_snapshot -- snapshot of product_variant.image_url
+       variant_name_snapshot,  -- snapshot of product_variant.variant_name
+       variant_image_snapshot,-- snapshot of product_variant.image_url
+       seller_id              -- from product.seller_id
      )
 
-7. System emits cart.item_added Kafka event:
-   Topic: cart.item_added
-   Payload: { user_id, sku_code, quantity, timestamp }
-
-8. Returns 200 with { cart_item_id, sku_code, product_name, quantity, unit_price, subtotal, message }
+7. Returns 200 with updated cart
 ```
 
 ---
@@ -80,7 +71,6 @@ On failure:
 |----------|----------|
 | SKU not found | 422 |
 | SKU inactive | 422 |
-| Insufficient stock | 422 "SKU het hang" |
 | quantity > 1000 | 422 |
 | fs_item_id invalid | 422 |
 | Flash sale per-user limit exceeded | 409 |

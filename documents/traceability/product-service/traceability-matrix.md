@@ -12,7 +12,7 @@
 |--------|-------|--------|
 | ENTITY-PRODUCT | 001-007 | Data models |
 | BR-PRODUCT | 001-013 | Business rules (incl. BR-009 admin review) |
-| FR-PRODUCT | 001-022 | Functional requirements (catalog + cart) |
+| FR-PRODUCT | 001-023 | Functional requirements (catalog + cart) |
 | FR-PRODUCT-UI | 001-009 | UI display rules |
 | UC-PRODUCT | 001-015 | Use cases (UC-012..015 = admin review) |
 
@@ -42,8 +42,9 @@
 | FR-PRODUCT-018 | Update cart item quantity | ENTITY-007 |
 | FR-PRODUCT-019 | Remove item from cart | ENTITY-007 |
 | FR-PRODUCT-020 | Clear entire cart | ENTITY-006 |
-| FR-PRODUCT-021 | Cart integrity at checkout | ENTITY-007 |
-| FR-PRODUCT-022 | Cart cleanup on events | ENTITY-006, ENTITY-007 |
+| FR-PRODUCT-021 | Checkout preview | ENTITY-007, Redis |
+| FR-PRODUCT-022 | Checkout submit | ENTITY-005, ENTITY-007, Redis |
+| FR-PRODUCT-023 | Cart cleanup on events | ENTITY-006, ENTITY-007 |
 | FR-PRODUCT-UI-001 | Product card (homepage/listing) | ENTITY-002, ENTITY-003, ENTITY-004 |
 | FR-PRODUCT-UI-002 | Product detail — image gallery | ENTITY-003, ENTITY-004 |
 | FR-PRODUCT-UI-003 | Product detail — price display | ENTITY-002, ENTITY-003 |
@@ -81,7 +82,8 @@
 | FR-PRODUCT-019 | -- |
 | FR-PRODUCT-020 | -- |
 | FR-PRODUCT-021 | BR-011, BR-012 |
-| FR-PRODUCT-022 | -- |
+| FR-PRODUCT-022 | BR-007, BR-008 |
+| FR-PRODUCT-023 | -- |
 | FR-PRODUCT-UI-001 | -- |
 | FR-PRODUCT-UI-002 | -- |
 | FR-PRODUCT-UI-003 | -- |
@@ -133,7 +135,7 @@
 |---------------|--------|--------------------------|
 | state-product.md | ENTITY-002 | UC-003, UC-006, UC-012, UC-013, UC-014, UC-015, BR-003, BR-009 |
 | state-stock-reservation.md | ENTITY-005 | UC-007, BR-007, BR-008 |
-| state-cart.md | ENTITY-006 | UC-008, UC-009, FR-022 |
+| state-cart.md | ENTITY-006 | UC-008, UC-009, FR-023 |
 
 ---
 

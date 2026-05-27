@@ -10,7 +10,7 @@ Service: platform
 | SVC-003 | identity-service | 8081 | PostgreSQL | JPA | Auth, JWT, users, addresses |
 | SVC-004 | payment-service | 8082 | PostgreSQL + Axon | CQRS/ES | Stripe Connect, multi-vendor splits |
 | SVC-005 | order-service | 8083 | PostgreSQL + Axon | CQRS/ES + Saga | Checkout, order lifecycle, RTS |
-| SVC-006 | flashsale-service | 8085 | PostgreSQL + Axon + Redis | CQRS/ES | Flash sale sessions, Redis Lua atomic buy |
+| SVC-006 | flashsale-service | 8085 | PostgreSQL | CQRS/ES | Flash sale sessions, price promotion |
 | SVC-007 | product-service | 8090 | PostgreSQL | Traditional | Catalog, variants, cart, images (MinIO) |
 | SVC-008 | search-service | 8091 | Elasticsearch | Traditional | Full-text search, VN text analysis |
 | SVC-009 | notification-service | 8092 | MongoDB | Traditional | SSE real-time notifications |
@@ -23,7 +23,7 @@ Service: platform
 |-----------|------|---------|---------|
 | PostgreSQL | 5432 | identity, payment, order, flashsale, product, refund | Primary relational store |
 | MongoDB | 27017 | notification, ai-chat | Document store |
-| Redis | 6379 | flashsale, identity, api-gateway | Session cache, Lua atomic ops, JWT blocklist |
+| Redis | 6379 | identity, api-gateway | Session cache, JWT blocklist |
 | Elasticsearch | 9200 | search | Full-text product index |
 | MinIO | 9000/9001 | product | Object storage (product images) |
 | Kafka | 9092 | all services | Async event streaming (58 Kafka topics: 44 event + 14 request-reply) |
@@ -50,7 +50,7 @@ Service: platform
 ### Key Features
 
 - Multi-vendor marketplace with 3 roles (Customer, Seller, Admin)
-- Flash sales with Redis Lua scripts for 50k+ req/s concurrency
+- Flash sales with price promotion and session scheduling
 - Stripe Connect for multi-vendor payments with automatic transfers
 - Real-time SSE notifications
 - Full-text search with Elasticsearch (Vietnamese text analysis)

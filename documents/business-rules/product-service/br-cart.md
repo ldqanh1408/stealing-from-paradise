@@ -10,18 +10,17 @@
 
 | Rule | Detail |
 |------|--------|
-| Uniqueness | Unique index on `customer_id` in `mg_carts` collection |
+| Uniqueness | PK = `customer_id` in `carts` table — exactly one cart per customer |
 | Lazy creation | Cart is created on first `POST /cart/items` call |
-| Status | Currently always `active` |
-| Cart clearing | `DELETE /cart` removes all items and resets the cart |
+| Cart never deleted | Cart record persists; only items are removed |
 
 ---
 
-## BR-PRODUCT-011: Cart Item Uniqueness (Per Variant)
+## BR-PRODUCT-011: Cart Item Uniqueness (Per Customer Per Variant)
 
 | Rule | Detail |
 |------|--------|
-| Constraint | Unique compound index on `{ cart_id, variant_id }` in `mg_cart_items` collection |
+| Constraint | Composite PK on `{ customer_id, variant_id }` in `cart_items` table |
 | UPSERT behavior | If variant already in cart, `POST /cart/items` increments quantity instead of creating duplicate |
 | Quantity cap | quantity > 0 and <= 1000 per API validation |
 
@@ -35,6 +34,7 @@
 | Rule | Detail |
 |------|--------|
 | Snapshot at add time | `price_snapshot` = `product_variant.price` at the moment of `POST /cart/items` |
+| Auto-sync on update | On `PUT /cart/items/{variantId}`, variant's current price/name/image is re-snapshotted if changed |
 | Lazy comparison | On `GET /cart`, compare `price_snapshot` to current `product_variant.price` |
 | Price change flag | If different, return `price_changed` flag with old and new values |
 | Checkout gate | At Checkout Preview, ANY price mismatch results in 409 Conflict -- cart must be refreshed first |
@@ -51,9 +51,8 @@
 | Maximum quantity | 1000 per item |
 | Minimum quantity | 1; setting to 0 is invalid (use DELETE to remove) |
 | Stock check on add | Soft check: `stock_quantity` must be >= requested quantity |
-| Stock check on update | `PUT /cart/items/{id}` validates `quantity <= stock_available` |
+| Stock check on update | `PUT /cart/items/{variantId}` validates `quantity <= stock_available` and `variant.status = 'active'` |
 | Insufficient stock | Returns 422 |
-| Low stock warning | When `stock_quantity <= 5`, UI shows "Con X san pham" warning |
 
 ---
 
@@ -65,6 +64,18 @@
 | Out of stock | `stock_quantity == 0` | `out_of_stock` | Dim item, disable checkbox |
 | Unavailable | `status != 'active'` | `unavailable` | Dim item, disable checkbox |
 | Insufficient | `stock < quantity` | `insufficient_stock` | Cap displayed qty, show warning |
+
+---
+
+## Hard Delete Strategy (No Soft Delete)
+
+Cart items are **hard-deleted** (not soft-deleted with `deleted_at`) for the following events:
+
+| Event | Action |
+|-------|--------|
+| Customer removes item | `DELETE /cart/items/{variantId}` — hard delete by `(customer_id, variant_id)` |
+| Customer clears cart | `DELETE /cart` — hard delete all items for customer |
+| Checkout succeeded | `order.paid` event → hard delete cart items by `(customer_id, variant_id)` |
 
 ---
 

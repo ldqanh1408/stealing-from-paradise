@@ -11,6 +11,7 @@ public enum ErrorCode {
     NOT_FOUND("RES_001",       "Không tìm thấy tài nguyên",          404),
     ALREADY_EXISTS("RES_002",  "Tài nguyên đã tồn tại",              409),
     OPTIMISTIC_LOCK("RES_003", "Xung đột dữ liệu, thử lại",         409),
+    CONFLICT("RES_004",         "Xung đột dữ liệu",                   409),
     // Business
     INSUFFICIENT_STOCK("BIZ_001",     "Không đủ hàng",                 400),
     ORDER_NOT_CANCELLABLE("BIZ_002",  "Đơn hàng không thể hủy",        400),
@@ -18,6 +19,7 @@ public enum ErrorCode {
     FLASH_SALE_ENDED("BIZ_004",      "Flash Sale đã kết thúc",         410),
     LIMIT_PER_USER_EXCEEDED("BIZ_005","Vượt giới hạn mua mỗi người",   400),
     // Validation / System
+    BAD_REQUEST("VAL_000", "Yêu cầu không hợp lệ",                       400),
     VALIDATION_FAILED("VAL_001",   "Dữ liệu không hợp lệ",           400),
     RATE_LIMIT_EXCEEDED("VAL_002", "Quá nhiều yêu cầu",               429),
     INTERNAL_ERROR("SYS_001",     "Lỗi hệ thống",                    500);

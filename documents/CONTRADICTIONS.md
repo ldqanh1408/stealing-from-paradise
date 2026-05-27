@@ -92,12 +92,8 @@
 ### 4.1 Renamed Events
 | Old Name | New/Current |
 |----------|-------------|
-| `flash_sale.item_sold` | `flash_sale.item_purchased` |
+| `flash_sale.item_sold` | `flash_sale.item_purchased` (DELETED 2026-05-23) |
 
-### 4.2 Obsolete Events (should not exist anymore)
-- ~~`product.pending_review` — no admin review workflow in DB~~ → **2026-05-10 v3: re-activated** (admin review workflow đưa lại MVP; P3-11 APPROVED & applied to `database-entities.md`)
-- `flash_sale.item_approved` — no item approval in DB
-- `flash_sale.item_rejected` — no item rejection in DB
 
 ### 4.3 Missing Consumers
 - flashsale KAFKA_EVENTS.md: Missing Product Service as consumer of `flash_sale.session_started`

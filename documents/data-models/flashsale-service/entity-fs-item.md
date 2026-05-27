@@ -65,36 +65,11 @@ erDiagram
 
 ---
 
-## Business Rule: Dynamic Price Calculation (BR-FLASHSALE-008)
-
-```
-flash_price is NOT stored in FS_ITEMS.
-It is calculated dynamically at purchase time:
-
-    flash_price = sku.price * (1 - discount_applied / 100)
-
-Example:
-    sku.price = 250,000 VND
-    discount_applied = 20.00
-    flash_price = 250,000 * 0.8 = 200,000 VND
-```
-
----
-
-## Registration Model
-
-- **Auto-Approval**: Seller registers -> record created immediately. No PENDING/APPROVED/REJECTED status.
-- **Registration Window**: Allowed only when `NOW() < registration_deadline` (BR-FLASHSALE-002).
-- **One product per session**: Enforced by UNIQUE(session_id, product_id).
-
----
-
 ## Cross-References
 
 | Reference | Description |
 |-----------|-------------|
 | BR-FLASHSALE-002 | Registration deadline window |
-| BR-FLASHSALE-008 | Dynamic flash price formula |
 | ENTITY-FLASHSALE-001 | Parent FS_SESSIONS table |
 | UC-FLASHSALE-002 | Seller registers product |
 | UC-FLASHSALE-005 | Customer purchases flash item |

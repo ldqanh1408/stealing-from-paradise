@@ -1,9 +1,11 @@
-# BR-PRODUCT-001 through BR-PRODUCT-009: Catalog Business Rules
+﻿# BR-PRODUCT-001 through BR-PRODUCT-009: Catalog Business Rules
 
-> **Service**: product-service (Port 8090)
-> **Domain**: Catalog -- Categories, Products, Variants, Images, Stock, Admin Review
-> **Source**: 03_database_tables.md, product_service_ui_logic.md, 02_API_product_service.md
-> **Last Updated**: 2026-05-10 (v3 — added BR-PRODUCT-009 admin review workflow; P3-11 APPROVED & applied)
+| Attribute | Value |
+|-----------|-------|
+| **Service** | product-service (Port 8090) |
+| **Domain** | Catalog -- Categories, Products, Variants, Images, Stock, Admin Review |
+| **Source** | 03_database_tables.md, product_service_ui_logic.md, 02_API_product_service.md |
+| **Last Updated** | 2026-05-25 (v5 -- pessimistic locking now guards ALL stock mutations: reserve, release, restore, restock; proactive optimistic version check added for seller inventory operations) |
 
 ---
 
@@ -50,7 +52,7 @@
 - All variants have stock = 0 -> `out_of_stock` (still visible)
 - Seller manually disabled -> `inactive`
 
-`draft / pending / approved / rejected` are NEVER auto-derived — they are set explicitly by submit / approve / reject actions (see BR-PRODUCT-009).
+`draft / pending / approved / rejected` are NEVER auto-derived -- they are set explicitly by submit / approve / reject actions (see BR-PRODUCT-009).
 
 ---
 
@@ -64,17 +66,21 @@
 
 ---
 
-## BR-PRODUCT-005: Stock Validation and Optimistic Locking
+## BR-PRODUCT-005: Stock Validation and Concurrent Locking
+
+> **Updated 2026-05-25 v5:** Two locking strategies based on operation type. Stock mutations (reserve, release, restore, restock) use pessimistic locking. Seller inventory updates (updateVariant, adjustStock) use proactive optimistic locking via the `version` field.
 
 | Rule | Detail |
 |------|--------|
 | Stock never negative | `stock_quantity` cannot go below 0; validated in application layer |
-| Optimistic lock | `version` field prevents lost updates on concurrent stock mutations; enforced at application layer |
-| Stock adjustment | `POST /seller/inventory/adjust` with `delta` (can be negative for deductions) |
-| Restock | `PUT /inventory/{skuCode}/restock` adds quantity with reason audit log |
+| Pessimistic lock (stock mutations) | `SELECT ... FOR UPDATE` on `product_variants` row for: `reserveStock`, `releaseReservation`, `restoreStockOnReturn`, `restock`. Ensures serial execution and prevents stock loss/gain during concurrent restores. |
+| Optimistic lock (seller updates) | `updateVariant` and `adjustStock` compare `request.version` against `variant.version` before update. If mismatch -> 409 CONFLICT. Client must refresh and retry. |
+| Version in response | `VariantResponse` includes `version` field so clients can track current version for optimistic locking |
+| Version optional | Clients may omit `version`; system still increments version on save (JPA auto), but no proactive conflict check is performed |
 
 **IF** `stock_quantity - requested < 0` **THEN** reject with 422 "Insufficient stock".
-**IF** optimistic lock check on `version` field fails **THEN** retry or return 409 "Concurrent modification detected".
+**IF** `request.version != variant.version` (when version provided) **THEN** reject with 409 "Variant was modified by another request. Please refresh and retry."
+**IF** pessimistic lock cannot be acquired **THEN** the request waits (serializes) until the lock is released.
 
 ---
 
@@ -96,7 +102,7 @@
 |------|--------|
 | TTL | `expires_at = NOW() + 15 minutes` |
 | Cleanup job | Runs every 1-5 minutes to release expired `pending` reservations |
-| Release action | `status = 'released'`, Redis `INCR`, DB stock restored |
+| Release action | `status = 'released'`, DB stock restored via pessimistic locking |
 
 **IF** `status = 'pending' AND expires_at < NOW()` **THEN** automatic release.
 
@@ -116,7 +122,7 @@
 
 ## BR-PRODUCT-009: Admin Product Review Workflow
 
-> **Status:** Re-activated 2026-05-10 v3. **P3-11 APPROVED & applied** — DB schema (status enum 7 values + `reject_reason` + `reviewed_at` + `reviewed_by` + `reject_count`) is live in `database-entities.md` §3.
+> **Status:** Re-activated 2026-05-10 v3. **P3-11 APPROVED & applied** -- DB schema (status enum 7 values + `reject_reason` + `reviewed_at` + `reviewed_by` + `reject_count`) is live in `database-entities.md` §3.
 
 ### Lifecycle
 
@@ -131,16 +137,16 @@ draft ──submit──▶ pending ──approve──▶ approved ──publis
 | # | Rule |
 |---|------|
 | 009.1 | New product creation lands in `draft`. Seller can edit freely (no review). |
-| 009.2 | `submitForReview` (`POST /seller/products/{id}/submit`) requires: at least 1 valid variant with stock > 0, ≥1 image, leaf category, name+description non-empty. Otherwise 422. Transitions `draft → pending`. |
-| 009.3 | While `pending`, the product is **locked** — seller cannot edit (force resubmit by admin reject). |
-| 009.4 | Only users with role=ADMIN may call `approve` / `reject` / list-pending endpoints. Non-admin → 403. |
+| 009.2 | `submitForReview` (`POST /seller/products/{id}/submit`) requires: at least 1 valid variant with stock > 0, >=1 image, leaf category, name+description non-empty. Otherwise 422. Transitions `draft -> pending`. |
+| 009.3 | While `pending`, the product is **locked** -- seller cannot edit (force resubmit by admin reject). |
+| 009.4 | Only users with role=ADMIN may call `approve` / `reject` / list-pending endpoints. Non-admin -> 403. |
 | 009.5 | `approve` (`POST /admin/products/{id}/approve`) sets status=`approved`, reviewed_at=NOW(), reviewed_by=admin_user_id, reject_reason=NULL. Emits `product.approved`. |
-| 009.6 | `reject` (`POST /admin/products/{id}/reject`) requires `reason` ≥10 chars (else 422). Sets status=`rejected`, reject_reason=reason, reviewed_at=NOW(), reviewed_by=admin_user_id. Emits `product.rejected`. |
-| 009.7 | Approved product is NOT live. Seller must call `publish` (BR-PRODUCT-003) to move `approved → active`. |
-| 009.8 | Resubmit loop: `rejected` product becomes editable again — saving any field transitions it back to `draft`. From there seller may submit again. **Limit: 3 rejections** per product. After the 3rd reject, seller is locked and must contact admin. |
-| 009.9 | Reject reason and reviewer metadata MUST be persisted to DB (`products.reject_reason`, `products.reviewed_at`, `products.reviewed_by`, `products.reject_count`) — required for audit, for displaying the rejection notice to the seller, and for enforcing the 3-strike limit (009.8). |
-| 009.10 | Search re-indexing fires when `approved → active` (Search Service consumer for `product.activated` triggers ES upsert) and when `active → inactive`/`out_of_stock` (de-index or visibility flag). Pre-publish states (`draft`/`pending`/`approved`/`rejected`) are NEVER indexed in shopper-facing search. |
-| 009.11 | Admin SLA: `pending` queue should be processed within 24h. Older items get an internal alert (out of scope for MVP — tracked via dashboard). |
+| 009.6 | `reject` (`POST /admin/products/{id}/reject`) requires `reason` >=10 chars (else 422). Sets status=`rejected`, reject_reason=reason, reviewed_at=NOW(), reviewed_by=admin_user_id. Emits `product.rejected`. |
+| 009.7 | Approved product is NOT live. Seller must call `publish` (BR-PRODUCT-003) to move `approved -> active`. |
+| 009.8 | Resubmit loop: `rejected` product becomes editable again -- saving any field transitions it back to `draft`. From there seller may submit again. **Limit: 3 rejections** per product. After the 3rd reject, seller is locked and must contact admin. |
+| 009.9 | Reject reason and reviewer metadata MUST be persisted to DB (`products.reject_reason`, `products.reviewed_at`, `products.reviewed_by`, `products.reject_count`) -- required for audit, for displaying the rejection notice to the seller, and for enforcing the 3-strike limit (009.8). |
+| 009.10 | Search re-indexing fires when `approved -> active` (Search Service consumer for `product.activated` triggers ES upsert) and when `active -> inactive`/`out_of_stock` (de-index or visibility flag). Pre-publish states (`draft`/`pending`/`approved`/`rejected`) are NEVER indexed in shopper-facing search. |
+| 009.11 | Admin SLA: `pending` queue should be processed within 24h. Older items get an internal alert (out of scope for MVP -- tracked via dashboard). |
 | 009.12 | Backfill: existing products in `active`/`out_of_stock`/`inactive` at the time P3-11 is applied are grandfathered as previously-approved (no `reviewed_by` set; `reviewed_at` optional). |
 
 ### Forbidden Transitions
@@ -167,7 +173,7 @@ draft ──submit──▶ pending ──approve──▶ approved ──publis
 
 ## Cross-References
 
-| Ref ID | Entity | 
+| Ref ID | Entity |
 |--------|--------|
 | ENTITY-PRODUCT-001 | CATEGORY |
 | ENTITY-PRODUCT-002 | PRODUCT |

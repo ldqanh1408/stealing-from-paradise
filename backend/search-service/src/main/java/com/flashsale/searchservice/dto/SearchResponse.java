@@ -1,6 +1,5 @@
 package com.flashsale.searchservice.dto;
 
-import com.flashsale.searchservice.domain.model.SearchProduct;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,8 +12,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SearchResponse {
-    private List<SearchProduct> content;
-    private long totalHits;
+    private int totalResults;
     private int page;
     private int size;
+    private int totalPages;
+    private List<ProductCard> products;
 }

@@ -144,7 +144,7 @@
 - [ ] Sets cancelled_by = BUYER, cancel_reason = provided reason
 - [ ] Returns 409 if order not in PENDING or PAID
 - [ ] Produces order.cancelled Kafka event
-- [ ] Triggers stock release via inventory.adjusted
+- [ ] Triggers stock release via `variant.stock_updated` (emitted by Product Service)
 
 **Related:** BR-ORDER-011
 **UC:** UC-ORDER-003
@@ -221,7 +221,7 @@
 - [ ] Only allowed when order.status = SHIPPING
 - [ ] Transitions to RETURNED
 - [ ] Produces `order.returned` Kafka event (consumed by Refund Service to create and auto-process a full refund)
-- [ ] Restores stock via `inventory.adjusted`
+- [ ] Restores stock via `variant.stock_updated` (emitted by Product Service)
 - [ ] Evidence images stored via MinIO
 
 **Related:** BR-ORDER-016, BR-ORDER-022

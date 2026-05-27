@@ -97,7 +97,7 @@ ENDED --> [*]
 | BR-FLASHSALE-002 | Registration deadline auto-calculation |
 | BR-FLASHSALE-003 | Discount range validation |
 | BR-FLASHSALE-004 | Status transition rules |
-| BR-FLASHSALE-007 | Soft delete rule |
+| BR-FLASHSALE-006 | Soft delete rule |
 | UC-FLASHSALE-001 | Admin creates session |
 | UC-FLASHSALE-003 | View sessions |
 | UC-FLASHSALE-006 | System ends session |

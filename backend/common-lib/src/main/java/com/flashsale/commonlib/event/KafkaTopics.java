@@ -7,14 +7,15 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     // Product  (Producer: Product Service / Identity Service)
     // ──────────────────────────────────────────────
-    public static final String PRODUCT_CREATED          = "product.created";
     public static final String PRODUCT_PENDING_REVIEW   = "product.pending_review";
     public static final String PRODUCT_APPROVED         = "product.approved";
+    public static final String PRODUCT_ACTIVATED        = "product.activated";
+    public static final String PRODUCT_DEACTIVATED      = "product.deactivated";
     public static final String PRODUCT_REJECTED         = "product.rejected";
     public static final String PRODUCT_UPDATED          = "product.updated";
     public static final String PRODUCT_DELETED          = "product.deleted";
-    public static final String PRODUCT_AUTO_HIDDEN      = "product.auto_hidden";
-    public static final String INVENTORY_ADJUSTED       = "inventory.adjusted";
+    public static final String VARIANT_PRICE_UPDATED    = "variant.price_updated";
+    public static final String VARIANT_STOCK_UPDATED    = "variant.stock_updated";
 
     // ──────────────────────────────────────────────
     // Order  (Producer: Order Service / Worker)
@@ -22,6 +23,7 @@ public final class KafkaTopics {
     public static final String ORDER_CREATED            = "order.created";
     public static final String ORDER_SHIPPED            = "order.shipped";
     public static final String ORDER_DELIVERED          = "order.delivered";
+    public static final String ORDER_RETURNED           = "order.returned";
     public static final String ORDER_RETURNED_RTS       = "order.returned";
     public static final String ORDER_CANCELLED          = "order.cancelled";
     public static final String ORDER_AUTO_CANCELLED     = "order.auto_cancelled";
@@ -66,15 +68,18 @@ public final class KafkaTopics {
     public static final String FLASH_SALE_ITEM_APPROVED   = "flash_sale.item_approved";
     public static final String FLASH_SALE_ITEM_REJECTED   = "flash_sale.item_rejected";
     public static final String FLASH_SALE_ITEM_SOLD       = "flash_sale.item_sold";
-    public static final String FLASH_SALE_ITEM_PURCHASED  = "flash_sale.item_purchased";
     public static final String FLASH_SALE_REMINDER        = "flash_sale.reminder";
+    public static final String FLASH_SALE_PRICE_SYNC      = "flash_sale.price_sync";
 
     // ──────────────────────────────────────────────
     // Stock Reservation (Producer: Product Service)
     // ──────────────────────────────────────────────
     public static final String STOCK_RESERVATION_EXPIRED   = "stock.reservation.expired";
-    public static final String STOCK_RESERVATION_CONFIRMED = "stock.reservation.confirmed";
-    public static final String STOCK_RESERVATION_RELEASED  = "stock.reservation.released";
+
+    // ──────────────────────────────────────────────
+    // Category (Producer: Product Service)
+    // ──────────────────────────────────────────────
+    public static final String CATEGORY_UPDATED          = "category.updated";
 
     // ──────────────────────────────────────────────
     // Order — additional events (Producer: Order Service)
@@ -94,6 +99,17 @@ public final class KafkaTopics {
     public static final String AI_CHAT_MESSAGE_SENT         = "ai_chat.message_sent";
     public static final String AI_CHAT_TOOL_CALL_EXECUTED   = "ai_chat.tool_call_executed";
     public static final String AI_CHAT_CONFIRMATION_RESOLVED = "ai_chat.confirmation_resolved";
+
+    // ──────────────────────────────────────────────
+    // Checkout (Producer: Product Service → Order Service)
+    // ──────────────────────────────────────────────
+    public static final String ORDER_CHECKOUT_SUBMITTED = "order.checkout_submitted"; // PS → OS: trigger order creation + saga
+
+    // ──────────────────────────────────────────────
+    // Payment → Product (Producer: Payment Service via Kafka)
+    // ──────────────────────────────────────────────
+    public static final String ORDER_PAID          = "order.paid";           // PS confirms reservation
+    public static final String ORDER_PAYMENT_FAILED = "order.payment_failed"; // PS releases reservation
 
     // ──────────────────────────────────────────────
     // Request-Reply (MVP — thay thế gRPC tạm thời)

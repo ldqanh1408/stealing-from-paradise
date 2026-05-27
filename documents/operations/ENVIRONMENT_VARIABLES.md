@@ -146,7 +146,7 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | `DB_HOST` | `postgres` | |
 | `POSTGRES_USER` | `flashsale` | |
 | `POSTGRES_PASSWORD` | (set securely) | |
-| `REDIS_HOST` | `redis` | Critical -- Lua atomic buy |
+| `REDIS_HOST` | `redis` | Session triggers and state management |
 | `KAFKA_SERVER` | `kafka:9092` | |
 | `AXON_SERVER` | `axonserver:8124` | |
 

@@ -319,8 +319,8 @@ paths:
     get:
       summary: Get Active Sessions (Redis)
       description: |
-        Returns currently ACTIVE sessions from Redis cache.
-        Optimized for high-concurrency reads (50k+ req/s).
+        Returns currently ACTIVE sessions.
+        Optimized for high-concurrency reads.
       operationId: getActiveFlashSales
       tags:
         - Public Flash Sales

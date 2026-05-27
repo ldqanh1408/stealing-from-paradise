@@ -6,7 +6,7 @@
 | **Actor** | Customer (JWT required) |
 | **Priority** | HIGH |
 | **Precondition** | Cart item exists and belongs to customer |
-| **Postcondition** | Cart item quantity updated |
+| **Postcondition** | Cart item quantity updated, snapshots auto-synced |
 
 ---
 
@@ -15,18 +15,23 @@
 ```
 1. Customer opens cart page
 2. Customer adjusts quantity using [+]/[-] buttons on a cart item
-3. Frontend calls PUT /cart/items/{itemId}
+3. Frontend calls PUT /cart/items/{variantId}
    Body: { quantity: 3 }
 
 4. System validates:
-   a. cart_item exists and belongs to customer's cart -> 404 if not
+   a. cart_item exists (customer_id, variant_id) -> 404 if not
    b. quantity > 0 -> 422 if 0 (use DELETE to remove)
    c. quantity <= product_variant.stock_quantity -> 422 if exceeds
    d. product_variant.status = 'active' -> 422 if inactive/out_of_stock
 
-5. System updates cart_item.quantity
+5. System auto-syncs snapshot fields if changed:
+   - price_snapshot = variant.price (if different)
+   - variant_name_snapshot = variant.variantName (if different)
+   - variant_image_snapshot = variant.imageUrl (if different)
 
-6. Returns 200 with updated item data
+6. System updates cart_item.quantity
+
+7. Returns 200 with updated cart
 ```
 
 ---
@@ -45,9 +50,9 @@ Stock warning: "Con X san pham" when stock <= 5
 
 | Scenario | Handling |
 |----------|----------|
-| Variant was restocked after being out_of_stock | Allow update; flags auto-clear on next GET /cart |
-| Variant became inactive while in cart | Update rejected with 422; item flagged unavailable on GET /cart |
-| Price changed since adding | Update succeeds (affects quantity only); price_changed flag on GET /cart |
+| Variant was restocked after being out_of_stock | Allow update; validation passes |
+| Variant became inactive while in cart | Update rejected with 422 |
+| Price changed since adding | Auto-syncs price_snapshot on update |
 | quantity = 0 | Invalid; return 422, suggest DELETE |
 
 ---
@@ -57,7 +62,6 @@ Stock warning: "Con X san pham" when stock <= 5
 | Scenario | Response |
 |----------|----------|
 | Cart item not found | 404 |
-| Cart item belongs to different user | 404 |
 | quantity > stock_available | 422 |
 | quantity = 0 | 422 "Use DELETE to remove item" |
 | Variant inactive | 422 |
@@ -70,4 +74,5 @@ Stock warning: "Con X san pham" when stock <= 5
 |--------|-------------|
 | FR-PRODUCT-018 | Update cart item quantity |
 | BR-PRODUCT-012 | Quantity limits and stock validation |
+| BR-PRODUCT-011 | Price snapshot rules |
 | ENTITY-PRODUCT-007 | CART_ITEM |

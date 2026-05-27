@@ -2,57 +2,48 @@ package com.flashsale.productservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.PageResponse;
-import com.flashsale.productservice.dto.request.AdminApproveRequest;
-import com.flashsale.productservice.dto.request.AdminRejectRequest;
-import com.flashsale.productservice.dto.response.ProductResponse;
-import com.flashsale.productservice.service.AdminProductService;
+import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.productservice.dto.product.PendingProductCard;
+import com.flashsale.productservice.dto.product.RejectProductRequest;
+import com.flashsale.productservice.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
-@RequestMapping("/v1/admin/products")
+@RequestMapping("/admin/products")
 @RequiredArgsConstructor
-@Slf4j
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminProductController {
 
-    private final AdminProductService adminProductService;
-
-    // ─── GET /admin/products/pending ──────────────────────────────────────────
+    private final ProductService productService;
 
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getPendingProducts(
-            @RequestParam(required = false) String categoryId,
-            @RequestParam(required = false) Long sellerId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(adminProductService.getPendingProducts(categoryId, sellerId, page, size))));
+    public ResponseEntity<ApiResponse<PageResponse<PendingProductCard>>> getPendingProducts(
+            Pageable pageable,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) Long sellerId) {
+        return ResponseEntity.ok(productService.getPendingProducts(pageable, categoryId, sellerId));
     }
-
-    // ─── POST /admin/products/{productId}/approve ─────────────────────────────
 
     @PostMapping("/{productId}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<ProductResponse>> approveProduct(
-            @PathVariable String productId,
-            @RequestBody(required = false) AdminApproveRequest req) {
-        if (req == null) req = new AdminApproveRequest();
-        ProductResponse result = adminProductService.approveProduct(productId, req);
-        return ResponseEntity.ok(ApiResponse.success(result, "Duyệt sản phẩm thành công"));
+    public ResponseEntity<ApiResponse<Void>> approveProduct(
+            @PathVariable UUID productId,
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        return ResponseEntity.ok(productService.approveProduct(productId, user));
     }
 
-    // ─── POST /admin/products/{productId}/reject ──────────────────────────────
-
     @PostMapping("/{productId}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<ProductResponse>> rejectProduct(
-            @PathVariable String productId,
-            @Valid @RequestBody AdminRejectRequest req) {
-        ProductResponse result = adminProductService.rejectProduct(productId, req);
-        return ResponseEntity.ok(ApiResponse.success(result, "Từ chối sản phẩm thành công"));
+    public ResponseEntity<ApiResponse<Void>> rejectProduct(
+            @PathVariable UUID productId,
+            @Valid @RequestBody RejectProductRequest request,
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        return ResponseEntity.ok(productService.rejectProduct(productId, request.getReason(), user));
     }
 }

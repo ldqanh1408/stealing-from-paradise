@@ -16,7 +16,6 @@
 | API endpoints OBSOLETE phải xóa/deprecate | 0 (sau v3 re-activate 4 admin product YAMLs) | Cleanup |
 | Kafka events THIẾU (MUST-HAVE) | 2 | Block MVP |
 | Kafka events THIẾU (SHOULD) | 5 | Hoàn thiện flow |
-| Kafka events OBSOLETE phải xóa | 3 (flash_sale.item_approved/rejected + flash_sale.item_sold renamed) | Cleanup |
 | Bảng DB chưa định nghĩa schema chi tiết | 5 | Cần đề xuất |
 | Entity doc lệch DB truth | 7 | Trong đó 5 catalog mâu thuẫn MongoDB↔PostgreSQL |
 
@@ -30,7 +29,7 @@
 - Identity: register/login/logout/refresh, profile, addresses, admin lock/unlock
 - Catalog: browse public, category tree, product detail, seller CRUD, image upload, inventory
 - Cart: view, add, update qty, remove, clear
-- Flash Sale: list, register product (seller), buy (Redis Lua), reminders
+- Flash Sale: list, register product (seller), buy, reminders
 - Order: checkout, list, detail, buyer cancel (PENDING/PAID), seller ship, buyer confirm received, return-refund (RTS)
 - Payment: Stripe Connect onboarding, payment-intent, webhook, refund (admin approve/reject), seller transfer payouts
 - Notification: SSE/WS stream, list, mark read
@@ -101,8 +100,6 @@
 
 | Event | Producer | Consumer | Mục đích |
 |-------|----------|----------|----------|
-| `stock.reservation.confirmed` | product-service | (audit only) | Quan sát saga checkout |
-| `stock.reservation.released` | product-service | (audit only) | Khi `payment.failed`/buyer cancel |
 | `seller.transfer.eligible` | payment-service (JOB-23 PayoutScheduler) | notification-service | Hết 30 ngày return window → đủ điều kiện payout |
 | `seller.transfer.paid_out` | payment-service (Stripe payout webhook) | notification-service | Stripe payout thành công |
 | `seller.transfer.failed` | payment-service | notification-service, audit | Retry exhausted |
@@ -118,7 +115,6 @@
 | `product.rejected` | ✅ ACTIVE (re-activated) | Trigger khi admin reject (UC-PRODUCT-015) |
 | `seller.order_cancelled` | ✅ ACTIVE (re-activated) | Trigger khi seller cancel ở `PAID` (UC-ORDER-008) |
 | `flash_sale.item_approved` / `flash_sale.item_rejected` | ❌ OBSOLETE | Auto-approve trong MVP — không có review workflow |
-| `flash_sale.item_sold` | 🔄 RENAMED | Đã đổi tên thành `flash_sale.item_purchased` |
 
 → Cập nhật đã thực hiện ở `KAFKA_CATALOG.md` + `messaging/product-service/KAFKA_EVENTS.md` + `messaging/order-service/KAFKA_EVENTS.md`.
 

@@ -30,10 +30,10 @@ erDiagram
 ## Data Dictionary
 
 | # | Field | Type | Constraints | Meaning |
-|---|--------|------|-------------|---------|
+|---|-------|------|-------------|---------|
 | 1 | `id` | UUID | PK | Unique reservation identifier |
 | 2 | `variant_id` | UUID | NOT NULL, FK → product_variant.id | Reserved variant (SKU) |
-| 3 | `session_id` | VARCHAR(100) | NOT NULL | Checkout session ID; links to Order Service's `parent_orders.session_id` |
+| 3 | `session_id` | VARCHAR(255) | NOT NULL | Checkout session ID; links to Order Service's `parent_orders.session_id` |
 | 4 | `quantity` | INT | NOT NULL | Number of units reserved |
 | 5 | `status` | VARCHAR(50) | NOT NULL, DEFAULT 'pending' | Reservation lifecycle: `pending`, `confirmed`, `released` |
 | 6 | `expires_at` | TIMESTAMP | NOT NULL | TTL = NOW() + 15 minutes; background cleanup job auto-removes expired pending reservations |
@@ -45,7 +45,7 @@ erDiagram
 ## Indexes
 
 | Index Name | Fields | Type | Purpose |
-|------------|---------|------|---------|
+|-----------|--------|------|---------|
 | `idx_reservation_variant` | `(variant_id)` | B-tree | Check active reservations for a given variant |
 | `idx_reservation_session` | `(session_id)` | B-tree | Lookup by checkout session |
 | `idx_reservation_status` | `(status)` | B-tree | Filter by status (e.g., pending cleanup) |
@@ -58,25 +58,30 @@ erDiagram
 
 ```
 1. Customer clicks "Dat hang"
-   -> INSERT stock_reservation (status=pending, expires_at=NOW()+15min)
-   -> Redis: DECRBY stock:{variant_id} {quantity}
-   -> DB: Update product_variant field stock_quantity = stock_quantity - {quantity}
-          with optimistic lock check on version field
-   -> Update fails? -> Rollback, return "out of stock"
+   -> DB Transaction (SELECT ... FOR UPDATE on product_variant):
+      -> IF stock_quantity < requested: ROLLBACK, return "out of stock"
+      -> INSERT stock_reservation (status=pending, expires_at=NOW()+15min)
+      -> UPDATE product_variant SET stock_quantity = stock_quantity - {quantity}
+      -> COMMIT (row lock released)
 
-2. Payment succeeds
+2. Payment succeeds (order.paid event with session_id + user_id)
    -> UPDATE stock_reservation SET status = 'confirmed'
    -> Stock already deducted; no further action
+   -> HARD DELETE cart_items WHERE (customer_id, variant_id) IN (...)
+      (via CartItemRepository.deleteAllByCustomerIdAndVariantIds)
 
-3. Payment fails / timeout
+3. Payment fails / timeout (order.payment_failed event with session_id + user_id)
    -> UPDATE stock_reservation SET status = 'released'
-   -> Redis: INCR stock:{variant_id} {quantity}
-   -> DB: Update product_variant field stock_quantity = stock_quantity + {quantity}
+   -> DB Transaction:
+      -> UPDATE product_variant SET stock_quantity = stock_quantity + {quantity}
+      -> COMMIT
 
 4. Background cleanup job
    -> Cleanup job (runs every 1-5 min) removes expired rows
    -> Same job handles stock restoration for expired pending reservations
 ```
+
+**Note**: `user_id` is extracted from the `order.paid` / `order.payment_failed` Kafka event payload, not stored in this table. Cart items are identified by `(user_id, variant_id)` composite key and hard-deleted directly.
 
 ---
 
@@ -87,6 +92,6 @@ erDiagram
 | FR-PRODUCT-014 | Functional Requirement | Reserve stock during checkout |
 | FR-PRODUCT-015 | Functional Requirement | Release expired reservations |
 | UC-PRODUCT-007 | Use Case | Reserve stock (system) |
+| BR-PRODUCT-005 | Business Rule | Pessimistic locking for concurrent reservations |
 | BR-PRODUCT-007 | Business Rule | Reservation expiry (15 min TTL) |
-| BR-PRODUCT-008 | Business Rule | Optimistic lock for concurrent reservations |
 | state-stock-reservation.md | State Diagram | pending -> confirmed / released |

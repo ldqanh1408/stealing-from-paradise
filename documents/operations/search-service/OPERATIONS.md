@@ -39,8 +39,8 @@ GET /actuator/health
 
 ### Reindex All Products
 ```bash
-curl -X POST "http://localhost:8091/admin/reindex"
-curl "http://localhost:8091/admin/reindex/status"
+curl -X POST "http://localhost:8091/api/v1/search/reindex"
+curl "http://localhost:8091/api/v1/search/reindex/status"
 ```
 
 ### Check Index Health

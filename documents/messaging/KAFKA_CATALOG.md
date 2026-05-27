@@ -1,18 +1,22 @@
 ## Kafka Events Catalog
 Service: platform
-Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
+Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hidden removed)
+
+> **2026-05-23 changelog:**
+> - `product.pending_review`, `product.updated`, `variant.price_updated`, `variant.stock_updated` payloads updated to include all required fields (`productId`, `sellerId`, `categoryId`, `name`, `submittedAt`, `rejectCount`, `status`, `timestamp`, `productId`, `originalPrice`, `stockStatus`).
+> - `stock.reservation.expired` trigger updated: handled by `ReservationCleanupScheduler` in product-service (cron every minute), not JOB-13.
+> - Flash Sale Flow updated to reflect actual implementation: `flash_sale.session_ended` restores prices and emits `flash_sale.price_sync`; cart cleanup and inventory update are out of scope for MVP.
+> - `product.auto_hidden` event REMOVED from catalog, KafkaTopics.java, and kafka/create-topics.sh. Search Service uses `product.updated` (status change to INACTIVE) for index updates instead.
 
 > **2026-05-10 MVP changes** (xem `MVP_ANALYSIS.md` §3):
 >
 > **NEW events** (5):
 > - `stock.reservation.expired` (product → order, notification) — MUST
 > - `order.payment_timeout` (order → order self, notification) — MUST
-> - `stock.reservation.confirmed` / `released` (product, audit) — SHOULD
 > - `seller.transfer.eligible` / `paid_out` / `failed` (payment → notification) — SHOULD
 >
 > **OBSOLETE events** (xóa khỏi catalog):
 > - `flash_sale.item_approved`, `flash_sale.item_rejected` — auto-approve
-> - `flash_sale.item_sold` — đã đổi tên thành `flash_sale.item_purchased`
 >
 > **RE-ACTIVATED events** (đính chính 2026-05-10 v3 — xem `MVP_ANALYSIS.md`):
 > - `seller.order_cancelled` (order → payment, notification, product) — MUST cho workflow seller cancel. ✅ Documented + UC-008 + BR-026 hoàn thành.
@@ -37,8 +41,8 @@ Generated: 2026-05-09 | Updated: 2026-05-10 (MVP gap analysis)
 | Service | Produces | Consumes |
 |---------|----------|----------|
 | identity-service | — (does NOT produce domain events) | order.delivered, order.cancelled, refund.admin_approved, refund.rejected |
-| product-service | product.* (incl. pending_review, approved, rejected, auto_hidden), category.*, inventory.*, stock.reservation.* | order.created, order.cancelled, flash_sale.* |
-| order-service | order.*, order.payment_timeout, seller.order_cancelled, order.checkout_completed | payment.*, refund.*, stock.reservation.expired |
+| product-service | product.*, category.*, variant.stock_updated, order.paid, order.payment_failed | order.paid, order.payment_failed, order.cancelled, order.returned |
+| order-service | order.*, order.payment_timeout, seller.order_cancelled, order.checkout_submitted, order.paid, order.payment_failed | payment.*, refund.*, stock.reservation.expired, order.checkout_submitted |
 | payment-service | payment.*, stripe.*, seller.transfer.*, payout.*, refund.stripe_auto | payment.requested, order.delivered, order.cancelled |
 | refund-service | refund.* | refund.requested, refund.full_requested, order.returned, order.refunds.request, order.payment_status.request |
 | flashsale-service | flash_sale.*, flash_sale.reminder | — |
@@ -154,7 +158,7 @@ public void onPaymentSuccess(PaymentSuccessEvent event) {
 **Flash Sale Flow:**
 ```
 [FlashSale] flash_sale.session_started → [Notification] open session
-[FlashSale] flash_sale.item_purchased → [Product] update inventory
+                                 → [Product] apply flash prices, emit flash_sale.price_sync (activate)
 [FlashSale] flash_sale.session_ended → [Notification] close session
-                                     → [Product] clear expired cart items
+                                  → [Product] restore original prices, emit flash_sale.price_sync (deactivate)
 ```

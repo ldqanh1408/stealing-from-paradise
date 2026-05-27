@@ -1,32 +1,33 @@
 package com.flashsale.productservice.service;
 
-import com.flashsale.commonlib.event.KafkaTopics;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
-import com.flashsale.productservice.domain.model.Category;
-import com.flashsale.productservice.domain.model.Product;
-import com.flashsale.productservice.domain.model.ProductVariant;
-import com.flashsale.productservice.domain.repository.CategoryRepository;
-import com.flashsale.productservice.domain.repository.ProductRepository;
-import com.flashsale.productservice.domain.repository.ProductVariantRepository;
-import com.flashsale.productservice.dto.request.CreateProductRequest;
-import com.flashsale.productservice.dto.request.UpdateProductRequest;
-import com.flashsale.productservice.dto.response.ProductResponse;
-import com.flashsale.productservice.dto.response.VariantResponse;
+import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.productservice.dto.image.ImageResponse;
+import com.flashsale.productservice.dto.product.CreateProductRequest;
+import com.flashsale.productservice.dto.product.PendingProductCard;
+import com.flashsale.productservice.dto.product.ProductResponse;
+import com.flashsale.productservice.dto.product.SellerProductCard;
+import com.flashsale.productservice.dto.product.UpdateProductRequest;
+import com.flashsale.productservice.dto.variant.VariantResponse;
+import com.flashsale.productservice.entity.*;
+import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.productservice.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,276 +35,479 @@ import java.util.Optional;
 public class ProductService {
 
     private final ProductRepository productRepository;
-    private final CategoryRepository categoryRepository;
     private final ProductVariantRepository variantRepository;
-    private final KafkaProducerService kafkaProducer;
+    private final ProductImageRepository imageRepository;
+    private final CategoryRepository categoryRepository;
+    private final StockReservationRepository reservationRepository;
+    private final CategoryService categoryService;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
-    // ─── Create ───────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public ApiResponse<ProductResponse> getProduct(UUID productId) {
+        Product product = productRepository.findById(productId)
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
 
-    public ProductResponse createProduct(Long sellerId, CreateProductRequest req) {
-        Category category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Danh mục không tồn tại"));
+        return ApiResponse.success(toProductResponse(product));
+    }
 
-        // Leaf category check: no children allowed
-        boolean hasChildren = !categoryRepository.findByParentId(category.getId()).isEmpty();
-        if (hasChildren) {
-            throw new AppException(ErrorCode.VALIDATION_FAILED, "Phải chọn danh mục lá (không có danh mục con)");
+    @Transactional
+    public ApiResponse<ProductResponse> createProduct(CreateProductRequest request, UserDetailsImpl user) {
+        if (request.getCategoryId() != null) {
+            categoryService.validateLeafCategory(request.getCategoryId());
+        }
+
+        String slug = generateSlug(request.getName());
+        int counter = 1;
+        String baseSlug = slug;
+        while (productRepository.findBySlug(slug).isPresent()) {
+            slug = baseSlug + "-" + counter++;
         }
 
         Product product = Product.builder()
-                .sellerId(sellerId)
-                .categoryId(req.getCategoryId())
-                .name(req.getName())
-                .description(req.getDescription())
-                .attributes(req.getAttributes())
-                .images(req.getImages())
-                .isFlash(false)
-                .status("DRAFT")
-                .stockAvailable(0)
+                .name(request.getName())
+                .slug(slug)
+                .description(request.getDescription())
+                .categoryId(request.getCategoryId())
+                .attributes(serializeAttributes(request.getAttributes()))
+                .sellerId(user.getId())
+                .status(ProductStatus.DRAFT)
+                .rejectCount(0)
                 .build();
 
         product = productRepository.save(product);
 
-        publishProductCreated(product);
-        return enrichResponse(product);
+        return ApiResponse.success(toProductResponse(product));
     }
 
-    // ─── Update ───────────────────────────────────────────────────────────────
-
-    public ProductResponse updateProduct(String productId, Long sellerId, UpdateProductRequest req) {
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
+    @Transactional
+    public ApiResponse<ProductResponse> updateProduct(UUID productId, UpdateProductRequest request, UserDetailsImpl user) {
+        Product product = productRepository.findById(productId)
                 .filter(p -> p.getDeletedAt() == null)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
 
-        if (req.getName() != null)        product.setName(req.getName());
-        if (req.getDescription() != null) product.setDescription(req.getDescription());
-        if (req.getAttributes() != null)  product.setAttributes(req.getAttributes());
-        if (req.getImages() != null)      product.setImages(req.getImages());
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to update this product");
+        }
 
-        if (req.getCategoryId() != null) {
-            Category category = categoryRepository.findById(req.getCategoryId())
-                    .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Danh mục không tồn tại"));
-            boolean hasChildren = !categoryRepository.findByParentId(category.getId()).isEmpty();
-            if (hasChildren) {
-                throw new AppException(ErrorCode.VALIDATION_FAILED, "Phải chọn danh mục lá (không có danh mục con)");
-            }
-            product.setCategoryId(req.getCategoryId());
+        Set<ProductStatus> updatableStatuses = Set.of(
+                ProductStatus.DRAFT, ProductStatus.REJECTED, ProductStatus.APPROVED, ProductStatus.INACTIVE
+        );
+        if (!updatableStatuses.contains(product.getStatus())) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Cannot update product in current status");
+        }
+
+        if (request.getName() != null) {
+            product.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            product.setDescription(request.getDescription());
+        }
+        if (request.getCategoryId() != null) {
+            categoryService.validateLeafCategory(request.getCategoryId());
+            product.setCategoryId(request.getCategoryId());
+        }
+        if (request.getAttributes() != null) {
+            product.setAttributes(serializeAttributes(request.getAttributes()));
         }
 
         product = productRepository.save(product);
-        publishProductUpdated(product);
-        return enrichResponse(product);
+
+        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("status", product.getStatus().name()),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
+
+        return ApiResponse.success(toProductResponse(product));
     }
 
-    // ─── Soft Delete ──────────────────────────────────────────────────────────
-
-    public void deleteProduct(String productId, Long sellerId) {
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
+    @Transactional
+    public ApiResponse<Void> deleteProduct(UUID productId, UserDetailsImpl user) {
+        Product product = productRepository.findById(productId)
                 .filter(p -> p.getDeletedAt() == null)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
 
-        if (product.getStockAvailable() != null && product.getStockAvailable() > 0) {
-            throw new AppException(ErrorCode.ALREADY_EXISTS, "Không thể xóa sản phẩm còn hàng đang bị giữ bởi đơn hàng");
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to delete this product");
+        }
+
+        List<ProductVariant> variants = variantRepository.findByProductIdAndDeletedAtIsNull(productId);
+        for (ProductVariant variant : variants) {
+            List<StockReservation> activeReservations = reservationRepository.findByVariantIdAndStatusAndExpiresAtBefore(
+                    variant.getId(), ReservationStatus.PENDING, LocalDateTime.now().plusMinutes(1));
+            if (!activeReservations.isEmpty()) {
+                throw new AppException(ErrorCode.BAD_REQUEST, "Cannot delete product with active reservations");
+            }
         }
 
         product.setDeletedAt(LocalDateTime.now());
         productRepository.save(product);
 
-        publishProductDeleted(product);
+        emitEvent(KafkaTopics.PRODUCT_DELETED, product.getId().toString(), Map.of("productId", product.getId()));
+
+        return ApiResponse.success(null);
     }
 
-    // ─── Get Public Detail ────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<SellerProductCard>> getSellerProducts(UserDetailsImpl user, Pageable pageable) {
+        Page<Product> products = productRepository.findBySellerIdAndDeletedAtIsNull(user.getId(), pageable);
 
-    public ProductResponse getProduct(String productId) {
-        Product product = productRepository.findByIdAndDeletedAtIsNull(productId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại"));
-        return enrichResponse(product);
+        List<SellerProductCard> cards = products.getContent().stream()
+                .map(this::toSellerProductCard)
+                .collect(Collectors.toList());
+
+        PageResponse<SellerProductCard> pageResponse = PageResponse.<SellerProductCard>builder()
+                .content(cards)
+                .page(products.getNumber())
+                .size(products.getSize())
+                .totalElements(products.getTotalElements())
+                .totalPages(products.getTotalPages())
+                .last(products.isLast())
+                .build();
+
+        return ApiResponse.success(pageResponse);
     }
 
-    // ─── Public Product Listing ───────────────────────────────────────────────
+    @Transactional
+    public ApiResponse<Void> submitForReview(UUID productId, UserDetailsImpl user) {
+        Product product = productRepository.findById(productId)
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
 
-    public Page<ProductResponse> getProducts(String category, String search, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Product> result;
-
-        boolean hasCategory = category != null && !category.isBlank();
-        boolean hasSearch = search != null && !search.isBlank();
-
-        if (hasCategory && hasSearch) {
-            String keyword = "%" + search.toLowerCase() + "%";
-            result = productRepository.findPublishedByCategoryAndNameContaining(
-                    category, keyword, pageable);
-        } else if (hasCategory) {
-            result = productRepository.findByStatusAndCategoryIdAndDeletedAtIsNull(
-                    "PUBLISHED", category, pageable);
-        } else if (hasSearch) {
-            String keyword = "%" + search.toLowerCase() + "%";
-            result = productRepository.findPublishedByNameContaining(keyword, pageable);
-        } else {
-            result = productRepository.findByStatusAndDeletedAtIsNull("PUBLISHED", pageable);
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to submit this product");
         }
 
-        return result.map(this::enrichResponse);
+        if (!canTransition(product.getStatus(), ProductStatus.PENDING)) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Cannot submit product for review from current status");
+        }
+
+        if (product.getRejectCount() >= 3) {
+            throw new AppException(ErrorCode.BAD_REQUEST,
+                    "Product has been rejected 3 times. Please contact admin.");
+        }
+
+        List<ProductVariant> variants = variantRepository.findByProductIdAndDeletedAtIsNull(productId);
+        if (variants.isEmpty()) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Product must have at least one variant");
+        }
+
+        List<ProductImage> images = imageRepository.findByProductIdOrderBySortOrderAsc(productId);
+        if (images.isEmpty()) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Product must have at least one image");
+        }
+
+        product.setStatus(ProductStatus.PENDING);
+        product.setSubmittedAt(LocalDateTime.now());
+        productRepository.save(product);
+
+        emitEvent(KafkaTopics.PRODUCT_PENDING_REVIEW, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("sellerId", product.getSellerId()),
+                        Map.entry("categoryId", product.getCategoryId() != null ? product.getCategoryId() : ""),
+                        Map.entry("name", product.getName()),
+                        Map.entry("submittedAt", product.getSubmittedAt().toString()),
+                        Map.entry("rejectCount", product.getRejectCount())
+                ));
+
+        return ApiResponse.success(null);
     }
 
-    /** Enriches a Product with category name and variants. */
-    private ProductResponse enrichResponse(Product p) {
+    @Transactional
+    public ApiResponse<Void> publishProduct(UUID productId, UserDetailsImpl user) {
+        Product product = productRepository.findById(productId)
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
+
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to publish this product");
+        }
+
+        if (!canTransition(product.getStatus(), ProductStatus.ACTIVE)) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Cannot publish product from current status");
+        }
+
+        if (product.getPublishedAt() == null) {
+            product.setPublishedAt(LocalDateTime.now());
+        }
+
+        product.setStatus(ProductStatus.ACTIVE);
+        productRepository.save(product);
+
+        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("status", product.getStatus().name()),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
+
+        return ApiResponse.success(null);
+    }
+
+    @Transactional
+    public ApiResponse<Void> unpublishProduct(UUID productId, UserDetailsImpl user) {
+        Product product = productRepository.findById(productId)
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
+
+        if (!product.getSellerId().equals(user.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN, "You don't have permission to unpublish this product");
+        }
+
+        if (!canTransition(product.getStatus(), ProductStatus.INACTIVE)) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Cannot unpublish product from current status");
+        }
+
+        product.setStatus(ProductStatus.INACTIVE);
+        productRepository.save(product);
+
+        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+                Map.ofEntries(
+                        Map.entry("productId", product.getId()),
+                        Map.entry("status", product.getStatus().name()),
+                        Map.entry("timestamp", LocalDateTime.now().toString())
+                ));
+
+        return ApiResponse.success(null);
+    }
+
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<PendingProductCard>> getPendingProducts(Pageable pageable, UUID categoryId, Long sellerId) {
+        Page<Product> products = productRepository.findPendingProducts(categoryId, sellerId, pageable);
+
+        List<PendingProductCard> cards = products.getContent().stream()
+                .map(this::toPendingProductCard)
+                .collect(Collectors.toList());
+
+        PageResponse<PendingProductCard> pageResponse = PageResponse.<PendingProductCard>builder()
+                .content(cards)
+                .page(products.getNumber())
+                .size(products.getSize())
+                .totalElements(products.getTotalElements())
+                .totalPages(products.getTotalPages())
+                .last(products.isLast())
+                .build();
+
+        return ApiResponse.success(pageResponse);
+    }
+
+    @Transactional
+    public ApiResponse<Void> approveProduct(UUID productId, UserDetailsImpl user) {
+        Product product = productRepository.findById(productId)
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
+
+        if (product.getStatus() != ProductStatus.PENDING) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Product is not pending review");
+        }
+
+        product.setStatus(ProductStatus.APPROVED);
+        product.setReviewedAt(LocalDateTime.now());
+        product.setReviewedBy(user.getId());
+        productRepository.save(product);
+
+        emitEvent(KafkaTopics.PRODUCT_APPROVED, product.getId().toString(),
+                Map.of(
+                        "productId", product.getId(),
+                        "sellerId", product.getSellerId(),
+                        "reviewedBy", user.getId(),
+                        "reviewedAt", LocalDateTime.now().toString(),
+                        "rejectCount", product.getRejectCount(),
+                        "note", "San pham dat yeu cau"
+                ));
+
+        return ApiResponse.success(null);
+    }
+
+    @Transactional
+    public ApiResponse<Void> rejectProduct(UUID productId, String reason, UserDetailsImpl user) {
+        if (reason == null || reason.length() < 10) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Rejection reason must be at least 10 characters");
+        }
+
+        Product product = productRepository.findById(productId)
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Product not found"));
+
+        if (product.getStatus() != ProductStatus.PENDING) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Product is not pending review");
+        }
+
+        product.setStatus(ProductStatus.REJECTED);
+        product.setRejectReason(reason);
+        product.setRejectCount(product.getRejectCount() + 1);
+        product.setReviewedAt(LocalDateTime.now());
+        product.setReviewedBy(user.getId());
+        productRepository.save(product);
+
+        emitEvent(KafkaTopics.PRODUCT_REJECTED, product.getId().toString(),
+                Map.of(
+                        "productId", product.getId(),
+                        "sellerId", product.getSellerId(),
+                        "reviewedBy", user.getId(),
+                        "reviewedAt", LocalDateTime.now().toString(),
+                        "rejectReason", reason,
+                        "rejectCount", product.getRejectCount()
+                ));
+
+        return ApiResponse.success(null);
+    }
+
+    public boolean canTransition(ProductStatus from, ProductStatus to) {
+        if (from == to) {
+            return true;
+        }
+
+        return switch (from) {
+            case DRAFT -> to == ProductStatus.PENDING;
+            case PENDING -> to == ProductStatus.APPROVED || to == ProductStatus.REJECTED;
+            case REJECTED -> to == ProductStatus.DRAFT || to == ProductStatus.PENDING;
+            case APPROVED -> to == ProductStatus.ACTIVE || to == ProductStatus.INACTIVE;
+            case ACTIVE -> to == ProductStatus.OUT_OF_STOCK || to == ProductStatus.INACTIVE;
+            case OUT_OF_STOCK -> to == ProductStatus.ACTIVE || to == ProductStatus.INACTIVE;
+            case INACTIVE -> to == ProductStatus.ACTIVE || to == ProductStatus.APPROVED;
+        };
+    }
+
+    private ProductResponse toProductResponse(Product product) {
+        List<ProductVariant> variants = variantRepository.findByProductIdAndDeletedAtIsNull(product.getId());
+        List<ProductImage> images = imageRepository.findByProductIdOrderBySortOrderAsc(product.getId());
         String categoryName = null;
-        String categorySlug = null;
-        if (p.getCategoryId() != null) {
-            Optional<Category> cat = categoryRepository.findById(p.getCategoryId());
-            categoryName = cat.map(Category::getName).orElse(null);
-            categorySlug = cat.map(Category::getSlug).orElse(null);
+        if (product.getCategoryId() != null) {
+            categoryName = categoryRepository.findById(product.getCategoryId())
+                    .map(Category::getName)
+                    .orElse(null);
         }
-
-        List<ProductVariant> variants = variantRepository.findByProductId(p.getId());
-
-        Long price = null;
-        Long originalPrice = null;
-        if (!variants.isEmpty()) {
-            price = variants.get(0).getPrice().longValue();
-            originalPrice = price;
-        }
-
-        List<VariantResponse> variantResponses = variants.stream()
-                .map(v -> VariantResponse.builder()
-                        .variantId(v.getId())
-                        .productId(v.getProductId())
-                        .skuCode(v.getSkuCode())
-                        .tierName(v.getTierName())
-                        .price(v.getPrice())
-                        .createdAt(v.getCreatedAt())
-                        .updatedAt(v.getUpdatedAt())
-                        .build())
-                .toList();
 
         return ProductResponse.builder()
-                .productId(p.getId())
-                .sellerId(p.getSellerId())
-                .name(p.getName())
-                .description(p.getDescription())
-                .categoryId(p.getCategoryId())
+                .id(product.getId())
+                .name(product.getName())
+                .slug(product.getSlug())
+                .description(product.getDescription())
+                .categoryId(product.getCategoryId())
                 .categoryName(categoryName)
-                .categorySlug(categorySlug)
-                .attributes(p.getAttributes())
-                .images(p.getImages())
-                .isFlash(p.getIsFlash())
-                .status(p.getStatus())
-                .rejectReason(p.getRejectReason())
-                .stockAvailable(p.getStockAvailable())
-                .price(price)
-                .originalPrice(originalPrice)
-                .variants(variantResponses)
-                .createdAt(p.getCreatedAt())
-                .updatedAt(p.getUpdatedAt())
+                .sellerId(product.getSellerId())
+                .status(product.getStatus().name())
+                .attributes(deserializeAttributes(product.getAttributes()))
+                .variants(variants.stream().map(this::toVariantResponse).collect(Collectors.toList()))
+                .images(images.stream().map(this::toImageResponse).collect(Collectors.toList()))
+                .rejectReason(product.getRejectReason())
+                .rejectCount(product.getRejectCount())
+                .createdAt(product.getCreatedAt())
+                .updatedAt(product.getUpdatedAt())
+                .publishedAt(product.getPublishedAt())
                 .build();
     }
 
-    // ─── Seller List ──────────────────────────────────────────────────────────
-
-    public Page<ProductResponse> getSellerProducts(Long sellerId, int page, int size) {
-        return productRepository.findBySellerIdAndDeletedAtIsNull(
-                        sellerId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
-                .map(this::enrichResponse);
+    private VariantResponse toVariantResponse(ProductVariant variant) {
+        return VariantResponse.builder()
+                .id(variant.getId())
+                .productId(variant.getProductId())
+                .variantCode(variant.getVariantCode())
+                .variantName(variant.getVariantName())
+                .variantAttributes(deserializeAttributes(variant.getVariantAttributes()))
+                .price(variant.getPrice())
+                .originalPrice(variant.getOriginalPrice())
+                .stockQuantity(variant.getStockQuantity())
+                .status(variant.getStatus().name())
+                .imageUrl(variant.getImageUrl())
+                .version(variant.getVersion())
+                .createdAt(variant.getCreatedAt())
+                .updatedAt(variant.getUpdatedAt())
+                .build();
     }
 
-    // ─── Submit for Review ────────────────────────────────────────────────────
+    private ImageResponse toImageResponse(ProductImage image) {
+        return ImageResponse.builder()
+                .id(image.getId())
+                .productId(image.getProductId())
+                .variantId(image.getVariantId())
+                .url(image.getUrl())
+                .sortOrder(image.getSortOrder())
+                .build();
+    }
 
-    public ProductResponse submitForReview(String productId, Long sellerId) {
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
-                .filter(p -> p.getDeletedAt() == null)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
+    private SellerProductCard toSellerProductCard(Product product) {
+        Integer variantCount = variantRepository.countByProductId(product.getId());
+        Integer totalStock = variantRepository.getTotalStockByProductId(product.getId());
+        String thumbnailUrl = imageRepository.findByProductIdOrderBySortOrderAsc(product.getId())
+                .stream()
+                .findFirst()
+                .map(ProductImage::getUrl)
+                .orElse(null);
 
-        if (!"DRAFT".equals(product.getStatus()) && !"REJECTED".equals(product.getStatus())) {
-            throw new AppException(ErrorCode.VALIDATION_FAILED,
-                    "Chỉ có thể gửi duyệt sản phẩm ở trạng thái DRAFT hoặc REJECTED");
+        return SellerProductCard.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .slug(product.getSlug())
+                .status(product.getStatus().name())
+                .thumbnailUrl(thumbnailUrl)
+                .variantCount(variantCount != null ? variantCount : 0)
+                .totalStock(totalStock != null ? totalStock : 0)
+                .createdAt(product.getCreatedAt())
+                .build();
+    }
+
+    private PendingProductCard toPendingProductCard(Product product) {
+        String categoryName = null;
+        if (product.getCategoryId() != null) {
+            categoryName = categoryRepository.findById(product.getCategoryId())
+                    .map(Category::getName)
+                    .orElse(null);
         }
 
-        product.setStatus("PENDING");
-        product = productRepository.save(product);
-
-        publishProductPendingReview(product);
-        return enrichResponse(product);
+        return PendingProductCard.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .sellerId(product.getSellerId())
+                .categoryId(product.getCategoryId())
+                .categoryName(categoryName)
+                .submittedAt(product.getSubmittedAt())
+                .rejectCount(product.getRejectCount())
+                .rejectReason(product.getRejectReason())
+                .build();
     }
 
-    // ─── Publish / Unpublish ──────────────────────────────────────────────────
-
-    public ProductResponse publishProduct(String productId, Long sellerId) {
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
-                .filter(p -> p.getDeletedAt() == null)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
-
-        if (!"APPROVED".equals(product.getStatus())) {
-            throw new AppException(ErrorCode.VALIDATION_FAILED,
-                    "Chỉ có thể mở bán sản phẩm đã được duyệt");
+    private String serializeAttributes(Map<String, Object> attributes) {
+        if (attributes == null) {
+            return null;
         }
-
-        product.setStatus("PUBLISHED");
-        product = productRepository.save(product);
-        publishProductUpdated(product);
-        return enrichResponse(product);
-    }
-
-    public ProductResponse unpublishProduct(String productId, Long sellerId) {
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
-                .filter(p -> p.getDeletedAt() == null)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Sản phẩm không tồn tại hoặc không thuộc seller"));
-
-        if (!"PUBLISHED".equals(product.getStatus())) {
-            throw new AppException(ErrorCode.VALIDATION_FAILED,
-                    "Chỉ có thể tạm ẩn sản phẩm đang mở bán");
+        try {
+            return objectMapper.writeValueAsString(attributes);
+        } catch (JsonProcessingException e) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Invalid attributes format");
         }
-
-        product.setStatus("UNPUBLISHED");
-        product = productRepository.save(product);
-        publishProductUpdated(product);
-        return enrichResponse(product);
     }
 
-    // ─── Kafka Consumer ───────────────────────────────────────────────────────
-
-    @KafkaListener(topics = KafkaTopics.PRODUCT_APPROVED, groupId = "product-service-group")
-    public void onProductApproved(Object payload) {
-        log.info("Received product.approved event: {}", payload);
-        // Status is set by AdminProductService.approveProduct(); this listener can
-        // be used for downstream side-effects (e.g., search index sync).
+    private Map<String, Object> deserializeAttributes(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, Map.class);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
     }
 
-    // ─── Kafka Producers (private helpers) ───────────────────────────────────
-
-    private void publishProductCreated(Product p) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("product_id", p.getId());
-        payload.put("seller_id", p.getSellerId());
-        payload.put("name", p.getName());
-        payload.put("category_id", p.getCategoryId());
-        payload.put("status", p.getStatus());
-        payload.put("timestamp", System.currentTimeMillis());
-        kafkaProducer.publish(KafkaTopics.PRODUCT_CREATED, payload);
+    private String generateSlug(String name) {
+        return name.toLowerCase()
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("\\s+", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("^-|-$", "");
     }
 
-    private void publishProductUpdated(Product p) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("product_id", p.getId());
-        payload.put("seller_id", p.getSellerId());
-        payload.put("status", p.getStatus());
-        payload.put("timestamp", System.currentTimeMillis());
-        kafkaProducer.publish(KafkaTopics.PRODUCT_UPDATED, payload);
-    }
-
-    private void publishProductDeleted(Product p) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("product_id", p.getId());
-        payload.put("seller_id", p.getSellerId());
-        payload.put("timestamp", System.currentTimeMillis());
-        kafkaProducer.publish(KafkaTopics.PRODUCT_DELETED, payload);
-    }
-
-    private void publishProductPendingReview(Product p) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("product_id", p.getId());
-        payload.put("seller_id", p.getSellerId());
-        payload.put("timestamp", System.currentTimeMillis());
-        kafkaProducer.publish(KafkaTopics.PRODUCT_PENDING_REVIEW, payload);
+    private void emitEvent(String topic, String key, Map<String, Object> payload) {
+        try {
+            String value = objectMapper.writeValueAsString(payload);
+            kafkaTemplate.send(topic, key, value);
+        } catch (Exception e) {
+            log.error("Failed to emit Kafka event: topic={}, key={}", topic, key, e);
+        }
     }
 }
