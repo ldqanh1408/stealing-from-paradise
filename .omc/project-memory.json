@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779285231569,
+  "lastScanned": 1779802111826,
   "projectRoot": "D:\\dev\\stealing-from-paradise",
   "techStack": {
     "languages": [
@@ -47,7 +47,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1779285231539,
+      "lastAccessed": 1779802111803,
       "keyFiles": [
         "docker-compose.infra-only.yml",
         "docker-compose.yml",
@@ -57,21 +57,21 @@
     "documents": {
       "path": "documents",
       "purpose": null,
-      "fileCount": 7,
-      "lastAccessed": 1779285231540,
+      "fileCount": 11,
+      "lastAccessed": 1779802111803,
       "keyFiles": [
+        "BAO_CAO_DE_TAI.md",
+        "code_vs_doc_comparison.md",
         "CONTRADICTIONS.md",
         "database-entities.md",
-        "DB_SCHEMA_CHANGE_PROPOSAL.md",
-        "ERD_DIAGRAMS.md",
-        "PROJECT_OVERVIEW.md"
+        "ERD_DIAGRAMS.md"
       ]
     },
     "frontend": {
       "path": "frontend",
       "purpose": null,
       "fileCount": 8,
-      "lastAccessed": 1779285231548,
+      "lastAccessed": 1779802111809,
       "keyFiles": [
         "docker compose.yml",
         "package-lock.json",
@@ -82,7 +82,7 @@
       "path": "nginx",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1779285231549,
+      "lastAccessed": 1779802111809,
       "keyFiles": [
         "docker-compose.prod-pulled.yml",
         "docker-entrypoint.sh",
@@ -94,7 +94,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 1,
-      "lastAccessed": 1779285231549,
+      "lastAccessed": 1779802111810,
       "keyFiles": [
         "generate-report.js"
       ]
@@ -102,303 +102,15 @@
   },
   "hotPaths": [
     {
-      "path": "documents\\CONTRADICTIONS.md",
-      "accessCount": 23,
-      "lastAccessed": 1778481487179,
+      "path": "documents\\BAO_CAO_DE_TAI.md",
+      "accessCount": 31,
+      "lastAccessed": 1779807971503,
       "type": "file"
     },
     {
-      "path": "documents\\database-entities.md",
-      "accessCount": 18,
-      "lastAccessed": 1778481419877,
-      "type": "file"
-    },
-    {
-      "path": "documents\\messaging\\KAFKA_CATALOG.md",
-      "accessCount": 17,
-      "lastAccessed": 1778432140399,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\product-service\\entity-product.md",
-      "accessCount": 17,
-      "lastAccessed": 1778480992731,
-      "type": "file"
-    },
-    {
-      "path": "documents\\System Analyst and Software Architect.md",
-      "accessCount": 10,
-      "lastAccessed": 1778481017449,
-      "type": "file"
-    },
-    {
-      "path": "",
-      "accessCount": 10,
-      "lastAccessed": 1778481433444,
-      "type": "directory"
-    },
-    {
-      "path": "documents\\README.md",
-      "accessCount": 5,
-      "lastAccessed": 1778481420378,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\product-service\\entity-category.md",
-      "accessCount": 4,
-      "lastAccessed": 1778481477235,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\product-service\\entity-product-variant.md",
-      "accessCount": 4,
-      "lastAccessed": 1778481554660,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\product-service\\entity-product-image.md",
-      "accessCount": 4,
-      "lastAccessed": 1778481560017,
-      "type": "file"
-    },
-    {
-      "path": "backend\\docker-compose.yml",
-      "accessCount": 3,
-      "lastAccessed": 1778080082595,
-      "type": "directory"
-    },
-    {
-      "path": "docker-compose.yml",
-      "accessCount": 3,
-      "lastAccessed": 1778080337672,
-      "type": "file"
-    },
-    {
-      "path": "docker-compose-backend.yml",
-      "accessCount": 3,
-      "lastAccessed": 1778080398342,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\identity-service\\entity-user.md",
-      "accessCount": 3,
-      "lastAccessed": 1778481023652,
-      "type": "file"
-    },
-    {
-      "path": "backend\\docker-compose.infra-only.yml",
-      "accessCount": 2,
-      "lastAccessed": 1778079770547,
-      "type": "file"
-    },
-    {
-      "path": "backend",
-      "accessCount": 2,
-      "lastAccessed": 1778079770595,
-      "type": "directory"
-    },
-    {
-      "path": "backend\\order-service\\src\\main\\resources\\application.yml",
-      "accessCount": 2,
-      "lastAccessed": 1778079999972,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\Dockerfile.dev",
-      "accessCount": 2,
-      "lastAccessed": 1778080095897,
-      "type": "file"
-    },
-    {
-      "path": "backend\\pom.xml",
-      "accessCount": 2,
-      "lastAccessed": 1778080119099,
-      "type": "file"
-    },
-    {
-      "path": "documents\\api-contracts\\product-service\\api-get-products.yaml",
-      "accessCount": 2,
-      "lastAccessed": 1778410403970,
-      "type": "file"
-    },
-    {
-      "path": "documents\\api-contracts\\product-service\\api-post-cart-items.yaml",
-      "accessCount": 2,
-      "lastAccessed": 1778410403989,
-      "type": "file"
-    },
-    {
-      "path": "documents\\api-contracts\\product-service\\api-get-categories.yaml",
-      "accessCount": 2,
-      "lastAccessed": 1778410416335,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\src\\test\\resources\\application.yml",
+      "path": "documents\\iwant.txt",
       "accessCount": 1,
-      "lastAccessed": 1778079281743,
-      "type": "file"
-    },
-    {
-      "path": "docker-compose-infrastructure.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778079282300,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\pom.xml",
-      "accessCount": 1,
-      "lastAccessed": 1778079282496,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\src\\main\\java\\com\\flashsale\\orderservice\\config\\AxonConfig.java",
-      "accessCount": 1,
-      "lastAccessed": 1778079282552,
-      "type": "file"
-    },
-    {
-      "path": ".env.example",
-      "accessCount": 1,
-      "lastAccessed": 1778079293843,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\src\\main\\resources\\db\\migration\\V5__fix_axon_token_timestamp_and_create_saga_entry.sql",
-      "accessCount": 1,
-      "lastAccessed": 1778079293911,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\src\\main\\resources\\db\\migration\\V2__add_axon_saga_tables.sql",
-      "accessCount": 1,
-      "lastAccessed": 1778079293999,
-      "type": "file"
-    },
-    {
-      "path": "backend\\flashsale-service\\src\\main\\resources\\application.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778079294202,
-      "type": "file"
-    },
-    {
-      "path": "backend\\payment-service\\src\\main\\resources\\application.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778079294396,
-      "type": "file"
-    },
-    {
-      "path": "docker-compose.dev.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778079430037,
-      "type": "file"
-    },
-    {
-      "path": ".devcontainer\\post-create.sh",
-      "accessCount": 1,
-      "lastAccessed": 1778079430098,
-      "type": "file"
-    },
-    {
-      "path": "backend\\flashsale-service\\pom.xml",
-      "accessCount": 1,
-      "lastAccessed": 1778079437016,
-      "type": "directory"
-    },
-    {
-      "path": "backend\\payment-service\\pom.xml",
-      "accessCount": 1,
-      "lastAccessed": 1778079437040,
-      "type": "directory"
-    },
-    {
-      "path": "backend\\payment-service\\src\\main\\resources\\application-dev.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778079645380,
-      "type": "file"
-    },
-    {
-      "path": ".env.production",
-      "accessCount": 1,
-      "lastAccessed": 1778079669029,
-      "type": "file"
-    },
-    {
-      "path": "backend\\payment-service\\Dockerfile.dev",
-      "accessCount": 1,
-      "lastAccessed": 1778079776485,
-      "type": "file"
-    },
-    {
-      "path": ".env",
-      "accessCount": 1,
-      "lastAccessed": 1778079999915,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\src\\main\\resources\\application-prod.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778080095830,
-      "type": "file"
-    },
-    {
-      "path": "backend\\order-service\\src\\main\\resources\\application-dev.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778080095859,
-      "type": "file"
-    },
-    {
-      "path": "docker-compose.prod-pulled.yml",
-      "accessCount": 1,
-      "lastAccessed": 1778080344719,
-      "type": "file"
-    },
-    {
-      "path": "documents\\overview\\FLOWS.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409988122,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\identity-service\\entity-role.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409994813,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\identity-service\\entity-seller.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409994862,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\identity-service\\entity-address.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409995002,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\identity-service\\entity-customer.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409995307,
-      "type": "file"
-    },
-    {
-      "path": "documents\\data-models\\identity-service\\entity-admin.md",
-      "accessCount": 1,
-      "lastAccessed": 1778409995327,
-      "type": "file"
-    },
-    {
-      "path": "documents\\api-contracts\\product-service\\api-get-cart.yaml",
-      "accessCount": 1,
-      "lastAccessed": 1778409996165,
-      "type": "file"
-    },
-    {
-      "path": "documents\\api-contracts\\identity-service\\api-get-users-me.yaml",
-      "accessCount": 1,
-      "lastAccessed": 1778409996268,
+      "lastAccessed": 1779802265646,
       "type": "file"
     }
   ],

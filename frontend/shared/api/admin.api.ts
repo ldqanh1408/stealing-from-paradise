@@ -42,7 +42,7 @@ export const adminApi = {
   approveProduct: (productId: string, adminNote?: string) =>
     apiClient.post<ApiResponse<{ productId: string; status: string }>>(
       `/admin/products/${productId}/approve`,
-      { adminNote }
+      { note: adminNote }
     ),
 
   /** Reject a product */

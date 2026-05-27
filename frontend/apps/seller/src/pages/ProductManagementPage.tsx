@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@shared/lib/axios';
 import { sellerApi, type SellerProduct, type SellerVariant, type InventoryLogEntry } from '@shared/api/seller.api';
+import { categoryApi } from '@shared/api/category.api';
 import type { ApiResponse, PageResponse } from '@shared/types/api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -371,8 +372,8 @@ function ProductFormModal({
 }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(product?.name ?? '');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState(product?.category ?? 'electronics');
+  const [description, setDescription] = useState(product?.description ?? '');
+  const [category, setCategory] = useState(product?.categoryId ?? '');
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [price, setPrice] = useState(product?.price?.toString() ?? '');
   const [stock, setStock] = useState(product?.stockAvailable?.toString() ?? '1');
@@ -381,6 +382,18 @@ function ProductFormModal({
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
   const [activeTab, setActiveTab] = useState<'info' | 'images' | 'variants' | 'inventory'>('info');
+
+  // Categories query
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoryApi.getCategories().then(r => r.data.data ?? []),
+  });
+
+  useEffect(() => {
+    if (!category && categories.length > 0) {
+      setCategory(categories[0].categoryId);
+    }
+  }, [categories, category]);
 
   // Variants
   const { data: variants = [] } = useQuery({
@@ -476,13 +489,12 @@ function ProductFormModal({
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Danh mục</label>
                 <select value={category} onChange={e => setCategory(e.target.value)}
                   className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="electronics">Điện tử</option>
-                  <option value="fashion">Thời trang</option>
-                  <option value="home">Gia dụng</option>
-                  <option value="accessories">Phụ kiện</option>
-                  <option value="books">Sách</option>
-                  <option value="footwear">Giày dép</option>
-                  <option value="bags">Túi xách</option>
+                  {categories.length === 0 && <option value="">Đang tải danh mục...</option>}
+                  {categories.map(c => (
+                    <option key={c.categoryId} value={c.categoryId}>
+                      {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -743,7 +755,7 @@ export default function ProductManagementPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-gray-500 capitalize">{p.category || '—'}</td>
+                      <td className="px-5 py-4 text-gray-500 capitalize">{p.categoryName || p.category || '—'}</td>
                       <td className="px-5 py-4 font-semibold text-gray-900">
                         {p.price ? fmt(p.price) : '—'}
                       </td>

@@ -1,4 +1,4 @@
-import apiClient from '../lib/axios';
+import apiClient, { handleAuthFailure } from '../lib/axios';
 import Cookies from 'js-cookie';
 import type { ApiResponse } from '../types/api';
 import { isMockMode } from './mock';
@@ -152,6 +152,9 @@ export function streamChat(
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          handleAuthFailure();
+        }
         throw new Error(`Kết nối thất bại với mã lỗi: ${response.status}`);
       }
 

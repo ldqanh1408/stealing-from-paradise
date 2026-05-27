@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import Cookies from 'js-cookie';
 import { authApi, type RegisterRequest } from '../api/auth.api';
 import { userApi, type UserProfileResponse } from '../api/user.api';
-import { logoutApi } from '../lib/axios';
+import { logoutApi, registerAuthFailureHandler } from '../lib/axios';
 
 export interface AuthUser {
   userId: number;
@@ -45,6 +45,22 @@ export function isAuthFromCookie(): boolean {
   return !!Cookies.get('accessToken');
 }
 
+function decodeJwt(token: string): any {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      window.atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -77,6 +93,8 @@ export const useAuthStore = create<AuthState>()(
         if (auth.refreshToken) {
           Cookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
         }
+        const decoded = decodeJwt(auth.accessToken);
+        const role = decoded?.role || 'BUYER';
         set({
           user: {
             userId: auth.userId,
@@ -84,8 +102,8 @@ export const useAuthStore = create<AuthState>()(
             email: auth.email,
             phone: auth.phone,
             fullName: auth.fullName,
-            role: auth.role,
-            roles: auth.roles,
+            role: role,
+            roles: [role],
             status: auth.status,
             avatarUrl: auth.avatarUrl,
           },
@@ -100,6 +118,8 @@ export const useAuthStore = create<AuthState>()(
         if (auth.refreshToken) {
           Cookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
         }
+        const decoded = decodeJwt(auth.accessToken);
+        const role = decoded?.role || 'BUYER';
         set({
           user: {
             userId: auth.userId,
@@ -107,8 +127,8 @@ export const useAuthStore = create<AuthState>()(
             email: auth.email,
             phone: auth.phone,
             fullName: auth.fullName,
-            role: auth.role,
-            roles: auth.roles,
+            role: role,
+            roles: [role],
             status: auth.status,
             avatarUrl: auth.avatarUrl,
           },
@@ -123,6 +143,8 @@ export const useAuthStore = create<AuthState>()(
         if (auth.refreshToken) {
           Cookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
         }
+        const decoded = decodeJwt(auth.accessToken);
+        const role = decoded?.role || 'SELLER';
         set({
           user: {
             userId: auth.userId,
@@ -130,8 +152,8 @@ export const useAuthStore = create<AuthState>()(
             email: auth.email,
             phone: auth.phone,
             fullName: auth.fullName,
-            role: auth.role,
-            roles: auth.roles,
+            role: role,
+            roles: [role],
             status: auth.status,
             avatarUrl: auth.avatarUrl,
           },
@@ -159,6 +181,7 @@ export const useAuthStore = create<AuthState>()(
               phone: profile.phone,
               fullName: profile.fullName,
               roles: profile.roles,
+              role: profile.roles?.[0] || state.user.role,
               status: profile.status,
               avatarUrl: profile.avatarUrl,
             } : null,
@@ -181,3 +204,8 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Đăng ký callback để xóa auth state khi axios bị 401/refresh thất bại (tránh circular dependency)
+registerAuthFailureHandler(() => {
+  useAuthStore.setState({ user: null, profile: null, isAuthenticated: false });
+});

@@ -67,6 +67,9 @@ export interface SellerProduct {
   productId: string;
   name: string;
   category: string;
+  categoryId?: string;
+  categoryName?: string;
+  categorySlug?: string;
   price: number;
   originalPrice?: number;
   status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED' | 'PUBLISHED';
