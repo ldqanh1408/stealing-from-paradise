@@ -48,12 +48,6 @@ jobs:
           echo "Runner OS: ${{ runner.os }}"
           echo "Platform: ${{ runner.arch }}"
           uname -a
-          java -version 2>&1 || echo "Java not found" # Bây giờ nó sẽ ra Java 25
-      - name: Detect OS
-        run: |
-          echo "Runner OS: ${{ runner.os }}"
-          echo "Platform: ${{ runner.arch }}"
-          uname -a
           java -version 2>&1 || echo "Java not found"
           node -v 2>/dev/null || echo "Node not found"
           docker --version 2>/dev/null || echo "Docker not found"
