@@ -79,8 +79,6 @@ public class VariantService {
 
         variant = variantRepository.save(variant);
 
-        inventoryService.initializeVariantRedisStock(variant.getId(), variant.getStockQuantity());
-
         emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
                 Map.ofEntries(
                         Map.entry("variantId", variant.getId()),
@@ -152,7 +150,6 @@ public class VariantService {
                             Map.entry("stockStatus", getStockStatus(variant.getStatus())),
                             Map.entry("timestamp", LocalDateTime.now().toString())
                     ));
-            inventoryService.updateVariantRedisStock(variant.getId(), request.getStockQuantity());
             inventoryService.recomputeProductStatus(variant.getProductId());
         }
         if (request.getStatus() != null) {

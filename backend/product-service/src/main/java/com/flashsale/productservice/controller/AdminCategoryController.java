@@ -16,7 +16,7 @@ import java.util.UUID;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 
 @RestController
-@RequestMapping("/admin/categories")
+@RequestMapping("/v1/admin/categories")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminCategoryController {

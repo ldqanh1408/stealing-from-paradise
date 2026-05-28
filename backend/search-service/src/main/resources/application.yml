@@ -1,9 +1,6 @@
 server:
-  port: 8091
+  port: 8087
 spring:
-  main:
-    allow-bean-definition-overriding: true
-    lazy-initialization: false
   application:
     name: search-service
   profiles:
@@ -38,9 +35,11 @@ spring:
       enable-auto-commit: false
       properties:
         spring.json.trusted.packages: com.flashsale.*
-  webflux:
-    timeout: 30000
-
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      timeout: 2000ms
 search:
   elasticsearch:
     index-name: skus
@@ -65,8 +64,3 @@ eureka:
     fetch-registry: true
     register-with-eureka: true
     enabled: true
-
-spring.data.redis:
-  host: ${REDIS_HOST:localhost}
-  port: ${REDIS_PORT:6379}
-  timeout: 2000ms

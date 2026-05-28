@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping
+@RequestMapping("/v1")
 @RequiredArgsConstructor
 public class InventoryController {
 

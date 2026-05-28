@@ -18,9 +18,10 @@ interface FlashSaleState {
   fetchSession: (sessionId: number) => Promise<void>;
   buyFlashSaleItem: (
     sessionId: number,
-    skuCode: string,
-    quantity: number
-  ) => Promise<{ orderId: number; orderCode: string; amount: number }>;
+    fsItemId: number,
+    quantity: number,
+    addressId: number,
+  ) => Promise<{ sessionId: number; fsItemId: number; skuCode: string; flashPrice: number; quantity: number; totalAmount: number; purchasedAt: string }>;
   clearCurrentSession: () => void;
   getActiveSessions: () => FlashSaleSession[];
   getUpcomingSessions: () => FlashSaleSession[];
@@ -74,10 +75,10 @@ export const useFlashSaleStore = create<FlashSaleState>((set, get) => ({
     }
   },
 
-  buyFlashSaleItem: async (sessionId, skuCode, quantity) => {
+  buyFlashSaleItem: async (sessionId, fsItemId, quantity, addressId) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await flashSaleApi.buy(sessionId, skuCode, quantity);
+      const { data } = await flashSaleApi.buy(sessionId, fsItemId, quantity, addressId);
       set({ isLoading: false });
       return data.data!;
     } catch (err: any) {

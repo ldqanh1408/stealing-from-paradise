@@ -54,7 +54,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
       const payload = data.data;
       if (payload) {
         set({
-          products: Array.isArray(payload) ? payload : [],
+          products: payload.content ?? (Array.isArray(payload) ? payload : []),
           pagination: {
             page: 0,
             size: params?.size ?? 20,

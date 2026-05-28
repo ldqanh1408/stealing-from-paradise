@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779802111826,
-  "projectRoot": "D:\\dev\\stealing-from-paradise",
+  "lastScanned": 1779908439319,
+  "projectRoot": "d:\\dev\\stealing-from-paradise",
   "techStack": {
     "languages": [
       {
@@ -47,7 +47,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1779802111803,
+      "lastAccessed": 1779908439228,
       "keyFiles": [
         "docker-compose.infra-only.yml",
         "docker-compose.yml",
@@ -57,21 +57,21 @@
     "documents": {
       "path": "documents",
       "purpose": null,
-      "fileCount": 11,
-      "lastAccessed": 1779802111803,
+      "fileCount": 14,
+      "lastAccessed": 1779908439229,
       "keyFiles": [
+        "BAO_CAO_DE_TAI.docx",
         "BAO_CAO_DE_TAI.md",
-        "code_vs_doc_comparison.md",
-        "CONTRADICTIONS.md",
-        "database-entities.md",
-        "ERD_DIAGRAMS.md"
+        "BAO_CAO_DE_TAI_final.docx",
+        "BAO_CAO_DE_TAI_final_generated.docx",
+        "BAO_CAO_DE_TAI_generated.docx"
       ]
     },
     "frontend": {
       "path": "frontend",
       "purpose": null,
       "fileCount": 8,
-      "lastAccessed": 1779802111809,
+      "lastAccessed": 1779908439243,
       "keyFiles": [
         "docker compose.yml",
         "package-lock.json",
@@ -82,7 +82,7 @@
       "path": "nginx",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1779802111809,
+      "lastAccessed": 1779908439244,
       "keyFiles": [
         "docker-compose.prod-pulled.yml",
         "docker-entrypoint.sh",
@@ -94,9 +94,18 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 1,
-      "lastAccessed": 1779802111810,
+      "lastAccessed": 1779908439245,
       "keyFiles": [
         "generate-report.js"
+      ]
+    },
+    "tools": {
+      "path": "tools",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1779908439245,
+      "keyFiles": [
+        "convert_bao_cao_to_docx.py"
       ]
     }
   },

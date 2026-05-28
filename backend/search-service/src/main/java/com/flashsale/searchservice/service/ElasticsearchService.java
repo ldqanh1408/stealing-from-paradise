@@ -290,9 +290,15 @@ public class ElasticsearchService {
                     .products(cards)
                     .build();
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("ES search failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Elasticsearch unavailable", e);
+            return com.flashsale.searchservice.dto.SearchResponse.builder()
+                    .totalResults(0)
+                    .page(page)
+                    .size(size)
+                    .totalPages(0)
+                    .products(Collections.emptyList())
+                    .build();
         }
     }
 
@@ -323,7 +329,7 @@ public class ElasticsearchService {
 
             return SuggestResponse.builder().suggestions(suggestions).build();
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("ES suggest failed: {}", e.getMessage(), e);
             return SuggestResponse.builder().suggestions(Collections.emptyList()).build();
         }

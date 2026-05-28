@@ -1540,7 +1540,7 @@ const mockHandlers: MockHandler[] = [
         : MOCK_FLASH_SESSIONS;
       return {
         success: true,
-        data: { serverTime: Date.now(), sessions: filtered },
+        data: filtered,
         timestamp: Date.now(),
       };
     }

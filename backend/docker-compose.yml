@@ -333,7 +333,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: fs-flashsale
     restart: unless-stopped
-    ports: ["${PORT_FLASHSALE:-8085}:8085"]
+    ports: ["${PORT_FLASHSALE:-8086}:8086"]
     env_file: .env
     environment:
       - EUREKA_URI=${EUREKA_URI}
@@ -361,17 +361,16 @@ services:
       dockerfile: Dockerfile.dev
     container_name: fs-product
     restart: unless-stopped
-    ports: ["${PORT_PRODUCT:-8090}:8090"]
+    ports: ["${PORT_PRODUCT:-8084}:8084"]
     env_file: .env
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
       - EUREKA_URI=${EUREKA_URI}
-      - MONGO_HOST=${MONGO_HOST}
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - DB_NAME_PRODUCT=${DB_NAME_PRODUCT}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - KAFKA_SERVER=${KAFKA_SERVER}
-      - AXON_SERVER=${AXON_SERVER}
       - MINIO_URL=${MINIO_URL}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
@@ -381,10 +380,10 @@ services:
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_PRODUCT}
     depends_on:
-      mongo: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
       kafka: { condition: service_started }
       minio: { condition: service_healthy }
-      axonserver: { condition: service_healthy }
     networks: [flashsale-net]
 
   search-service:
@@ -393,17 +392,20 @@ services:
       dockerfile: Dockerfile.dev
     container_name: fs-search
     restart: unless-stopped
-    ports: ["${PORT_SEARCH:-8091}:8091"]
+    ports: ["${PORT_SEARCH:-8087}:8087"]
     env_file: .env
     environment:
       - EUREKA_URI=${EUREKA_URI}
       - ELASTIC_URI=${ELASTIC_URI}
       - KAFKA_SERVER=${KAFKA_SERVER}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_SEARCH}
     depends_on:
       elasticsearch: { condition: service_healthy }
+      redis: { condition: service_healthy }
       kafka: { condition: service_started }
     networks: [flashsale-net]
 

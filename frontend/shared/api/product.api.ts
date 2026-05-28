@@ -32,13 +32,12 @@ export interface ProductDetail {
   updatedAt?: string;
 }
 
-/** Matches backend ProductResponse (used in product grids) */
+/** Matches backend ProductCard (used in product grids from search service) */
 export interface ProductListItem {
   productId: string;
   sellerId: number;
   sellerName?: string;
   name: string;
-  description?: string;
   price?: number;
   originalPrice?: number;
   categoryName?: string;
@@ -50,29 +49,106 @@ export interface ProductListItem {
   createdAt?: string;
 }
 
+/** Backend SearchService ProductCard shape */
+interface SearchProductCard {
+  productId: string;
+  name: string;
+  sellerId: number;
+  sellerName: string;
+  categoryId: string;
+  categoryName: string;
+  priceMin: number | null;
+  priceMax: number | null;
+  images: string[];
+  stockAvailable: number;
+  isFlash: boolean;
+  thumbnailUrl: string;
+}
+
+interface SearchResponse {
+  totalResults: number;
+  page: number;
+  size: number;
+  totalPages: number;
+  products: SearchProductCard[];
+}
+
+function mapProductCard(card: SearchProductCard): ProductListItem {
+  return {
+    productId: card.productId,
+    sellerId: card.sellerId,
+    sellerName: card.sellerName,
+    name: card.name,
+    price: card.priceMin ?? undefined,
+    originalPrice: card.priceMax ?? undefined,
+    categoryName: card.categoryName,
+    images: card.images,
+    stock: card.stockAvailable,
+    isFlash: card.isFlash,
+  };
+}
+
 export const productApi = {
-  /** Get all products with optional filters */
-  getProducts: (params?: {
+  /**
+   * List products via search service (the only product listing endpoint).
+   * Params: category → category_id, search → q
+   */
+  getProducts: async (params?: {
     category?: string;
     search?: string;
     page?: number;
     size?: number;
     sort?: string;
-  }) =>
-    apiClient.get<ApiResponse<ProductDetail[]>>('/products', { params }),
+  }) => {
+    const res = await apiClient.get<ApiResponse<SearchResponse>>('/search/products', {
+      params: {
+        q: params?.search || undefined,
+        category_id: params?.category || undefined,
+        page: params?.page ?? 0,
+        size: params?.size ?? 20,
+        sort: params?.sort || undefined,
+      },
+    });
+    const body = res.data.data;
+    return {
+      ...res,
+      data: {
+        ...res.data,
+        data: {
+          content: (body?.products ?? []).map(mapProductCard),
+          totalElements: body?.totalResults ?? 0,
+          totalPages: body?.totalPages ?? 0,
+        },
+      },
+    };
+  },
 
-  /** Get product by ID — returns full ProductDetail */
+  /** Get product by ID — returns full ProductDetail from product service */
   getProductById: (productId: string) =>
     apiClient.get<ApiResponse<ProductDetail>>(`/products/${productId}`),
 
-  /** Search products */
+  /** Search products (delegates to search service) */
   searchProducts: (query: string, params?: {
     category?: string;
     page?: number;
     size?: number;
   }) =>
-    apiClient.get<ApiResponse<ProductDetail[]>>('/products', {
-      params: { search: query, ...params },
-    }),
+    apiClient.get<ApiResponse<SearchResponse>>('/search/products', {
+      params: {
+        q: query,
+        category_id: params?.category || undefined,
+        page: params?.page ?? 0,
+        size: params?.size ?? 20,
+      },
+    }).then(res => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: {
+          content: (res.data.data?.products ?? []).map(mapProductCard),
+          totalElements: res.data.data?.totalResults ?? 0,
+          totalPages: res.data.data?.totalPages ?? 0,
+        },
+      },
+    })),
 };
-

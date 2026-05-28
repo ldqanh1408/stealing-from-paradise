@@ -194,7 +194,11 @@ public class CheckoutPreviewService {
                     .message("Một số sản phẩm trong giỏ hàng đã thay đổi. Vui lòng làm mới giỏ hàng.")
                     .details(errors)
                     .build();
-            throw new AppException(ErrorCode.CONFLICT, objectMapper.writeValueAsString(error));
+            try {
+                throw new AppException(ErrorCode.CONFLICT, objectMapper.writeValueAsString(error));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new AppException(ErrorCode.CONFLICT, "Cart items changed");
+            }
         }
 
         String previewToken = UUID.randomUUID().toString();
