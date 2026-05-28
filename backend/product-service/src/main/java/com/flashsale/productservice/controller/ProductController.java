@@ -164,4 +164,10 @@ public class ProductController {
             @PathVariable UUID productId) {
         return ResponseEntity.ok(imageService.getImagesByProduct(productId));
     }
+
+    @GetMapping("/products/variants/sku/{skuCode}")
+    public ResponseEntity<ApiResponse<com.flashsale.productservice.dto.variant.VariantDetailsResponse>> getVariantBySku(
+            @PathVariable String skuCode) {
+        return ResponseEntity.ok(variantService.getVariantDetailsBySku(skuCode));
+    }
 }

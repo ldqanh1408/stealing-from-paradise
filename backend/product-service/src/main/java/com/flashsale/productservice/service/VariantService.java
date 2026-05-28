@@ -206,6 +206,30 @@ public class VariantService {
         };
     }
 
+    @Transactional(readOnly = true)
+    public ApiResponse<com.flashsale.productservice.dto.variant.VariantDetailsResponse> getVariantDetailsBySku(String skuCode) {
+        ProductVariant variant = variantRepository.findByVariantCode(skuCode)
+                .filter(v -> v.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy variant với SKU: " + skuCode));
+
+        Product product = productRepository.findById(variant.getProductId())
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy sản phẩm liên quan"));
+
+        com.flashsale.productservice.dto.variant.VariantDetailsResponse resp = com.flashsale.productservice.dto.variant.VariantDetailsResponse.builder()
+                .id(variant.getId())
+                .variantCode(variant.getVariantCode())
+                .variantName(variant.getVariantName())
+                .imageUrl(variant.getImageUrl())
+                .productId(variant.getProductId())
+                .productName(product.getName())
+                .sellerId(product.getSellerId())
+                .price(variant.getPrice())
+                .build();
+
+        return ApiResponse.success(resp);
+    }
+
     private VariantResponse toVariantResponse(ProductVariant variant) {
         return VariantResponse.builder()
                 .id(variant.getId())

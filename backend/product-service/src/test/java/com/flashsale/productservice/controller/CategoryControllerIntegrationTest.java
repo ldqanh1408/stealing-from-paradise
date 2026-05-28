@@ -8,7 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
@@ -80,7 +80,7 @@ class CategoryControllerIntegrationTest {
         @Test
         @DisplayName("returns 200 with active root categories in tree form")
         void returnsActiveRootCategories() throws Exception {
-            mockMvc.perform(get("/categories"))
+            mockMvc.perform(get("/v1/categories"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data").isArray())
                     .andExpect(jsonPath("$.data.length()").value(2))
@@ -91,7 +91,7 @@ class CategoryControllerIntegrationTest {
         @Test
         @DisplayName("includes children in tree structure")
         void includesChildrenInTree() throws Exception {
-            mockMvc.perform(get("/categories"))
+            mockMvc.perform(get("/v1/categories"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data[0].children").isArray())
                     .andExpect(jsonPath("$.data[0].children[0].name").value("Laptops"))
@@ -106,7 +106,7 @@ class CategoryControllerIntegrationTest {
         @Test
         @DisplayName("returns 200 with category detail for existing category")
         void returnsCategoryDetail() throws Exception {
-            mockMvc.perform(get("/categories/{id}", electronics.getId()))
+            mockMvc.perform(get("/v1/categories/{id}", electronics.getId()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.name").value("Electronics"))
                     .andExpect(jsonPath("$.data.slug").value("electronics"))
@@ -117,7 +117,7 @@ class CategoryControllerIntegrationTest {
         @Test
         @DisplayName("returns 404 for non-existent category")
         void returns404ForMissingCategory() throws Exception {
-            mockMvc.perform(get("/categories/{id}", "00000000-0000-0000-0000-000000000000"))
+            mockMvc.perform(get("/v1/categories/{id}", "00000000-0000-0000-0000-000000000000"))
                     .andExpect(status().isNotFound());
         }
     }
