@@ -110,27 +110,6 @@ Valid transitions:
 
 ---
 
-## BR-FLASHSALE-005: One Reminder Per Customer Per Session
-
-**Rule:** A customer can set at most one reminder per flash sale session.
-
-| Property | Value |
-|----------|-------|
-| **Enforced at** | Application layer (pre-insert check) |
-| **Violation response** | HTTP 409 Conflict |
-| **Error code** | `REMINDER_ALREADY_SET` |
-
-```
-IF EXISTS (SELECT 1 FROM fs_reminders WHERE customer_id = :customer_id AND session_id = :session_id)
-  THEN reject with 409 "Reminder already set for this session"
-ELSE
-  INSERT new reminder
-```
-
-**Related:** ENTITY-FLASHSALE-003, UC-FLASHSALE-004
-
----
-
 ## BR-FLASHSALE-006: Soft Delete
 
 **Rule:** Session deletion sets `deleted_at` timestamp instead of physically removing the row.
@@ -205,7 +184,6 @@ ELSE
 | BR-FLASHSALE-002 | Registration deadline auto-calc | DB + App | FS_SESSIONS | UC-002 |
 | BR-FLASHSALE-003 | Discount range (0,100] | DB | FS_SESSIONS | UC-001 |
 | BR-FLASHSALE-004 | Status transitions | DB + App | FS_SESSIONS | UC-006 |
-| BR-FLASHSALE-005 | 1 reminder/customer/session | App | FS_REMINDERS | UC-004 |
 | BR-FLASHSALE-006 | Soft delete | App | FS_SESSIONS | -- |
 | BR-FLASHSALE-008 | Update only UPCOMING | App | FS_SESSIONS | UC-001 |
 | BR-FLASHSALE-009 | Unique product per session | DB | FS_ITEMS | UC-002 |

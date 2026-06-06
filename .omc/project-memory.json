@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779908439319,
-  "projectRoot": "d:\\dev\\stealing-from-paradise",
+  "lastScanned": 1780662744615,
+  "projectRoot": "D:\\dev\\stealing-from-paradise",
   "techStack": {
     "languages": [
       {
@@ -33,9 +33,7 @@
   "structure": {
     "isMonorepo": false,
     "workspaces": [],
-    "mainDirectories": [
-      "scripts"
-    ],
+    "mainDirectories": [],
     "gitBranches": {
       "defaultBranch": "main",
       "branchingStrategy": null
@@ -47,7 +45,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1779908439228,
+      "lastAccessed": 1780662744564,
       "keyFiles": [
         "docker-compose.infra-only.yml",
         "docker-compose.yml",
@@ -57,21 +55,21 @@
     "documents": {
       "path": "documents",
       "purpose": null,
-      "fileCount": 14,
-      "lastAccessed": 1779908439229,
+      "fileCount": 5,
+      "lastAccessed": 1780662744565,
       "keyFiles": [
-        "BAO_CAO_DE_TAI.docx",
-        "BAO_CAO_DE_TAI.md",
-        "BAO_CAO_DE_TAI_final.docx",
-        "BAO_CAO_DE_TAI_final_generated.docx",
-        "BAO_CAO_DE_TAI_generated.docx"
+        "database-entities.md",
+        "PROJECT_OVERVIEW.md",
+        "README.md",
+        "System Analyst and Software Architect.md",
+        "TECH_STACK.md"
       ]
     },
     "frontend": {
       "path": "frontend",
       "purpose": null,
       "fileCount": 8,
-      "lastAccessed": 1779908439243,
+      "lastAccessed": 1780662744565,
       "keyFiles": [
         "docker compose.yml",
         "package-lock.json",
@@ -82,7 +80,7 @@
       "path": "nginx",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1779908439244,
+      "lastAccessed": 1780662744576,
       "keyFiles": [
         "docker-compose.prod-pulled.yml",
         "docker-entrypoint.sh",
@@ -90,36 +88,61 @@
         "reverse-proxy.conf"
       ]
     },
-    "scripts": {
-      "path": "scripts",
-      "purpose": "Build/utility scripts",
-      "fileCount": 1,
-      "lastAccessed": 1779908439245,
-      "keyFiles": [
-        "generate-report.js"
-      ]
-    },
-    "tools": {
-      "path": "tools",
-      "purpose": null,
-      "fileCount": 1,
-      "lastAccessed": 1779908439245,
-      "keyFiles": [
-        "convert_bao_cao_to_docx.py"
-      ]
+    "frontend\\node_modules": {
+      "path": "frontend\\node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 0,
+      "lastAccessed": 1780662744577,
+      "keyFiles": []
     }
   },
   "hotPaths": [
     {
-      "path": "documents\\BAO_CAO_DE_TAI.md",
-      "accessCount": 31,
-      "lastAccessed": 1779807971503,
+      "path": "documents\\_meta\\generate_html.py",
+      "accessCount": 6,
+      "lastAccessed": 1780719563423,
       "type": "file"
     },
     {
-      "path": "documents\\iwant.txt",
+      "path": "documents\\README.md",
       "accessCount": 1,
-      "lastAccessed": 1779802265646,
+      "lastAccessed": 1780717671561,
+      "type": "file"
+    },
+    {
+      "path": "documents\\PROJECT_OVERVIEW.md",
+      "accessCount": 1,
+      "lastAccessed": 1780717672053,
+      "type": "file"
+    },
+    {
+      "path": "documents\\use-cases\\identity-service\\uc-002-login.md",
+      "accessCount": 1,
+      "lastAccessed": 1780717672515,
+      "type": "file"
+    },
+    {
+      "path": "documents\\traceability\\notification-service\\traceability-matrix.md",
+      "accessCount": 1,
+      "lastAccessed": 1780717673023,
+      "type": "file"
+    },
+    {
+      "path": "documents\\api-contracts\\identity-service\\api-post-auth-login.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1780717907256,
+      "type": "file"
+    },
+    {
+      "path": "documents\\state-diagrams\\order-service\\state-order.md",
+      "accessCount": 1,
+      "lastAccessed": 1780718022981,
+      "type": "file"
+    },
+    {
+      "path": "documents\\operations\\ENVIRONMENT_VARIABLES.md",
+      "accessCount": 1,
+      "lastAccessed": 1780718023003,
       "type": "file"
     }
   ],

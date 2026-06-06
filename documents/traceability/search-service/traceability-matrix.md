@@ -69,8 +69,6 @@
 | `variant.price_updated` | skus | Partial _update | Update price fields on single document |
 | `variant.stock_updated` | skus | Partial _update | Update stock_status on single document |
 | `flash_sale.price_sync` | skus | Bulk update | Apply/remove flash prices |
-| `account.locked` (post-MVP) | skus | Update_by_query | Hide all SKUs from seller |
-| `account.unlocked` (post-MVP) | skus | Update_by_query | Restore all SKUs from seller |
 
 ---
 

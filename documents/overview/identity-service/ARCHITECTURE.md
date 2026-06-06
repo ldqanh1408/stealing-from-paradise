@@ -20,7 +20,6 @@ Authentication, authorization, user management, address management, and internal
 - Multi-role registration (BUYER, SELLER) with domain-based login
 - JWT access token + refresh token with token blacklist on logout
 - Address CRUD for buyers
-- Admin user lock/unlock
 - Internal API for inter-service user/role queries
 - MinIO presigned URL for avatar upload
 - Password change with current password verification
@@ -31,7 +30,7 @@ Authentication, authorization, user management, address management, and internal
 |-----------|-----------|------|---------|
 | AuthController | `/v1/auth` | Public | Login, register (buyer+seller), refresh, logout |
 | UserController | `/v1/users/me` | Authenticated | Profile, avatar, addresses, change password, register as seller |
-| AdminController | `/v1/admin` | ADMIN | Lock/unlock user accounts |
+| AdminController | `/v1/admin` | ADMIN | List and inspect user accounts |
 | InternalUserController | `/v1/internal/users` | Internal | User/role lookup for inter-service calls |
 
 ## Domain Model

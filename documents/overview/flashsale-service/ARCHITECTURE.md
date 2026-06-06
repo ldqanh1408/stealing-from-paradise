@@ -27,7 +27,6 @@ Time-limited flash sale sessions with price promotion management.
 - Redis ZSET worker for near-zero latency session transitions (100ms poll vs 60s cron)
 - Auto-calculated flash_price = sku.price × (1 - discount/100)
 - Seller product registration with deadline enforcement
-- User reminder system
 
 ## Architecture Pattern
 **CQRS/ES with Redis Worker:**
@@ -47,7 +46,6 @@ Time-limited flash sale sessions with price promotion management.
 |--------|-------|------------|
 | FlashSaleSession | fs_sessions | id, name, start_time, end_time, discount, registration_deadline, status |
 | FlashSaleItem | fs_items | id, session_id, product_id, discount_applied |
-| FlashSaleReminder | fs_reminders | id, user_id, session_id, reminded_at |
 
 ## Kafka Integration
 

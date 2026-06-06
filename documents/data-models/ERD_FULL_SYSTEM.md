@@ -1,4 +1,4 @@
-# Full System ERD
+﻿# Full System ERD
 
 > Generated: 2026-05-10
 > Source of truth: `docs/database/database-entities.md` (2026-05-09)
@@ -19,7 +19,7 @@ erDiagram
         varchar phone UK
         varchar password "bcrypt"
         varchar full_name
-        varchar status "ACTIVE / LOCKED"
+        varchar status "ACTIVE"
         varchar role "BUYER / SELLER / ADMIN"
         int version "optimistic lock"
         timestamp created_at

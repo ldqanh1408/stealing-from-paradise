@@ -25,7 +25,6 @@ erDiagram
     }
 
     FS_SESSIONS ||--o{ FS_ITEMS : "has items"
-    FS_SESSIONS ||--o{ FS_REMINDERS : "has reminders"
 ```
 
 ---
@@ -74,7 +73,6 @@ erDiagram
 | From | To | Notes |
 |------|----|-------|
 | `FS_ITEMS.session_id` | `FS_SESSIONS.id` | Cascade delete handled at application layer (soft delete) |
-| `FS_REMINDERS.session_id` | `FS_SESSIONS.id` | Cascade delete handled at application layer |
 
 ---
 

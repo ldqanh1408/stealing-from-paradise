@@ -46,8 +46,6 @@
 | Flash sale activated | Bulk update: `price` = `flash_price`, `original_price` preserved, `has_discount` = true, `flash_session_id` = session_id |
 | Flash sale deactivated | Bulk update: `price` = `original_price`, `has_discount` = false, `flash_session_id` = null |
 | Inventory adjusted | POST _update on single document (fields: `stock_status`) |
-| Seller locked (post-MVP) | Update_by_query WHERE `seller_id` = :id: set `is_active = false` |
-| Seller unlocked (post-MVP) | Update_by_query WHERE `seller_id` = :id: set `is_active` = true |
 
 > **Field update scope**: Fields intrinsic to a single SKU (`price`, `stock_status`) use single-document `_update`. Fields spanning multiple SKUs under one product (`product_name`, `category_path`) use `update_by_query`.
 

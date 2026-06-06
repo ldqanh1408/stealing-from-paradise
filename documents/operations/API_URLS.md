@@ -185,13 +185,6 @@
 | Method | Path | Notes |
 |--------|------|-------|
 | POST | /flash-sale/sessions/{sessionId}/buy | Purchase flash item |
-| POST | /flash-sale/sessions/{sessionId}/reminders | Register reminder |
-
-### JWT Required
-
-| Method | Path | Notes |
-|--------|------|-------|
-| DELETE | /flash-sale/sessions/{sessionId}/reminders | Cancel reminder |
 
 ### Seller (JWT + SELLER)
 

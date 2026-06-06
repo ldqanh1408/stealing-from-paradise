@@ -16,7 +16,7 @@ erDiagram
         varchar phone
         varchar password "bcrypt NOT NULL"
         varchar full_name "NOT NULL"
-        varchar status "ACTIVE/LOCKED"
+        varchar status "ACTIVE"
         timestamp created_at
         timestamp updated_at
     }
@@ -31,7 +31,7 @@ erDiagram
 | phone | VARCHAR | NULLABLE | VN phone number (optional at registration) |
 | password | VARCHAR | NOT NULL | Bcrypt-hashed password, min 8 chars |
 | full_name | VARCHAR | NOT NULL | Display name, 2-100 chars |
-| status | VARCHAR | NULLABLE | ACTIVE or LOCKED (null = ACTIVE implicitly) |
+| status | VARCHAR | NULLABLE | ACTIVE (null = ACTIVE implicitly) |
 | created_at | TIMESTAMP | NOT NULL | Account creation timestamp |
 | updated_at | TIMESTAMP | NOT NULL | Last update timestamp |
 
@@ -58,8 +58,6 @@ See [state-user.md](../../state-diagrams/identity-service/state-user.md)
 
 ```
 [*] --> ACTIVE : register (BR-IDENTITY-001)
-ACTIVE --> LOCKED : admin lock (UC-IDENTITY-005, BR-IDENTITY-003)
-LOCKED --> ACTIVE : admin unlock (UC-IDENTITY-005)
 ```
 
 ### Related Kafka Events
@@ -67,5 +65,3 @@ LOCKED --> ACTIVE : admin unlock (UC-IDENTITY-005)
 |-------|---------|
 | account.registered | POST /auth/register (UC-IDENTITY-001) |
 | account.updated | PUT /users/me (UC-IDENTITY-003) |
-| account.locked (post-MVP) | POST /admin/users/{userId}/lock (UC-IDENTITY-005) |
-| account.unlocked (post-MVP) | POST /admin/users/{userId}/unlock (UC-IDENTITY-005) |

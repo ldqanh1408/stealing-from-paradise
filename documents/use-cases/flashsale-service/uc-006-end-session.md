@@ -112,7 +112,6 @@ Operations:
 |----|-------------|
 | UC-FLASHSALE-001 | Admin creates session (registers triggers) |
 | UC-FLASHSALE-005 | Purchase only possible during ACTIVE state |
-| UC-FLASHSALE-004 | Reminder notifications sent on session start |
 
 ---
 

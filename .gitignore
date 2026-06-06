@@ -63,6 +63,7 @@ frontend/apps/*/.claude/
 frontend/apps/*/.cursor/
 frontend/apps/*/.github/
 
+.*
 # Private keys and secrets (just in case)
 *.key
 *.pem

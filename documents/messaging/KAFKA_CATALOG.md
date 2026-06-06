@@ -1,4 +1,4 @@
-## Kafka Events Catalog
+﻿## Kafka Events Catalog
 Service: platform
 Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hidden removed)
 
@@ -45,7 +45,7 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 | order-service | order.*, order.payment_timeout, seller.order_cancelled, order.checkout_submitted, order.paid, order.payment_failed | payment.*, refund.*, stock.reservation.expired, order.checkout_submitted |
 | payment-service | payment.*, stripe.*, seller.transfer.*, payout.*, refund.stripe_auto | payment.requested, order.delivered, order.cancelled |
 | refund-service | refund.* | refund.requested, refund.full_requested, order.returned, order.refunds.request, order.payment_status.request |
-| flashsale-service | flash_sale.*, flash_sale.reminder | — |
+| flashsale-service | flash_sale.* | — |
 | search-service | — (consumer-only) | product.*, category.*, inventory.* |
 | notification-service | — (consumer-only) | 22 topics from all services |
 | ai-chat-service | ai_chat.* | — |

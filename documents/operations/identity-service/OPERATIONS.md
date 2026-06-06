@@ -1,4 +1,4 @@
-# Identity Service Operations
+﻿# Identity Service Operations
 
 **Service:** identity-service | **Port:** 8081 | **Database:** PostgreSQL (identity_db)
 
@@ -10,7 +10,7 @@ JWT-based authentication service. Issues access/refresh tokens, manages user acc
 
 | Table | Purpose |
 |---|---|
-| `users` | Core user accounts (email, password_hash, locked flag) |
+| `users` | Core user accounts (email, password_hash, profile fields) |
 | `roles` | Role definitions (USER, SELLER, ADMIN) |
 | `user_roles` | Many-to-many user-to-role mapping |
 | `addresses` | User shipping/billing addresses |
@@ -57,11 +57,6 @@ logging.level.com.paradise.identity=DEBUG
 
 ## Common Operational Tasks
 
-### Unlock a User Account
-```sql
-UPDATE users SET locked = false, failed_attempts = 0 WHERE email = 'user@example.com';
-```
-
 ### Assign a Role
 ```sql
 INSERT INTO user_roles (user_id, role_id)
@@ -75,16 +70,11 @@ DELETE FROM auth_tokens WHERE user_id = (SELECT id FROM users WHERE email = 'use
 DELETE FROM refresh_tokens WHERE user_id = (SELECT id FROM users WHERE email = 'user@example.com');
 ```
 
-### List Locked Accounts
-```sql
-SELECT id, email, locked_at FROM users WHERE locked = true;
-```
-
 ## Troubleshooting
 
 | Symptom | Likely Cause | Check |
 |---|---|---|
 | 401 on all requests | JWT_SECRET mismatch or token expired | Verify secret matches across instances |
-| Login always fails | DB connection or user locked | `SELECT locked FROM users WHERE email=?` |
+| Login always fails | DB connection or invalid credentials | Check application logs and user lookup by email |
 | Refresh token rejected | Token rotation — reused old token | Check refresh_tokens table for revocation |
 | Role not recognized | Subdomain mismatch or missing user_role | Verify user_roles join; test subdomain |

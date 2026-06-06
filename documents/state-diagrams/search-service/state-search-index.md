@@ -29,8 +29,8 @@
 | INDEXED | UPDATED | Partial update via Kafka event (price/stock change) | BR-SEARCH-001-03 |
 | UPDATED | INDEXED | Update completed successfully | BR-SEARCH-001-03 |
 | INDEXED | UPDATED | Update_by_query via Kafka (product fields) | BR-SEARCH-001-03 |
-| INDEXED | HIDDEN | `product.deactivated` event (seller unpublishes) or `account.locked` (post-MVP) | BR-SEARCH-001-03 |
-| HIDDEN | INDEXED | Product reactivated via `product.activated` (re-publish) or account unlocked | BR-SEARCH-001-03 |
+| INDEXED | HIDDEN | `product.deactivated` event (seller unpublishes) | BR-SEARCH-001-03 |
+| HIDDEN | INDEXED | Product reactivated via `product.activated` (re-publish) | BR-SEARCH-001-03 |
 | INDEXED | REMOVED | `product.deleted` event | BR-SEARCH-001-03 |
 | REMOVED | INDEXED | Product re-created and re-published (`product.activated`) | BR-SEARCH-001-03 |
 | INDEXED | INDEXED | Reindex completes (alias swap to new index) | UC-SEARCH-003, BR-SEARCH-001-06 |
@@ -46,8 +46,8 @@ stateDiagram-v2
     INDEXED --> UPDATED : Partial update (price, stock)\n(BR-SEARCH-001-03)
     UPDATED --> INDEXED : Update complete
     INDEXED --> UPDATED : Update_by_query (product fields)\n(BR-SEARCH-001-03)
-    INDEXED --> HIDDEN : product.deactivated\nor account.locked (post-MVP)
-    HIDDEN --> INDEXED : product.activated (re-publish)\nor account unlocked
+    INDEXED --> HIDDEN : product.deactivated
+    HIDDEN --> INDEXED : product.activated (re-publish)
     INDEXED --> REMOVED : product.deleted
     REMOVED --> INDEXED : product.activated (re-published)
     INDEXED --> INDEXED : Reindex completes (alias swap)

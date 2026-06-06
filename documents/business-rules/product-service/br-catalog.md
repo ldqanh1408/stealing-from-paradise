@@ -143,7 +143,7 @@ draft ──submit──▶ pending ──approve──▶ approved ──publis
 | 009.5 | `approve` (`POST /admin/products/{id}/approve`) sets status=`approved`, reviewed_at=NOW(), reviewed_by=admin_user_id, reject_reason=NULL. Emits `product.approved`. |
 | 009.6 | `reject` (`POST /admin/products/{id}/reject`) requires `reason` >=10 chars (else 422). Sets status=`rejected`, reject_reason=reason, reviewed_at=NOW(), reviewed_by=admin_user_id. Emits `product.rejected`. |
 | 009.7 | Approved product is NOT live. Seller must call `publish` (BR-PRODUCT-003) to move `approved -> active`. |
-| 009.8 | Resubmit loop: `rejected` product becomes editable again -- saving any field transitions it back to `draft`. From there seller may submit again. **Limit: 3 rejections** per product. After the 3rd reject, seller is locked and must contact admin. |
+| 009.8 | Resubmit loop: `rejected` product becomes editable again -- saving any field transitions it back to `draft`. From there seller may submit again. |
 | 009.9 | Reject reason and reviewer metadata MUST be persisted to DB (`products.reject_reason`, `products.reviewed_at`, `products.reviewed_by`, `products.reject_count`) -- required for audit, for displaying the rejection notice to the seller, and for enforcing the 3-strike limit (009.8). |
 | 009.10 | Search re-indexing fires when `approved -> active` (Search Service consumer for `product.activated` triggers ES upsert) and when `active -> inactive`/`out_of_stock` (de-index or visibility flag). Pre-publish states (`draft`/`pending`/`approved`/`rejected`) are NEVER indexed in shopper-facing search. |
 | 009.11 | Admin SLA: `pending` queue should be processed within 24h. Older items get an internal alert (out of scope for MVP -- tracked via dashboard). |

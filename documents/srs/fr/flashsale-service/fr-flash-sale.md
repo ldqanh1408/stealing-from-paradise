@@ -183,29 +183,6 @@
 
 ---
 
-## FR-FLASHSALE-009: Customer Set Reminder
-
-|| Property | Value |
-||----------|-------|
-|| **Priority** | MEDIUM |
-|| **Actor** | Customer (BUYER) |
-|| **Endpoint** | POST /flash-sales/{id}/remind |
-|| **Auth** | JWT (BUYER) |
-
-**Description:** The system shall allow a customer to set a reminder for an upcoming flash sale session. Only one reminder per customer per session is allowed (BR-FLASHSALE-005).
-
-**Pre-conditions:**
-1. Session exists
-2. Customer not already registered for reminder (BR-FLASHSALE-005)
-
-**Error Responses:**
-|| Status | Code | Condition |
-||--------|------|-----------|
-|| 409 | REMINDER_ALREADY_SET | Reminder exists for this customer+session |
-
-**Cross-ref:** UC-FLASHSALE-004, BR-FLASHSALE-005, ENTITY-FLASHSALE-003
-
----
 ## FR Matrix Summary
 
 | FR ID | Description | Priority | Actor | UC | BR |
@@ -218,8 +195,7 @@
 | FR-FLASHSALE-006 | Admin update session | MEDIUM | Admin | UC-001 | BR-008 |
 | FR-FLASHSALE-007 | Transition session status | CRITICAL | System | UC-006 | BR-004 |
 | FR-FLASHSALE-008 | View sessions | HIGH | All | UC-003 | -- |
-| FR-FLASHSALE-010 | Publish Kafka events | HIGH | System | UC-001,002,004,006 | -- |
-| FR-FLASHSALE-009 | Customer set reminder | MEDIUM | Customer | UC-004 | BR-005 |
+| FR-FLASHSALE-010 | Publish Kafka events | HIGH | System | UC-001,002,006 | -- |
 
 ---
 

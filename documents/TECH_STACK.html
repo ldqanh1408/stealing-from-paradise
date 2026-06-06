@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TECH STACK &amp; FRAMEWORKS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --doc-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+      --doc-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --doc-bg: #f6f7f9;
+      --doc-panel: #ffffff;
+      --doc-border: #d9dee7;
+      --doc-muted: #5c6675;
+      --doc-text: #162033;
+      --doc-accent: #1d4ed8;
+      --doc-accent-soft: #eff6ff;
+    }
+
+    html { scroll-padding-top: 5rem; }
+    body {
+      background: var(--doc-bg);
+      color: var(--doc-text);
+      font-family: var(--doc-font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      letter-spacing: 0;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      text-rendering: optimizeLegibility;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      line-height: 1.22;
+      letter-spacing: 0;
+      font-weight: 700;
+    }
+
+    a { color: var(--doc-accent); }
+    a:hover { color: #123b9c; }
+
+    .doc-topbar {
+      background: rgba(255, 255, 255, .96);
+      border-bottom: 1px solid var(--doc-border);
+      backdrop-filter: blur(8px);
+    }
+
+    .doc-shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 1.25rem;
+    }
+
+    .doc-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .doc-sidebar {
+      position: sticky;
+      top: 5rem;
+      max-height: calc(100vh - 6rem);
+      overflow: auto;
+      background: var(--doc-panel);
+      border: 1px solid var(--doc-border);
+      border-radius: .75rem;
+      padding: 1rem;
+    }
+
+    .doc-main {
+      min-width: 0;
+    }
+
+    .doc-hero,
+    .doc-panel {
+      background: var(--doc-panel);
+      border: 1px solid var(--doc-border);
+      border-radius: .75rem;
+    }
+
+    .doc-hero {
+      padding: 1.25rem;
+    }
+
+    .doc-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .doc-kpi {
+      background: var(--doc-panel);
+      border: 1px solid var(--doc-border);
+      border-radius: .75rem;
+      padding: 1rem;
+      height: 100%;
+    }
+
+    .doc-card {
+      border: 1px solid var(--doc-border);
+      border-radius: .75rem;
+      background: var(--doc-panel);
+      height: 100%;
+      transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    }
+
+    .doc-card:hover {
+      border-color: #adc6ff;
+      box-shadow: 0 .5rem 1.5rem rgba(22, 32, 51, .08);
+      transform: translateY(-1px);
+    }
+
+    .doc-card:focus-visible,
+    .doc-link-list a:focus-visible,
+    .nav-link:focus-visible,
+    .btn:focus-visible {
+      outline: 3px solid rgba(29, 78, 216, .35);
+      outline-offset: 2px;
+    }
+
+    .doc-card .card-body {
+      padding: 1rem;
+    }
+
+    .doc-link-list {
+      display: grid;
+      gap: .5rem;
+      padding-left: 0;
+      margin-bottom: 0;
+      list-style: none;
+    }
+
+    .doc-link-list a {
+      display: block;
+      padding: .625rem .75rem;
+      border: 1px solid var(--doc-border);
+      border-radius: .5rem;
+      background: #fff;
+      text-decoration: none;
+    }
+
+    .doc-link-list a:hover {
+      background: var(--doc-accent-soft);
+      border-color: #bfdbfe;
+    }
+
+    .doc-table {
+      --bs-table-bg: #fff;
+      border: 1px solid var(--doc-border);
+    }
+
+    .doc-table thead th {
+      background: #eef2f7;
+      color: #283549;
+      white-space: nowrap;
+    }
+
+    pre {
+      background: #101827;
+      color: #f8fafc;
+      font-family: var(--doc-font-mono);
+      font-size: .875rem;
+      line-height: 1.55;
+      padding: 1rem;
+      border-radius: .75rem;
+      overflow: auto;
+    }
+
+    pre.mermaid {
+      background: #ffffff;
+      color: var(--doc-text);
+      border: 1px solid var(--doc-border);
+      min-height: 8rem;
+    }
+
+    code {
+      color: #9a3412;
+      font-family: var(--doc-font-mono);
+      font-size: .9em;
+    }
+
+    .doc-meta {
+      color: var(--doc-muted);
+      font-size: .875rem;
+    }
+
+    .doc-anchor {
+      scroll-margin-top: 5rem;
+    }
+
+    @media (max-width: 991.98px) {
+      .doc-shell { padding: .875rem; }
+      .doc-layout { grid-template-columns: 1fr; }
+      .doc-sidebar {
+        position: static;
+        max-height: none;
+      }
+    }
+
+    @media print {
+      .doc-topbar,
+      .doc-sidebar,
+      .btn,
+      .nav-tabs {
+        display: none !important;
+      }
+      body { background: #fff; }
+      .doc-shell { max-width: none; padding: 0; }
+      .doc-layout { display: block; }
+      .doc-hero,
+      .doc-panel,
+      .doc-card,
+      .doc-kpi {
+        border: 1px solid #bbb;
+        box-shadow: none !important;
+      }
+    }
+      pre code { color: inherit; background: transparent; font-size: inherit; padding: 0; }
+    pre { white-space: pre; }
+  </style>
+</head>
+<body>
+  <header class="doc-topbar sticky-top">
+    <nav class="navbar navbar-expand-lg">
+      <div class="container-fluid px-3">
+        <a class="navbar-brand fw-semibold" href="index.html">Stealing-from-Paradise</a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="index.html">Home</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/overview.html">Overview</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/architecture.html">Architecture</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/domain.html">Domain Model and Rules</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/use-cases.html">Use Cases</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/business-flows.html">Business Flows</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/interfaces.html">Interfaces</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/messaging.html">Messaging and Realtime</a>
+<a class="btn btn-sm btn-outline-secondary" href="groups/traceability.html">Traceability</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <div class="doc-shell">
+    <div class="doc-layout">
+      <aside class="doc-sidebar">
+        <div class="fw-semibold mb-2">Contents</div>
+        <nav class="nav nav-pills flex-column gap-1">
+          <a class="nav-link" href="groups/overview.html">Overview</a>
+<a class="nav-link" href="groups/architecture.html">Architecture</a>
+<a class="nav-link" href="groups/domain.html">Domain Model and Rules</a>
+<a class="nav-link" href="groups/business-flows.html">Business Flows</a>
+<a class="nav-link" href="groups/use-cases.html">Use Cases</a>
+<a class="nav-link" href="groups/interfaces.html">Interfaces</a>
+<a class="nav-link" href="groups/messaging.html">Messaging and Realtime</a>
+<a class="nav-link" href="groups/identity.html">Identity and Security</a>
+<a class="nav-link" href="groups/platform.html">Platform and Operations</a>
+<a class="nav-link" href="groups/deployment.html">Deployment</a>
+<a class="nav-link" href="groups/observability.html">Observability</a>
+<a class="nav-link" href="groups/integrations.html">Integrations</a>
+<a class="nav-link" href="groups/traceability.html">Traceability</a>
+<a class="nav-link" href="traceability/matrix.html">Traceability Matrix</a>
+        </nav>
+      </aside>
+
+      <main class="doc-main">
+        <section class="doc-hero doc-section">
+          <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+            <div>
+              <h1 class="h2 mb-1">TECH STACK &amp; FRAMEWORKS</h1>
+              <div class="doc-meta">DOC-TECH-STACK | 2026-06-06</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">doc</span> <span class="badge text-bg-light">platform</span></div>
+          </div>
+        </section>
+
+        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>TECH STACK &amp; FRAMEWORKS</h1>
+<blockquote>
+<p>Tài liệu liệt kê đầy đủ các công nghệ, framework, thư viện và hạ tầng được sử dụng trong dự án <strong>Flash Sale E-Commerce Platform</strong> (<code>stealing-from-paradise</code>).</p>
+<p><strong>Kiến trúc tổng quan:</strong> Microservices + Event-Driven (CQRS/Event Sourcing) + Reactive</p>
+<p>Cập nhật: 2026-05-21</p>
+</blockquote>
+<hr>
+<h2>Mục lục</h2>
+<ol>
+<li><a href="#">Tóm tắt nhanh</a></li>
+<li><a href="#">Backend — Ngôn ngữ &amp; Runtime</a></li>
+<li><a href="#">Backend — Framework chính</a></li>
+<li><a href="#">Backend — Theo từng service</a></li>
+<li><a href="#">Frontend</a></li>
+<li><a href="#">Cơ sở dữ liệu &amp; Lưu trữ</a></li>
+<li><a href="#">Messaging &amp; Event Backbone</a></li>
+<li><a href="#">Service Discovery, Gateway &amp; Cấu hình</a></li>
+<li><a href="#">Bảo mật &amp; Identity</a></li>
+<li><a href="#">AI / LLM</a></li>
+<li><a href="#">Thanh toán &amp; Tích hợp bên thứ ba</a></li>
+<li><a href="#">DevOps / Hạ tầng vận hành</a></li>
+<li><a href="#">Quan sát &amp; Giám sát</a></li>
+<li><a href="#">Phụ lục: Phiên bản chốt</a></li>
+</ol>
+<hr>
+<h2>1. Tóm tắt nhanh</h2>
+<table>
+<thead>
+<tr>
+<th>Lớp</th>
+<th>Công nghệ chính</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ngôn ngữ backend</td>
+<td><strong>Java 25</strong></td>
+</tr>
+<tr>
+<td>Framework backend</td>
+<td><strong>Spring Boot 4.0.4</strong>, <strong>Spring Cloud 2025.1.1</strong>, <strong>Axon Framework 4.13.0</strong></td>
+</tr>
+<tr>
+<td>Reactive stack</td>
+<td><strong>Spring WebFlux</strong>, <strong>R2DBC</strong>, <strong>Project Reactor</strong>, <strong>Virtual Threads (Loom)</strong></td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td><strong>React 19</strong>, <strong>Vite 6</strong>, <strong>TypeScript 5.6</strong>, <strong>TanStack Query v5</strong>, <strong>Zustand 5</strong>, <strong>Tailwind 3.4</strong></td>
+</tr>
+<tr>
+<td>Database</td>
+<td><strong>PostgreSQL 15</strong>, <strong>MongoDB 6</strong>, <strong>Redis 7</strong>, <strong>Elasticsearch 8</strong></td>
+</tr>
+<tr>
+<td>Messaging</td>
+<td><strong>Apache Kafka (Confluent 7.4)</strong>, <strong>Axon Server</strong> (event store + command/query bus)</td>
+</tr>
+<tr>
+<td>AI</td>
+<td><strong>Spring AI 2.0.0-M6</strong> (OpenAI / DeepSeek compatible)</td>
+</tr>
+<tr>
+<td>Thanh toán</td>
+<td><strong>Stripe</strong></td>
+</tr>
+<tr>
+<td>Storage</td>
+<td><strong>MinIO</strong> (S3 compatible)</td>
+</tr>
+<tr>
+<td>Gateway / Discovery</td>
+<td><strong>Spring Cloud Gateway (WebFlux)</strong>, <strong>Netflix Eureka</strong></td>
+</tr>
+<tr>
+<td>Container</td>
+<td><strong>Docker Compose</strong> (multi-stack: infrastructure / backend / frontend)</td>
+</tr>
+<tr>
+<td>Quan sát</td>
+<td><strong>Spring Actuator</strong>, <strong>Micrometer + Prometheus</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>2. Backend — Ngôn ngữ &amp; Runtime</h2>
+<table>
+<thead>
+<tr>
+<th>Hạng mục</th>
+<th>Chi tiết</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ngôn ngữ</td>
+<td><strong>Java 25</strong> (LTS, dùng tính năng records, sealed types, pattern matching)</td>
+</tr>
+<tr>
+<td>Build tool</td>
+<td><strong>Maven</strong> (multi-module, parent <code>flashsale-parent</code> quản lý toàn bộ version)</td>
+</tr>
+<tr>
+<td>Virtual Threads</td>
+<td>Bật <code>spring.threads.virtual.enabled=true</code> ở các service blocking (Project Loom) để xử lý nhiều request đồng thời mà không cần thread pool lớn</td>
+</tr>
+<tr>
+<td>Code generation</td>
+<td><strong>Lombok 1.18.40</strong> (giảm boilerplate getter/setter/builder)</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td><strong>Jakarta Validation API + Hibernate Validator</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Vì sao chọn Java 25 + Spring Boot 4:</strong>
+- Java 25 = LTS gần nhất, có virtual threads ổn định → phù hợp với traffic cao kiểu flash-sale (hàng nghìn request đồng thời).
+- Spring Boot 4 = sinh thái lớn, auto-config nhanh, tương thích Spring Cloud 2025.1.</p>
+<hr>
+<h2>3. Backend — Framework chính</h2>
+<h3>3.1 Spring Boot 4.0.4</h3>
+<p>Nền tảng autoconfigure cho mọi service. Starters chính được dùng:</p>
+<table>
+<thead>
+<tr>
+<th>Starter</th>
+<th>Mục đích</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spring-boot-starter-web</code></td>
+<td>REST API blocking (Tomcat servlet)</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-webflux</code></td>
+<td>REST API reactive / SSE (Netty)</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-data-jpa</code></td>
+<td>ORM cho PostgreSQL</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-data-r2dbc</code></td>
+<td>Reactive driver cho PostgreSQL</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-data-mongodb</code> / <code>-reactive</code></td>
+<td>Document store</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-data-redis</code> / <code>-reactive</code></td>
+<td>Cache, rate limiter, distributed lock</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-data-elasticsearch</code></td>
+<td>Full-text search</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-security</code></td>
+<td>Auth (JWT)</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-validation</code></td>
+<td>Bean validation</td>
+</tr>
+<tr>
+<td><code>spring-boot-starter-actuator</code></td>
+<td>Health, metrics, info endpoints</td>
+</tr>
+</tbody>
+</table>
+<h3>3.2 Spring Cloud 2025.1.1</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Mục đích</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spring-cloud-starter-netflix-eureka-server</code></td>
+<td>Discovery server (port 8761)</td>
+</tr>
+<tr>
+<td><code>spring-cloud-starter-netflix-eureka-client</code></td>
+<td>Client tự đăng ký với Eureka</td>
+</tr>
+<tr>
+<td><code>spring-cloud-starter-gateway-server-webflux</code></td>
+<td>API Gateway reactive (port 8080), routing + filter</td>
+</tr>
+</tbody>
+</table>
+<h3>3.3 Axon Framework 4.13.0 — CQRS / Event Sourcing</h3>
+<p>Dùng cho các domain <strong>trạng thái nghiệp vụ phức tạp</strong> (order, payment, refund, flashsale).</p>
+<ul>
+<li><strong>Command side</strong> (<code>@CommandHandler</code>): nhận lệnh, validate invariant trong aggregate root.</li>
+<li><strong>Event side</strong> (<code>@EventSourcingHandler</code>): tái dựng aggregate từ event store.</li>
+<li><strong>Saga</strong> (<code>@Saga</code>): điều phối flow đa service (ví dụ: Order → Payment → Inventory deduction → Notification).</li>
+<li><strong>Axon Server</strong>: event store + command/query bus (chạy như container riêng, port 8024 UI, 8124 gRPC).</li>
+</ul>
+<h3>3.4 Spring WebFlux + Project Reactor</h3>
+<p>Dùng ở <strong>api-gateway</strong>, <strong>flashsale-service</strong>, <strong>chat-service</strong>, <strong>notification-service</strong> — nơi cần xử lý nhiều kết nối đồng thời (SSE, long-polling, downstream call chain).</p>
+<ul>
+<li>Non-blocking I/O trên Netty</li>
+<li><code>Mono&lt;T&gt;</code> / <code>Flux&lt;T&gt;</code> cho stream/single async</li>
+<li>Tích hợp tốt với R2DBC (PostgreSQL reactive) và Mongo reactive driver</li>
+</ul>
+<h3>3.5 Spring Data</h3>
+<ul>
+<li><strong>JPA + Hibernate</strong>: blocking PostgreSQL (identity, order, payment, refund)</li>
+<li><strong>R2DBC</strong>: reactive PostgreSQL (flashsale — yêu cầu throughput cực cao)</li>
+<li><strong>Mongo (blocking &amp; reactive)</strong>: product, notification, chat</li>
+<li><strong>Redis (blocking &amp; reactive)</strong>: cache, rate-limiter, Redis stream</li>
+</ul>
+<h3>3.6 Flyway</h3>
+<p>Database migration cho mọi service dùng PostgreSQL (<code>identity</code>, <code>order</code>, <code>payment</code>, <code>refund</code>, <code>flashsale</code>). File SQL nằm trong <code>src/main/resources/db/migration</code>.</p>
+<hr>
+<h2>4. Backend — Theo từng service</h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port</th>
+<th>DB</th>
+<th>Pattern</th>
+<th>Đặc thù công nghệ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>discovery-service</strong></td>
+<td>8761</td>
+<td>—</td>
+<td>Eureka Server</td>
+<td>Spring Cloud Netflix</td>
+</tr>
+<tr>
+<td><strong>api-gateway</strong></td>
+<td>8080</td>
+<td>Redis (rate-limit)</td>
+<td>WebFlux Gateway</td>
+<td>Reactive, JWT validate, route theo Eureka</td>
+</tr>
+<tr>
+<td><strong>identity-service</strong></td>
+<td>8081</td>
+<td>PostgreSQL + Redis</td>
+<td>Layered (CRUD)</td>
+<td>Spring Security, JWT issuance, Flyway</td>
+</tr>
+<tr>
+<td><strong>product-service</strong></td>
+<td>8082</td>
+<td>MongoDB + Redis + MinIO</td>
+<td>Layered</td>
+<td>Upload ảnh MinIO, cache Redis</td>
+</tr>
+<tr>
+<td><strong>order-service</strong></td>
+<td>8083</td>
+<td>PostgreSQL (JPA) + Kafka</td>
+<td><strong>Axon CQRS</strong></td>
+<td>Aggregate, Saga điều phối Payment</td>
+</tr>
+<tr>
+<td><strong>payment-service</strong></td>
+<td>8084</td>
+<td>PostgreSQL (JPA) + Kafka</td>
+<td><strong>Axon CQRS</strong></td>
+<td>Stripe SDK, webhook handler</td>
+</tr>
+<tr>
+<td><strong>refund-service</strong></td>
+<td>8085</td>
+<td>PostgreSQL (JPA) + Kafka</td>
+<td><strong>Axon CQRS</strong></td>
+<td>Stripe refund, Saga rollback</td>
+</tr>
+<tr>
+<td><strong>flashsale-service</strong></td>
+<td>8086</td>
+<td>PostgreSQL (R2DBC) + Redis (reactive)</td>
+<td><strong>Axon + WebFlux</strong></td>
+<td>High-throughput reactive, atomic decrement Redis</td>
+</tr>
+<tr>
+<td><strong>search-service</strong></td>
+<td>8087</td>
+<td>Elasticsearch</td>
+<td>CQRS read-side</td>
+<td>Consume Kafka event để index sản phẩm</td>
+</tr>
+<tr>
+<td><strong>notification-service</strong></td>
+<td>8092</td>
+<td>MongoDB (reactive) + Redis</td>
+<td>WebFlux</td>
+<td>SSE push, consume sự kiện đơn hàng</td>
+</tr>
+<tr>
+<td><strong>chat-service</strong></td>
+<td>8093</td>
+<td>MongoDB (reactive)</td>
+<td>WebFlux + <strong>Spring AI</strong></td>
+<td>LLM tool calling, SSE streaming chat</td>
+</tr>
+<tr>
+<td><strong>common-lib</strong></td>
+<td>—</td>
+<td>—</td>
+<td>Shared library</td>
+<td>DTOs, exceptions, JWT util, Kafka topic constants</td>
+</tr>
+<tr>
+<td><strong>dev-data-runner</strong></td>
+<td>—</td>
+<td>—</td>
+<td>Helper</td>
+<td>Seed dữ liệu dev</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>5. Frontend</h2>
+<p>3 ứng dụng riêng biệt trong <code>frontend/apps/</code>: <strong>customer</strong>, <strong>seller</strong>, <strong>admin</strong>.</p>
+<h3>5.1 Stack chung</h3>
+<table>
+<thead>
+<tr>
+<th>Công nghệ</th>
+<th>Version</th>
+<th>Mục đích</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>React</strong></td>
+<td>19.0</td>
+<td>UI library</td>
+</tr>
+<tr>
+<td><strong>TypeScript</strong></td>
+<td>5.6</td>
+<td>Type safety</td>
+</tr>
+<tr>
+<td><strong>Vite</strong></td>
+<td>6.0</td>
+<td>Dev server + bundler (HMR cực nhanh, ESM native)</td>
+</tr>
+<tr>
+<td><strong>React Router</strong></td>
+<td>6.26</td>
+<td>Client-side routing</td>
+</tr>
+<tr>
+<td><strong>TanStack Query (React Query)</strong></td>
+<td>5.62</td>
+<td>Server state, cache, retry, optimistic update</td>
+</tr>
+<tr>
+<td><strong>Zustand</strong></td>
+<td>5.0</td>
+<td>Client state (auth, cart) — siêu nhẹ thay Redux</td>
+</tr>
+<tr>
+<td><strong>Axios</strong></td>
+<td>1.7</td>
+<td>HTTP client với interceptor</td>
+</tr>
+<tr>
+<td><strong>Tailwind CSS</strong></td>
+<td>3.4</td>
+<td>Utility-first styling</td>
+</tr>
+<tr>
+<td><strong>js-cookie</strong></td>
+<td>3.0</td>
+<td>Lưu access/refresh token</td>
+</tr>
+</tbody>
+</table>
+<h3>5.2 Riêng customer + seller</h3>
+<ul>
+<li><strong><code>@stripe/stripe-js</code> 5.5</strong> + <strong><code>@stripe/react-stripe-js</code> 3.2</strong> — Stripe Elements để nhập thẻ.</li>
+</ul>
+<h3>5.3 Vì sao không Next.js?</h3>
+<p>Dự án là 3 SPA độc lập (B2C / B2B / Admin). Không cần SSR/SEO sâu → Vite + React SPA nhẹ và build nhanh hơn Next.js.</p>
+<hr>
+<h2>6. Cơ sở dữ liệu &amp; Lưu trữ</h2>
+<table>
+<thead>
+<tr>
+<th>DB</th>
+<th>Version</th>
+<th>Service sử dụng</th>
+<th>Lý do chọn</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PostgreSQL</strong></td>
+<td>15.4-alpine</td>
+<td>identity, order, payment, refund, flashsale</td>
+<td>OLTP ACID, transactional, JPA/R2DBC ổn định</td>
+</tr>
+<tr>
+<td><strong>MongoDB</strong></td>
+<td>6.0.8</td>
+<td>product, notification, chat</td>
+<td>Schema linh hoạt (sản phẩm có attribute động), document model phù hợp chat history</td>
+</tr>
+<tr>
+<td><strong>Redis</strong></td>
+<td>7.2.1-alpine</td>
+<td>gateway, identity, product, flashsale, notification</td>
+<td>Cache, rate-limit, atomic counter (flash-sale inventory), pub/sub</td>
+</tr>
+<tr>
+<td><strong>Elasticsearch</strong></td>
+<td>8.10.2</td>
+<td>search</td>
+<td>Full-text search, fuzzy, aggregation</td>
+</tr>
+<tr>
+<td><strong>MinIO</strong></td>
+<td>latest</td>
+<td>product</td>
+<td>S3-compatible object storage cho ảnh sản phẩm</td>
+</tr>
+<tr>
+<td><strong>Axon Server</strong></td>
+<td>latest</td>
+<td>order, payment, refund, flashsale</td>
+<td>Event store + command/query bus</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>7. Messaging &amp; Event Backbone</h2>
+<h3>7.1 Apache Kafka (Confluent 7.4.0)</h3>
+<ul>
+<li>Broker port <code>9092</code> (internal), <code>9094</code> (external)</li>
+<li>Zookeeper port <code>2181</code> (legacy mode)</li>
+<li>Mọi service đều có <code>spring-kafka</code> dependency</li>
+<li>Pattern dùng: <strong>Event Notification</strong> + <strong>Event-Carried State Transfer</strong> (search-service index từ event)</li>
+<li>Topic management: container <code>kafka-init</code> chạy script tạo topic khi compose up</li>
+<li>Catalog topic: xem <code>documents/messaging/KAFKA_CATALOG.md</code></li>
+</ul>
+<h3>7.2 Axon Server</h3>
+<ul>
+<li>Event store cho các CQRS aggregate</li>
+<li>Command/Query bus (gRPC)</li>
+<li>Có UI quản trị ở port <code>8024</code></li>
+</ul>
+<h3>7.3 Khi nào dùng Kafka vs Axon?</h3>
+<table>
+<thead>
+<tr>
+<th>Use case</th>
+<th>Bus dùng</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Domain event nội bộ aggregate, replay event</td>
+<td><strong>Axon</strong></td>
+</tr>
+<tr>
+<td>Cross-service integration event (Order created → Search index, → Notification)</td>
+<td><strong>Kafka</strong></td>
+</tr>
+<tr>
+<td>Saga điều phối nhiều service</td>
+<td><strong>Axon Saga</strong> publish event ra Kafka cho service ngoài</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>8. Service Discovery, Gateway &amp; Cấu hình</h2>
+<ul>
+<li><strong>Discovery</strong>: <code>discovery-service</code> (Eureka, port 8761) — mọi microservice tự đăng ký.</li>
+<li><strong>API Gateway</strong>: <code>api-gateway</code> (Spring Cloud Gateway WebFlux, port 8080) — route theo <code>serviceId</code> (Eureka), filter JWT, rate-limit qua Redis.</li>
+<li><strong>Cấu hình</strong>: file <code>application.yaml</code> mỗi service + biến môi trường (qua <code>.env</code> và docker-compose).</li>
+</ul>
+<hr>
+<h2>9. Bảo mật &amp; Identity</h2>
+<table>
+<thead>
+<tr>
+<th>Hạng mục</th>
+<th>Công nghệ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Auth framework</td>
+<td><strong>Spring Security 6</strong></td>
+</tr>
+<tr>
+<td>Token</td>
+<td><strong>JWT</strong> (HS256), issue bởi <code>identity-service</code>, validate ở gateway</td>
+</tr>
+<tr>
+<td>Password</td>
+<td>BCrypt (Spring Security)</td>
+</tr>
+<tr>
+<td>Refresh token</td>
+<td>Lưu Redis với TTL</td>
+</tr>
+<tr>
+<td>CORS</td>
+<td>Cấu hình ở API Gateway</td>
+</tr>
+<tr>
+<td>Role</td>
+<td>USER / SELLER / ADMIN</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>10. AI / LLM</h2>
+<h3>10.1 Spring AI 2.0.0-M6 (chat-service)</h3>
+<ul>
+<li>Starter: <code>spring-ai-starter-model-openai</code> — chuẩn OpenAI-compatible nên có thể swap sang <strong>DeepSeek</strong>, <strong>Groq</strong>, <strong>Together AI</strong>, etc. bằng cách override <code>SPRING_AI_OPENAI_BASE_URL</code>.</li>
+<li>Tính năng dùng trong <code>ChatService</code>:</li>
+<li><strong>Tool calling</strong> (<code>@Tool</code>): <code>OrderQueryTool</code>, <code>ProductSearchTool</code>, <code>SystemActionTool</code> — LLM tự quyết định gọi tool nào.</li>
+<li><strong>Human-in-the-loop confirmation</strong>: lưu <code>PendingConfirmation</code> trước khi thực thi action có ảnh hưởng (hủy đơn, refund).</li>
+<li><strong>Streaming SSE</strong>: trả lời từng token qua <code>Flux&lt;ServerSentEvent&lt;String&gt;&gt;</code>.</li>
+<li>Lưu trữ session/message: MongoDB reactive.</li>
+</ul>
+<h3>10.2 Cấu hình env (xem <code>.env</code>)</h3>
+<pre><code>SPRING_AI_OPENAI_API_KEY=&lt;key&gt;
+SPRING_AI_OPENAI_BASE_URL=https://api.deepseek.com   # hoặc https://api.openai.com
+SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL=deepseek-chat    # hoặc gpt-4o-mini
+</code></pre>
+<hr>
+<h2>11. Thanh toán &amp; Tích hợp bên thứ ba</h2>
+<table>
+<thead>
+<tr>
+<th>Tích hợp</th>
+<th>Thư viện</th>
+<th>Service</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Stripe</strong></td>
+<td><code>stripe-java</code> (SDK chính thức) + Stripe Elements (frontend)</td>
+<td>payment-service, refund-service</td>
+</tr>
+<tr>
+<td><strong>Webhook</strong></td>
+<td>Stripe webhook → payment-service xử lý sự kiện <code>payment_intent.succeeded</code>, <code>charge.refunded</code>, etc.</td>
+<td>payment-service</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>12. DevOps / Hạ tầng vận hành</h2>
+<h3>12.1 Docker Compose stacks</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Mục đích</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docker-compose-infrastructure.yml</code></td>
+<td>Postgres, Mongo, Redis, Elasticsearch, Kafka, Zookeeper, MinIO, Axon Server</td>
+</tr>
+<tr>
+<td><code>docker-compose-backend.yml</code></td>
+<td>12 microservices Java</td>
+</tr>
+<tr>
+<td><code>docker-compose.yml</code></td>
+<td>All-in-one (infra + backend)</td>
+</tr>
+<tr>
+<td><code>docker-compose.dev.yml</code></td>
+<td>Overlay dev</td>
+</tr>
+<tr>
+<td><code>docker-compose.prod-pulled.yml</code></td>
+<td>Production (image từ registry)</td>
+</tr>
+<tr>
+<td><code>frontend/docker compose.yml</code></td>
+<td>3 frontend apps</td>
+</tr>
+</tbody>
+</table>
+<h3>12.2 Build &amp; deploy</h3>
+<ul>
+<li><strong>Dockerfile.dev</strong> mỗi service (multi-stage build với Maven + JRE)</li>
+<li><strong>PowerShell script</strong> <code>flashsale-build.ps1</code> để build hàng loạt</li>
+<li><strong>Nginx</strong> reverse proxy cho frontend (folder <code>nginx/</code>)</li>
+</ul>
+<h3>12.3 GitHub Actions</h3>
+<p>Có workflow <code>.github/workflows/copilot-setup-steps.yml</code> để setup môi trường cho Copilot/CI.</p>
+<hr>
+<h2>13. Quan sát &amp; Giám sát</h2>
+<table>
+<thead>
+<tr>
+<th>Hạng mục</th>
+<th>Công cụ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Health check</td>
+<td><code>spring-boot-starter-actuator</code> → <code>/actuator/health</code></td>
+</tr>
+<tr>
+<td>Metrics</td>
+<td><strong>Micrometer</strong> + <code>micrometer-registry-prometheus</code> (product-service đã có, mở rộng cho service khác)</td>
+</tr>
+<tr>
+<td>Logging</td>
+<td>Slf4j + Logback (mặc định Spring Boot)</td>
+</tr>
+<tr>
+<td>Tracing</td>
+<td><em>Chưa cấu hình (gợi ý thêm OpenTelemetry / Zipkin trong tương lai)</em></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>14. Phụ lục: Phiên bản chốt</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Java</td>
+<td>25</td>
+</tr>
+<tr>
+<td>Spring Boot</td>
+<td>4.0.4</td>
+</tr>
+<tr>
+<td>Spring Cloud</td>
+<td>2025.1.1</td>
+</tr>
+<tr>
+<td>Axon Framework</td>
+<td>4.13.0</td>
+</tr>
+<tr>
+<td>Spring AI</td>
+<td>2.0.0-M6</td>
+</tr>
+<tr>
+<td>Lombok</td>
+<td>1.18.40</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>15.4-alpine</td>
+</tr>
+<tr>
+<td>MongoDB</td>
+<td>6.0.8</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>7.2.1-alpine</td>
+</tr>
+<tr>
+<td>Elasticsearch</td>
+<td>8.10.2</td>
+</tr>
+<tr>
+<td>Kafka (Confluent)</td>
+<td>7.4.0</td>
+</tr>
+<tr>
+<td>Node (frontend)</td>
+<td>22 (types)</td>
+</tr>
+<tr>
+<td>React</td>
+<td>19.0.0</td>
+</tr>
+<tr>
+<td>TypeScript</td>
+<td>5.6.2</td>
+</tr>
+<tr>
+<td>Vite</td>
+<td>6.0.0</td>
+</tr>
+<tr>
+<td>Tailwind CSS</td>
+<td>3.4.1</td>
+</tr>
+<tr>
+<td>TanStack Query</td>
+<td>5.62</td>
+</tr>
+<tr>
+<td>Zustand</td>
+<td>5.0.2</td>
+</tr>
+<tr>
+<td>Axios</td>
+<td>1.7.9</td>
+</tr>
+<tr>
+<td>Stripe Java SDK</td>
+<td>mới nhất (managed by Spring Boot BOM)</td>
+</tr>
+<tr>
+<td>Stripe JS</td>
+<td>5.5.0</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Tài liệu liên quan</h2>
+<ul>
+<li><code>README.md</code> — quick start</li>
+<li><code>documents/PROJECT_OVERVIEW.md</code> — kiến trúc tổng quan</li>
+<li><code>documents/ERD_DIAGRAMS.md</code> — sơ đồ ERD</li>
+<li><code>documents/messaging/KAFKA_CATALOG.md</code> — danh mục Kafka topic</li>
+<li><code>documents/UC_FULL_SYSTEM.md</code> — use case toàn hệ thống</li>
+</ul></div></section>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    function normalizeDocSearchText(value) {
+      return (value || '').toString().toLowerCase();
+    }
+
+    function escapeDocHtml(value) {
+      return (value || '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderSearchIndexResults(container, items, query) {
+      if (!container) return;
+      var normalized = normalizeDocSearchText(query);
+      if (!normalized) {
+        container.innerHTML = '';
+        container.classList.add('d-none');
+        return;
+      }
+      var matches = items.filter(function(item) {
+        var haystack = [
+          item.id,
+          item.title,
+          item.type,
+          item.group,
+          item.status,
+          item.summary,
+          (item.tags || []).join(' '),
+          (item.related_ids || []).join(' '),
+          item.search_text
+        ].map(normalizeDocSearchText).join(' ');
+        return haystack.indexOf(normalized) !== -1;
+      }).slice(0, 12);
+
+      if (!matches.length) {
+        container.innerHTML = '<div class="text-secondary small">No indexed results found.</div>';
+        container.classList.remove('d-none');
+        return;
+      }
+
+      container.innerHTML = matches.map(function(item) {
+        var title = escapeDocHtml(item.title || item.id || 'Untitled');
+        var path = escapeDocHtml(item.path || '#');
+        var meta = escapeDocHtml([item.type, item.group, item.status].filter(Boolean).join(' | '));
+        return '<a class="d-block border rounded p-2 mb-2 text-decoration-none bg-white" href="' + path + '">' +
+          '<div class="fw-semibold">' + title + '</div>' +
+          '<div class="text-secondary small">' + meta + '</div>' +
+          '</a>';
+      }).join('');
+      container.classList.remove('d-none');
+    }
+
+    var searchIndexPromise = null;
+    function loadDocSearchIndex(path, inlineSelector) {
+      var inlineNode = inlineSelector ? document.querySelector(inlineSelector) : null;
+      if (inlineNode && inlineNode.textContent.trim()) {
+        try {
+          return Promise.resolve(JSON.parse(inlineNode.textContent));
+        } catch (error) {
+          return Promise.resolve(null);
+        }
+      }
+      if (!path) return Promise.resolve(null);
+      if (!searchIndexPromise) {
+        searchIndexPromise = fetch(path).then(function(response) {
+          if (!response.ok) return null;
+          return response.json();
+        }).catch(function() { return null; });
+      }
+      return searchIndexPromise;
+    }
+
+    document.querySelectorAll('[data-doc-filter-target]').forEach(function(input) {
+      var selector = input.getAttribute('data-doc-filter-target');
+      var items = Array.prototype.slice.call(document.querySelectorAll(selector));
+      var indexPath = input.getAttribute('data-doc-search-index');
+      var inlineIndexSelector = input.getAttribute('data-doc-search-inline');
+      var resultSelector = input.getAttribute('data-doc-search-results');
+      var resultContainer = resultSelector ? document.querySelector(resultSelector) : null;
+      input.addEventListener('input', function() {
+        var query = input.value.trim().toLowerCase();
+        items.forEach(function(item) {
+          var haystack = (item.getAttribute('data-doc-filter-text') || item.textContent || '').toLowerCase();
+          item.classList.toggle('d-none', query && haystack.indexOf(query) === -1);
+        });
+        loadDocSearchIndex(indexPath, inlineIndexSelector).then(function(index) {
+          if (index && Array.isArray(index.items)) {
+            renderSearchIndexResults(resultContainer, index.items, query);
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

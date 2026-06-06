@@ -73,7 +73,7 @@ paths:
                     type: string
                   status:
                     type: string
-                    enum: [ACTIVE, LOCKED]
+                    enum: [ACTIVE]
                   created_at:
                     type: string
                     format: date-time
@@ -102,16 +102,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "403":
-          description: Account locked (BR-IDENTITY-003)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "ACCOUNT_LOCKED"
-                message: "Account is locked"
-                status_code: 403
 components:
   schemas:
     Error:

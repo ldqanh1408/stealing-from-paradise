@@ -154,12 +154,7 @@ components:
             - FS_ITEM_REJECTED
             - PRODUCT_APPROVED
             - PRODUCT_REJECTED
-            - ACCOUNT_LOCKED
-            - ACCOUNT_UNLOCKED
             - STRIPE_ACCOUNT_SUSPENDED
-            - SELLER_POSTING_SUSPENDED
-            - SELLER_POSTING_RESUMED
-            - FLASH_SALE_REMINDER
         metadata:
           type: object
           additionalProperties: true

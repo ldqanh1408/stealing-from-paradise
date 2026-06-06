@@ -30,7 +30,7 @@
 
 **Consumer Actions:**
 - **Product Service**: Queries fs_items for session, fetches variant prices, calculates `flash_price = sku_price * (1 - discount/100)`, emits `flash_sale.price_sync` to Search Service
-- **Notification Service**: Sends SSE reminders to subscribed users
+- **Notification Service**: Sends session start notification
 
 ---
 

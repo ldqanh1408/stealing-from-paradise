@@ -18,8 +18,7 @@
 | FR-FLASHSALE-006 | Admin update session | UC-FLASHSALE-001 | Admin create session |
 | FR-FLASHSALE-007 | System transition session status | UC-FLASHSALE-006 | System end session |
 | FR-FLASHSALE-008 | View flash sale sessions | UC-FLASHSALE-003 | View sessions |
-| FR-FLASHSALE-009 | Customer set reminder | UC-FLASHSALE-004 | Set reminder |
-| FR-FLASHSALE-010 | Publish Kafka events | UC-FLASHSALE-001, UC-FLASHSALE-002, UC-FLASHSALE-004, UC-FLASHSALE-006 | Multiple UCs |
+| FR-FLASHSALE-010 | Publish Kafka events | UC-FLASHSALE-001, UC-FLASHSALE-002, UC-FLASHSALE-006 | Multiple UCs |
 
 ---
 
@@ -35,7 +34,6 @@
 | FR-FLASHSALE-006 | Admin update session | BR-FLASHSALE-008 |
 | FR-FLASHSALE-007 | System transition session status | BR-FLASHSALE-004 |
 | FR-FLASHSALE-008 | View flash sale sessions | -- |
-| FR-FLASHSALE-009 | Customer set reminder | BR-FLASHSALE-005 |
 | FR-FLASHSALE-010 | Publish Kafka events | -- |
 
 ---
@@ -47,7 +45,6 @@
 | UC-FLASHSALE-001 | Admin create session | BR-FLASHSALE-001, BR-FLASHSALE-002, BR-FLASHSALE-003, BR-FLASHSALE-009 |
 | UC-FLASHSALE-002 | Seller register product | BR-FLASHSALE-002, BR-FLASHSALE-009 |
 | UC-FLASHSALE-003 | View sessions | -- |
-| UC-FLASHSALE-004 | Set reminder | BR-FLASHSALE-005 |
 | UC-FLASHSALE-006 | System end session | BR-FLASHSALE-004 |
 
 ---
@@ -58,7 +55,6 @@
 |-----------|--------|----------|
 | ENTITY-FLASHSALE-001 | FS_SESSIONS | BR-FLASHSALE-001, BR-FLASHSALE-002, BR-FLASHSALE-003, BR-FLASHSALE-004, BR-FLASHSALE-006 |
 | ENTITY-FLASHSALE-002 | FS_ITEMS | BR-FLASHSALE-002, BR-FLASHSALE-009 |
-| ENTITY-FLASHSALE-003 | FS_REMINDERS | BR-FLASHSALE-005 |
 
 ---
 
@@ -68,7 +64,6 @@
 |-----------|--------|----------|
 | ENTITY-FLASHSALE-001 | FS_SESSIONS | FR-FLASHSALE-001, FR-FLASHSALE-002, FR-FLASHSALE-003, FR-FLASHSALE-006, FR-FLASHSALE-007, FR-FLASHSALE-008 |
 | ENTITY-FLASHSALE-002 | FS_ITEMS | FR-FLASHSALE-004, FR-FLASHSALE-005 |
-| ENTITY-FLASHSALE-003 | FS_REMINDERS | FR-FLASHSALE-009 |
 
 ---
 
@@ -82,7 +77,6 @@
 | PUT | /flash-sales/{id} | UC-FLASHSALE-001 |
 | POST | /flash-sales/{id}/items | UC-FLASHSALE-002 |
 | GET | /flash-sales/{id}/items | UC-FLASHSALE-003 |
-| POST | /flash-sales/{id}/remind | UC-FLASHSALE-004 |
 | GET | /flash-sales/active | UC-FLASHSALE-003 || GET | /flash-sales/active | UC-FLASHSALE-003 |
 
 ---
@@ -115,13 +109,11 @@
 |----------|------|-----------|
 | Entity: FS_SESSIONS | `data-models/flashsale-service/entity-fs-session.md` | ENTITY-FLASHSALE-001 |
 | Entity: FS_ITEMS | `data-models/flashsale-service/entity-fs-item.md` | ENTITY-FLASHSALE-002 |
-| Entity: FS_REMINDERS | `data-models/flashsale-service/entity-fs-reminder.md` | ENTITY-FLASHSALE-003 |
 | Business Rules | `business-rules/flashsale-service/br-flash-sale.md` | BR-FLASHSALE-001 through BR-FLASHSALE-009 |
 | Functional Requirements | `srs/fr/flashsale-service/fr-flash-sale.md` | FR-FLASHSALE-001 through FR-FLASHSALE-012 |
 | UC: Create Session | `use-cases/flashsale-service/uc-001-create-session.md` | UC-FLASHSALE-001 |
 | UC: Register Product | `use-cases/flashsale-service/uc-002-register-product.md` | UC-FLASHSALE-002 |
 | UC: View Sessions | `use-cases/flashsale-service/uc-003-view-sessions.md` | UC-FLASHSALE-003 |
-| UC: Set Reminder | `use-cases/flashsale-service/uc-004-set-reminder.md` | UC-FLASHSALE-004 |
 | UC: End Session | `use-cases/flashsale-service/uc-006-end-session.md` | UC-FLASHSALE-006 |
 | API: POST /flash-sales | `api-contracts/flashsale-service/api-post-flash-sales.yaml` | -- |
 | API: GET /flash-sales | `api-contracts/flashsale-service/api-get-flash-sales.yaml` | -- |
