@@ -428,10 +428,13 @@ jobs:
              "${SERVER}" \
              'set -euo pipefail
               sudo mkdir -p /opt/flashsale 2>/dev/null || mkdir -p /opt/flashsale
-              if [ ! -w /opt/flashsale ]; then
-                sudo chown -R "$(id -un)":"$(id -gn)" /opt/flashsale 2>/dev/null || true
-              fi
-              [ -w /opt/flashsale ] || { echo "ERROR: /opt/flashsale is not writable for deploy user"; exit 1; }'
+              # Prevent SCP overwrite failures when files in /opt/flashsale are root-owned.
+              sudo chown -R "$(id -un)":"$(id -gn)" /opt/flashsale 2>/dev/null || true
+              [ -w /opt/flashsale ] || { echo "ERROR: /opt/flashsale is not writable for deploy user"; exit 1; }
+              touch /opt/flashsale/.deploy-write-test && rm -f /opt/flashsale/.deploy-write-test || {
+                echo "ERROR: deploy user cannot create files in /opt/flashsale"
+                exit 1
+              }'
 
           cat > /tmp/deploy.sh << 'DEPLOY_EOF'
           #!/usr/bin/env bash
