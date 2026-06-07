@@ -5,7 +5,7 @@
 > **Service**: search-service (Port 8091)
 > **Index**: `skus` (Elasticsearch)
 > **Source**: BR-SEARCH-001
-> **Updated**: 2026-05-25 (clarified EMPTY→INDEXED trigger, added product.rejected to REMOVED, added sku_id↔variant_id cross-reference)
+> **Updated**: 2026-06-07 (clarified that Search fetches Product indexing snapshots through Kafka request-reply)
 
 ---
 
@@ -25,7 +25,7 @@
 
 | From | To | Trigger | UC/BR Reference |
 |------|----|---------|-----------------|
-| [EMPTY] | INDEXED | `product.activated` event (Kafka — approved+published product) OR POST /search/reindex (UC-SEARCH-003) | UC-SEARCH-003, BR-SEARCH-001-06 |
+| [EMPTY] | INDEXED | `product.activated` event followed by `search.index_data` snapshot OR POST /search/reindex (UC-SEARCH-003) | UC-SEARCH-003, BR-SEARCH-001-03, BR-SEARCH-001-06 |
 | INDEXED | UPDATED | Partial update via Kafka event (price/stock change) | BR-SEARCH-001-03 |
 | UPDATED | INDEXED | Update completed successfully | BR-SEARCH-001-03 |
 | INDEXED | UPDATED | Update_by_query via Kafka (product fields) | BR-SEARCH-001-03 |
@@ -42,7 +42,7 @@
 ```mermaid
 stateDiagram-v2
     [*] --> EMPTY : Index created
-    EMPTY --> INDEXED : product.activated (Kafka)\nor POST /search/reindex (API)\n(UC-SEARCH-003)
+    EMPTY --> INDEXED : product.activated + search.index_data snapshot\nor POST /search/reindex (API)\n(UC-SEARCH-003)
     INDEXED --> UPDATED : Partial update (price, stock)\n(BR-SEARCH-001-03)
     UPDATED --> INDEXED : Update complete
     INDEXED --> UPDATED : Update_by_query (product fields)\n(BR-SEARCH-001-03)
@@ -80,3 +80,4 @@ stateDiagram-v2
 | UC-SEARCH-001 | Search use case (Kafka ingestion) |
 | ENTITY-SEARCH-001 | SKU document mapping |
 | KAFKA_EVENTS.md | Search Service Kafka events (source of truth for topics) |
+| KAFKA_REQUEST_REPLY.md | Search/Product snapshot request-reply contract |

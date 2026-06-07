@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Kafka Catalog</h1>
-              <div class="doc-meta">DOC-MESSAGING-KAFKA-CATALOG | 2026-06-06</div>
+              <div class="doc-meta">DOC-MESSAGING-KAFKA-CATALOG | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">message</span> <span class="badge text-bg-light">platform</span></div>
           </div>
@@ -282,13 +282,17 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h2>Kafka Events Catalog</h2>
 <p>Service: platform
-Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hidden removed)</p>
+Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved to Kafka request-reply)</p>
 <blockquote>
 <p><strong>2026-05-23 changelog:</strong>
 - <code>product.pending_review</code>, <code>product.updated</code>, <code>variant.price_updated</code>, <code>variant.stock_updated</code> payloads updated to include all required fields (<code>productId</code>, <code>sellerId</code>, <code>categoryId</code>, <code>name</code>, <code>submittedAt</code>, <code>rejectCount</code>, <code>status</code>, <code>timestamp</code>, <code>productId</code>, <code>originalPrice</code>, <code>stockStatus</code>).
 - <code>stock.reservation.expired</code> trigger updated: handled by <code>ReservationCleanupScheduler</code> in product-service (cron every minute), not JOB-13.
 - Flash Sale Flow updated to reflect actual implementation: <code>flash_sale.session_ended</code> restores prices and emits <code>flash_sale.price_sync</code>; cart cleanup and inventory update are out of scope for MVP.
-- <code>product.auto_hidden</code> event REMOVED from catalog, KafkaTopics.java, and kafka/create-topics.sh. Search Service uses <code>product.updated</code> (status change to INACTIVE) for index updates instead.</p>
+- <code>product.auto_hidden</code> event REMOVED from catalog, KafkaTopics.java, and kafka/create-topics.sh. Search Service now uses <code>product.deactivated</code> to hide products and <code>product.updated</code> for field-level updates.</p>
+<p><strong>2026-06-07 changelog:</strong>
+- Added <code>search.index_data.request</code> / <code>search.index_data.response</code> request-reply pair.
+- Search Service no longer fetches Product Service indexing data by REST/WebClient.
+- Product Service responds to search indexing requests through Kafka with <code>SearchIndexResponse</code>.</p>
 <p><strong>2026-05-10 MVP changes</strong> (xem <code>MVP_ANALYSIS.md</code> §3):</p>
 <p><strong>NEW events</strong> (5):
 - <code>stock.reservation.expired</code> (product → order, notification) — MUST
@@ -311,7 +315,7 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 <tbody>
 <tr>
 <td>Total Topics</td>
-<td>62 (48 event + 14 request-reply)</td>
+<td>64 (48 event + 16 request-reply)</td>
 </tr>
 <tr>
 <td>Event Producers</td>
@@ -352,8 +356,8 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 </tr>
 <tr>
 <td>product-service</td>
-<td>product.<em>, category.</em>, variant.stock_updated, order.paid, order.payment_failed</td>
-<td>order.paid, order.payment_failed, order.cancelled, order.returned</td>
+<td>product.<em>, category.</em>, variant.stock_updated, search.index_data.response, order.paid, order.payment_failed</td>
+<td>search.index_data.request, order.paid, order.payment_failed, order.cancelled, order.returned</td>
 </tr>
 <tr>
 <td>order-service</td>
@@ -377,8 +381,8 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 </tr>
 <tr>
 <td>search-service</td>
-<td>— (consumer-only)</td>
-<td>product.<em>, category.</em>, inventory.*</td>
+<td>search.index_data.request</td>
+<td>product.<em>, category.</em>, variant.*, flash_sale.price_sync, search.index_data.response</td>
 </tr>
 <tr>
 <td>notification-service</td>
@@ -392,7 +396,7 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 </tr>
 </tbody>
 </table>
-<h3>Kafka Request-Reply Pairs (7 pairs, 14 topics)</h3>
+<h3>Kafka Request-Reply Pairs (8 pairs, 16 topics)</h3>
 <table>
 <thead>
 <tr>
@@ -444,6 +448,12 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 <td>order.refund_presigned_url.response</td>
 <td>Order</td>
 <td>Refund</td>
+</tr>
+<tr>
+<td>search.index_data.request</td>
+<td>search.index_data.response</td>
+<td>Search</td>
+<td>Product</td>
 </tr>
 </tbody>
 </table>

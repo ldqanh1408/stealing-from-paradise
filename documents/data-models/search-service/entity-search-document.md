@@ -5,7 +5,7 @@
 > **Index**: `skus`
 > **Architecture**: SKU-first with field collapsing by `product_id`
 > **Source**: database-entities.md Section 10, 03_database_tables.md
-> **Updated**: 2026-05-26 (removed `variant_name` from index mapping -- unused; removed `discount_pct` -- derived from price+original_price, unused in filter/sort/response; removed `product_created_at` and `sku_updated_at` -- unused sort; removed `sold_count` -- unused sort; removed `order.created` consumer)
+> **Updated**: 2026-06-07 (search indexing source moved to Kafka request-reply `search.index_data.*`; category slug path supports root-category browsing)
 
 ---
 
@@ -43,20 +43,22 @@
 | 6 | `product_description` | text (vi_analyzer) | Yes | Full-text search secondary field |
 | 7 | `product_attributes` | object (dynamic: true) | Yes | Product-level dynamic attributes |
 | 8 | `category_id` | keyword | Yes | Category filter |
-| 9 | `category_path` | keyword | Yes | Full category path for breadcrumbs |
-| 10 | `variant_attributes` | object (dynamic: true) | Yes | Variant-level dynamic attributes (color, size, etc.) |
-| 11 | `sku_code` | keyword | Yes | Unique SKU code |
-| 12 | `price` | double | Yes | Current selling price (flash-sale adjusted) |
-| 13 | `original_price` | double | Yes | Original price before flash discount |
-| 14 | `has_discount` | boolean | Yes | Whether price < original_price |
-| 15 | `flash_session_id` | keyword | Yes | Active flash sale session, null if none |
-| 16 | `stock_status` | keyword | Yes | `in_stock` or `out_of_stock` |
-| 17 | `product_status` | keyword | Yes | Product lifecycle status |
-| 18 | `sku_status` | keyword | Yes | SKU lifecycle status |
-| 19 | `is_active` | boolean | Yes | Composite active flag (product + SKU both active) |
-| 20 | `thumbnail_url` | keyword | **index: false** | Product thumbnail, stored but not searchable |
-| 21 | `sku_image_url` | keyword | **index: false** | SKU image, stored but not searchable |
-| 22 | `seller_name` | text + .keyword | Yes | Seller shop name, text searchable |
+| 9 | `category_slug` | keyword | Yes | Direct category slug |
+| 10 | `category_path` | keyword | Yes | Full category name path for breadcrumbs |
+| 11 | `category_slug_path` | keyword[] | Yes | Root-to-leaf slug path; enables `electronics` to match child categories |
+| 12 | `variant_attributes` | object (dynamic: true) | Yes | Variant-level dynamic attributes (color, size, etc.) |
+| 13 | `sku_code` | keyword | Yes | Unique SKU code |
+| 14 | `price` | double | Yes | Current selling price (flash-sale adjusted) |
+| 15 | `original_price` | double | Yes | Original price before flash discount |
+| 16 | `has_discount` | boolean | Yes | Whether price < original_price |
+| 17 | `flash_session_id` | keyword | Yes | Active flash sale session, null if none |
+| 18 | `stock_status` | keyword | Yes | `in_stock` or `out_of_stock` |
+| 19 | `product_status` | keyword | Yes | Product lifecycle status |
+| 20 | `sku_status` | keyword | Yes | SKU lifecycle status |
+| 21 | `is_active` | boolean | Yes | Composite active flag (product + SKU both active) |
+| 22 | `thumbnail_url` | keyword | **index: false** | Product thumbnail, stored but not searchable |
+| 23 | `sku_image_url` | keyword | **index: false** | SKU image, stored but not searchable |
+| 24 | `seller_name` | text + .keyword | Yes | Seller shop name, text searchable |
 
 ---
 
@@ -74,16 +76,17 @@
 
 ## Index Rebuild / Reindex
 
-Triggered via Kafka events from the Product Service (consumer-only):
+Maintained through Product Service Kafka events plus Kafka request-reply snapshots:
 
 | Kafka Topic | ES Action | Scope | Notes |
 |-------------|-----------|-------|-------|
-| `product.activated` | Bulk index all SKU documents | Product + all SKUs | **Primary indexing event** -- product must be approved + published |
+| `product.activated` | Request SKU documents, then bulk index | Product + all SKUs | **Primary indexing event** -- Search requests `PRODUCT_SKU_DOCUMENTS` on `search.index_data.request` |
 | `product.deactivated` | Set `is_active = false` | All SKUs of product | Do NOT delete -- allows fast reactivation |
-| `product.updated` | Update_by_query by `product_id` | Product-level fields | Name, description, attributes, images |
+| `product.updated` | Request product fields, then update_by_query by `product_id` | Product-level fields | Search requests `PRODUCT_SEARCH_FIELDS` on `search.index_data.request` |
 | `product.deleted` | Delete documents by `product_id` | All SKUs of product | Permanent removal |
 | `variant.stock_updated` | Partial _update: `stock_status` | Single SKU | |
-| `category.updated` | Update_by_query by `category_id` | Category fields | |
+| `category.updated` | Request category fields, then update_by_query by `category_id` | Category fields | Search requests `CATEGORY_SEARCH_FIELDS` on `search.index_data.request` |
+| `search.index_data.request` / `search.index_data.response` | Snapshot transfer | Product pages, product fields, category fields | Correlated by `correlationId`; used by activation, updates, and reindex |
 
 ---
 

@@ -101,6 +101,9 @@ services:
       - ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}
     volumes:
       - elastic_data:/usr/share/elasticsearch/data
+      # Mount synonyms dir even though current code doesn't use it — keeps the
+      # path valid if the analyzer is re-enabled later (ES 9.x search-time only).
+      - ./backend/search-service/src/main/resources/synonyms:/usr/share/elasticsearch/config/synonyms:ro
     networks: [*network]
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
@@ -264,6 +267,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - KAFKA_SERVER=${KAFKA_SERVER}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION=${JWT_EXPIRATION_MS}
       - TZ=${TZ}
@@ -272,6 +276,7 @@ services:
       postgres: { condition: service_started }
       redis: { condition: service_started }
       kafka: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
     networks: [*network]
 
   payment-service:
@@ -403,6 +408,7 @@ services:
       redis: { condition: service_started }
       kafka: { condition: service_started }
       axonserver: { condition: service_started }
+      kafka-init: { condition: service_completed_successfully }
     networks: [*network]
 
   product-service:
@@ -453,6 +459,9 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_SEARCH}
+      # Direct in-network URL to product-service. Default in application.yml
+      # is http://localhost:8080 (the search container itself) — that fails.
+      - PRODUCT_SERVICE_URL=http://product-service:8084
     depends_on:
       elasticsearch: { condition: service_started }
       kafka: { condition: service_started }

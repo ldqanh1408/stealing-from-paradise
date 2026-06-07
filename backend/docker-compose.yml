@@ -255,6 +255,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - KAFKA_SERVER=${KAFKA_SERVER}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION=${JWT_EXPIRATION_MS}
       - TZ=${TZ}
@@ -353,6 +354,7 @@ services:
       redis: { condition: service_healthy }
       kafka: { condition: service_started }
       axonserver: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
     networks: [flashsale-net]
 
   product-service:

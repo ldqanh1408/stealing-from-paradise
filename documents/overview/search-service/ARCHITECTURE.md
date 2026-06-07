@@ -3,19 +3,19 @@
 > Service: search-service (SVC-008, Port 8091)
 > Database: Elasticsearch
 > Source: `documents` micro-docs
-> Generated: 2026-05-10 | Updated: 2026-05-26 (product.activated is sole ES indexing trigger; removed product.created/approved/rejected consumers; `inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event; removed `sold_count` and date fields -- sort simplified to relevance/price only)
+> Generated: 2026-05-10 | Updated: 2026-06-07 (search-product indexing data now flows through Kafka request-reply; WebClient/Product REST dependency removed)
 
 ---
 
 ## Responsibility
 
-Full-text product search with Vietnamese language support. Consumer-only service that indexes products from Kafka events into Elasticsearch.
+Full-text product search with Vietnamese language support. The service indexes products from Kafka events into Elasticsearch and uses Kafka request-reply to fetch Product Service indexing snapshots when event payloads intentionally carry only identifiers.
 
 ## Tech Stack
 
 - Java 25, Spring Boot 4.0.4
 - Elasticsearch 8.10
-- Kafka consumer (product events)
+- Kafka consumer (product events) and Kafka producer for indexing data requests
 - ICU Analysis plugin for Vietnamese text
 
 ## Key Features
@@ -50,7 +50,7 @@ Full-text product search with Vietnamese language support. Consumer-only service
 |----------|-------|------------|
 | SearchDocument | skus | product_id, sku_id, name, description, category_id, price, stock_status, seller_id |
 
-## Kafka Integration (Consumer-Only)
+## Kafka Integration
 
 | Direction | Topic | Source | Action |
 |-----------|-------|--------|--------|
@@ -62,10 +62,13 @@ Full-text product search with Vietnamese language support. Consumer-only service
 | Consume | `variant.price_updated` | Product Service | Update price (partial _update on single document) |
 | Consume | `variant.stock_updated` | Product Service | Update stock status (partial _update on single document) |
 | Consume | `flash_sale.price_sync` | Product Service | Apply/remove flash prices (bulk update) |
+| Produce | `search.index_data.request` | Search Service | Request product/category indexing snapshots |
+| Consume | `search.index_data.response` | Product Service | Receive correlated indexing snapshots |
 
 ## Reindex Flow
 
 1. Admin triggers reindex via API or cron
-2. Service queries Product Service for all active products
-3. Batch index into Elasticsearch (bulk API)
-4. Atomic alias swap (skus_v1 → skus) for zero-downtime index rotation
+2. Search Service publishes paged `ACTIVE_PRODUCTS_PAGE` requests to Kafka
+3. Product Service responds with `SearchIndexDocumentPayload` pages
+4. Batch index into Elasticsearch (bulk API)
+5. Atomic alias swap for zero-downtime index rotation

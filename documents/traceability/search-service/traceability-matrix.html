@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Traceability Matrix: Search Service</h1>
-              <div class="doc-meta">DOC-TRACEABILITY-SEARCH-SERVICE-TRACEABILITY-MATRIX | 2026-06-06</div>
+              <div class="doc-meta">DOC-TRACEABILITY-SEARCH-SERVICE-TRACEABILITY-MATRIX | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">traceability</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -285,7 +285,7 @@
 <p><strong>Service</strong>: search-service (Port 8091)
 <strong>Database</strong>: Elasticsearch
 <strong>Architecture</strong>: SKU-first, field collapsing
-<strong>Updated</strong>: 2026-05-26 (removed UC-SEARCH-002 deprecation notes -- use case fully merged into UC-SEARCH-001; removed order.created and sold_count -- sort simplified to relevance/price only)</p>
+<strong>Updated</strong>: 2026-06-07 (Search/Product indexing data mapped to Kafka request-reply <code>search.index_data.*</code>)</p>
 </blockquote>
 <hr>
 <h2>FR &lt;-&gt; UC Mapping</h2>
@@ -374,8 +374,8 @@
 <tbody>
 <tr>
 <td>EMPTY -&gt; INDEXED</td>
-<td>UC-SEARCH-003 (API reindex)</td>
-<td>BR-SEARCH-001-06</td>
+<td>UC-SEARCH-003 (API reindex) or <code>product.activated</code> ingestion</td>
+<td>BR-SEARCH-001-03, BR-SEARCH-001-06</td>
 </tr>
 <tr>
 <td>INDEXED -&gt; UPDATED</td>
@@ -442,7 +442,7 @@
 <td><code>product.activated</code></td>
 <td>skus</td>
 <td>Bulk index</td>
-<td>Index all SKU documents for product</td>
+<td>Request SKU documents through <code>search.index_data.request</code>, then index returned documents</td>
 </tr>
 <tr>
 <td><code>product.deactivated</code></td>
@@ -454,7 +454,7 @@
 <td><code>product.updated</code></td>
 <td>skus</td>
 <td>Update_by_query</td>
-<td>Update product-level fields by product_id</td>
+<td>Request product fields through <code>search.index_data.request</code>, then update product-level fields by product_id</td>
 </tr>
 <tr>
 <td><code>product.deleted</code></td>
@@ -466,7 +466,7 @@
 <td><code>category.updated</code></td>
 <td>skus</td>
 <td>Update_by_query</td>
-<td>Update category fields by category_id</td>
+<td>Request category fields through <code>search.index_data.request</code>, then update category fields by category_id</td>
 </tr>
 <tr>
 <td><code>variant.price_updated</code></td>
@@ -485,6 +485,12 @@
 <td>skus</td>
 <td>Bulk update</td>
 <td>Apply/remove flash prices</td>
+</tr>
+<tr>
+<td><code>search.index_data.request</code> / <code>search.index_data.response</code></td>
+<td>skus</td>
+<td>Request-reply support</td>
+<td>Fetch active product pages, SKU documents, product fields, and category fields without REST/WebClient</td>
 </tr>
 </tbody>
 </table>
@@ -523,6 +529,11 @@
 <td>Kafka source</td>
 <td>messaging/product-service/KAFKA_EVENTS.md</td>
 <td>Product Service events (product.approved, product.rejected details)</td>
+</tr>
+<tr>
+<td>Kafka request-reply</td>
+<td>messaging/KAFKA_REQUEST_REPLY.md</td>
+<td>Search/Product snapshot contract</td>
 </tr>
 </tbody>
 </table>

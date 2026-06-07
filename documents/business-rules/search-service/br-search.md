@@ -4,7 +4,7 @@
 > **Database**: Elasticsearch
 > **Architecture**: SKU-first, field collapsing by product_id
 > **Source**: 02_API_search_service.md, 03_database_tables.md, KAFKA_EVENTS.md
-> **Updated**: 2026-05-26 (removed newest/sold_desc sort -- only relevance/price_asc/price_desc; removed product_created_at reference -- field removed from index)
+> **Updated**: 2026-06-07 (Product indexing snapshots use Kafka request-reply; category filters support UUID or slug path)
 
 ---
 
@@ -37,9 +37,9 @@
 |-----------|--------|
 | SKU price changes | POST _update on single document (fields: `price`, `original_price`, `has_discount`) |
 | SKU stock changes | POST _update on single document (fields: `stock_status`) |
-| Product name/description changes | Update_by_query WHERE `product_id` = :id (fields: `product_name`, `product_description`, `product_slug`, `product_attributes`, `category_id`, `category_path`, `thumbnail_url`, `seller_name`) |
-| Product category changes | Update_by_query WHERE `product_id` = :id (fields: `category_id`, `category_path`) |
-| Product activated | Bulk-index all SKU documents for this product (`product.activated` event -- sole indexing trigger) |
+| Product name/description changes | Update_by_query WHERE `product_id` = :id (fields: `product_name`, `product_description`, `product_slug`, `product_attributes`, `category_id`, `category_slug`, `category_path`, `category_slug_path`, `thumbnail_url`, `seller_name`) |
+| Product category changes | Update_by_query WHERE `product_id` = :id (fields: `category_id`, `category_slug`, `category_path`, `category_slug_path`) |
+| Product activated | Request SKU documents through `search.index_data.request`, then bulk-index all returned documents (`product.activated` event -- sole indexing trigger) |
 | Product deactivated | Set `is_active = false` on all documents for this product (do NOT delete -- allows fast reactivation) |
 | Product deleted | Delete documents WHERE `product_id` = :id |
 | Product rejected | No action -- product was never indexed at this point |
@@ -56,7 +56,7 @@
 | IF Input | THEN ES Query |
 |-----------|---------------|
 | `q` parameter provided | `bool.must` with `multi_match` across `product_name^3`, `product_description`, `product_attributes.*` |
-| `category_id` provided | `bool.filter` with `term: { category_id }` |
+| `category_id` or `category` provided | `bool.filter` with `term: { category_id } OR term: { category_slug_path }`; slug path tokens include subcategories |
 | `price_min` provided | `bool.filter` with `range: { price: { gte: price_min } }` |
 | `price_max` provided | `bool.filter` with `range: { price: { lte: price_max } }` |
 | `in_stock = true` | `bool.filter` with `term: { stock_status: "in_stock" }` |
@@ -82,7 +82,7 @@ All sorts include a deterministic tiebreaker field as secondary sort.
 
 | Condition | Action |
 |-----------|--------|
-| POST /search/reindex received | Trigger full reindex from Product Service database to Elasticsearch |
+| POST /search/reindex received | Trigger full reindex from Product Service snapshots delivered through `search.index_data.request` / `search.index_data.response` |
 | Reindex in progress | New reindex request rejected (409 Conflict) |
 | Reindex completes | Update reindex metadata (timestamp, document count) |
 | Reindex fails | Log error, set status to FAILED, allow retry |
@@ -123,3 +123,4 @@ All sorts include a deterministic tiebreaker field as secondary sort.
 | STATE-SEARCH-001 | [state-search-index.md](../../state-diagrams/search-service/state-search-index.md) |
 | ENTITY-SEARCH-001 | SKU document mapping |
 | KAFKA_EVENTS.md | [KAFKA_EVENTS.md](../../messaging/search-service/KAFKA_EVENTS.md) |
+| KAFKA_REQUEST_REPLY.md | [KAFKA_REQUEST_REPLY.md](../../messaging/KAFKA_REQUEST_REPLY.md) |

@@ -1,12 +1,17 @@
 ﻿## Kafka Events Catalog
 Service: platform
-Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hidden removed)
+Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved to Kafka request-reply)
 
 > **2026-05-23 changelog:**
 > - `product.pending_review`, `product.updated`, `variant.price_updated`, `variant.stock_updated` payloads updated to include all required fields (`productId`, `sellerId`, `categoryId`, `name`, `submittedAt`, `rejectCount`, `status`, `timestamp`, `productId`, `originalPrice`, `stockStatus`).
 > - `stock.reservation.expired` trigger updated: handled by `ReservationCleanupScheduler` in product-service (cron every minute), not JOB-13.
 > - Flash Sale Flow updated to reflect actual implementation: `flash_sale.session_ended` restores prices and emits `flash_sale.price_sync`; cart cleanup and inventory update are out of scope for MVP.
-> - `product.auto_hidden` event REMOVED from catalog, KafkaTopics.java, and kafka/create-topics.sh. Search Service uses `product.updated` (status change to INACTIVE) for index updates instead.
+> - `product.auto_hidden` event REMOVED from catalog, KafkaTopics.java, and kafka/create-topics.sh. Search Service now uses `product.deactivated` to hide products and `product.updated` for field-level updates.
+
+> **2026-06-07 changelog:**
+> - Added `search.index_data.request` / `search.index_data.response` request-reply pair.
+> - Search Service no longer fetches Product Service indexing data by REST/WebClient.
+> - Product Service responds to search indexing requests through Kafka with `SearchIndexResponse`.
 
 > **2026-05-10 MVP changes** (xem `MVP_ANALYSIS.md` §3):
 >
@@ -26,7 +31,7 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 
 | Metric | Value |
 |--------|-------|
-| Total Topics | 62 (48 event + 14 request-reply) |
+| Total Topics | 64 (48 event + 16 request-reply) |
 | Event Producers | Product, Order, Payment, Flash Sale, AI Chat |
 | Event Consumers | All 9 services |
 | Retention Policy | 7–365 days depending on topic type |
@@ -41,16 +46,16 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 | Service | Produces | Consumes |
 |---------|----------|----------|
 | identity-service | — (does NOT produce domain events) | order.delivered, order.cancelled, refund.admin_approved, refund.rejected |
-| product-service | product.*, category.*, variant.stock_updated, order.paid, order.payment_failed | order.paid, order.payment_failed, order.cancelled, order.returned |
+| product-service | product.*, category.*, variant.stock_updated, search.index_data.response, order.paid, order.payment_failed | search.index_data.request, order.paid, order.payment_failed, order.cancelled, order.returned |
 | order-service | order.*, order.payment_timeout, seller.order_cancelled, order.checkout_submitted, order.paid, order.payment_failed | payment.*, refund.*, stock.reservation.expired, order.checkout_submitted |
 | payment-service | payment.*, stripe.*, seller.transfer.*, payout.*, refund.stripe_auto | payment.requested, order.delivered, order.cancelled |
 | refund-service | refund.* | refund.requested, refund.full_requested, order.returned, order.refunds.request, order.payment_status.request |
 | flashsale-service | flash_sale.* | — |
-| search-service | — (consumer-only) | product.*, category.*, inventory.* |
+| search-service | search.index_data.request | product.*, category.*, variant.*, flash_sale.price_sync, search.index_data.response |
 | notification-service | — (consumer-only) | 22 topics from all services |
 | ai-chat-service | ai_chat.* | — |
 
-### Kafka Request-Reply Pairs (7 pairs, 14 topics)
+### Kafka Request-Reply Pairs (8 pairs, 16 topics)
 
 | Request Topic | Response Topic | Requester | Responder |
 |--------------|----------------|-----------|-----------|
@@ -61,6 +66,7 @@ Generated: 2026-05-09 | Updated: 2026-05-23 (payload alignment + product.auto_hi
 | order.address.request | order.address.response | Order | Identity |
 | order.refunds.request | order.refunds.response | Order | Refund |
 | order.refund_presigned_url.request | order.refund_presigned_url.response | Order | Refund |
+| search.index_data.request | search.index_data.response | Search | Product |
 
 ### Retention Policies
 

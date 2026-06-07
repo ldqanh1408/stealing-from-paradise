@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Kafka Events -- Product Service (Catalog + Cart + Inventory)</h1>
-              <div class="doc-meta">DOC-MESSAGING-PRODUCT-SERVICE-KAFKA-EVENTS | 2026-06-06</div>
+              <div class="doc-meta">DOC-MESSAGING-PRODUCT-SERVICE-KAFKA-EVENTS | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">message</span> <span class="badge text-bg-light">product-service</span></div>
           </div>
@@ -284,7 +284,7 @@
 <blockquote>
 <p>Service: product-service (Port 8090)
 Source: <code>docs/services/product-service/KAFKA_EVENTS.md</code>, <code>docs/services/product-service/02_API_product_service.md</code>
-Generated: 2026-05-10 | Updated: 2026-05-25 (Redis removed from inventory reservation -- pessimistic locking now guards stock mutations; <code>inventory.adjusted</code> event removed -- <code>variant.stock_updated</code> is the sole stock-update event for Search Service indexing; <code>variant.stock_updated</code> now carries <code>delta</code> and <code>reason</code> fields for audit trail)</p>
+Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots moved from internal REST/WebClient to Kafka request-reply <code>search.index_data.*</code>)</p>
 </blockquote>
 <hr>
 <h2>Events Produced</h2>
@@ -378,7 +378,7 @@ Generated: 2026-05-10 | Updated: 2026-05-25 (Redis removed from inventory reserv
 }
 </code></pre>
 <blockquote>
-<p>Note: <code>productId</code> is sufficient for Search Service to look up full product details from the database and update the ES index. Publish/unpublish transitions use <code>product.activated</code>/<code>product.deactivated</code> instead.</p>
+<p>Note: <code>productId</code> is sufficient for Search Service to request full product search fields from Product Service through Kafka request-reply (<code>search.index_data.request</code>). Publish/unpublish transitions use <code>product.activated</code>/<code>product.deactivated</code> instead.</p>
 </blockquote>
 <hr>
 <h3>product.deleted</h3>
@@ -868,6 +868,84 @@ Generated: 2026-05-10 | Updated: 2026-05-25 (Redis removed from inventory reserv
 }
 </code></pre>
 <hr>
+<h2>Request-Reply with Search Service</h2>
+<h3>search.index_data.request (from Search Service)</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Module</strong></td>
+<td>Catalog indexing adapter</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Respond with SKU documents or field snapshots on <code>search.index_data.response</code> using the same <code>correlationId</code></td>
+</tr>
+<tr>
+<td><strong>Transport</strong></td>
+<td>Kafka request-reply; Product Service does not expose the search indexing feed over REST</td>
+</tr>
+</tbody>
+</table>
+<p>Supported <code>requestType</code> values:</p>
+<table>
+<thead>
+<tr>
+<th>requestType</th>
+<th>Product Service action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACTIVE_PRODUCTS_PAGE</code></td>
+<td>Build one page of <code>SearchIndexDocumentPayload</code> from <code>ACTIVE</code> and <code>OUT_OF_STOCK</code> products</td>
+</tr>
+<tr>
+<td><code>PRODUCT_SKU_DOCUMENTS</code></td>
+<td>Build all SKU documents for one marketplace-visible product</td>
+</tr>
+<tr>
+<td><code>PRODUCT_SEARCH_FIELDS</code></td>
+<td>Return ES field map for product-level updates</td>
+</tr>
+<tr>
+<td><code>CATEGORY_SEARCH_FIELDS</code></td>
+<td>Return ES field map for category-level updates</td>
+</tr>
+</tbody>
+</table>
+<h3>search.index_data.response (to Search Service)</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Producer</strong></td>
+<td>product-service</td>
+</tr>
+<tr>
+<td><strong>Consumer</strong></td>
+<td>search-service</td>
+</tr>
+<tr>
+<td><strong>Key</strong></td>
+<td><code>correlationId</code></td>
+</tr>
+<tr>
+<td><strong>Payload</strong></td>
+<td><code>SearchIndexResponse</code> with <code>success</code>, <code>documents</code>, <code>fields</code>, <code>hasNext</code>, or <code>errorMessage</code></td>
+</tr>
+</tbody>
+</table>
 <h2>Events Consumed</h2>
 <h3>order.paid (from Order Service)</h3>
 <table>

@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">UC-SEARCH-001: Product Listing &amp; Search</h1>
-              <div class="doc-meta">DOC-USE-CASES-SEARCH-SERVICE-UC-001-SEARCH-PRODUCTS | 2026-06-06</div>
+              <div class="doc-meta">DOC-USE-CASES-SEARCH-SERVICE-UC-001-SEARCH-PRODUCTS | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">use-case</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -286,7 +286,7 @@
 <strong>Use Case ID</strong>: UC-SEARCH-001
 <strong>Priority</strong>: HIGH
 <strong>Source</strong>: 02_API_search_service.md
-<strong>Last Updated</strong>: 2026-05-26 (removed UC-SEARCH-002 deprecation note -- fully merged; removed aggregation/facet steps -- fixed filter fields only; removed newest/sold_desc sort -- only relevance/price_asc/price_desc remain)</p>
+<strong>Last Updated</strong>: 2026-06-07 (category browse accepts UUID or slug path token such as <code>electronics</code>)</p>
 </blockquote>
 <hr>
 <h2>Brief</h2>
@@ -414,9 +414,15 @@
 </tr>
 <tr>
 <td><code>category_id</code></td>
-<td>UUID</td>
+<td>UUID or slug</td>
 <td>No</td>
-<td>Filter by category</td>
+<td>Filter by category UUID or slug path token; root slug includes subcategories</td>
+</tr>
+<tr>
+<td><code>category</code></td>
+<td>UUID or slug</td>
+<td>No</td>
+<td>Alias for <code>category_id</code></td>
 </tr>
 <tr>
 <td><code>price_min</code></td>
@@ -465,7 +471,8 @@
 <hr>
 <h2>Example URLs</h2>
 <pre><code>GET /search/products                                    # Browse all (homepage)
-GET /search/products?category_id=uuid                  # Browse category
+GET /search/products?category_id=uuid                  # Browse category by UUID
+GET /search/products?category=electronics              # Browse root category by slug, including children
 GET /search/products?category_id=uuid&amp;price_min=100000&amp;price_max=500000  # Browse + price filter
 GET /search/products?q=áo thun                          # Full-text search
 GET /search/products?q=áo thun&amp;category_id=uuid        # Search + category filter

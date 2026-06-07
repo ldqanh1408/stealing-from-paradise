@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Kafka Events -- Search Service</h1>
-              <div class="doc-meta">DOC-MESSAGING-SEARCH-SERVICE-KAFKA-EVENTS | 2026-06-06</div>
+              <div class="doc-meta">DOC-MESSAGING-SEARCH-SERVICE-KAFKA-EVENTS | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">message</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -285,11 +285,11 @@
 <p>Service: search-service (SVC-008, Port 8091)
 Database: Elasticsearch (index: skus)
 Source: <code>documents/messaging/KAFKA_CATALOG.md</code>, <code>documents/overview/search-service/ARCHITECTURE.md</code>
-Generated: 2026-05-10 | Updated: 2026-05-26 (removed <code>discount_pct</code> from <code>flash_sale.price_sync</code> activate payload -- derived field, unused in filter/sort/response; removed <code>order.created</code> consumer -- <code>sold_count</code> field removed from index)</p>
+Generated: 2026-05-10 | Updated: 2026-06-07 (search-product indexing data now uses Kafka request-reply <code>search.index_data.*</code>; WebClient/Product REST dependency removed)</p>
 </blockquote>
 <hr>
-<h2>Events Consumed (Consumer-Only)</h2>
-<p>Search Service is a <strong>consumer-only</strong> service. It does NOT produce any Kafka events. All index updates are triggered by consuming events from other services.</p>
+<h2>Events Consumed</h2>
+<p>Search Service is an indexer that consumes product and flash-sale events, and publishes Kafka request-reply messages only when it needs authoritative Product Service snapshots for indexing. It does not call Product Service over REST/WebClient.</p>
 <h3>product.activated (from Product Service)</h3>
 <table>
 <thead>
@@ -305,7 +305,7 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (removed <code>discount_pct</code> f
 </tr>
 <tr>
 <td><strong>Action</strong></td>
-<td>Bulk-index all SKU documents for this product into Elasticsearch <code>skus</code> index. This is the <strong>sole event that triggers initial ES indexing</strong> for a product.</td>
+<td>Request all SKU documents for this product via <code>search.index_data.request</code>, then bulk-index them into Elasticsearch <code>skus</code>. This is the <strong>sole event that triggers initial ES indexing</strong> for a product.</td>
 </tr>
 </tbody>
 </table>
@@ -378,7 +378,7 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (removed <code>discount_pct</code> f
 </tr>
 <tr>
 <td><strong>Action</strong></td>
-<td>Update existing product document in ES index (update_by_query by product_id). Used for field-level changes (name, description, attributes, images) while product is already active or inactive.</td>
+<td>Request product search fields via <code>search.index_data.request</code>, then update existing ES documents with update_by_query by product_id. Used for field-level changes while product documents already exist in the index.</td>
 </tr>
 </tbody>
 </table>
@@ -446,7 +446,7 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (removed <code>discount_pct</code> f
 </tr>
 <tr>
 <td><strong>Action</strong></td>
-<td>Reindex all products in the updated category (update_by_query by category_id)</td>
+<td>Request category search fields via <code>search.index_data.request</code>, then update_by_query by category_id</td>
 </tr>
 </tbody>
 </table>
@@ -570,10 +570,81 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (removed <code>discount_pct</code> f
 </code></pre>
 <hr>
 <h2>Events Produced</h2>
-<p><strong>None.</strong> Search Service is consumer-only. All data flows IN via Kafka and OUT via REST API (<code>GET /search/products</code>).</p>
+<h3>search.index_data.request (to Product Service)</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Request authoritative Product Service indexing data without REST/WebClient coupling</td>
+</tr>
+<tr>
+<td><strong>Key</strong></td>
+<td><code>correlationId</code></td>
+</tr>
+<tr>
+<td><strong>Response Topic</strong></td>
+<td><code>search.index_data.response</code></td>
+</tr>
+<tr>
+<td><strong>Timeout</strong></td>
+<td>30 seconds</td>
+</tr>
+</tbody>
+</table>
+<p>Supported <code>requestType</code> values:</p>
+<table>
+<thead>
+<tr>
+<th>requestType</th>
+<th>Trigger</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACTIVE_PRODUCTS_PAGE</code></td>
+<td>Full reindex page fetch</td>
+</tr>
+<tr>
+<td><code>PRODUCT_SKU_DOCUMENTS</code></td>
+<td><code>product.activated</code> event</td>
+</tr>
+<tr>
+<td><code>PRODUCT_SEARCH_FIELDS</code></td>
+<td><code>product.updated</code> event</td>
+</tr>
+<tr>
+<td><code>CATEGORY_SEARCH_FIELDS</code></td>
+<td><code>category.updated</code> event</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h2>Request-Reply</h2>
-<p>Search Service does NOT participate in any Kafka request-reply patterns.</p>
+<p>Search Service participates in one Kafka request-reply pair with Product Service:</p>
+<table>
+<thead>
+<tr>
+<th>Request Topic</th>
+<th>Response Topic</th>
+<th>Requester</th>
+<th>Responder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>search.index_data.request</code></td>
+<td><code>search.index_data.response</code></td>
+<td>search-service</td>
+<td>product-service</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h2>Elasticsearch Index Management</h2>
 <h3>Index: <code>skus</code></h3>
@@ -586,10 +657,11 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (removed <code>discount_pct</code> f
 </ul>
 <h3>Reindex Flow</h3>
 <pre><code>1. Admin triggers reindex (manual via POST /search/reindex, or cron)
-2. Search Service queries Product Service REST API for all ACTIVE products only
-   (draft/pending/approved/rejected/inactive products are excluded)
-3. Bulk-index into ES via _bulk API
-4. Atomic alias swap: skus_v{N} -&gt; skus (zero-downtime rotation)
+2. Search Service publishes paged `ACTIVE_PRODUCTS_PAGE` requests to `search.index_data.request`
+3. Product Service responds on `search.index_data.response` with marketplace-visible SKU documents
+   (`ACTIVE` and `OUT_OF_STOCK`; draft/pending/approved/rejected/inactive products are excluded)
+4. Bulk-index into ES via _bulk API
+5. Atomic alias swap: skus_v{N} -&gt; skus (zero-downtime rotation)
 </code></pre>
 <h3>Vietnamese Text Analysis</h3>
 <table>
@@ -637,6 +709,12 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (removed <code>discount_pct</code> f
 <td>flash_sale.price_sync</td>
 <td>1</td>
 <td>Sequential processing required</td>
+</tr>
+<tr>
+<td>search-service-index-data-replies-{uuid}</td>
+<td>search.index_data.response</td>
+<td>1</td>
+<td>Instance-local reply group; every search instance can match its own correlation IDs</td>
 </tr>
 </tbody>
 </table>

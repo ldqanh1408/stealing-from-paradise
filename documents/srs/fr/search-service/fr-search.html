@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">FR-SEARCH: Search Service Functional Requirements</h1>
-              <div class="doc-meta">DOC-SRS-FR-SEARCH-SERVICE-FR-SEARCH | 2026-06-06</div>
+              <div class="doc-meta">DOC-SRS-FR-SEARCH-SERVICE-FR-SEARCH | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">requirement</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -285,7 +285,7 @@
 <p><strong>Service</strong>: search-service (Port 8091)
 <strong>Database</strong>: Elasticsearch
 <strong>Source</strong>: 02_API_search_service.md
-<strong>Updated</strong>: 2026-05-26 (removed UC-SEARCH-002 deprecation note -- fully merged into UC-SEARCH-001; removed facet acceptance criterion; removed newest/sold_desc sort -- only relevance/price_asc/price_desc supported)</p>
+<strong>Updated</strong>: 2026-06-07 (Product Service indexing snapshots now use Kafka request-reply <code>search.index_data.*</code>; no Product REST/WebClient dependency)</p>
 </blockquote>
 <hr>
 <h2>FR-SEARCH-001: Full-Text Product Search</h2>
@@ -351,7 +351,7 @@
 <tbody>
 <tr>
 <td>1</td>
-<td>Filter by <code>category_id</code> (includes subcategories)</td>
+<td>Filter by <code>category_id</code> or <code>category</code> using category UUID or slug path token (includes subcategories)</td>
 </tr>
 <tr>
 <td>2</td>
@@ -415,7 +415,7 @@
 ||| <strong>Endpoints</strong> | POST /search/reindex |
 ||| <strong>Method</strong> | POST |
 ||| <strong>Auth</strong> | Admin JWT |</p>
-<p><strong>Description</strong>: Trigger full reindex of the Elasticsearch index from the Product Service database.</p>
+<p><strong>Description</strong>: Trigger full reindex of the Elasticsearch index from authoritative Product Service snapshots delivered through Kafka request-reply.</p>
 <p><strong>Acceptance Criteria</strong>:</p>
 <table>
 <thead>
@@ -441,6 +441,10 @@
 <td>4</td>
 <td>Reindex does not block search queries (zero-downtime via alias swap)</td>
 </tr>
+<tr>
+<td>5</td>
+<td>Fetches product pages through <code>search.index_data.request</code> / <code>search.index_data.response</code>, not Product REST/WebClient</td>
+</tr>
 </tbody>
 </table>
 <hr>
@@ -448,7 +452,7 @@
 <p>||| Attribute | Value |
 |---|-----------|-------|
 ||| <strong>ID</strong> | FR-SEARCH-005 |
-||| <strong>Description</strong> | Consume Kafka topics to maintain Elasticsearch index in near real-time |</p>
+||| <strong>Description</strong> | Consume product/flash-sale Kafka events and use Kafka request-reply snapshots to maintain Elasticsearch in near real-time |</p>
 <p><strong>Consumed Topics and Actions</strong>:</p>
 <table>
 <thead>
@@ -463,7 +467,7 @@
 <tr>
 <td>1</td>
 <td><code>product.activated</code></td>
-<td>Bulk index all SKU documents</td>
+<td>Request SKU documents, then bulk index</td>
 <td>Sole initial indexing event</td>
 </tr>
 <tr>
@@ -475,7 +479,7 @@
 <tr>
 <td>3</td>
 <td><code>product.updated</code></td>
-<td>Update_by_query by product_id</td>
+<td>Request product fields, then update_by_query by product_id</td>
 <td>Product-level fields</td>
 </tr>
 <tr>
@@ -487,7 +491,7 @@
 <tr>
 <td>5</td>
 <td><code>category.updated</code></td>
-<td>Update_by_query by category_id</td>
+<td>Request category fields, then update_by_query by category_id</td>
 <td>Category fields</td>
 </tr>
 <tr>
@@ -508,6 +512,12 @@
 <td>Bulk update</td>
 <td>Activate/deactivate flash prices</td>
 </tr>
+<tr>
+<td>9</td>
+<td><code>search.index_data.response</code></td>
+<td>Snapshot response</td>
+<td>Correlated reply from Product Service</td>
+</tr>
 </tbody>
 </table>
 <p><strong>Acceptance Criteria</strong>:</p>
@@ -521,7 +531,7 @@
 <tbody>
 <tr>
 <td>1</td>
-<td><code>product.activated</code> -&gt; Bulk index all SKU documents</td>
+<td><code>product.activated</code> -&gt; Request SKU documents through Kafka, then bulk index all returned documents</td>
 </tr>
 <tr>
 <td>2</td>
@@ -529,7 +539,7 @@
 </tr>
 <tr>
 <td>3</td>
-<td><code>product.updated</code> -&gt; Update product-level fields by product_id</td>
+<td><code>product.updated</code> -&gt; Request product fields through Kafka, then update product-level fields by product_id</td>
 </tr>
 <tr>
 <td>4</td>
@@ -538,6 +548,10 @@
 <tr>
 <td>5</td>
 <td>All updates use partial updates (not full reindex) for SKU-level changes</td>
+</tr>
+<tr>
+<td>6</td>
+<td>No Search-to-Product REST/WebClient calls are required for indexing data</td>
 </tr>
 </tbody>
 </table>
@@ -574,6 +588,10 @@
 <tr>
 <td>KAFKA_EVENTS.md</td>
 <td>Search Service Kafka events</td>
+</tr>
+<tr>
+<td>KAFKA_REQUEST_REPLY.md</td>
+<td>Search/Product request-reply contract</td>
 </tr>
 </tbody>
 </table></div></section>

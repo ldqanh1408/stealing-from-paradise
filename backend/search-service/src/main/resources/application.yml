@@ -48,9 +48,8 @@ search:
   kafka:
     product-group: search-service-product-group
     flashsale-group: search-service-flashsale-group
-  product-service:
-    base-url: ${PRODUCT_SERVICE_URL:http://localhost:8080}
-    timeout-seconds: 30
+    index-data-timeout-seconds: 30
+    index-data-reply-group-prefix: search-service-index-data-replies
 
 eureka:
   instance:

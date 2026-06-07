@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Search Query, Suggest, and Reindex</h1>
-              <div class="doc-meta">DOC-FLOWS-SEARCH-SERVICE-FLOW-SEARCH-INDEXING | 2026-06-06</div>
+              <div class="doc-meta">DOC-FLOWS-SEARCH-SERVICE-FLOW-SEARCH-INDEXING | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -331,12 +331,18 @@
     Search-&gt;&gt;ES: Suggest query
     Search--&gt;&gt;Client: SuggestResponse
 
-    Kafka-&gt;&gt;Search: product/category/inventory events
-    Search-&gt;&gt;Product: Fetch product/category detail when needed
+    Kafka-&gt;&gt;Search: product/category/variant events
+    Search-&gt;&gt;Kafka: search.index_data.request when Product snapshot is needed
+    Kafka-&gt;&gt;Product: Deliver indexing-data request
+    Product-&gt;&gt;Kafka: search.index_data.response with docs/fields
+    Kafka--&gt;&gt;Search: Correlated response
     Search-&gt;&gt;ES: Index, delete, or partial update documents
 
     Admin-&gt;&gt;Search: POST /v1/search/reindex
-    Search-&gt;&gt;Product: Fetch all active products
+    Search-&gt;&gt;Kafka: Paged ACTIVE_PRODUCTS_PAGE requests
+    Kafka-&gt;&gt;Product: Request marketplace-visible SKU documents
+    Product-&gt;&gt;Kafka: Paged search.index_data.response
+    Kafka--&gt;&gt;Search: Correlated page responses
     Search-&gt;&gt;ES: Create temp index and bulk index docs
     Search-&gt;&gt;ES: Swap alias after success
     Admin-&gt;&gt;Search: GET /v1/search/reindex/status</pre>
@@ -356,6 +362,10 @@
 <tr>
 <td>Reindex state is stored in-memory in <code>ReindexService</code>.</td>
 <td>Reindex status resets on service restart.</td>
+</tr>
+<tr>
+<td>Search/product index data uses Kafka request-reply with a 30s timeout.</td>
+<td>A stalled Product Service responder fails reindex or event enrichment without introducing REST coupling.</td>
 </tr>
 </tbody>
 </table></div></section>

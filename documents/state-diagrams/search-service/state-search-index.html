@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">State Diagram: Search Index Lifecycle</h1>
-              <div class="doc-meta">DOC-STATE-DIAGRAMS-SEARCH-SERVICE-STATE-SEARCH-INDEX | 2026-06-06</div>
+              <div class="doc-meta">DOC-STATE-DIAGRAMS-SEARCH-SERVICE-STATE-SEARCH-INDEX | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">state</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -286,7 +286,7 @@
 <p><strong>Service</strong>: search-service (Port 8091)
 <strong>Index</strong>: <code>skus</code> (Elasticsearch)
 <strong>Source</strong>: BR-SEARCH-001
-<strong>Updated</strong>: 2026-05-25 (clarified EMPTY→INDEXED trigger, added product.rejected to REMOVED, added sku_id↔variant_id cross-reference)</p>
+<strong>Updated</strong>: 2026-06-07 (clarified that Search fetches Product indexing snapshots through Kafka request-reply)</p>
 </blockquote>
 <hr>
 <h2>States</h2>
@@ -335,8 +335,8 @@
 <tr>
 <td>[EMPTY]</td>
 <td>INDEXED</td>
-<td><code>product.activated</code> event (Kafka — approved+published product) OR POST /search/reindex (UC-SEARCH-003)</td>
-<td>UC-SEARCH-003, BR-SEARCH-001-06</td>
+<td><code>product.activated</code> event followed by <code>search.index_data</code> snapshot OR POST /search/reindex (UC-SEARCH-003)</td>
+<td>UC-SEARCH-003, BR-SEARCH-001-03, BR-SEARCH-001-06</td>
 </tr>
 <tr>
 <td>INDEXED</td>
@@ -392,7 +392,7 @@
 <h2>State Diagram (Mermaid)</h2>
 <pre class="mermaid">stateDiagram-v2
     [*] --&gt; EMPTY : Index created
-    EMPTY --&gt; INDEXED : product.activated (Kafka)\nor POST /search/reindex (API)\n(UC-SEARCH-003)
+    EMPTY --&gt; INDEXED : product.activated + search.index_data snapshot\nor POST /search/reindex (API)\n(UC-SEARCH-003)
     INDEXED --&gt; UPDATED : Partial update (price, stock)\n(BR-SEARCH-001-03)
     UPDATED --&gt; INDEXED : Update complete
     INDEXED --&gt; UPDATED : Update_by_query (product fields)\n(BR-SEARCH-001-03)
@@ -470,6 +470,10 @@
 <tr>
 <td>KAFKA_EVENTS.md</td>
 <td>Search Service Kafka events (source of truth for topics)</td>
+</tr>
+<tr>
+<td>KAFKA_REQUEST_REPLY.md</td>
+<td>Search/Product snapshot request-reply contract</td>
 </tr>
 </tbody>
 </table></div></section>

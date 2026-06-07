@@ -7,7 +7,10 @@ spring:
     enabled: true
     baseline-on-migrate: true
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?currentSchema=product
+    # stringtype=unspecified lets the PG driver send String params as 'unknown'
+    # so columns like attributes/variant_attributes (jsonb) accept literal JSON strings
+    # without an explicit ::jsonb cast. Required by ProductDevDataLoader (dev only).
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?currentSchema=product&stringtype=unspecified
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres123!}
 

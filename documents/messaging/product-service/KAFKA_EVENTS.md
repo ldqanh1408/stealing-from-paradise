@@ -2,7 +2,7 @@
 
 > Service: product-service (Port 8090)
 > Source: `docs/services/product-service/KAFKA_EVENTS.md`, `docs/services/product-service/02_API_product_service.md`
-> Generated: 2026-05-10 | Updated: 2026-05-25 (Redis removed from inventory reservation -- pessimistic locking now guards stock mutations; `inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event for Search Service indexing; `variant.stock_updated` now carries `delta` and `reason` fields for audit trail)
+> Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots moved from internal REST/WebClient to Kafka request-reply `search.index_data.*`)
 
 ---
 
@@ -72,7 +72,7 @@
 }
 ```
 
-> Note: `productId` is sufficient for Search Service to look up full product details from the database and update the ES index. Publish/unpublish transitions use `product.activated`/`product.deactivated` instead.
+> Note: `productId` is sufficient for Search Service to request full product search fields from Product Service through Kafka request-reply (`search.index_data.request`). Publish/unpublish transitions use `product.activated`/`product.deactivated` instead.
 
 ---
 
@@ -427,6 +427,34 @@
 ```
 
 ---
+
+## Request-Reply with Search Service
+
+### search.index_data.request (from Search Service)
+
+| Field | Value |
+|-------|-------|
+| **Module** | Catalog indexing adapter |
+| **Action** | Respond with SKU documents or field snapshots on `search.index_data.response` using the same `correlationId` |
+| **Transport** | Kafka request-reply; Product Service does not expose the search indexing feed over REST |
+
+Supported `requestType` values:
+
+| requestType | Product Service action |
+|-------------|------------------------|
+| `ACTIVE_PRODUCTS_PAGE` | Build one page of `SearchIndexDocumentPayload` from `ACTIVE` and `OUT_OF_STOCK` products |
+| `PRODUCT_SKU_DOCUMENTS` | Build all SKU documents for one marketplace-visible product |
+| `PRODUCT_SEARCH_FIELDS` | Return ES field map for product-level updates |
+| `CATEGORY_SEARCH_FIELDS` | Return ES field map for category-level updates |
+
+### search.index_data.response (to Search Service)
+
+| Field | Value |
+|-------|-------|
+| **Producer** | product-service |
+| **Consumer** | search-service |
+| **Key** | `correlationId` |
+| **Payload** | `SearchIndexResponse` with `success`, `documents`, `fields`, `hasNext`, or `errorMessage` |
 
 ## Events Consumed
 

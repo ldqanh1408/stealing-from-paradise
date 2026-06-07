@@ -13,8 +13,8 @@ The marketplace uses **Kafka Request-Reply** for inter-service queries that need
 
 | Metric | Value |
 |--------|-------|
-| Total Request-Reply pairs | 7 pairs (14 topics) |
-| Default timeout | 5-10 seconds |
+| Total Request-Reply pairs | 8 pairs (16 topics) |
+| Default timeout | 5-30 seconds, depending on payload size |
 | Correlation mechanism | UUID per request |
 | Status | MVP workaround (gRPC planned for future) |
 
@@ -55,6 +55,7 @@ Service A (Requester)                    Service B (Responder)
 | 5 | `order.address.request` | `order.address.response` | Order | Identity | Get buyer shipping address |
 | 6 | `order.refunds.request` | `order.refunds.response` | Order | Payment | Get refund info for an order |
 | 7 | `order.refund_presigned_url.request` | `order.refund_presigned_url.response` | Order | Payment | Get presigned URL for evidence upload |
+| 8 | `search.index_data.request` | `search.index_data.response` | Search | Product | Fetch SKU documents and field snapshots for search indexing |
 
 ---
 
@@ -259,6 +260,66 @@ Response:
 
 ---
 
+### 8. Search Index Data (`search.index_data`)
+
+**Requester**: Search-service (full reindex and event handlers)
+**Responder**: Product-service catalog/indexing module
+**Timeout**: 30 seconds (larger than checkout request-reply because full reindex pages can carry many SKU documents)
+
+Request types:
+
+| requestType | Purpose | Required fields |
+|-------------|---------|-----------------|
+| `ACTIVE_PRODUCTS_PAGE` | Fetch one page of marketplace-visible SKU documents for full reindex | `page`, `size` |
+| `PRODUCT_SKU_DOCUMENTS` | Fetch all SKU documents for one activated product | `productId` |
+| `PRODUCT_SEARCH_FIELDS` | Fetch product-level fields for `product.updated` | `productId` |
+| `CATEGORY_SEARCH_FIELDS` | Fetch category fields for `category.updated` | `categoryId` |
+
+```
+Request:
+{
+  "correlationId": "uuid",
+  "requestType": "ACTIVE_PRODUCTS_PAGE",
+  "page": 0,
+  "size": 100
+}
+
+Response:
+{
+  "correlationId": "uuid",
+  "requestType": "ACTIVE_PRODUCTS_PAGE",
+  "success": true,
+  "documents": [
+    {
+      "skuId": "uuid",
+      "productId": "uuid",
+      "productName": "Ao thun",
+      "categoryId": "uuid",
+      "price": 150000,
+      "stockStatus": "in_stock",
+      "isActive": true
+    }
+  ],
+  "page": 0,
+  "size": 100,
+  "totalElements": 1234,
+  "hasNext": true
+}
+```
+
+Failure response:
+
+```
+{
+  "correlationId": "uuid",
+  "requestType": "PRODUCT_SKU_DOCUMENTS",
+  "success": false,
+  "errorMessage": "productId is required"
+}
+```
+
+---
+
 ## Developer Guide
 
 ### Adding a New Request-Reply Pair
@@ -266,7 +327,7 @@ Response:
 1. Declare both constants (request + response) in `KafkaTopics.java` (common-lib)
 2. **Responder**: Implement `@KafkaListener` on `.request`, publish to `.response` with the same `correlation_id`
 3. **Requester**: Use `KafkaReplyingTemplate` or implement `CompletableFuture` + correlation map
-4. Set a reasonable timeout (recommended: 5 seconds); throw exception and rollback on timeout
+4. Set a reasonable timeout (recommended: 5 seconds for small operational reads, up to 30 seconds for large page payloads); throw exception and rollback on timeout
 
 ### When NOT to Use Request-Reply
 

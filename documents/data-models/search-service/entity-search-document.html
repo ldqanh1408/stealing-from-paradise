@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">ENTITY-SEARCH-001: SKU Search Document (Elasticsearch)</h1>
-              <div class="doc-meta">DOC-DATA-MODELS-SEARCH-SERVICE-ENTITY-SEARCH-DOCUMENT | 2026-06-06</div>
+              <div class="doc-meta">DOC-DATA-MODELS-SEARCH-SERVICE-ENTITY-SEARCH-DOCUMENT | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">entity</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -287,7 +287,7 @@
 <strong>Index</strong>: <code>skus</code>
 <strong>Architecture</strong>: SKU-first with field collapsing by <code>product_id</code>
 <strong>Source</strong>: database-entities.md Section 10, 03_database_tables.md
-<strong>Updated</strong>: 2026-05-26 (removed <code>variant_name</code> from index mapping -- unused; removed <code>discount_pct</code> -- derived from price+original_price, unused in filter/sort/response; removed <code>product_created_at</code> and <code>sku_updated_at</code> -- unused sort; removed <code>sold_count</code> -- unused sort; removed <code>order.created</code> consumer)</p>
+<strong>Updated</strong>: 2026-06-07 (search indexing source moved to Kafka request-reply <code>search.index_data.*</code>; category slug path supports root-category browsing)</p>
 </blockquote>
 <hr>
 <h2>Index Settings</h2>
@@ -378,97 +378,111 @@
 </tr>
 <tr>
 <td>9</td>
-<td><code>category_path</code></td>
+<td><code>category_slug</code></td>
 <td>keyword</td>
 <td>Yes</td>
-<td>Full category path for breadcrumbs</td>
+<td>Direct category slug</td>
 </tr>
 <tr>
 <td>10</td>
+<td><code>category_path</code></td>
+<td>keyword</td>
+<td>Yes</td>
+<td>Full category name path for breadcrumbs</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>category_slug_path</code></td>
+<td>keyword[]</td>
+<td>Yes</td>
+<td>Root-to-leaf slug path; enables <code>electronics</code> to match child categories</td>
+</tr>
+<tr>
+<td>12</td>
 <td><code>variant_attributes</code></td>
 <td>object (dynamic: true)</td>
 <td>Yes</td>
 <td>Variant-level dynamic attributes (color, size, etc.)</td>
 </tr>
 <tr>
-<td>11</td>
+<td>13</td>
 <td><code>sku_code</code></td>
 <td>keyword</td>
 <td>Yes</td>
 <td>Unique SKU code</td>
 </tr>
 <tr>
-<td>12</td>
+<td>14</td>
 <td><code>price</code></td>
 <td>double</td>
 <td>Yes</td>
 <td>Current selling price (flash-sale adjusted)</td>
 </tr>
 <tr>
-<td>13</td>
+<td>15</td>
 <td><code>original_price</code></td>
 <td>double</td>
 <td>Yes</td>
 <td>Original price before flash discount</td>
 </tr>
 <tr>
-<td>14</td>
+<td>16</td>
 <td><code>has_discount</code></td>
 <td>boolean</td>
 <td>Yes</td>
 <td>Whether price &lt; original_price</td>
 </tr>
 <tr>
-<td>15</td>
+<td>17</td>
 <td><code>flash_session_id</code></td>
 <td>keyword</td>
 <td>Yes</td>
 <td>Active flash sale session, null if none</td>
 </tr>
 <tr>
-<td>16</td>
+<td>18</td>
 <td><code>stock_status</code></td>
 <td>keyword</td>
 <td>Yes</td>
 <td><code>in_stock</code> or <code>out_of_stock</code></td>
 </tr>
 <tr>
-<td>17</td>
+<td>19</td>
 <td><code>product_status</code></td>
 <td>keyword</td>
 <td>Yes</td>
 <td>Product lifecycle status</td>
 </tr>
 <tr>
-<td>18</td>
+<td>20</td>
 <td><code>sku_status</code></td>
 <td>keyword</td>
 <td>Yes</td>
 <td>SKU lifecycle status</td>
 </tr>
 <tr>
-<td>19</td>
+<td>21</td>
 <td><code>is_active</code></td>
 <td>boolean</td>
 <td>Yes</td>
 <td>Composite active flag (product + SKU both active)</td>
 </tr>
 <tr>
-<td>20</td>
+<td>22</td>
 <td><code>thumbnail_url</code></td>
 <td>keyword</td>
 <td><strong>index: false</strong></td>
 <td>Product thumbnail, stored but not searchable</td>
 </tr>
 <tr>
-<td>21</td>
+<td>23</td>
 <td><code>sku_image_url</code></td>
 <td>keyword</td>
 <td><strong>index: false</strong></td>
 <td>SKU image, stored but not searchable</td>
 </tr>
 <tr>
-<td>22</td>
+<td>24</td>
 <td><code>seller_name</code></td>
 <td>text + .keyword</td>
 <td>Yes</td>
@@ -510,7 +524,7 @@
 </table>
 <hr>
 <h2>Index Rebuild / Reindex</h2>
-<p>Triggered via Kafka events from the Product Service (consumer-only):</p>
+<p>Maintained through Product Service Kafka events plus Kafka request-reply snapshots:</p>
 <table>
 <thead>
 <tr>
@@ -523,9 +537,9 @@
 <tbody>
 <tr>
 <td><code>product.activated</code></td>
-<td>Bulk index all SKU documents</td>
+<td>Request SKU documents, then bulk index</td>
 <td>Product + all SKUs</td>
-<td><strong>Primary indexing event</strong> -- product must be approved + published</td>
+<td><strong>Primary indexing event</strong> -- Search requests <code>PRODUCT_SKU_DOCUMENTS</code> on <code>search.index_data.request</code></td>
 </tr>
 <tr>
 <td><code>product.deactivated</code></td>
@@ -535,9 +549,9 @@
 </tr>
 <tr>
 <td><code>product.updated</code></td>
-<td>Update_by_query by <code>product_id</code></td>
+<td>Request product fields, then update_by_query by <code>product_id</code></td>
 <td>Product-level fields</td>
-<td>Name, description, attributes, images</td>
+<td>Search requests <code>PRODUCT_SEARCH_FIELDS</code> on <code>search.index_data.request</code></td>
 </tr>
 <tr>
 <td><code>product.deleted</code></td>
@@ -553,9 +567,15 @@
 </tr>
 <tr>
 <td><code>category.updated</code></td>
-<td>Update_by_query by <code>category_id</code></td>
+<td>Request category fields, then update_by_query by <code>category_id</code></td>
 <td>Category fields</td>
-<td></td>
+<td>Search requests <code>CATEGORY_SEARCH_FIELDS</code> on <code>search.index_data.request</code></td>
+</tr>
+<tr>
+<td><code>search.index_data.request</code> / <code>search.index_data.response</code></td>
+<td>Snapshot transfer</td>
+<td>Product pages, product fields, category fields</td>
+<td>Correlated by <code>correlationId</code>; used by activation, updates, and reindex</td>
 </tr>
 </tbody>
 </table>

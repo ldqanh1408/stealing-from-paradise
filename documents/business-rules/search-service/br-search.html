@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">BR-SEARCH-001: Search Service Business Rules</h1>
-              <div class="doc-meta">DOC-BUSINESS-RULES-SEARCH-SERVICE-BR-SEARCH | 2026-06-06</div>
+              <div class="doc-meta">DOC-BUSINESS-RULES-SEARCH-SERVICE-BR-SEARCH | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-rule</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -286,7 +286,7 @@
 <strong>Database</strong>: Elasticsearch
 <strong>Architecture</strong>: SKU-first, field collapsing by product_id
 <strong>Source</strong>: 02_API_search_service.md, 03_database_tables.md, KAFKA_EVENTS.md
-<strong>Updated</strong>: 2026-05-26 (removed newest/sold_desc sort -- only relevance/price_asc/price_desc; removed product_created_at reference -- field removed from index)</p>
+<strong>Updated</strong>: 2026-06-07 (Product indexing snapshots use Kafka request-reply; category filters support UUID or slug path)</p>
 </blockquote>
 <hr>
 <h2>BR-SEARCH-001-01: Field Collapsing (SKU-First)</h2>
@@ -368,15 +368,15 @@
 </tr>
 <tr>
 <td>Product name/description changes</td>
-<td>Update_by_query WHERE <code>product_id</code> = :id (fields: <code>product_name</code>, <code>product_description</code>, <code>product_slug</code>, <code>product_attributes</code>, <code>category_id</code>, <code>category_path</code>, <code>thumbnail_url</code>, <code>seller_name</code>)</td>
+<td>Update_by_query WHERE <code>product_id</code> = :id (fields: <code>product_name</code>, <code>product_description</code>, <code>product_slug</code>, <code>product_attributes</code>, <code>category_id</code>, <code>category_slug</code>, <code>category_path</code>, <code>category_slug_path</code>, <code>thumbnail_url</code>, <code>seller_name</code>)</td>
 </tr>
 <tr>
 <td>Product category changes</td>
-<td>Update_by_query WHERE <code>product_id</code> = :id (fields: <code>category_id</code>, <code>category_path</code>)</td>
+<td>Update_by_query WHERE <code>product_id</code> = :id (fields: <code>category_id</code>, <code>category_slug</code>, <code>category_path</code>, <code>category_slug_path</code>)</td>
 </tr>
 <tr>
 <td>Product activated</td>
-<td>Bulk-index all SKU documents for this product (<code>product.activated</code> event -- sole indexing trigger)</td>
+<td>Request SKU documents through <code>search.index_data.request</code>, then bulk-index all returned documents (<code>product.activated</code> event -- sole indexing trigger)</td>
 </tr>
 <tr>
 <td>Product deactivated</td>
@@ -422,8 +422,8 @@
 <td><code>bool.must</code> with <code>multi_match</code> across <code>product_name^3</code>, <code>product_description</code>, <code>product_attributes.*</code></td>
 </tr>
 <tr>
-<td><code>category_id</code> provided</td>
-<td><code>bool.filter</code> with <code>term: { category_id }</code></td>
+<td><code>category_id</code> or <code>category</code> provided</td>
+<td><code>bool.filter</code> with <code>term: { category_id } OR term: { category_slug_path }</code>; slug path tokens include subcategories</td>
 </tr>
 <tr>
 <td><code>price_min</code> provided</td>
@@ -488,7 +488,7 @@
 <tbody>
 <tr>
 <td>POST /search/reindex received</td>
-<td>Trigger full reindex from Product Service database to Elasticsearch</td>
+<td>Trigger full reindex from Product Service snapshots delivered through <code>search.index_data.request</code> / <code>search.index_data.response</code></td>
 </tr>
 <tr>
 <td>Reindex in progress</td>
@@ -613,6 +613,10 @@
 <tr>
 <td>KAFKA_EVENTS.md</td>
 <td><a href="../../messaging/search-service/KAFKA_EVENTS.html">KAFKA_EVENTS.md</a></td>
+</tr>
+<tr>
+<td>KAFKA_REQUEST_REPLY.md</td>
+<td><a href="../../messaging/KAFKA_REQUEST_REPLY.html">KAFKA_REQUEST_REPLY.md</a></td>
 </tr>
 </tbody>
 </table></div></section>

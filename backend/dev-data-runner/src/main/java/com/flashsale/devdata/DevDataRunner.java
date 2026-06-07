@@ -31,19 +31,20 @@ public class DevDataRunner implements CommandLineRunner {
     public void run(String... args) {
         log.info("=================================================");
         log.info("  DevDataRunner — Dev Environment Data Seeder");
-        log.info("  Services: payment, order, product");
+        log.info("  Services seeded (when SPRING_PROFILES_ACTIVE=dev):");
+        log.info("    1. identity-service     — users / roles / addresses");
+        log.info("    2. product-service      — categories / products / variants");
+        log.info("    3. order-service        — parent orders / sub-orders / items");
+        log.info("    4. payment-service      — stripe accts / transactions / transfers");
+        log.info("    5. flashsale-service    — sessions / items / reminders");
+        log.info("    6. refund-service       — refunds / refund items");
+        log.info("    7. notification-service — notifications (Mongo)");
+        log.info("    8. chat-service         — chat sessions / messages (Mongo)");
         log.info("=================================================");
         log.info("");
-        log.info("To seed data, enable dev profile on each service:");
-        log.info("  SPRING_PROFILES_ACTIVE=dev");
-        log.info("");
-        log.info("To reset (wipe + reseed), set dev-data.reset=true");
-        log.info("  in each service's application-dev.yml");
-        log.info("");
-        log.info("Or run individual services with:");
-        log.info("  payment-service: SPRING_PROFILES_ACTIVE=dev");
-        log.info("  order-service:   SPRING_PROFILES_ACTIVE=dev");
-        log.info("  product-service: SPRING_PROFILES_ACTIVE=dev");
+        log.info("To seed: each service auto-seeds on first start with profile=dev.");
+        log.info("To wipe + reseed: set dev-data.reset=true in the service's");
+        log.info("application-dev.yml (or pass DEV_DATA_RESET=true env var).");
         log.info("");
     }
 }

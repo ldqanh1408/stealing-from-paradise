@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Kafka Request-Reply Pattern</h1>
-              <div class="doc-meta">DOC-MESSAGING-KAFKA-REQUEST-REPLY | 2026-06-06</div>
+              <div class="doc-meta">DOC-MESSAGING-KAFKA-REQUEST-REPLY | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">message</span> <span class="badge text-bg-light">platform</span></div>
           </div>
@@ -298,11 +298,11 @@
 <tbody>
 <tr>
 <td>Total Request-Reply pairs</td>
-<td>7 pairs (14 topics)</td>
+<td>8 pairs (16 topics)</td>
 </tr>
 <tr>
 <td>Default timeout</td>
-<td>5-10 seconds</td>
+<td>5-30 seconds, depending on payload size</td>
 </tr>
 <tr>
 <td>Correlation mechanism</td>
@@ -403,6 +403,14 @@
 <td>Order</td>
 <td>Payment</td>
 <td>Get presigned URL for evidence upload</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>search.index_data.request</code></td>
+<td><code>search.index_data.response</code></td>
+<td>Search</td>
+<td>Product</td>
+<td>Fetch SKU documents and field snapshots for search indexing</td>
 </tr>
 </tbody>
 </table>
@@ -572,13 +580,88 @@ Response:
 }
 </code></pre>
 <hr>
+<h3>8. Search Index Data (<code>search.index_data</code>)</h3>
+<p><strong>Requester</strong>: Search-service (full reindex and event handlers)
+<strong>Responder</strong>: Product-service catalog/indexing module
+<strong>Timeout</strong>: 30 seconds (larger than checkout request-reply because full reindex pages can carry many SKU documents)</p>
+<p>Request types:</p>
+<table>
+<thead>
+<tr>
+<th>requestType</th>
+<th>Purpose</th>
+<th>Required fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACTIVE_PRODUCTS_PAGE</code></td>
+<td>Fetch one page of marketplace-visible SKU documents for full reindex</td>
+<td><code>page</code>, <code>size</code></td>
+</tr>
+<tr>
+<td><code>PRODUCT_SKU_DOCUMENTS</code></td>
+<td>Fetch all SKU documents for one activated product</td>
+<td><code>productId</code></td>
+</tr>
+<tr>
+<td><code>PRODUCT_SEARCH_FIELDS</code></td>
+<td>Fetch product-level fields for <code>product.updated</code></td>
+<td><code>productId</code></td>
+</tr>
+<tr>
+<td><code>CATEGORY_SEARCH_FIELDS</code></td>
+<td>Fetch category fields for <code>category.updated</code></td>
+<td><code>categoryId</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code>Request:
+{
+  &quot;correlationId&quot;: &quot;uuid&quot;,
+  &quot;requestType&quot;: &quot;ACTIVE_PRODUCTS_PAGE&quot;,
+  &quot;page&quot;: 0,
+  &quot;size&quot;: 100
+}
+
+Response:
+{
+  &quot;correlationId&quot;: &quot;uuid&quot;,
+  &quot;requestType&quot;: &quot;ACTIVE_PRODUCTS_PAGE&quot;,
+  &quot;success&quot;: true,
+  &quot;documents&quot;: [
+    {
+      &quot;skuId&quot;: &quot;uuid&quot;,
+      &quot;productId&quot;: &quot;uuid&quot;,
+      &quot;productName&quot;: &quot;Ao thun&quot;,
+      &quot;categoryId&quot;: &quot;uuid&quot;,
+      &quot;price&quot;: 150000,
+      &quot;stockStatus&quot;: &quot;in_stock&quot;,
+      &quot;isActive&quot;: true
+    }
+  ],
+  &quot;page&quot;: 0,
+  &quot;size&quot;: 100,
+  &quot;totalElements&quot;: 1234,
+  &quot;hasNext&quot;: true
+}
+</code></pre>
+<p>Failure response:</p>
+<pre><code>{
+  &quot;correlationId&quot;: &quot;uuid&quot;,
+  &quot;requestType&quot;: &quot;PRODUCT_SKU_DOCUMENTS&quot;,
+  &quot;success&quot;: false,
+  &quot;errorMessage&quot;: &quot;productId is required&quot;
+}
+</code></pre>
+<hr>
 <h2>Developer Guide</h2>
 <h3>Adding a New Request-Reply Pair</h3>
 <ol>
 <li>Declare both constants (request + response) in <code>KafkaTopics.java</code> (common-lib)</li>
 <li><strong>Responder</strong>: Implement <code>@KafkaListener</code> on <code>.request</code>, publish to <code>.response</code> with the same <code>correlation_id</code></li>
 <li><strong>Requester</strong>: Use <code>KafkaReplyingTemplate</code> or implement <code>CompletableFuture</code> + correlation map</li>
-<li>Set a reasonable timeout (recommended: 5 seconds); throw exception and rollback on timeout</li>
+<li>Set a reasonable timeout (recommended: 5 seconds for small operational reads, up to 30 seconds for large page payloads); throw exception and rollback on timeout</li>
 </ol>
 <h3>When NOT to Use Request-Reply</h3>
 <ul>

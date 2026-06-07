@@ -37,7 +37,13 @@ paths:
           required: false
           schema:
             type: string
-          description: Filter by category (includes subcategories)
+          description: Filter by category UUID or slug path token (for example `electronics`; includes subcategories)
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Alias for `category_id`; accepts category UUID or slug path token
         - name: price_min
           in: query
           required: false

@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Search Service — Architecture Overview</h1>
-              <div class="doc-meta">DOC-OVERVIEW-SEARCH-SERVICE-ARCHITECTURE | 2026-06-06</div>
+              <div class="doc-meta">DOC-OVERVIEW-SEARCH-SERVICE-ARCHITECTURE | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">architecture</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -285,16 +285,16 @@
 <p>Service: search-service (SVC-008, Port 8091)
 Database: Elasticsearch
 Source: <code>documents</code> micro-docs
-Generated: 2026-05-10 | Updated: 2026-05-26 (product.activated is sole ES indexing trigger; removed product.created/approved/rejected consumers; <code>inventory.adjusted</code> event removed -- <code>variant.stock_updated</code> is the sole stock-update event; removed <code>sold_count</code> and date fields -- sort simplified to relevance/price only)</p>
+Generated: 2026-05-10 | Updated: 2026-06-07 (search-product indexing data now flows through Kafka request-reply; WebClient/Product REST dependency removed)</p>
 </blockquote>
 <hr>
 <h2>Responsibility</h2>
-<p>Full-text product search with Vietnamese language support. Consumer-only service that indexes products from Kafka events into Elasticsearch.</p>
+<p>Full-text product search with Vietnamese language support. The service indexes products from Kafka events into Elasticsearch and uses Kafka request-reply to fetch Product Service indexing snapshots when event payloads intentionally carry only identifiers.</p>
 <h2>Tech Stack</h2>
 <ul>
 <li>Java 25, Spring Boot 4.0.4</li>
 <li>Elasticsearch 8.10</li>
-<li>Kafka consumer (product events)</li>
+<li>Kafka consumer (product events) and Kafka producer for indexing data requests</li>
 <li>ICU Analysis plugin for Vietnamese text</li>
 </ul>
 <h2>Key Features</h2>
@@ -378,7 +378,7 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (product.activated is sole ES indexi
 </tr>
 </tbody>
 </table>
-<h2>Kafka Integration (Consumer-Only)</h2>
+<h2>Kafka Integration</h2>
 <table>
 <thead>
 <tr>
@@ -437,14 +437,27 @@ Generated: 2026-05-10 | Updated: 2026-05-26 (product.activated is sole ES indexi
 <td>Product Service</td>
 <td>Apply/remove flash prices (bulk update)</td>
 </tr>
+<tr>
+<td>Produce</td>
+<td><code>search.index_data.request</code></td>
+<td>Search Service</td>
+<td>Request product/category indexing snapshots</td>
+</tr>
+<tr>
+<td>Consume</td>
+<td><code>search.index_data.response</code></td>
+<td>Product Service</td>
+<td>Receive correlated indexing snapshots</td>
+</tr>
 </tbody>
 </table>
 <h2>Reindex Flow</h2>
 <ol>
 <li>Admin triggers reindex via API or cron</li>
-<li>Service queries Product Service for all active products</li>
+<li>Search Service publishes paged <code>ACTIVE_PRODUCTS_PAGE</code> requests to Kafka</li>
+<li>Product Service responds with <code>SearchIndexDocumentPayload</code> pages</li>
 <li>Batch index into Elasticsearch (bulk API)</li>
-<li>Atomic alias swap (skus_v1 → skus) for zero-downtime index rotation</li>
+<li>Atomic alias swap for zero-downtime index rotation</li>
 </ol></div></section>
       </main>
     </div>

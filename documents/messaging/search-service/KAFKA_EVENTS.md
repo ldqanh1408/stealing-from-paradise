@@ -3,20 +3,20 @@
 > Service: search-service (SVC-008, Port 8091)
 > Database: Elasticsearch (index: skus)
 > Source: `documents/messaging/KAFKA_CATALOG.md`, `documents/overview/search-service/ARCHITECTURE.md`
-> Generated: 2026-05-10 | Updated: 2026-05-26 (removed `discount_pct` from `flash_sale.price_sync` activate payload -- derived field, unused in filter/sort/response; removed `order.created` consumer -- `sold_count` field removed from index)
+> Generated: 2026-05-10 | Updated: 2026-06-07 (search-product indexing data now uses Kafka request-reply `search.index_data.*`; WebClient/Product REST dependency removed)
 
 ---
 
-## Events Consumed (Consumer-Only)
+## Events Consumed
 
-Search Service is a **consumer-only** service. It does NOT produce any Kafka events. All index updates are triggered by consuming events from other services.
+Search Service is an indexer that consumes product and flash-sale events, and publishes Kafka request-reply messages only when it needs authoritative Product Service snapshots for indexing. It does not call Product Service over REST/WebClient.
 
 ### product.activated (from Product Service)
 
 | Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
-| **Action** | Bulk-index all SKU documents for this product into Elasticsearch `skus` index. This is the **sole event that triggers initial ES indexing** for a product. |
+| **Action** | Request all SKU documents for this product via `search.index_data.request`, then bulk-index them into Elasticsearch `skus`. This is the **sole event that triggers initial ES indexing** for a product. |
 
 > A product reaches `product.activated` only after: `draft -> pending (submit) -> approved (admin) -> active (seller publish)`. Products in `draft`, `pending`, `rejected` states are never indexed.
 
@@ -70,7 +70,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 | Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
-| **Action** | Update existing product document in ES index (update_by_query by product_id). Used for field-level changes (name, description, attributes, images) while product is already active or inactive. |
+| **Action** | Request product search fields via `search.index_data.request`, then update existing ES documents with update_by_query by product_id. Used for field-level changes while product documents already exist in the index. |
 
 > Publish/unpublish transitions use `product.activated`/`product.deactivated`. This event does NOT change `is_active`.
 
@@ -119,7 +119,7 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 | Field | Value |
 |-------|-------|
 | **GroupId** | search-service-product-group |
-| **Action** | Reindex all products in the updated category (update_by_query by category_id) |
+| **Action** | Request category search fields via `search.index_data.request`, then update_by_query by category_id |
 
 ---
 
@@ -218,13 +218,33 @@ Search Service is a **consumer-only** service. It does NOT produce any Kafka eve
 
 ## Events Produced
 
-**None.** Search Service is consumer-only. All data flows IN via Kafka and OUT via REST API (`GET /search/products`).
+### search.index_data.request (to Product Service)
+
+| Field | Value |
+|-------|-------|
+| **Purpose** | Request authoritative Product Service indexing data without REST/WebClient coupling |
+| **Key** | `correlationId` |
+| **Response Topic** | `search.index_data.response` |
+| **Timeout** | 30 seconds |
+
+Supported `requestType` values:
+
+| requestType | Trigger |
+|-------------|---------|
+| `ACTIVE_PRODUCTS_PAGE` | Full reindex page fetch |
+| `PRODUCT_SKU_DOCUMENTS` | `product.activated` event |
+| `PRODUCT_SEARCH_FIELDS` | `product.updated` event |
+| `CATEGORY_SEARCH_FIELDS` | `category.updated` event |
 
 ---
 
 ## Request-Reply
 
-Search Service does NOT participate in any Kafka request-reply patterns.
+Search Service participates in one Kafka request-reply pair with Product Service:
+
+| Request Topic | Response Topic | Requester | Responder |
+|---------------|----------------|-----------|-----------|
+| `search.index_data.request` | `search.index_data.response` | search-service | product-service |
 
 ---
 
@@ -242,10 +262,11 @@ Search Service does NOT participate in any Kafka request-reply patterns.
 
 ```
 1. Admin triggers reindex (manual via POST /search/reindex, or cron)
-2. Search Service queries Product Service REST API for all ACTIVE products only
-   (draft/pending/approved/rejected/inactive products are excluded)
-3. Bulk-index into ES via _bulk API
-4. Atomic alias swap: skus_v{N} -> skus (zero-downtime rotation)
+2. Search Service publishes paged `ACTIVE_PRODUCTS_PAGE` requests to `search.index_data.request`
+3. Product Service responds on `search.index_data.response` with marketplace-visible SKU documents
+   (`ACTIVE` and `OUT_OF_STOCK`; draft/pending/approved/rejected/inactive products are excluded)
+4. Bulk-index into ES via _bulk API
+5. Atomic alias swap: skus_v{N} -> skus (zero-downtime rotation)
 ```
 
 ### Vietnamese Text Analysis
@@ -264,6 +285,7 @@ Search Service does NOT participate in any Kafka request-reply patterns.
 |----------|--------|-------------|-------|
 | search-service-product-group | product.activated, product.deactivated, product.updated, product.deleted, category.updated, variant.price_updated, variant.stock_updated | 3 | Idempotent by event_id |
 | search-service-flashsale-group | flash_sale.price_sync | 1 | Sequential processing required |
+| search-service-index-data-replies-{uuid} | search.index_data.response | 1 | Instance-local reply group; every search instance can match its own correlation IDs |
 
 ---
 

@@ -130,5 +130,7 @@ public final class KafkaTopics {
     public static final String ORDER_REFUNDS_RESPONSE        = "order.refunds.response";
     public static final String ORDER_REFUND_PRESIGNED_URL_REQUEST  = "order.refund_presigned_url.request";
     public static final String ORDER_REFUND_PRESIGNED_URL_RESPONSE = "order.refund_presigned_url.response";
+    public static final String SEARCH_INDEX_DATA_REQUEST     = "search.index_data.request";
+    public static final String SEARCH_INDEX_DATA_RESPONSE    = "search.index_data.response";
 
 }

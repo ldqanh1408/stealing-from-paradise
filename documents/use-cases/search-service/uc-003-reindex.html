@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">UC-SEARCH-003: Trigger Reindex</h1>
-              <div class="doc-meta">DOC-USE-CASES-SEARCH-SERVICE-UC-003-REINDEX | 2026-06-06</div>
+              <div class="doc-meta">DOC-USE-CASES-SEARCH-SERVICE-UC-003-REINDEX | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">use-case</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -289,7 +289,7 @@
 </blockquote>
 <hr>
 <h2>Brief</h2>
-<p>Admin triggers a full reindex of the Elasticsearch <code>skus</code> index from the Product Service database. This is an operational action used after index corruption, mapping changes, or initial data load.</p>
+<p>Admin triggers a full reindex of the Elasticsearch <code>skus</code> index from Product Service snapshots delivered through Kafka request-reply. This is an operational action used after index corruption, mapping changes, or initial data load.</p>
 <hr>
 <h2>Actors</h2>
 <table>
@@ -326,7 +326,7 @@
 </tr>
 <tr>
 <td>2</td>
-<td>Product Service is reachable (source of truth for product/SKU data)</td>
+<td>Product Service Kafka responder is reachable on <code>search.index_data.request</code></td>
 </tr>
 <tr>
 <td>3</td>
@@ -368,25 +368,30 @@
 <tr>
 <td>5</td>
 <td>Server</td>
-<td>Fetches all active products and their SKUs from Product Service</td>
+<td>Publishes paged <code>ACTIVE_PRODUCTS_PAGE</code> requests to <code>search.index_data.request</code></td>
 </tr>
 <tr>
 <td>6</td>
-<td>Server</td>
-<td>Bulk-indexes all SKU documents into Elasticsearch (new index with timestamped alias)</td>
+<td>Product Service</td>
+<td>Responds on <code>search.index_data.response</code> with marketplace-visible SKU documents</td>
 </tr>
 <tr>
 <td>7</td>
 <td>Server</td>
-<td>On success: atomically swaps alias to new index, deletes old index</td>
+<td>Bulk-indexes all SKU documents into Elasticsearch (new index with timestamped alias)</td>
 </tr>
 <tr>
 <td>8</td>
 <td>Server</td>
-<td>Sets reindex status to COMPLETED, records document count</td>
+<td>On success: atomically swaps alias to new index, deletes old index</td>
 </tr>
 <tr>
 <td>9</td>
+<td>Server</td>
+<td>Sets reindex status to COMPLETED, records document count</td>
+</tr>
+<tr>
+<td>10</td>
 <td>Server</td>
 <td>Returns <code>{"status": "COMPLETED", "document_count": 15234, "duration_ms": 45231}</code></td>
 </tr>
@@ -472,8 +477,8 @@
 </tr>
 <tr>
 <td>503</td>
-<td>Product Service unreachable</td>
-<td>HTTP 503</td>
+<td>Product Service Kafka responder unavailable or timed out</td>
+<td>HTTP 503 / status = FAILED</td>
 </tr>
 <tr>
 <td>500</td>
@@ -507,6 +512,10 @@
 <tr>
 <td>ENTITY-SEARCH-001</td>
 <td>SKU document mapping</td>
+</tr>
+<tr>
+<td>KAFKA-RR-008</td>
+<td><code>search.index_data</code> request-reply</td>
 </tr>
 </tbody>
 </table></div></section>

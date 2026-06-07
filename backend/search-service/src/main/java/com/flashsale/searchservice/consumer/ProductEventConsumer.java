@@ -4,12 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.searchservice.domain.model.SearchDocument;
-import com.flashsale.searchservice.dto.event.*;
 import com.flashsale.searchservice.service.ElasticsearchService;
 import com.flashsale.searchservice.service.IdempotencyService;
 import com.flashsale.searchservice.service.ProductServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -40,28 +40,31 @@ public class ProductEventConsumer {
             },
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consumeProductEvent(String message) {
+    public void consumeProductEvent(ConsumerRecord<String, String> record) {
         try {
-            JsonNode root = objectMapper.readTree(message);
-            String eventId = root.has("eventId") ? root.get("eventId").asText() : null;
-            String eventType = root.has("eventType") ? root.get("eventType").asText()
-                    : (root.has("event") ? root.get("event").asText() : "unknown");
+            JsonNode root = objectMapper.readTree(record.value());
+            String eventId = firstText(root, "eventId", "event_id");
+            String eventType = firstText(root, "eventType", "event_type", "event");
+            if (eventType == null || eventType.isBlank() || "unknown".equals(eventType)) {
+                eventType = record.topic();
+            }
 
             if (eventId != null && idempotencyService.isProcessed(eventId)) {
                 log.debug("Skipping duplicate event: {}", eventId);
                 return;
             }
 
+            JsonNode data = payloadNode(root);
             log.info("Processing product event: {}", eventType);
 
             switch (eventType) {
-                case "product.activated" -> handleProductActivated(message);
-                case "product.deactivated" -> handleProductDeactivated(message);
-                case "product.updated" -> handleProductUpdated(message);
-                case "product.deleted" -> handleProductDeleted(message);
-                case "variant.price_updated" -> handleVariantPriceUpdated(message);
-                case "variant.stock_updated" -> handleVariantStockUpdated(message);
-                case "category.updated" -> handleCategoryUpdated(message);
+                case KafkaTopics.PRODUCT_ACTIVATED -> handleProductActivated(data);
+                case KafkaTopics.PRODUCT_DEACTIVATED -> handleProductDeactivated(data);
+                case KafkaTopics.PRODUCT_UPDATED -> handleProductUpdated(data);
+                case KafkaTopics.PRODUCT_DELETED -> handleProductDeleted(data);
+                case KafkaTopics.VARIANT_PRICE_UPDATED -> handleVariantPriceUpdated(data);
+                case KafkaTopics.VARIANT_STOCK_UPDATED -> handleVariantStockUpdated(data);
+                case KafkaTopics.CATEGORY_UPDATED -> handleCategoryUpdated(data);
                 default -> log.warn("Unknown product event type: {}", eventType);
             }
 
@@ -69,13 +72,12 @@ public class ProductEventConsumer {
                 idempotencyService.markProcessed(eventId);
             }
         } catch (Exception e) {
-            log.error("Failed to process product event: {}", e.getMessage(), e);
+            log.error("Failed to process product event from topic {}: {}", record.topic(), e.getMessage(), e);
         }
     }
 
-    private void handleProductActivated(String message) throws IOException {
-        ProductActivatedPayload payload = objectMapper.readValue(message, ProductActivatedPayload.class);
-        String productId = payload.getProductId();
+    private void handleProductActivated(JsonNode data) throws IOException {
+        String productId = requireText(data, "productId", "product_id");
         log.info("Indexing product {} (activated)", productId);
 
         List<SearchDocument> documents = productServiceClient.fetchSkuDocuments(productId);
@@ -88,65 +90,60 @@ public class ProductEventConsumer {
         log.info("Indexed {} SKU documents for product {}", documents.size(), productId);
     }
 
-    private void handleProductDeactivated(String message) throws IOException {
-        ProductDeactivatedPayload payload = objectMapper.readValue(message, ProductDeactivatedPayload.class);
-        String productId = payload.getProductId();
+    private void handleProductDeactivated(JsonNode data) throws IOException {
+        String productId = requireText(data, "productId", "product_id");
         log.info("Hiding product {} from search (deactivated)", productId);
         esService.setActiveByProductId(productId, false);
     }
 
-    private void handleProductUpdated(String message) throws IOException {
-        ProductUpdatedPayload payload = objectMapper.readValue(message, ProductUpdatedPayload.class);
-        String productId = payload.getProductId();
+    private void handleProductUpdated(JsonNode data) throws IOException {
+        String productId = requireText(data, "productId", "product_id");
         log.info("Updating product {} in index", productId);
 
-        Map<String, Object> productData = productServiceClient.fetchProductForUpdate(productId);
-        if (productData == null || productData.isEmpty()) {
+        Map<String, Object> fields = productServiceClient.fetchProductForUpdate(productId);
+        if (fields == null || fields.isEmpty()) {
             log.warn("No data found for product {} update", productId);
             return;
         }
 
-        Map<String, Object> fields = new HashMap<>();
-        if (productData.containsKey("name")) fields.put("productName", productData.get("name"));
-        if (productData.containsKey("description")) fields.put("productDescription", productData.get("description"));
-        if (productData.containsKey("slug")) fields.put("productSlug", productData.get("slug"));
-        if (productData.containsKey("categoryId")) fields.put("categoryId", productData.get("categoryId"));
-        if (productData.containsKey("categoryPath")) fields.put("categoryPath", productData.get("categoryPath"));
-        if (productData.containsKey("categoryName")) fields.put("categoryName", productData.get("categoryName"));
-        if (productData.containsKey("attributes")) fields.put("productAttributes", productData.get("attributes"));
-        if (productData.containsKey("thumbnailUrl")) fields.put("thumbnailUrl", productData.get("thumbnailUrl"));
-        if (productData.containsKey("sellerName")) fields.put("sellerName", productData.get("sellerName"));
-
-        if (!fields.isEmpty()) {
-            esService.updateByProductId(productId, fields);
-            log.info("Updated {} fields for product {}", fields.size(), productId);
-        }
+        esService.updateByProductId(productId, fields);
+        log.info("Updated {} fields for product {}", fields.size(), productId);
     }
 
-    private void handleProductDeleted(String message) throws IOException {
-        ProductDeletedPayload payload = objectMapper.readValue(message, ProductDeletedPayload.class);
-        String productId = payload.getProductId();
+    private void handleProductDeleted(JsonNode data) throws IOException {
+        String productId = requireText(data, "productId", "product_id");
         log.info("Deleting product {} from index", productId);
         esService.deleteByProductId(productId);
     }
 
-    private void handleVariantPriceUpdated(String message) throws IOException {
-        VariantPriceUpdatedPayload payload = objectMapper.readValue(message, VariantPriceUpdatedPayload.class);
-        String skuId = payload.getVariantId();
-        log.info("Updating price for SKU {} (${} -> ${})", skuId, payload.getOriginalPrice(), payload.getPrice());
+    private void handleVariantPriceUpdated(JsonNode data) throws IOException {
+        String skuId = requireText(data, "variantId", "variant_id", "skuId", "sku_id");
+        Double price = firstDouble(data, "price", "flash_price");
+        Double originalPrice = firstDouble(data, "originalPrice", "original_price");
+        log.info("Updating price for SKU {} (price={}, originalPrice={})", skuId, price, originalPrice);
 
         Map<String, Object> fields = new HashMap<>();
-        fields.put("price", payload.getPrice());
-        fields.put("originalPrice", payload.getOriginalPrice());
-        fields.put("hasDiscount", payload.getPrice() < payload.getOriginalPrice());
+        if (price != null) {
+            fields.put("price", price);
+        }
+        if (originalPrice != null) {
+            fields.put("originalPrice", originalPrice);
+        }
+        if (price != null && originalPrice != null) {
+            fields.put("hasDiscount", price < originalPrice);
+        }
 
-        esService.partialUpdate(skuId, fields);
+        if (!fields.isEmpty()) {
+            esService.partialUpdate(skuId, fields);
+        }
     }
 
-    private void handleVariantStockUpdated(String message) throws IOException {
-        VariantStockUpdatedPayload payload = objectMapper.readValue(message, VariantStockUpdatedPayload.class);
-        String skuId = payload.getVariantId();
-        String stockStatus = payload.getStockStatus() != null ? payload.getStockStatus() : "out_of_stock";
+    private void handleVariantStockUpdated(JsonNode data) throws IOException {
+        String skuId = requireText(data, "variantId", "variant_id", "skuId", "sku_id");
+        String stockStatus = firstText(data, "stockStatus", "stock_status");
+        if (stockStatus == null) {
+            stockStatus = deriveStockStatus(data);
+        }
         log.info("Updating stock for SKU {} to {}", skuId, stockStatus);
 
         Map<String, Object> fields = new HashMap<>();
@@ -155,24 +152,80 @@ public class ProductEventConsumer {
         esService.partialUpdate(skuId, fields);
     }
 
-    private void handleCategoryUpdated(String message) throws IOException {
-        CategoryUpdatedPayload payload = objectMapper.readValue(message, CategoryUpdatedPayload.class);
-        String categoryId = payload.getCategoryId();
+    private void handleCategoryUpdated(JsonNode data) throws IOException {
+        String categoryId = requireText(data, "categoryId", "category_id");
         log.info("Updating category {} fields in index", categoryId);
 
-        Map<String, Object> categoryData = productServiceClient.fetchCategoryForUpdate(categoryId);
-        if (categoryData == null || categoryData.isEmpty()) {
+        Map<String, Object> fields = productServiceClient.fetchCategoryForUpdate(categoryId);
+        if (fields == null || fields.isEmpty()) {
             log.warn("No data found for category {} update", categoryId);
             return;
         }
 
-        Map<String, Object> fields = new HashMap<>();
-        if (categoryData.containsKey("name")) fields.put("categoryName", categoryData.get("name"));
-        if (categoryData.containsKey("path")) fields.put("categoryPath", categoryData.get("path"));
+        esService.updateByCategoryId(categoryId, fields);
+        log.info("Updated {} fields for category {}", fields.size(), categoryId);
+    }
 
-        if (!fields.isEmpty()) {
-            esService.updateByCategoryId(categoryId, fields);
-            log.info("Updated {} fields for category {}", fields.size(), categoryId);
+    private JsonNode payloadNode(JsonNode root) {
+        JsonNode data = root.get("data");
+        return data != null && data.isObject() ? data : root;
+    }
+
+    private String requireText(JsonNode node, String... fieldNames) {
+        String value = firstText(node, fieldNames);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Missing required field: " + String.join("/", fieldNames));
         }
+        return value;
+    }
+
+    private String firstText(JsonNode node, String... fieldNames) {
+        for (String fieldName : fieldNames) {
+            JsonNode value = node.get(fieldName);
+            if (value != null && !value.isNull()) {
+                String text = value.asText();
+                if (!text.isBlank()) {
+                    return text;
+                }
+            }
+        }
+        return null;
+    }
+
+    private Double firstDouble(JsonNode node, String... fieldNames) {
+        for (String fieldName : fieldNames) {
+            JsonNode value = node.get(fieldName);
+            if (value == null || value.isNull()) {
+                continue;
+            }
+            if (value.isNumber()) {
+                return value.asDouble();
+            }
+            String text = value.asText();
+            if (text != null && !text.isBlank()) {
+                try {
+                    return Double.valueOf(text);
+                } catch (NumberFormatException ignored) {
+                    log.debug("Ignoring non-numeric field {}={}", fieldName, text);
+                }
+            }
+        }
+        return null;
+    }
+
+    private String deriveStockStatus(JsonNode data) {
+        String status = firstText(data, "status");
+        if ("INACTIVE".equalsIgnoreCase(status)) {
+            return "unavailable";
+        }
+
+        JsonNode quantity = data.get("stockQuantity");
+        if (quantity == null) {
+            quantity = data.get("stock_quantity");
+        }
+        if (quantity != null && quantity.canConvertToInt() && quantity.asInt() > 0) {
+            return "in_stock";
+        }
+        return "out_of_stock";
     }
 }

@@ -29,12 +29,18 @@ sequenceDiagram
     Search->>ES: Suggest query
     Search-->>Client: SuggestResponse
 
-    Kafka->>Search: product/category/inventory events
-    Search->>Product: Fetch product/category detail when needed
+    Kafka->>Search: product/category/variant events
+    Search->>Kafka: search.index_data.request when Product snapshot is needed
+    Kafka->>Product: Deliver indexing-data request
+    Product->>Kafka: search.index_data.response with docs/fields
+    Kafka-->>Search: Correlated response
     Search->>ES: Index, delete, or partial update documents
 
     Admin->>Search: POST /v1/search/reindex
-    Search->>Product: Fetch all active products
+    Search->>Kafka: Paged ACTIVE_PRODUCTS_PAGE requests
+    Kafka->>Product: Request marketplace-visible SKU documents
+    Product->>Kafka: Paged search.index_data.response
+    Kafka-->>Search: Correlated page responses
     Search->>ES: Create temp index and bulk index docs
     Search->>ES: Swap alias after success
     Admin->>Search: GET /v1/search/reindex/status
@@ -46,3 +52,4 @@ sequenceDiagram
 |-----|--------|
 | Search endpoints are implemented as `/v1/search/...`; gateway/public docs may prefix `/api`. | Keep API gateway route docs explicit to avoid client confusion. |
 | Reindex state is stored in-memory in `ReindexService`. | Reindex status resets on service restart. |
+| Search/product index data uses Kafka request-reply with a 30s timeout. | A stalled Product Service responder fails reindex or event enrichment without introducing REST coupling. |

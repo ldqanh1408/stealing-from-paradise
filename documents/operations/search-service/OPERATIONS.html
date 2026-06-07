@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Search Service Operations</h1>
-              <div class="doc-meta">DOC-OPERATIONS-SEARCH-SERVICE-OPERATIONS | 2026-06-06</div>
+              <div class="doc-meta">DOC-OPERATIONS-SEARCH-SERVICE-OPERATIONS | 2026-06-07</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">runbook</span> <span class="badge text-bg-light">search-service</span></div>
           </div>
@@ -283,7 +283,7 @@
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Search Service Operations</h1>
 <p><strong>Service:</strong> search-service | <strong>Port:</strong> 8091 | <strong>Database:</strong> Elasticsearch (index: skus)</p>
 <h2>Overview</h2>
-<p>Full-text product search with Vietnamese language analysis. Consumes product Kafka events to keep the <code>skus</code> index in sync. Supports aliased index swapping for zero-downtime reindexing.</p>
+<p>Full-text product search with Vietnamese language analysis. Consumes product Kafka events and requests authoritative Product Service indexing snapshots over Kafka request-reply to keep the <code>skus</code> index in sync. Supports aliased index swapping for zero-downtime reindexing.</p>
 <h2>Elasticsearch Resources</h2>
 <table>
 <thead>
@@ -311,6 +311,9 @@
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p>On legacy local clusters where a concrete index named <code>skus</code> exists, the next successful reindex migrates it to the alias-backed pattern by creating <code>skus_v{timestamp}</code> and swapping the <code>skus</code> alias.</p>
+</blockquote>
 <h2>Running Locally</h2>
 <pre><code class="language-bash">docker-compose up -d search-service
 # Standalone: ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
@@ -344,6 +347,18 @@
 <td><code>localhost:9092</code></td>
 <td>Kafka broker</td>
 </tr>
+<tr>
+<td><code>SEARCH_KAFKA_INDEX_DATA_TIMEOUT_SECONDS</code></td>
+<td>No</td>
+<td><code>30</code></td>
+<td>Timeout while waiting for <code>search.index_data.response</code></td>
+</tr>
+<tr>
+<td><code>SEARCH_KAFKA_INDEX_DATA_REPLY_GROUP_PREFIX</code></td>
+<td>No</td>
+<td><code>search-service-index-data-replies</code></td>
+<td>Prefix for instance-local reply consumer group</td>
+</tr>
 </tbody>
 </table>
 <h2>Health Check</h2>
@@ -360,6 +375,7 @@ curl -s &quot;http://localhost:9200/_cat/indices/skus*?v&quot;
 </code></pre>
 <h3>Verify Consumer Lag</h3>
 <pre><code class="language-bash">kafka-consumer-groups --bootstrap-server localhost:9092 --group search-service --describe
+kafka-consumer-groups --bootstrap-server localhost:9092 --group search-service-index-data-replies-&lt;instance-id&gt; --describe
 </code></pre>
 <h3>Swap Index Alias</h3>
 <pre><code class="language-bash"># Create new index from template (if needed)
@@ -396,6 +412,11 @@ curl &quot;http://localhost:9200/_alias/skus&quot;
 <td><code>curl localhost:9200/_cat/indices/skus*?v</code></td>
 </tr>
 <tr>
+<td>Category slug returns no results</td>
+<td>Index was built before <code>categorySlugPath</code> existed, or products are not <code>ACTIVE</code>/<code>OUT_OF_STOCK</code></td>
+<td>Rebuild Search/Product images, ensure dev products are active, then run reindex</td>
+</tr>
+<tr>
 <td>Vietnamese search poor</td>
 <td>Analyzer not applied</td>
 <td>Test with <code>/_analyze</code> endpoint</td>
@@ -404,6 +425,11 @@ curl &quot;http://localhost:9200/_alias/skus&quot;
 <td>Index out of sync</td>
 <td>Kafka consumer lag</td>
 <td><code>kafka-consumer-groups --describe</code> for search-service group</td>
+</tr>
+<tr>
+<td>Product snapshot timeout</td>
+<td>Product Service responder unavailable, topic missing, or reply group lag</td>
+<td>Check <code>search.index_data.request</code> / <code>search.index_data.response</code> topics and Product Service logs</td>
 </tr>
 <tr>
 <td>Cluster yellow/red</td>
