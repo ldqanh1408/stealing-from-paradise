@@ -421,6 +421,18 @@ jobs:
           echo "  Registry: ${REGISTRY}"
           echo "═══════════════════════════════════════════════════"
 
+          # Ensure destination directory exists and is writable before SCP upload
+          ssh -o StrictHostKeyChecking=no \
+             -o UserKnownHostsFile=~/.ssh/known_hosts \
+             -i ~/.ssh/id_rsa \
+             "${SERVER}" \
+             'set -euo pipefail
+              sudo mkdir -p /opt/flashsale 2>/dev/null || mkdir -p /opt/flashsale
+              if [ ! -w /opt/flashsale ]; then
+                sudo chown -R "$(id -un)":"$(id -gn)" /opt/flashsale 2>/dev/null || true
+              fi
+              [ -w /opt/flashsale ] || { echo "ERROR: /opt/flashsale is not writable for deploy user"; exit 1; }'
+
           cat > /tmp/deploy.sh << 'DEPLOY_EOF'
           #!/usr/bin/env bash
           set -euo pipefail
