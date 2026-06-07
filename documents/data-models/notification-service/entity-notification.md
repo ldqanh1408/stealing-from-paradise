@@ -60,12 +60,7 @@ erDiagram
 | FS_ITEM_REJECTED (post-MVP) | NORMAL | flash_sale.item_rejected |
 | PRODUCT_APPROVED | NORMAL | product.approved |
 | PRODUCT_REJECTED | HIGH | product.rejected |
-| ACCOUNT_LOCKED (post-MVP) | URGENT | account.locked |
-| ACCOUNT_UNLOCKED (post-MVP) | HIGH | account.unlocked |
 | STRIPE_ACCOUNT_SUSPENDED (post-MVP) | URGENT | stripe.account_suspended |
-| SELLER_POSTING_SUSPENDED | HIGH | seller.posting_suspended |
-| SELLER_POSTING_RESUMED | NORMAL | seller.posting_resumed |
-| FLASH_SALE_REMINDER (post-MVP) | HIGH | flash_sale.reminder |
 
 ---
 
@@ -81,13 +76,13 @@ erDiagram
 
 ## Kafka Integration (Consumer Only)
 
-Notification Service produces **zero** events. It consumes **30+** topics from:
+Notification Service produces **zero** events. It consumes topics from:
 
-- **Identity Service**: account.locked (post-MVP), account.unlocked (post-MVP), seller.posting_suspended, seller.posting_resumed
+- **Identity Service**: no domain events currently consumed
 - **Product Service**: product.pending_review, product.approved, product.rejected, product.auto_hidden (post-MVP)
 - **Order Service**: order.shipped, order.delivered, order.cancelled, order.auto_cancelled (post-MVP), order.returned
 - **Payment Service**: payment.success, payment.failed, refund.*, stripe.* (stripe.account_suspended is post-MVP)
-- **Flash Sale Service**: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_* (post-MVP), flash_sale.reminder (post-MVP)
+- **Flash Sale Service**: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_* (post-MVP)
 
 ---
 

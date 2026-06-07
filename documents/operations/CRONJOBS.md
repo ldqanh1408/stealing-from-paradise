@@ -1,4 +1,4 @@
-## Cronjobs Reference
+﻿## Cronjobs Reference
 Service: platform
 Generated: 2026-05-09
 Updated: 2026-05-11
@@ -24,7 +24,6 @@ Updated: 2026-05-11
 | Job | Cron | Description | Tables | Status |
 |-----|------|-------------|--------|--------|
 | JOB-01 | */1 * * * * | Session lifecycle: UPCOMING→ACTIVE→ENDED | FS_SESSIONS | NOT_IMPLEMENTED (post-MVP) |
-| JOB-02 | */5 * * * * | Reminder dispatcher | FS_REMINDERS | NOT_IMPLEMENTED (post-MVP) |
 | JOB-08 | 0 3 * * * | Flash sale data cleanup (soft-deleted > 30d) | FS_SESSIONS | NOT_IMPLEMENTED (post-MVP) |
 | JOB-21 | 0 4 * * * | Stock reconciliation post-flash-sale | PRODUCT_VARIANT | NOT_IMPLEMENTED (post-MVP) |
 

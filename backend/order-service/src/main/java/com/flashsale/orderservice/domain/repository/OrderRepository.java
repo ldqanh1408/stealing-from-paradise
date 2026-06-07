@@ -28,9 +28,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT o FROM Order o
         WHERE o.customerId = :customerId
-          AND (:status IS NULL OR o.status = :status)
-          AND (:fromDate IS NULL OR o.createdAt >= :fromDate)
-          AND (:toDate   IS NULL OR o.createdAt <= :toDate)
+          AND (CAST(:status AS string) IS NULL OR o.status = :status)
+          AND (CAST(:fromDate AS timestamp) IS NULL OR o.createdAt >= :fromDate)
+          AND (CAST(:toDate   AS timestamp) IS NULL OR o.createdAt <= :toDate)
         ORDER BY o.createdAt DESC
         """)
     Page<Order> findByCustomerIdWithFilters(
@@ -60,9 +60,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT o FROM Order o
         WHERE o.sellerId = :sellerId
-          AND (:status IS NULL OR o.status = :status)
-          AND (:fromDate IS NULL OR o.createdAt >= :fromDate)
-          AND (:toDate   IS NULL OR o.createdAt <= :toDate)
+          AND (CAST(:status AS string) IS NULL OR o.status = :status)
+          AND (CAST(:fromDate AS timestamp) IS NULL OR o.createdAt >= :fromDate)
+          AND (CAST(:toDate   AS timestamp) IS NULL OR o.createdAt <= :toDate)
         ORDER BY o.createdAt DESC
         """)
     Page<Order> findBySellerIdWithFilters(

@@ -13,7 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/search")
+@RequestMapping("/v1/search")
 @RequiredArgsConstructor
 public class SearchController {
 
@@ -24,6 +24,7 @@ public class SearchController {
     public ResponseEntity<ApiResponse<SearchResponse>> searchProducts(
             @RequestParam(required = false) String q,
             @RequestParam(name = "category_id", required = false) String categoryId,
+            @RequestParam(name = "category", required = false) String category,
             @RequestParam(name = "price_min", required = false) Double priceMin,
             @RequestParam(name = "price_max", required = false) Double priceMax,
             @RequestParam(name = "in_stock", required = false, defaultValue = "true") Boolean inStock,
@@ -32,8 +33,9 @@ public class SearchController {
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "20") int size
     ) {
+        String effectiveCategory = categoryId != null && !categoryId.isBlank() ? categoryId : category;
         SearchResponse response = searchQueryService.search(
-                q, categoryId, priceMin, priceMax, inStock, isFlash, sort, page, size
+                q, effectiveCategory, priceMin, priceMax, inStock, isFlash, sort, page, size
         );
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -52,7 +54,7 @@ public class SearchController {
     public ResponseEntity<?> triggerReindex() {
         ReindexService.ReindexStatus status = reindexService.triggerReindex();
 
-        if ("IN_PROGRESS".equals(status.getStatus())) {
+        if ("IN_PROGRESS".equals(status.getStatus()) && "Reindex already running".equals(status.getMessage())) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("REINDEX_IN_PROGRESS", status.getMessage()));
         }

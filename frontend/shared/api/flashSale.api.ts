@@ -78,17 +78,17 @@ function mapItem(i: BackendItem): FlashSaleItem {
 }
 
 export const flashSaleApi = {
-  /** Get all flash sale sessions (public) */
+  /** Get all flash sale sessions (public). Backend returns SessionResponse[] as data. */
   getSessions: async (params?: { status?: string }) => {
-    const res = await apiClient.get<ApiResponse<{ serverTime: number; sessions: BackendSession[] }>>('/flash-sales', { params });
-    const data = res.data.data;
+    const res = await apiClient.get<ApiResponse<BackendSession[]>>('/flash-sales', { params });
+    const sessions: BackendSession[] = res.data.data ?? [];
     return {
       ...res,
       data: {
         ...res.data,
         data: {
-          content: (data?.sessions ?? []).map(mapSession),
-          totalElements: data?.sessions?.length ?? 0,
+          content: sessions.map(mapSession),
+          totalElements: sessions.length,
           totalPages: 1,
         },
       },

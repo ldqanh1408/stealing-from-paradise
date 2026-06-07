@@ -85,6 +85,10 @@ services:
       - ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}
     volumes:
       - elastic_data:/usr/share/elasticsearch/data
+      # search-service references synonyms_path "synonyms/vi_product.txt" relative
+      # to the ES config dir. The file must live INSIDE the ES container, not the
+      # search-service JAR. Mount it read-only from the repo.
+      - ./backend/search-service/src/main/resources/synonyms:/usr/share/elasticsearch/config/synonyms:ro
     networks: [*network]
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
@@ -143,10 +147,6 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks: [*network]
-    command: >
-      bash -c "sleep 10 &&
-               rm -f /var/lib/kafka/data/meta.properties &&
-               /etc/confluent/docker/run"
 
   kafka-init:
     image: confluentinc/cp-kafka:${KAFKA_VER:-7.4.0}

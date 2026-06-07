@@ -12,7 +12,6 @@ Manages flash sale sessions, product registration, and price promotion. Uses Red
 |---|---|
 | `fs_sessions` | Flash sale sessions (start/end, status, name) |
 | `fs_items` | Products in a session (product_id, discount_applied, limit_per_user) |
-| `fs_reminders` | User reminders for upcoming sessions |
 
 ## Redis Data Structures
 

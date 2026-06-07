@@ -10,7 +10,7 @@
 #   = path.resolve('/app/apps/admin', '../../shared')
 #   = '/app/shared'   ✓
 
-FROM node:22-alpine
+FROM node:22-slim
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY shared ./shared
 # Set working directory to app level
 WORKDIR /app/apps/admin
 
-COPY apps/admin/package*.json ./
+COPY apps/admin/package.json ./
 RUN npm install
 
 EXPOSE 3002

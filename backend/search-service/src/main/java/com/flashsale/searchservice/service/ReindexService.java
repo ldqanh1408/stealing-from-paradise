@@ -54,6 +54,11 @@ public class ReindexService {
 
         executeReindexAsync(status);
 
+        ReindexStatus latestStatus = getStatus();
+        if (!"IN_PROGRESS".equals(latestStatus.getStatus())) {
+            return latestStatus;
+        }
+
         return ReindexStatus.builder()
                 .status("IN_PROGRESS")
                 .message("Reindex started")
@@ -77,7 +82,7 @@ public class ReindexService {
             }
 
             String newIndex = indexName + "_v" + Instant.now().toEpochMilli();
-            String oldIndex = esService.getCurrentIndexForAlias(indexName);
+            String oldIndex = esService.getCurrentIndexForAliasOrConcreteIndex(indexName);
 
             esService.createIndexAs(newIndex);
 

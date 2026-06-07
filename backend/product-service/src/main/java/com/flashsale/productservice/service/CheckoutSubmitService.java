@@ -207,16 +207,11 @@ public class CheckoutSubmitService {
         }
 
         if (!errors.isEmpty()) {
-            String errorJson;
-            try {
-                errorJson = toJson(CheckoutPreviewError.builder()
-                        .error("STOCK_CHANGED")
-                        .message("Tồn kho hoặc giá đã thay đổi. Vui lòng làm mới giỏ hàng.")
-                        .details(errors)
-                        .build());
-            } catch (JsonProcessingException e) {
-                errorJson = "{\"error\":\"STOCK_CHANGED\"}";
-            }
+            String errorJson = toJson(CheckoutPreviewError.builder()
+                    .error("STOCK_CHANGED")
+                    .message("Tồn kho hoặc giá đã thay đổi. Vui lòng làm mới giỏ hàng.")
+                    .details(errors)
+                    .build());
             throw new AppException(ErrorCode.CONFLICT, errorJson);
         }
     }

@@ -39,7 +39,7 @@ public class RouteConfig {
                 .uri("lb://identity-service"))
 
             .route("identity-protected", r -> r
-                .path("/api/v1/users/**")
+                .path("/api/v1/users/**", "/api/v1/admin/users/**")
                 .and().method(HttpMethod.GET, HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE)
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://identity-service"))

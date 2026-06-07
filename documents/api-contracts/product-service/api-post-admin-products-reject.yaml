@@ -173,7 +173,7 @@ components:
           example: 1
         reject_count:
           type: integer
-          description: So lan da bi tu choi tinh ca lan nay (BR-PRODUCT-009.8 — toi da 3 lan; lan 4 se locked)
+          description: So lan da bi tu choi tinh ca lan nay
           minimum: 1
           maximum: 3
           example: 1

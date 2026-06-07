@@ -38,7 +38,6 @@ erDiagram
 |---------------|-----------|---------|
 | CART | customer_id | One customer has one cart |
 | PARENT_ORDERS | customer_id | Orders placed by this customer |
-| FS_REMINDERS | customer_id | Flash sale reminders for this customer |
 
 ### Related Use Cases
 | Use Case | Description |

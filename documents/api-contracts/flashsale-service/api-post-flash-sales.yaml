@@ -286,35 +286,6 @@ paths:
                 items:
                   $ref: '#/components/schemas/ItemResponse'
 
-  /flash-sales/{sessionId}/remind:
-    post:
-      summary: Set Flash Sale Reminder
-      description: Customer sets a reminder for an upcoming session. One per customer per session.
-      operationId: setFlashSaleReminder
-      tags:
-        - Buyer Flash Sales
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: sessionId
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '201':
-          description: Reminder set successfully
-        '409':
-          description: Reminder already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error: "REMINDER_ALREADY_SET"
-                message: "Reminder already set for this session"
-
   /flash-sales/active:
     get:
       summary: Get Active Sessions (Redis)
@@ -532,4 +503,4 @@ tags:
   - name: Seller Flash Sales
     description: Seller product registration
   - name: Buyer Flash Sales
-    description: Customer purchase and reminders
+    description: Customer flash sale interactions

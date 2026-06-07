@@ -167,7 +167,7 @@ public class CategoryService {
                 .sortOrder(category.getSortOrder())
                 .isActive(category.getIsActive())
                 .parentId(category.getParentId())
-                .children(childResponses.isEmpty() ? null : childResponses)
+                .children(childResponses)
                 .productCount(categoryRepository.countProductsByCategoryId(category.getId()))
                 .build();
     }
@@ -199,7 +199,7 @@ public class CategoryService {
                 .sortOrder(category.getSortOrder())
                 .isActive(category.getIsActive())
                 .parentId(category.getParentId())
-                .children(childResponses.isEmpty() ? null : childResponses)
+                .children(childResponses)
                 .productCount(categoryRepository.countProductsByCategoryId(category.getId()))
                 .breadcrumb(breadcrumb)
                 .build();

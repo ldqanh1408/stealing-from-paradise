@@ -1,67 +1,62 @@
 # Business Flow: Stripe Connect Onboarding
-Scope: Cross-Service (payment-service · identity-service)
+Scope: Cross-service (`payment-service`, Stripe, optional notification consumers)
 
-### Description
-Documents the end-to-end integration flow of a Seller onboarding onto Stripe Express Connect, completing KYC verification, and the asynchronous webhook lifecycle that activates the seller account.
+### Use Case Coverage
+
+| Use case | Status against current code | Evidence | Notes |
+|----------|-----------------------------|----------|-------|
+| UC-PAYMENT-001: Onboard Stripe Account | Implemented | `StripeOnboardingController.startOnboarding` line 31, `StripeOnboardingService.startOnboarding` line 34 | Creates or reuses seller Stripe account, creates an onboarding link, and persists account state. |
+| UC-PAYMENT-003: Handle Stripe Webhook | Implemented with contract drift | `PaymentController.handleStripeWebhook` line 52, `PaymentService.handleWebhook` line 124 | Code endpoint is `/v1/stripe/webhooks`; some docs say `/stripe/webhook`. |
 
 ### Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-    actor Seller as Seller (Browser)
+    actor Seller
     participant GW as API Gateway
-    participant PayS as Payment Service
+    participant Pay as Payment Service
     participant Stripe as Stripe API
-    participant Kafka as Kafka Broker
-    participant IdentS as Identity Service
+    participant Kafka as Kafka
+    participant Notif as Notification Service
 
-    Seller->>GW: POST /api/v1/stripe/onboarding/start (payout_currency)
-    GW->>PayS: Route request
-    PayS->>PayS: Check existing SELLER_STRIPE_ACCOUNTS
-    alt No account exists
-        PayS->>Stripe: Create Custom/Express Account (Stripe.Account.create)
-        Stripe-->>PayS: Account Object (acct_xxxx)
-        PayS->>PayS: Persist acct_xxxx (charges_enabled=false, status=PENDING)
+    Seller->>GW: POST /api/v1/stripe/onboarding/start
+    GW->>Pay: Route to /v1/stripe/onboarding/start
+    Pay->>Pay: Find SELLER_STRIPE_ACCOUNTS by sellerId
+    alt No complete account
+        Pay->>Stripe: Account.create Express account
+        alt Stripe unavailable in dev
+            Pay->>Pay: Create mock acct_mock_* account
+        end
+        Pay->>Pay: Persist seller account state
     end
-    PayS->>Stripe: Generate onboarding link (Stripe.AccountLink.create)
-    Stripe-->>PayS: URL (https://connect.stripe.com/setup/s/xxx)
-    PayS-->>Seller: 200 OK (redirect_url)
-    
-    Seller->>Stripe: Redirect & Complete KYC Verification
-    
-    Note over Stripe, PayS: Asynchronous Webhook Callback
-    
-    Stripe->>GW: POST /stripe/webhooks (event: account.updated)
-    GW->>PayS: Route raw webhook payload
-    PayS->>PayS: Verify Stripe Webhook Signature
-    PayS->>PayS: Parse charges_enabled, payouts_enabled, details_submitted
-    alt KYC Completed successfully
-        PayS->>PayS: UPDATE SELLER_STRIPE_ACCOUNTS (status=ACTIVE, charges_enabled=true)
-        PayS->>Kafka: Publish event: seller.stripe_active
-        Kafka->>IdentS: Consume event
-        IdentS->>IdentS: UPDATE SELLERS.payout_status = ACTIVE
-    else KYC Rejected / Pending
-        PayS->>PayS: UPDATE SELLER_STRIPE_ACCOUNTS (status=SUSPENDED/PENDING)
+    Pay->>Stripe: AccountLink.create
+    Pay-->>Seller: onboarding_url and stripeAccountId
+
+    Seller->>Stripe: Complete hosted onboarding
+    Stripe->>GW: POST /api/v1/stripe/webhooks account.updated
+    GW->>Pay: Raw payload + Stripe-Signature
+    Pay->>Pay: Verify signature and sync account flags
+    alt Requirements currently due
+        Pay->>Kafka: seller.stripe_requirement
+        Kafka->>Notif: Notify seller/admin if consumer is configured
+    else Active account
+        Pay->>Pay: Mark charges/payout flags from Stripe response
     end
-    PayS-->>Stripe: 200 OK Response
 ```
 
-### Participant Directory
+### Implementation Notes
 
-| Participant | Service Name | Role & Responsibility |
-|-------------|--------------|-----------------------|
-| **Seller** | Frontend client | Initiates request, inputs KYC details on Stripe's hosted Express form. |
-| **API Gateway** | `api-gateway` | Handles routing, rate limiting, and forwards Stripe webhooks to Payment Service. |
-| **Payment Service** | `payment-service` | Generates Stripe link, maps Stripe Account records, listens to webhooks, publishes Kafka triggers. |
-| **Stripe API** | External Service | Hosts KYC screens, manages merchant onboarding, fires callbacks. |
-| **Identity Service** | `identity-service` | Updates internal seller registration status and permissions upon successful Stripe link. |
+| Concern | Current behavior |
+|---------|------------------|
+| Start link | `StripeOnboardingService.startOnboarding` creates the account/link and stores status. |
+| Status sync | `StripeOnboardingService.getOnboardingStatus` queries Stripe every time and falls back to DB state on Stripe failure. |
+| Refresh link | `POST /v1/stripe/onboarding/refresh-link` is implemented. |
+| Webhook account sync | `PaymentService.handleAccountUpdated` updates `SELLER_STRIPE_ACCOUNTS` and can publish `seller.stripe_requirement`. |
+| Identity service update | No current identity-service consumer for a `seller.stripe_active` event was found. |
 
-### Message & Event Catalog
+### Gaps To Track
 
-| Step | Source | Target | Trigger/Payload | Channel | Reference |
-|------|--------|--------|-----------------|---------|-----------|
-| 1    | Seller | `payment-service` | `POST /stripe/onboarding/start` | HTTP | API-POST-/stripe/onboarding/start |
-| 2    | `payment-service` | Stripe | Create Account & Link | HTTPS API | External Stripe API |
-| 3    | Stripe | `payment-service` | Webhook: `account.updated` | HTTP Webhook | Webhook Endpoint |
-| 4    | `payment-service` | Kafka | Event: `seller.stripe_active` | Kafka (topic: seller.stripe) | EV-seller.stripe_active |
-| 5    | Kafka | `identity-service` | Event: `seller.stripe_active` | Kafka (topic: seller.stripe) | EV-seller.stripe_active |
+| Gap | Impact |
+|-----|--------|
+| Old flow claimed a `seller.stripe_active` Kafka event updates identity-service. Current grep found no producer/consumer for that topic. | Keep seller payout capability in payment-service unless a real identity integration is added. |
+| Docs must use `/v1/stripe/webhooks` for the implemented webhook endpoint. | Prevent frontend or gateway route drift. |

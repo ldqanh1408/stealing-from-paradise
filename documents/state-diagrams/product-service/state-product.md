@@ -107,7 +107,6 @@ ELSE IF status = 'out_of_stock' AND any variant restocked:
 
 | Rule | Detail |
 |------|--------|
-| Resubmit loop limit | After 3 rejections, seller is locked from auto-resubmit; needs admin override (BR-PRODUCT-009) |
 | Reject reason | Required ≥10 chars; persisted in `products.reject_reason` |
 | Reviewer metadata | `products.reviewed_at` + `products.reviewed_by` MUST be set on every approve/reject |
 | Search re-indexing | `approved → active` triggers ES indexing; `active → inactive/out_of_stock` triggers de-indexing or visibility flag |

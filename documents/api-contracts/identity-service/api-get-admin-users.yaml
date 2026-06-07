@@ -15,7 +15,7 @@ paths:
       summary: List all users (admin)
       description: >
         Returns a paginated list of all users with optional filters.
-        Requires ADMIN role. Referenced by UC-IDENTITY-005, FR-IDENTITY-011.
+        Requires ADMIN role. Referenced by FR-IDENTITY-011.
       tags:
         - Admin
       security:
@@ -45,13 +45,6 @@ paths:
             type: string
             enum: [BUYER, SELLER, ADMIN]
           description: Filter by user role
-        - name: status
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [ACTIVE, LOCKED]
-          description: Filter by account status
         - name: search
           in: query
           required: false
@@ -116,7 +109,7 @@ paths:
       summary: Get single user detail (admin)
       description: >
         Returns full detail for a single user by ID.
-        Requires ADMIN role. Referenced by UC-IDENTITY-005, FR-IDENTITY-011.
+        Requires ADMIN role. Referenced by FR-IDENTITY-011.
       tags:
         - Admin
       security:
@@ -197,7 +190,7 @@ components:
           enum: [BUYER, SELLER, ADMIN]
         status:
           type: string
-          enum: [ACTIVE, LOCKED]
+          enum: [ACTIVE]
         created_at:
           type: string
           format: date-time
@@ -223,7 +216,7 @@ components:
           enum: [BUYER, SELLER, ADMIN]
         status:
           type: string
-          enum: [ACTIVE, LOCKED]
+          enum: [ACTIVE]
         addresses:
           type: array
           items:

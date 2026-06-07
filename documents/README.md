@@ -1,4 +1,4 @@
-# Stealing-from-Paradise — Micro-Documentation
+﻿# Stealing-from-Paradise — Micro-Documentation
 **Source of Truth:** database-entities.md (unchanged)
 **Generated:** 2026-05-10
 **Format:** Micro-documentation — one file per concept
@@ -53,7 +53,7 @@ documents/
 │   ├── ERD_FULL_SYSTEM.md              Full system entity relationship diagram
 │   ├── identity-service/              entity-user, entity-role, entity-customer, entity-seller, entity-admin, entity-address
 │   ├── product-service/               entity-category, entity-product, entity-product-variant, entity-product-image, entity-stock-reservation, entity-cart, entity-cart-item
-│   ├── flashsale-service/             entity-fs-session, entity-fs-item, entity-fs-reminder
+│   ├── flashsale-service/             entity-fs-session, entity-fs-item
 │   ├── order-service/                 entity-parent-order, entity-order, entity-order-item
 │   ├── payment-service/               entity-seller-stripe-account, entity-transaction, entity-seller-transfer, entity-refund, entity-refund-item
 │   ├── notification-service/          entity-notification
@@ -133,7 +133,7 @@ documents/
 | identity | identity-service | users, roles, customers, sellers, admins, addresses |
 | catalog | product-service | category, product, product_variant, product_image, stock_reservation |
 | cart | product-service | cart, cart_item |
-| flash_sale | flashsale-service | fs_sessions, fs_items, fs_reminders |
+| flash_sale | flashsale-service | fs_sessions, fs_items |
 | orders | order-service | parent_orders, orders, order_items |
 | payments | payment-service | seller_stripe_accounts, transactions, seller_transfers, refunds, refund_items |
 | notifications | notification-service | mg_notifications (MongoDB) |

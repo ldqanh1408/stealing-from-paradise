@@ -3,6 +3,8 @@ package com.flashsale.productservice.repository;
 import com.flashsale.productservice.entity.ProductVariant;
 import com.flashsale.productservice.entity.VariantStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -46,4 +48,16 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT v FROM ProductVariant v WHERE v.id = :id AND v.deletedAt IS NULL")
     Optional<ProductVariant> findByIdWithPessimisticLock(@Param("id") UUID id);
+
+    /**
+     * Returns variants belonging to marketplace-visible, non-deleted products.
+     * Used by search-service's reindex pipeline to build the ES catalog
+     * (one SKU = one doc).
+     */
+    @Query("SELECT v FROM ProductVariant v " +
+           "WHERE v.deletedAt IS NULL " +
+           "  AND v.productId IN (SELECT p.id FROM Product p " +
+           "                       WHERE p.status IN ('ACTIVE', 'OUT_OF_STOCK') " +
+           "                         AND p.deletedAt IS NULL)")
+    Page<ProductVariant> findVariantsOfSearchVisibleProducts(Pageable pageable);
 }

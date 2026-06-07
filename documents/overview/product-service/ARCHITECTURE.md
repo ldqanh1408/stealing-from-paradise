@@ -3,7 +3,7 @@
 > Service: product-service (SVC-007, Port 8090)
 > Database: PostgreSQL
 > Source: `documents` micro-docs
-> Generated: 2026-05-10 | Updated: 2026-05-25 (`inventory.adjusted` event removed -- `variant.stock_updated` is the sole stock-update event; updated header date)
+> Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing feed moved to Kafka request-reply)
 
 ---
 
@@ -78,7 +78,9 @@ draft → pending → approved → active ↔ out_of_stock
 | Produce | `product.approved` | Notify seller — product approved |
 | Produce | `product.rejected` | Notify seller with rejection reason |
 | Produce | `variant.stock_updated` | Update search index |
+| Produce | `search.index_data.response` | Reply to Search Service indexing data requests |
 | Produce | `flash_sale.price_sync` | Activate/deactivate flash prices in search |
+| Consume | `search.index_data.request` | Build search document pages/product fields/category fields for Search Service |
 | Consume | `order.created` | Lock stock |
 | Consume | `order.cancelled` | Release stock |
 | Consume | `order.returned` | Restore stock |

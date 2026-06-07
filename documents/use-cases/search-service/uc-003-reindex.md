@@ -9,7 +9,7 @@
 
 ## Brief
 
-Admin triggers a full reindex of the Elasticsearch `skus` index from the Product Service database. This is an operational action used after index corruption, mapping changes, or initial data load.
+Admin triggers a full reindex of the Elasticsearch `skus` index from Product Service snapshots delivered through Kafka request-reply. This is an operational action used after index corruption, mapping changes, or initial data load.
 
 ---
 
@@ -27,7 +27,7 @@ Admin triggers a full reindex of the Elasticsearch `skus` index from the Product
 | # | Condition |
 |---|-----------|
 | 1 | Admin is authenticated with valid JWT (admin role) |
-| 2 | Product Service is reachable (source of truth for product/SKU data) |
+| 2 | Product Service Kafka responder is reachable on `search.index_data.request` |
 | 3 | Elasticsearch cluster is operational |
 
 ---
@@ -40,11 +40,12 @@ Admin triggers a full reindex of the Elasticsearch `skus` index from the Product
 | 2 | Server | Validates JWT, verifies admin role |
 | 3 | Server | Checks no reindex is already in progress |
 | 4 | Server | Sets reindex status to IN_PROGRESS |
-| 5 | Server | Fetches all active products and their SKUs from Product Service |
-| 6 | Server | Bulk-indexes all SKU documents into Elasticsearch (new index with timestamped alias) |
-| 7 | Server | On success: atomically swaps alias to new index, deletes old index |
-| 8 | Server | Sets reindex status to COMPLETED, records document count |
-| 9 | Server | Returns `{"status": "COMPLETED", "document_count": 15234, "duration_ms": 45231}` |
+| 5 | Server | Publishes paged `ACTIVE_PRODUCTS_PAGE` requests to `search.index_data.request` |
+| 6 | Product Service | Responds on `search.index_data.response` with marketplace-visible SKU documents |
+| 7 | Server | Bulk-indexes all SKU documents into Elasticsearch (new index with timestamped alias) |
+| 8 | Server | On success: atomically swaps alias to new index, deletes old index |
+| 9 | Server | Sets reindex status to COMPLETED, records document count |
+| 10 | Server | Returns `{"status": "COMPLETED", "document_count": 15234, "duration_ms": 45231}` |
 
 ---
 
@@ -75,7 +76,7 @@ Admin triggers a full reindex of the Elasticsearch `skus` index from the Product
 | 401 | JWT invalid | HTTP 401 |
 | 403 | User is not admin | HTTP 403 |
 | 409 | Reindex already in progress | HTTP 409 |
-| 503 | Product Service unreachable | HTTP 503 |
+| 503 | Product Service Kafka responder unavailable or timed out | HTTP 503 / status = FAILED |
 | 500 | Elasticsearch indexing failure | HTTP 500, status = FAILED |
 
 ---
@@ -88,3 +89,4 @@ Admin triggers a full reindex of the Elasticsearch `skus` index from the Product
 | BR-SEARCH-001-06 | Reindex business rules |
 | ST-SEARCH-001 | Index state machine |
 | ENTITY-SEARCH-001 | SKU document mapping |
+| KAFKA-RR-008 | `search.index_data` request-reply |

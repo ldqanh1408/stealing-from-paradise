@@ -138,7 +138,7 @@ $FrontendApps = @("customer", "seller", "admin")
 # Service -> required infrastructure dependencies (container names)
 $ServiceInfraDeps = @{
     "api-gateway"        = @("redis")
-    "identity-service"   = @("postgres", "redis")
+    "identity-service"   = @("postgres", "redis", "kafka")
     "payment-service"    = @("postgres", "kafka", "axonserver")
     "order-service"      = @("postgres", "kafka", "axonserver")
     "flashsale-service"  = @("postgres", "redis", "kafka", "axonserver")

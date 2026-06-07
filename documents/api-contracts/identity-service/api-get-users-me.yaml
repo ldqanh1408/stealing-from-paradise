@@ -238,7 +238,7 @@ components:
           type: string
         status:
           type: string
-          enum: [ACTIVE, LOCKED]
+          enum: [ACTIVE]
         created_at:
           type: string
           format: date-time

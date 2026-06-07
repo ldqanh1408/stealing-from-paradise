@@ -56,6 +56,12 @@ public class SearchDocument {
     @Field(type = FieldType.Keyword)
     private String categoryName;
 
+    @Field(type = FieldType.Keyword)
+    private String categorySlug;
+
+    @Field(type = FieldType.Keyword)
+    private List<String> categorySlugPath;
+
     @Field(type = FieldType.Object, enabled = true)
     private Map<String, Object> variantAttributes;
 

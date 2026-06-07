@@ -1,72 +1,67 @@
 # Business Flow: Order Cancellation
-Scope: Cross-Service (order-service · product-service · payment-service · notification-service)
+Scope: Cross-service (`order-service`, `product-service`, `payment-service`, `notification-service`)
 
-### Description
-Documents the process of cancelling an order, either initiated by the Buyer (manual cancel) or triggered by the System (15-minute payment timeout Saga). It covers stock restoration in Redis/DB and Stripe payment intent cancellation.
+### Use Case Coverage
+
+| Use case | Status against current code | Evidence | Notes |
+|----------|-----------------------------|----------|-------|
+| UC-ORDER-003: Cancel Order (Buyer) | Implemented | `OrderController.cancelOrder` line 120, `OrderService.cancelOrder` line 279 | Code allows the customer who owns the order to cancel while status is `PENDING`. |
+| UC-ORDER-008: Cancel Order (Seller) | Partial | `OrderService.cancelOrder` line 279 | Code allows the seller who owns the order to cancel, but only when status is `PENDING`. The use case says seller can cancel `PAID` before shipment, which is not implemented. |
 
 ### Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-    actor Buyer
+    actor User as Buyer or Seller
     participant GW as API Gateway
     participant OS as Order Service
-    participant Kafka as Kafka Broker
-    participant PS as Product Service
-    participant Redis as Redis Cache
-    participant PayS as Payment Service
-    participant Stripe as Stripe API
-    participant NotifS as Notification Service
+    participant Saga as Order Processing Saga
+    participant Kafka as Kafka
+    participant Product as Product Service
+    participant Payment as Payment Service
+    participant Notif as Notification Service
 
-    alt Buyer Manual Cancellation
-        Buyer->>GW: POST /api/v1/orders/{orderId}/cancel
-        GW->>OS: Route cancel request
-        OS->>OS: Verify order status = PENDING_PAYMENT
-        OS->>OS: Update orders.status = CANCELLED
-        OS-->>Buyer: 200 OK (order cancelled)
-    else System Timeout Cancellation (15-min)
-        OS->>OS: Payout/Payment Cron detects unpaid order
-        OS->>OS: Update orders.status = CANCELLED
-    end
-
-    OS->>Kafka: Publish event: order.cancelled (orderId, items[])
-    
-    par Release Reserved Stock
-        Kafka->>PS: Consume order.cancelled
-        PS->>Redis: INCRBY stock:{variant_id} {qty}
-        PS->>PS: UPDATE product_variants SET stock = stock + qty
-        PS->>PS: UPDATE stock_reservations SET status = RELEASED
-    and Cancel Payment Intent
-        Kafka->>PayS: Consume order.cancelled
-        PayS->>PayS: Query TRANSACTIONS by parentOrderId
-        PayS->>Stripe: Cancel Payment Intent (Stripe.PaymentIntent.cancel)
-        Stripe-->>PayS: Cancelled Response
-        PayS->>PayS: UPDATE TRANSACTIONS SET status = CANCELLED
-    and Send Customer Alert
-        Kafka->>NotifS: Consume order.cancelled
-        NotifS->>NotifS: Create SSE message
-        NotifS-->>Buyer: Push notification "Order Cancelled"
+    User->>GW: POST /api/v1/orders/{orderId}/cancel
+    GW->>OS: Route to /v1/orders/{orderId}/cancel
+    OS->>OS: Load order and verify user is buyer or seller
+    OS->>OS: Require order.status = PENDING
+    alt Valid cancellation
+        OS->>OS: Set status = CANCELLED and save cancel reason
+        OS->>Saga: Publish OrderCancelledEvent
+        Saga->>Kafka: order.cancelled
+        opt Cancelled by seller
+            Saga->>Kafka: seller.order_cancelled
+        end
+        par Release or confirm product-side state
+            Kafka->>Product: Consume order.cancelled
+            Product->>Product: Release reservation and restore stock
+        and Cancel pending payment intent
+            Kafka->>Payment: Consume order.cancelled
+            Payment->>Payment: Mark transaction cancelled
+            Payment->>Payment: Cancel Stripe PaymentIntent when still pending
+        and Notify users
+            Kafka->>Notif: Consume order.cancelled / seller.order_cancelled
+            Notif-->>User: SSE notification when connected
+        end
+        OS-->>User: 200 CancelOrderResponse
+    else Invalid state or unauthorized
+        OS-->>User: 403 or ORDER_NOT_CANCELLABLE
     end
 ```
 
-### Participant Directory
+### Implementation Notes
 
-| Participant | Service Name | Role & Responsibility |
-|-------------|--------------|-----------------------|
-| **Buyer** | Client Browser | Manually cancels an unpaid order before the 15-minute expiration window. |
-| **Order Service** | `order-service` | Tracks order lifecycle, coordinates manual and scheduler cancellations, publishes `order.cancelled`. |
-| **Product Service** | `product-service` | Handles stock quantities, tracks stock reservations, listens to order cancellations to release stock. |
-| **Redis Cache** | Redis | Maintains the fast, in-memory stock counters for high-concurrency inventory protection. |
-| **Payment Service** | `payment-service` | Interacts with Stripe Connect APIs to manage PaymentIntents, records transaction statuses. |
-| **Stripe API** | External Service | Processes payment intent cancellations. |
-| **Notification Service** | `notification-service` | Listens to Kafka event topics to dispatch SSE notifications to the customer browser. |
+| Concern | Current behavior |
+|---------|------------------|
+| HTTP contract | `POST /v1/orders/{orderId}/cancel` receives `CancelOrderRequest` and reads `X-User-Role`. |
+| State rule | `OrderService.cancelOrder` rejects every status except `PENDING`. |
+| Event bridge | `OrderProcessingSaga` publishes `order.cancelled`; seller cancellations also publish `seller.order_cancelled`. |
+| Payment side effect | `PaymentService.onOrderCancelled` consumes `order.cancelled` and cancels the Stripe PaymentIntent only when the transaction is still pending. |
+| Product side effect | `product-service` consumes order events to release reservations on cancel and payment failure. |
 
-### Message & Event Catalog
+### Gaps To Track
 
-| Step | Source | Target | Trigger/Payload | Channel | Reference |
-|------|--------|--------|-----------------|---------|-----------|
-| 1    | Buyer | `order-service` | `POST /orders/{id}/cancel` | HTTP | API-POST-/orders/{id}/cancel |
-| 2    | `order-service` | Kafka | Event: `order.cancelled` (orderId, items[]) | Kafka (topic: order.events) | EV-order.cancelled |
-| 3    | Kafka | `product-service` | Event: `order.cancelled` | Kafka (topic: order.events) | EV-order.cancelled |
-| 4    | Kafka | `payment-service` | Event: `order.cancelled` | Kafka (topic: order.events) | EV-order.cancelled |
-| 5    | Kafka | `notification-service` | Event: `order.cancelled` | Kafka (topic: order.events) | EV-order.cancelled |
+| Gap | Impact |
+|-----|--------|
+| UC-ORDER-008 documents seller cancellation from `PAID`, but code only accepts `PENDING`. | Seller cannot cancel a paid-but-unshipped order through the current implementation. |
+| Existing docs mention `PENDING_PAYMENT`; code uses `PENDING`. | Contract text should use `PENDING` unless the domain model changes. |

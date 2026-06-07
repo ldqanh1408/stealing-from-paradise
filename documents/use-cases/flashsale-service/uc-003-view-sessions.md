@@ -88,7 +88,6 @@ Users view flash sale sessions and their items. Public endpoint returns UPCOMING
 | UC | Relationship |
 |----|-------------|
 | UC-FLASHSALE-001 | Admin creates sessions to view |
-| UC-FLASHSALE-004 | Customer sets reminder from viewed session |
 | UC-FLASHSALE-005 | Customer purchases from viewed session |
 
 ---

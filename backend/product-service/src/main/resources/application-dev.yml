@@ -2,14 +2,17 @@ spring:
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
   flyway:
     enabled: true
     baseline-on-migrate: true
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME_PRODUCT:product_db}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    # stringtype=unspecified lets the PG driver send String params as 'unknown'
+    # so columns like attributes/variant_attributes (jsonb) accept literal JSON strings
+    # without an explicit ::jsonb cast. Required by ProductDevDataLoader (dev only).
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:flashsale_platform}?currentSchema=product&stringtype=unspecified
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres123!}
 
 logging:
   level:
@@ -17,6 +20,7 @@ logging:
     org.springframework.data.jpa: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: DEBUG
 
 dev-data:
   enabled: true

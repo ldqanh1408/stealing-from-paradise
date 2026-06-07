@@ -79,8 +79,6 @@ public class VariantService {
 
         variant = variantRepository.save(variant);
 
-        inventoryService.initializeVariantRedisStock(variant.getId(), variant.getStockQuantity());
-
         emitEvent(KafkaTopics.VARIANT_PRICE_UPDATED, variant.getId().toString(),
                 Map.ofEntries(
                         Map.entry("variantId", variant.getId()),
@@ -152,7 +150,6 @@ public class VariantService {
                             Map.entry("stockStatus", getStockStatus(variant.getStatus())),
                             Map.entry("timestamp", LocalDateTime.now().toString())
                     ));
-            inventoryService.updateVariantRedisStock(variant.getId(), request.getStockQuantity());
             inventoryService.recomputeProductStatus(variant.getProductId());
         }
         if (request.getStatus() != null) {
@@ -207,6 +204,30 @@ public class VariantService {
             case OUT_OF_STOCK -> "out_of_stock";
             case INACTIVE -> "unavailable";
         };
+    }
+
+    @Transactional(readOnly = true)
+    public ApiResponse<com.flashsale.productservice.dto.variant.VariantDetailsResponse> getVariantDetailsBySku(String skuCode) {
+        ProductVariant variant = variantRepository.findByVariantCode(skuCode)
+                .filter(v -> v.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy variant với SKU: " + skuCode));
+
+        Product product = productRepository.findById(variant.getProductId())
+                .filter(p -> p.getDeletedAt() == null)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy sản phẩm liên quan"));
+
+        com.flashsale.productservice.dto.variant.VariantDetailsResponse resp = com.flashsale.productservice.dto.variant.VariantDetailsResponse.builder()
+                .id(variant.getId())
+                .variantCode(variant.getVariantCode())
+                .variantName(variant.getVariantName())
+                .imageUrl(variant.getImageUrl())
+                .productId(variant.getProductId())
+                .productName(product.getName())
+                .sellerId(product.getSellerId())
+                .price(variant.getPrice())
+                .build();
+
+        return ApiResponse.success(resp);
     }
 
     private VariantResponse toVariantResponse(ProductVariant variant) {

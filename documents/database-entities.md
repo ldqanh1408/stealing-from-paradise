@@ -1,4 +1,4 @@
-# E-Commerce Database Schema (Cập nhật 2026-05-10)
+﻿# E-Commerce Database Schema (Cập nhật 2026-05-10)
 
 ## Mục lục
 1. [Media & Images](#1-media--images)
@@ -39,7 +39,7 @@ Lưu trữ tại **MinIO** (object storage), bucket `products-media`.
 | `phone`      | VARCHAR   | Unique |
 | `password`   | VARCHAR   | Bcrypt |
 | `full_name`  | VARCHAR   | |
-| `status`     | VARCHAR   | ACTIVE / LOCKED |
+| `status`     | VARCHAR   | ACTIVE |
 | `role`       | VARCHAR   | BUYER / SELLER / ADMIN (mặc định BUYER) |
 | `version`    | INT       | Optimistic locking (0) |
 | `created_at` | TIMESTAMP | |

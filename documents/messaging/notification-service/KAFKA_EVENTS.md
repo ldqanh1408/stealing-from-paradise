@@ -308,7 +308,7 @@ Identity Service does NOT produce Kafka domain events. No events consumed from t
 |-------|-------|
 | **Type** | FLASH_SALE_ALERT |
 | **Priority** | HIGH |
-| **Action** | Send SSE reminders to users who registered for this session |
+| **Action** | Notify users that the flash sale session has started |
 
 **Payload:**
 ```json

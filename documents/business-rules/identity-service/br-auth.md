@@ -22,17 +22,6 @@ Document ID: BR-IDENTITY
 | Error Response | `{ "error": "VALIDATION_FAILED", "message": "Password must be at least 8 chars with 1 uppercase and 1 digit" }` |
 | Test Case | Register with "abc" -> 400; Register with "abcdefgh" -> 400 (no uppercase/digit) |
 
-## BR-IDENTITY-003: Locked Account Rejection
-| Property | Value |
-|----------|-------|
-| ID | BR-IDENTITY-003 |
-| Statement | IF User.status = LOCKED THEN reject login with HTTP 403 |
-| Trigger | POST /auth/login |
-| Entity | ENTITY-IDENTITY-001 (User.status) |
-| Error Response | `{ "error": "ACCOUNT_LOCKED", "message": "Account is locked", "status_code": 403 }` |
-| Test Case | Login with locked account -> 403 |
-| Related UC | UC-IDENTITY-005 (Admin Lock User) |
-
 ## BR-IDENTITY-004: Token Expiration
 | Property | Value |
 |----------|-------|
@@ -48,9 +37,9 @@ Document ID: BR-IDENTITY
 | Property | Value |
 |----------|-------|
 | ID | BR-IDENTITY-005 |
-| Statement | IF user does not have SELLER role (or is LOCKED) THEN reject seller-specific operations with HTTP 403 |
+| Statement | IF user does not have SELLER role THEN reject seller-specific operations with HTTP 403 |
 | Trigger | Seller registration (if already SELLER), seller product listing, flash sale registration |
-| Entity | ENTITY-IDENTITY-002 (Role.role_name), ENTITY-IDENTITY-001 (User.status) |
+| Entity | ENTITY-IDENTITY-002 (Role.role_name) |
 | Related UC | UC-IDENTITY-006 (Seller Registration) |
 
 ## BR-IDENTITY-006: Default Address Deletion Prevention
@@ -77,17 +66,8 @@ Document ID: BR-IDENTITY
 |----------|-------|
 | ID | BR-IDENTITY-008 |
 | Statement | IF requester role != ADMIN THEN reject /admin/** endpoints with HTTP 403 |
-| Trigger | GET /admin/users, POST /admin/users/{id}/lock, POST /admin/users/{id}/unlock |
+| Trigger | GET /admin/users |
 | Entity | ENTITY-IDENTITY-005 (Admin) |
-
-## BR-IDENTITY-009: Token Revocation on Lock
-| Property | Value |
-|----------|-------|
-| ID | BR-IDENTITY-009 |
-| Statement | IF admin locks account THEN all active JWT tokens for that user are immediately revoked |
-| Trigger | POST /admin/users/{userId}/lock |
-| Mechanism | Invalidate all JWTs via Redis blocklist |
-| Related UC | UC-IDENTITY-005 (Admin Lock User) |
 
 ## BR-IDENTITY-010: Old Password Verification on Change
 | Property | Value |

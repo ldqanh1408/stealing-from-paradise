@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
+@RequestMapping("/v1")
 @RequiredArgsConstructor
 public class ProductController {
 
@@ -162,5 +163,11 @@ public class ProductController {
     public ResponseEntity<ApiResponse<List<ImageResponse>>> getImages(
             @PathVariable UUID productId) {
         return ResponseEntity.ok(imageService.getImagesByProduct(productId));
+    }
+
+    @GetMapping("/products/variants/sku/{skuCode}")
+    public ResponseEntity<ApiResponse<com.flashsale.productservice.dto.variant.VariantDetailsResponse>> getVariantBySku(
+            @PathVariable String skuCode) {
+        return ResponseEntity.ok(variantService.getVariantDetailsBySku(skuCode));
     }
 }

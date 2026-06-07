@@ -3,7 +3,7 @@
 > **Service**: search-service (Port 8091)
 > **Database**: Elasticsearch
 > **Architecture**: SKU-first, field collapsing
-> **Updated**: 2026-05-26 (removed UC-SEARCH-002 deprecation notes -- use case fully merged into UC-SEARCH-001; removed order.created and sold_count -- sort simplified to relevance/price only)
+> **Updated**: 2026-06-07 (Search/Product indexing data mapped to Kafka request-reply `search.index_data.*`)
 
 ---
 
@@ -40,7 +40,7 @@
 
 | State Transition | Triggering UC | Triggering BR |
 |------------------|---------------|---------------|
-| EMPTY -> INDEXED | UC-SEARCH-003 (API reindex) | BR-SEARCH-001-06 |
+| EMPTY -> INDEXED | UC-SEARCH-003 (API reindex) or `product.activated` ingestion | BR-SEARCH-001-03, BR-SEARCH-001-06 |
 | INDEXED -> UPDATED | -- | BR-SEARCH-001-03 |
 | INDEXED -> HIDDEN | -- | BR-SEARCH-001-03 |
 | INDEXED -> REMOVED | -- | BR-SEARCH-001-03 |
@@ -61,16 +61,15 @@
 
 | Kafka Topic | Affected Index | Operation | Consumer Action |
 |-------------|---------------|-----------|----------------|
-| `product.activated` | skus | Bulk index | Index all SKU documents for product |
+| `product.activated` | skus | Bulk index | Request SKU documents through `search.index_data.request`, then index returned documents |
 | `product.deactivated` | skus | Update_by_query | Set is_active=false |
-| `product.updated` | skus | Update_by_query | Update product-level fields by product_id |
+| `product.updated` | skus | Update_by_query | Request product fields through `search.index_data.request`, then update product-level fields by product_id |
 | `product.deleted` | skus | Delete | Remove all SKU documents by product_id |
-| `category.updated` | skus | Update_by_query | Update category fields by category_id |
+| `category.updated` | skus | Update_by_query | Request category fields through `search.index_data.request`, then update category fields by category_id |
 | `variant.price_updated` | skus | Partial _update | Update price fields on single document |
 | `variant.stock_updated` | skus | Partial _update | Update stock_status on single document |
 | `flash_sale.price_sync` | skus | Bulk update | Apply/remove flash prices |
-| `account.locked` (post-MVP) | skus | Update_by_query | Hide all SKUs from seller |
-| `account.unlocked` (post-MVP) | skus | Update_by_query | Restore all SKUs from seller |
+| `search.index_data.request` / `search.index_data.response` | skus | Request-reply support | Fetch active product pages, SKU documents, product fields, and category fields without REST/WebClient |
 
 ---
 
@@ -83,6 +82,7 @@
 | API contracts | api-contracts/search-service/ | All endpoints |
 | Kafka info | messaging/search-service/KAFKA_EVENTS.md | Consumer topics |
 | Kafka source | messaging/product-service/KAFKA_EVENTS.md | Product Service events (product.approved, product.rejected details) |
+| Kafka request-reply | messaging/KAFKA_REQUEST_REPLY.md | Search/Product snapshot contract |
 
 ---
 

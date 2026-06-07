@@ -4,7 +4,7 @@
 > **Use Case ID**: UC-SEARCH-001
 > **Priority**: HIGH
 > **Source**: 02_API_search_service.md
-> **Last Updated**: 2026-05-26 (removed UC-SEARCH-002 deprecation note -- fully merged; removed aggregation/facet steps -- fixed filter fields only; removed newest/sold_desc sort -- only relevance/price_asc/price_desc remain)
+> **Last Updated**: 2026-06-07 (category browse accepts UUID or slug path token such as `electronics`)
 
 ---
 
@@ -54,7 +54,8 @@ User browses homepage/category or searches for products. The system queries Elas
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `q` | string | No | Search keywords (Vietnamese full-text search). If empty, returns all products (browse mode). |
-| `category_id` | UUID | No | Filter by category |
+| `category_id` | UUID or slug | No | Filter by category UUID or slug path token; root slug includes subcategories |
+| `category` | UUID or slug | No | Alias for `category_id` |
 | `price_min` | integer | No | Minimum price filter |
 | `price_max` | integer | No | Maximum price filter |
 | `in_stock` | boolean | No | Filter in-stock only |
@@ -69,7 +70,8 @@ User browses homepage/category or searches for products. The system queries Elas
 
 ```
 GET /search/products                                    # Browse all (homepage)
-GET /search/products?category_id=uuid                  # Browse category
+GET /search/products?category_id=uuid                  # Browse category by UUID
+GET /search/products?category=electronics              # Browse root category by slug, including children
 GET /search/products?category_id=uuid&price_min=100000&price_max=500000  # Browse + price filter
 GET /search/products?q=áo thun                          # Full-text search
 GET /search/products?q=áo thun&category_id=uuid        # Search + category filter

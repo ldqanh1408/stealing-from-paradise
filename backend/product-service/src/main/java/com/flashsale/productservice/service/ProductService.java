@@ -114,9 +114,12 @@ public class ProductService {
 
         product = productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+        emitEvent(KafkaTopics.PRODUCT_ACTIVATED, product.getId().toString(),
                 Map.ofEntries(
                         Map.entry("productId", product.getId()),
+                        Map.entry("sellerId", product.getSellerId()),
+                        Map.entry("name", product.getName()),
+                        Map.entry("categoryId", product.getCategoryId() != null ? product.getCategoryId() : ""),
                         Map.entry("status", product.getStatus().name()),
                         Map.entry("timestamp", LocalDateTime.now().toString())
                 ));
@@ -238,9 +241,10 @@ public class ProductService {
         product.setStatus(ProductStatus.ACTIVE);
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+        emitEvent(KafkaTopics.PRODUCT_DEACTIVATED, product.getId().toString(),
                 Map.ofEntries(
                         Map.entry("productId", product.getId()),
+                        Map.entry("sellerId", product.getSellerId()),
                         Map.entry("status", product.getStatus().name()),
                         Map.entry("timestamp", LocalDateTime.now().toString())
                 ));

@@ -1,85 +1,75 @@
-# Business Flow: Refund Processing (Non-RTS)
-Scope: Cross-Service (order-service · refund-service · payment-service · notification-service)
+# Business Flow: Refund Processing
+Scope: Cross-service (`order-service`, `refund-service`, `payment-service`, `notification-service`)
 
-### Description
-Documents the standard (non-Return-To-Sender) refund lifecycle. This includes the Buyer submitting a refund request with evidence, Admin review and approval gates, calling the Stripe Refund API, and initiating Seller transfer reversals in the Payment Service.
+### Use Case Coverage
+
+| Use case | Status against current code | Evidence | Notes |
+|----------|-----------------------------|----------|-------|
+| UC-REFUND-001: Create Refund | Implemented via order-service events | `RefundController.createPartialRefund` line 64, `RefundService.onRefundRequested` line 264, `RefundService.onOrderReturnedRts` line 419 | There is no public `POST /refunds` in refund-service; buyer/system creation enters through order-service and Kafka. |
+| UC-REFUND-002: Approve Refund | Implemented | `AdminRefundController.approveRefund` line 55, `RefundService.approveRefund` line 153 | Executes Stripe refund and publishes `refund.admin_approved`. |
+| UC-REFUND-003: Reject Refund | Implemented | `AdminRefundController.rejectRefund` line 67, `RefundService.rejectRefund` line 223 | Marks refund rejected and publishes `refund.rejected`. |
+| UC-ORDER-006: Request Return / RTS | Implemented | `OrderController.returnToSender` line 171, `RefundService.onOrderReturnedRts` line 419 | RTS refund bypasses admin approval and attempts Stripe refund immediately. |
 
 ### Sequence Diagram
 
 ```mermaid
 sequenceDiagram
     actor Buyer
+    actor Seller
     actor Admin
-    participant GW as API Gateway
-    participant OS as Order Service
-    participant RefS as Refund Service
-    participant Kafka as Kafka Broker
-    participant PayS as Payment Service
+    participant Order as Order Service
+    participant Kafka as Kafka
+    participant Refund as Refund Service
     participant Stripe as Stripe API
-    participant NotifS as Notification Service
+    participant Notif as Notification Service
 
-    Buyer->>GW: POST /api/v1/orders/{orderId}/refunds (items, reason, images)
-    GW->>OS: Route refund request
-    OS->>OS: Verify order.status = DELIVERED & within return window
-    OS->>RefS: Create Pending Refund (Feign Client)
-    RefS->>RefS: Upload evidence to MinIO
-    RefS->>RefS: INSERT INTO refunds (status=PENDING, type=PARTIAL/FULL)
-    RefS-->>OS: Pending Refund Created (refundId)
-    OS-->>Buyer: 200 OK (Refund Request Submitted)
+    alt Buyer refund request
+        Buyer->>Order: POST /v1/orders/{orderId}/refunds
+        Order->>Order: Validate delivered window and refundable quantities
+        Order->>Kafka: refund.requested
+        Kafka->>Refund: onRefundRequested
+        Refund->>Refund: Insert REFUNDS and REFUND_ITEMS as PENDING
+        Refund->>Kafka: refund.created
+        Kafka->>Notif: Notify admin/buyer
+    else Buyer full parent-order refund
+        Buyer->>Order: POST /v1/orders/parent/{parentOrderId}/refund
+        Order->>Kafka: refund.full_requested
+        Kafka->>Refund: onRefundFullRequested
+        Refund->>Refund: Create grouped refund records
+    else Seller return-to-sender
+        Seller->>Order: POST /v1/orders/{orderId}/return-to-sender
+        Order->>Kafka: order.returned_rts
+        Kafka->>Refund: onOrderReturnedRts
+        Refund->>Stripe: Refund PaymentIntent amount
+        Refund->>Kafka: refund.rts_completed
+    end
 
-    RefS->>Kafka: Publish event: refund.created
-    Kafka->>NotifS: Consume event, notify admin dashboard
-
-    Note over Admin, RefS: Admin Review Process
-
-    Admin->>GW: POST /api/v1/admin/refunds/{refundId}/approve
-    GW->>RefS: Route approval request
-    RefS->>RefS: Verify refund.status = PENDING
-    RefS->>Stripe: Execute refund (Stripe.Refund.create from Transaction.stripe_payment_intent_id)
-    Stripe-->>RefS: Refund Success (Stripe ID: re_xxxx)
-    RefS->>RefS: UPDATE refunds SET status=SUCCESS, refund_ref=re_xxxx
-    RefS-->>Admin: 200 OK (Refund Approved)
-
-    RefS->>Kafka: Publish event: refund.admin_approved (refundId, orderId, amount)
-
-    par Reverse Seller Transfer
-        Kafka->>PayS: Consume refund.admin_approved
-        PayS->>Stripe: Reverse transfer (Stripe.Transfer.createReversal for seller's acct)
-        Stripe-->>PayS: Reversal Confirmed
-        PayS->>PayS: UPDATE transactions SET status=PARTIALLY_REFUNDED / REFUNDED
-    and Update Order Status
-        Kafka->>OS: Consume refund.admin_approved
-        OS->>OS: UPDATE order_items SET status=REFUNDED, refunded_quantity = qty
-        OS->>OS: Update order.status if all items refunded
-    and Notify Buyer
-        Kafka->>NotifS: Consume refund.admin_approved
-        NotifS->>NotifS: Send SSE notification "Refund Approved & Processed"
-        NotifS-->>Buyer: Push notification
+    Admin->>Refund: POST /v1/admin/refunds/{refundId}/approve
+    Refund->>Refund: Validate refund is PENDING
+    Refund->>Stripe: Refund.create(payment_intent, amount)
+    Refund->>Refund: Mark SUCCESS and store refund_ref
+    Refund->>Kafka: refund.admin_approved
+    par Downstream updates
+        Kafka->>Order: PaymentKafkaEventBridge.onRefundApproved
+        Order->>Order: Update order status to PARTIALLY_REFUNDED or REFUNDED
+        Kafka->>Notif: PaymentEventConsumer.onRefundAdminApproved
+        Notif-->>Buyer: SSE notification
     end
 ```
 
-### Participant Directory
+### Implementation Notes
 
-| Participant | Service Name | Role & Responsibility |
-|-------------|--------------|-----------------------|
-| **Buyer** | Client Browser | Requests refunds for defective or missing items within the return window. |
-| **Admin** | Admin Dashboard | Reviews evidence images and details to approve or reject the request. |
-| **Order Service** | `order-service` | Handles buyer-facing API endpoints, checks return windows, and tracks item-level refund quantities. |
-| **Refund Service** | `refund-service` | Manages refund database records, integrates with MinIO for evidence storage, and executes Stripe refunds. |
-| **Payment Service** | `payment-service` | Reverses Seller transfers on Stripe Connect to recoup the platform's paid-out funds. |
-| **Stripe API** | External Service | Processes refunds and transfer reversals. |
-| **Notification Service** | `notification-service` | Sends notifications to buyers and alert updates to administrators. |
+| Concern | Current behavior |
+|---------|------------------|
+| Refund creation channel | `refund-service` consumes `refund.requested`, `refund.full_requested`, and `order.returned_rts`; it does not expose a buyer-facing create endpoint. |
+| Admin review | `refund-service` owns admin listing, detail, approve, and reject endpoints under `/v1/admin/refunds`. |
+| Stripe refund | `RefundService.executeStripeRefund` extracts the PaymentIntent from the stored transaction raw response. |
+| Transfer reversal | Transfer reversal logic exists inside `RefundService`; there is no payment-service listener for `refund.admin_approved` in current code. |
+| Order status update | `order-service` consumes `refund.admin_approved` and `refund.rts_completed`. |
 
-### Message & Event Catalog
+### Gaps To Track
 
-| Step | Source | Target | Trigger/Payload | Channel | Reference |
-|------|--------|--------|-----------------|---------|-----------|
-| 1    | Buyer | `order-service` | `POST /orders/{orderId}/refunds` | HTTP | API-POST-/orders/{orderId}/refunds |
-| 2    | `order-service` | `refund-service` | Create Refund Request | Feign (HTTP) | Internal API |
-| 3    | `refund-service` | Kafka | Event: `refund.created` | Kafka (topic: refund.events) | EV-refund.created |
-| 4    | Admin | `refund-service` | `POST /admin/refunds/{id}/approve` | HTTP | API-POST-/admin/refunds/{id}/approve |
-| 5    | `refund-service` | Stripe | Create Refund `re_xxx` | HTTPS API | External Stripe API |
-| 6    | `refund-service` | Kafka | Event: `refund.admin_approved` | Kafka (topic: refund.events) | EV-refund.admin_approved |
-| 7    | Kafka | `payment-service` | Event: `refund.admin_approved` | Kafka (topic: refund.events) | EV-refund.admin_approved |
-| 8    | Kafka | `order-service` | Event: `refund.admin_approved` | Kafka (topic: refund.events) | EV-refund.admin_approved |
-| 9    | Kafka | `notification-service` | Event: `refund.admin_approved` | Kafka (topic: refund.events) | EV-refund.admin_approved |
+| Gap | Impact |
+|-----|--------|
+| Old flow text described a Feign call from order-service to refund-service. Current code uses Kafka. | Architecture docs must describe async creation, not direct HTTP creation. |
+| UC-REFUND-001 mentions direct `POST /refunds`; current implementation has no such refund-service controller endpoint. | Client-facing contract should point to order-service refund endpoints. |
