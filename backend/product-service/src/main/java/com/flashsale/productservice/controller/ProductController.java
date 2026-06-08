@@ -3,6 +3,7 @@ package com.flashsale.productservice.controller;
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
+import java.math.BigDecimal;
 import com.flashsale.productservice.dto.image.ImageUploadResponse;
 import com.flashsale.productservice.dto.image.RegisterImageRequest;
 import com.flashsale.productservice.dto.image.ImageResponse;
@@ -34,6 +35,17 @@ public class ProductController {
     private final ProductService productService;
     private final VariantService variantService;
     private final ImageService imageService;
+
+    @GetMapping("/products")
+    public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> listPublicProducts(
+            @RequestParam(name = "category_id", required = false) UUID categoryId,
+            @RequestParam(name = "seller_id", required = false) Long sellerId,
+            @RequestParam(name = "min_price", required = false) BigDecimal minPrice,
+            @RequestParam(name = "max_price", required = false) BigDecimal maxPrice,
+            Pageable pageable) {
+        return ResponseEntity.ok(productService.listPublicProducts(
+                categoryId, sellerId, minPrice, maxPrice, pageable));
+    }
 
     @GetMapping("/products/{productId}")
     public ResponseEntity<ApiResponse<ProductResponse>> getProduct(@PathVariable UUID productId) {

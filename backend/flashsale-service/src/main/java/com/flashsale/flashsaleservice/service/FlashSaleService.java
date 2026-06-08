@@ -20,7 +20,6 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -87,13 +86,6 @@ public class FlashSaleService {
         this.webClient = WebClient.builder().baseUrl(productServiceUrl).build();
     }
 
-    // ─── Kafka Listeners ────────────────────────────────────────────────────
-
-    @KafkaListener(topics = KafkaTopics.FLASH_SALE_SESSION_STARTED, groupId = "flashsale-service-group")
-    public void onSessionStarted(String sessionId) {
-        log.info("Flash sale session started: {}", sessionId);
-    }
-
     // ─── Public: List sessions ──────────────────────────────────────────────
 
     public Mono<SessionListResponse> getSessions(String status) {
@@ -128,7 +120,7 @@ public class FlashSaleService {
 
     // ─── Seller: Add item to session ────────────────────────────────────────
 
-    public Mono<FlashSaleItemResponse> createFlashSaleItem(Long sessionId, CreateFlashSaleItemRequest req) {
+    public Mono<FlashSaleItemResponse> createFlashSaleItem(Long sessionId, Long sellerId, CreateFlashSaleItemRequest req) {
         FlashSaleItem item = FlashSaleItem.builder()
                 .sessionId(sessionId)
                 .skuCode(req.getSkuCode())
@@ -138,7 +130,31 @@ public class FlashSaleService {
                 .soldQty(0)
                 .status("PENDING")
                 .build();
-        return itemRepo.save(item).map(this::toItemResponse);
+        return itemRepo.save(item)
+                .doOnSuccess(saved -> publishItemRegisteredEvent(saved, sellerId))
+                .map(this::toItemResponse);
+    }
+
+    private void publishItemRegisteredEvent(FlashSaleItem item, Long sellerId) {
+        try {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("event_id", "evt_" + System.currentTimeMillis() + "_" + item.getId());
+            event.put("event_type", KafkaTopics.FLASH_SALE_ITEM_REGISTERED);
+            event.put("fs_item_id", item.getId());
+            event.put("session_id", item.getSessionId());
+            event.put("sku_code", item.getSkuCode());
+            event.put("seller_id", sellerId);
+            event.put("flash_price", item.getFlashPrice());
+            event.put("flash_stock", item.getFlashStock());
+            event.put("status", item.getStatus());
+            event.put("timestamp", Instant.now().toString());
+            kafkaTemplate.send(KafkaTopics.FLASH_SALE_ITEM_REGISTERED,
+                    String.valueOf(item.getId()), toJson(event));
+            log.info("Published flash_sale.item_registered: fsItemId={}, sessionId={}, sellerId={}",
+                    item.getId(), item.getSessionId(), sellerId);
+        } catch (Exception e) {
+            log.error("Failed to publish flash_sale.item_registered: {}", e.getMessage(), e);
+        }
     }
 
     // ─── Admin: Session management ──────────────────────────────────────────
@@ -204,7 +220,6 @@ public class FlashSaleService {
 
     // ─── Buyer: Purchase ────────────────────────────────────────────────────
 
-    @KafkaListener(topics = KafkaTopics.ORDER_ADDRESS_RESPONSE, groupId = "flashsale-service-address-group")
     public void onAddressResponse(String message) {
         try {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});

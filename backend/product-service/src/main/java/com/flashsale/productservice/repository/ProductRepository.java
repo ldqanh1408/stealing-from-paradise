@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,5 +38,39 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.status IN :statuses AND p.deletedAt IS NULL")
-    Page<Product> findByStatusIn(@Param("statuses") java.util.List<ProductStatus> statuses, Pageable pageable);
+    Page<Product> findByStatusIn(@Param("statuses") List<ProductStatus> statuses, Pageable pageable);
+
+    // ─── Public listing (GET /v1/products) ────────────────────────────────────
+    @Query(value = """
+        SELECT DISTINCT p FROM Product p
+        LEFT JOIN ProductVariant v ON v.productId = p.id AND v.deletedAt IS NULL
+        WHERE p.status = com.flashsale.productservice.entity.ProductStatus.ACTIVE
+          AND p.deletedAt IS NULL
+          AND (:categoryId IS NULL OR p.categoryId = :categoryId)
+          AND (:sellerId IS NULL OR p.sellerId = :sellerId)
+          AND (:minPrice IS NULL OR v.price >= :minPrice)
+          AND (:maxPrice IS NULL OR v.price <= :maxPrice)
+        """,
+        countQuery = """
+        SELECT COUNT(DISTINCT p) FROM Product p
+        LEFT JOIN ProductVariant v ON v.productId = p.id AND v.deletedAt IS NULL
+        WHERE p.status = com.flashsale.productservice.entity.ProductStatus.ACTIVE
+          AND p.deletedAt IS NULL
+          AND (:categoryId IS NULL OR p.categoryId = :categoryId)
+          AND (:sellerId IS NULL OR p.sellerId = :sellerId)
+          AND (:minPrice IS NULL OR v.price >= :minPrice)
+          AND (:maxPrice IS NULL OR v.price <= :maxPrice)
+        """)
+    Page<Product> searchPublic(
+            @Param("categoryId") UUID categoryId,
+            @Param("sellerId") Long sellerId,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            Pageable pageable);
+
+    // ─── Maintenance jobs (JOB-10 / JOB-16) ───────────────────────────────────
+    List<Product> findAllByDeletedAtBefore(LocalDateTime cutoff);
+
+    List<Product> findAllByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
+            ProductStatus status, LocalDateTime cutoff);
 }

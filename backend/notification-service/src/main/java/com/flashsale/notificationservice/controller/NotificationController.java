@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.springframework.web.bind.annotation.RequestMethod;
 import java.time.Duration;
 import java.util.Map;
 
@@ -40,9 +41,9 @@ public class NotificationController {
     }
 
     /**
-     * Paginated notification history.
+     * Paginated notification history. Spec path is /history; legacy / is kept.
      */
-    @GetMapping
+    @GetMapping({"", "/history"})
     public Flux<Notification> getNotifications(@RequestHeader("X-User-Id") Long userId,
                                                 @RequestParam(defaultValue = "0") int page,
                                                 @RequestParam(defaultValue = "20") int size) {
@@ -50,18 +51,18 @@ public class NotificationController {
     }
 
     /**
-     * Mark a single notification as read.
+     * Mark a single notification as read. Spec method is PUT; PATCH kept for back-compat.
      */
-    @PatchMapping("/{notifId}/read")
+    @RequestMapping(value = "/{notifId}/read", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public Mono<Notification> markAsRead(@PathVariable String notifId,
                                           @RequestHeader("X-User-Id") Long userId) {
         return notificationService.markAsRead(notifId, userId);
     }
 
     /**
-     * Mark all notifications as read for the current user.
+     * Mark all notifications as read for the current user. Spec method is PUT.
      */
-    @PatchMapping("/read-all")
+    @RequestMapping(value = "/read-all", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public Mono<ResponseEntity<Map<String, Object>>> markAllAsRead(@RequestHeader("X-User-Id") Long userId) {
         return notificationService.markAllAsRead(userId)
                 .map(count -> ResponseEntity.ok(Map.of(

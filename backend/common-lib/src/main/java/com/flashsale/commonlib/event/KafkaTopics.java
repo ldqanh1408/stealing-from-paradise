@@ -65,6 +65,7 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     public static final String FLASH_SALE_SESSION_STARTED = "flash_sale.session_started";
     public static final String FLASH_SALE_SESSION_ENDED   = "flash_sale.session_ended";
+    public static final String FLASH_SALE_ITEM_REGISTERED = "flash_sale.item_registered";
     public static final String FLASH_SALE_ITEM_APPROVED   = "flash_sale.item_approved";
     public static final String FLASH_SALE_ITEM_REJECTED   = "flash_sale.item_rejected";
     public static final String FLASH_SALE_ITEM_SOLD       = "flash_sale.item_sold";

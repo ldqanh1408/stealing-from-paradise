@@ -29,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -259,7 +258,6 @@ public class RefundService {
      * { refund_type, order_id, parent_order_id, user_id, seller_id,
      *   reason, amount, group_ref, refund_reason_type, items[], evidence_images[], timestamp }
      */
-    @KafkaListener(topics = KafkaTopics.REFUND_REQUESTED, groupId = "refund-service-group")
     @Transactional
     public void onRefundRequested(String message) {
         try {
@@ -350,7 +348,6 @@ public class RefundService {
      * { parent_order_id, user_id, group_ref, total_amount,
      *   refunds: [{ order_id, seller_id, amount, item_count }], timestamp }
      */
-    @KafkaListener(topics = KafkaTopics.REFUND_FULL_REQUESTED, groupId = "refund-service-group")
     @Transactional
     public void onRefundFullRequested(String message) {
         try {
@@ -414,7 +411,6 @@ public class RefundService {
      * { order_id, parent_order_id, user_id, seller_id, refund_reason_type,
      *   return_tracking_number, total_amount, evidence_count, timestamp }
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_RETURNED_RTS, groupId = "refund-service-group")
     @Transactional
     public void onOrderReturnedRts(String message) {
         try {
@@ -508,7 +504,6 @@ public class RefundService {
      * Xảy ra khi Buyer dispute qua ngân hàng (chargeback) hoặc admin refund từ Stripe Dashboard.
      * Tạo Refund record để tracking và notify admin.
      */
-    @KafkaListener(topics = KafkaTopics.REFUND_STRIPE_AUTO, groupId = "refund-service-group")
     @Transactional
     public void onRefundStripeAuto(String message) {
         try {
@@ -572,7 +567,6 @@ public class RefundService {
      * - { correlation_id, order_id } → lấy refunds của 1 sub-order
      * - { correlation_id, user_id, status?, from_date?, to_date?, page, size } → lấy refunds của Buyer
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_REFUNDS_REQUEST, groupId = "refund-service-reply-group")
     public void onOrderRefundsRequest(String message) {
         String correlationId = null;
         try {
@@ -643,7 +637,6 @@ public class RefundService {
      * order-service gửi request để xin presigned URL để upload ảnh bằng chứng hoàn tiền.
      * Request payload: { correlation_id, order_id, user_id, file_name, content_type }
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_REFUND_PRESIGNED_URL_REQUEST, groupId = "refund-service-reply-group")
     public void onRefundPresignedUrlRequest(String message) {
         String correlationId = null;
         try {
@@ -699,7 +692,6 @@ public class RefundService {
      * order-service hỏi transaction status theo parentOrderId.
      * Dùng để order-service kiểm tra xem đơn đã thanh toán chưa trước khi tạo refund.
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_PAYMENT_STATUS_REQUEST, groupId = "refund-service-reply-group")
     public void onOrderPaymentStatusRequest(String message) {
         String correlationId = null;
         try {

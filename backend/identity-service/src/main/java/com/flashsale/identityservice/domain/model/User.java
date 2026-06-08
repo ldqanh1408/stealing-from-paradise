@@ -88,6 +88,6 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return "ACTIVE".equals(this.status);
+        return "ACTIVE".equals(this.status) || "POSTING_LOCKED".equals(this.status);
     }
 }

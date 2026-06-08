@@ -74,8 +74,9 @@ public class FlashSaleController {
     @PreAuthorize("hasRole('SELLER')")
     public Mono<ApiResponse<FlashSaleItemResponse>> createFlashSaleItem(
             @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @Valid @RequestBody CreateFlashSaleItemRequest request) {
-        return flashSaleService.createFlashSaleItem(sessionId, request)
+        return flashSaleService.createFlashSaleItem(sessionId, user.getId(), request)
                 .map(ApiResponse::success);
     }
 

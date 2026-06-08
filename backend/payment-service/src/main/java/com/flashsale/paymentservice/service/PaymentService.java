@@ -25,7 +25,6 @@ import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -557,7 +556,6 @@ public class PaymentService {
 
     // ─── Kafka ────────────────────────────────────────────────────────
 
-    @KafkaListener(topics = KafkaTopics.PAYMENT_REQUESTED, groupId = "payment-service-group")
     @Transactional
     public void onPaymentRequested(String message) {
         Long parentOrderId = null;
@@ -667,17 +665,11 @@ public class PaymentService {
         }
     }
 
-    @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "payment-service-group")
-    public void onPaymentSuccess(String message) {
-        log.info("Payment success event received: {}", message);
-    }
-
     /**
      * Listens for ORDER_DELIVERED and schedules the seller payout deadline.
      * Transitions SellerTransfer from AWAITING_DELIVERY → RETURN_WINDOW
      * with payout_eligible_at = delivered_at + 7 days.
      */
-    @KafkaListener(topics = KafkaTopics.ORDER_DELIVERED, groupId = "payment-service-group")
     @Transactional
     public void onOrderDelivered(String message) {
         try {
@@ -723,10 +715,6 @@ public class PaymentService {
      * buyer vô tình thanh toán cho đơn đã bị hủy.
      * Sau đó publish payment.failed để ParentOrderPaymentSaga kết thúc.
      */
-    @KafkaListener(
-        topics = {KafkaTopics.ORDER_CANCELLED, KafkaTopics.ORDER_AUTO_CANCELLED},
-        groupId = "payment-service-group"
-    )
     @Transactional
     public void onOrderCancelled(String message) {
         Long parentOrderId = null;

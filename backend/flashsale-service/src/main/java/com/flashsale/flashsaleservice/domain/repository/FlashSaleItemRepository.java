@@ -10,4 +10,5 @@ import reactor.core.publisher.Mono;
 public interface FlashSaleItemRepository extends ReactiveCrudRepository<FlashSaleItem, Long> {
     Flux<FlashSaleItem> findBySessionId(Long sessionId);
     Mono<FlashSaleItem> findBySkuCode(String skuCode);
+    Mono<Void> deleteBySessionId(Long sessionId);
 }

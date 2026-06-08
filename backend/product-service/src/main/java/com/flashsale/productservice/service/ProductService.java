@@ -25,6 +25,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -375,6 +376,27 @@ public class ProductService {
             case OUT_OF_STOCK -> to == ProductStatus.ACTIVE || to == ProductStatus.INACTIVE;
             case INACTIVE -> to == ProductStatus.ACTIVE || to == ProductStatus.APPROVED;
         };
+    }
+
+    @Transactional(readOnly = true)
+    public ApiResponse<PageResponse<ProductResponse>> listPublicProducts(
+            UUID categoryId, Long sellerId, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+        Page<Product> page = productRepository.searchPublic(categoryId, sellerId, minPrice, maxPrice, pageable);
+
+        List<ProductResponse> content = page.getContent().stream()
+                .map(this::toProductResponse)
+                .collect(Collectors.toList());
+
+        PageResponse<ProductResponse> body = PageResponse.<ProductResponse>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+
+        return ApiResponse.success(body);
     }
 
     private ProductResponse toProductResponse(Product product) {

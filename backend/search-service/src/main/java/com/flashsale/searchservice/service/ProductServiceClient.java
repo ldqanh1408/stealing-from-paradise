@@ -11,7 +11,6 @@ import com.flashsale.searchservice.domain.model.SearchDocument;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -93,10 +92,6 @@ public class ProductServiceClient {
         return response.getFields() != null ? response.getFields() : Collections.emptyMap();
     }
 
-    @KafkaListener(
-            topics = KafkaTopics.SEARCH_INDEX_DATA_RESPONSE,
-            containerFactory = "searchIndexDataReplyKafkaListenerContainerFactory"
-    )
     public void consumeSearchIndexDataResponse(String message) {
         try {
             SearchIndexResponse response = objectMapper.readValue(message, SearchIndexResponse.class);

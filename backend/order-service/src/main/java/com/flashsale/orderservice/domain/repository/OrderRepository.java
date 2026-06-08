@@ -78,6 +78,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     long countBySellerIdAndStatus(Long sellerId, String status);
 
+    // ─── Lifecycle scheduler (JOB-13 / JOB-22) ────────────────────────────────
+
+    List<Order> findAllByStatusAndCreatedAtBefore(String status, LocalDateTime cutoff);
+
+    List<Order> findAllByStatusAndUpdatedAtBefore(String status, LocalDateTime cutoff);
+
     @Query("""
         SELECT COALESCE(SUM(o.finalAmt), 0) FROM Order o
         WHERE o.sellerId = :sellerId

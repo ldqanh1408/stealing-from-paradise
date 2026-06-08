@@ -8,7 +8,6 @@ import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -76,16 +75,6 @@ public class KafkaReplyService {
      * Nhận reply từ cart-service và identity-service.
      * Match theo correlation_id để complete đúng CompletableFuture.
      */
-    @KafkaListener(
-            topics = {
-                    KafkaTopics.ORDER_CART_ITEMS_RESPONSE,
-                    KafkaTopics.ORDER_ADDRESS_RESPONSE,
-                    KafkaTopics.ORDER_REFUNDS_RESPONSE,
-                    KafkaTopics.ORDER_REFUND_PRESIGNED_URL_RESPONSE,
-                    KafkaTopics.ORDER_PAYMENT_STATUS_RESPONSE
-            },
-            groupId = "order-service-reply-group"
-    )
     public void onReply(String message) {
         try {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});

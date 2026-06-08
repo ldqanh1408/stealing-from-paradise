@@ -11,7 +11,6 @@ import com.flashsale.orderservice.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +29,6 @@ public class PaymentKafkaEventBridge {
     private final ParentOrderRepository parentOrderRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    @KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = "order-service-group")
     public void onPaymentSuccess(String message) {
         try {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
@@ -48,7 +46,6 @@ public class PaymentKafkaEventBridge {
         }
     }
 
-    @KafkaListener(topics = KafkaTopics.PAYMENT_FAILED, groupId = "order-service-group")
     public void onPaymentFailed(String message) {
         try {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
@@ -135,7 +132,6 @@ public class PaymentKafkaEventBridge {
      *   - PARTIAL refund → PARTIALLY_REFUNDED
      *   - FULL refund    → REFUNDED
      */
-    @KafkaListener(topics = KafkaTopics.REFUND_ADMIN_APPROVED, groupId = "order-service-group")
     @Transactional
     public void onRefundApproved(String message) {
         try {
@@ -166,7 +162,6 @@ public class PaymentKafkaEventBridge {
      * Nhận refund.rts_completed từ payment-service.
      * Order đã ở RETURNED — chỉ log để xác nhận Stripe refund đã thực thi.
      */
-    @KafkaListener(topics = KafkaTopics.REFUND_RTS_COMPLETED, groupId = "order-service-group")
     public void onRefundRtsCompleted(String message) {
         try {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
@@ -187,4 +182,3 @@ public class PaymentKafkaEventBridge {
         }
     }
 }
-
