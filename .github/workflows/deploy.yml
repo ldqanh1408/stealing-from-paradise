@@ -421,6 +421,24 @@ jobs:
           echo "  Registry: ${REGISTRY}"
           echo "═══════════════════════════════════════════════════"
 
+          # Ensure destination directory exists and is writable before SCP upload
+          ssh -o StrictHostKeyChecking=no \
+             -o UserKnownHostsFile=~/.ssh/known_hosts \
+             -i ~/.ssh/id_rsa \
+             "${SERVER}" \
+             'set -euo pipefail
+              sudo mkdir -p /opt/flashsale 2>/dev/null || mkdir -p /opt/flashsale
+              # Prevent SCP overwrite failures when files in /opt/flashsale are root-owned.
+              sudo chown -R "$(id -un)":"$(id -gn)" /opt/flashsale 2>/dev/null || true
+              [ -w /opt/flashsale ] || { echo "ERROR: /opt/flashsale is not writable for deploy user"; exit 1; }
+              # Ensure upload targets can be replaced even when previous deploys created root-owned files.
+              sudo rm -rf /opt/flashsale/docker-compose.yml /opt/flashsale/docker-compose.prod-pulled.yml /opt/flashsale/nginx 2>/dev/null || \
+                rm -rf /opt/flashsale/docker-compose.yml /opt/flashsale/docker-compose.prod-pulled.yml /opt/flashsale/nginx
+              touch /opt/flashsale/.deploy-write-test && rm -f /opt/flashsale/.deploy-write-test || {
+                echo "ERROR: deploy user cannot create files in /opt/flashsale"
+                exit 1
+              }'
+
           cat > /tmp/deploy.sh << 'DEPLOY_EOF'
           #!/usr/bin/env bash
           set -euo pipefail

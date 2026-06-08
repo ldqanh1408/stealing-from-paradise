@@ -424,7 +424,7 @@ jobs:
           2. Approve and merge to **main** to trigger CD deployment
           3. CD will build `Dockerfile.prod` images and deploy to server
           MARKDOWN
-          sed -i "s/BRANCH_PLACEHOLDER/${BRANCH}/g" "${BODY_FILE}"
+          sed -i "s|BRANCH_PLACEHOLDER|${BRANCH}|g" "${BODY_FILE}"
 
           gh pr create \
             --base main \
@@ -459,7 +459,7 @@ jobs:
           **Merge this PR to trigger CD deployment (Dockerfile.prod → server).**
           MARKDOWN
           sed -i "s/SHA_PLACEHOLDER/${SHA}/g" "${COMMENT_FILE}"
-          sed -i "s/REF_PLACEHOLDER/${REF}/g" "${COMMENT_FILE}"
+          sed -i "s|REF_PLACEHOLDER|${REF}|g" "${COMMENT_FILE}"
           sed -i "s/ACTOR_PLACEHOLDER/${ACTOR}/g" "${COMMENT_FILE}"
 
           gh pr comment "${{ steps.create-pr.outputs.pr_number }}" --body-file "${COMMENT_FILE}"
