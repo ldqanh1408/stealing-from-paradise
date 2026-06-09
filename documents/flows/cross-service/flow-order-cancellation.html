@@ -274,14 +274,14 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Order Cancellation</h1>
-              <div class="doc-meta">DOC-FLOWS-CROSS-SERVICE-FLOW-ORDER-CANCELLATION | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-CROSS-SERVICE-FLOW-ORDER-CANCELLATION | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">cross-service</span></div>
           </div>
         </section>
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Business Flow: Order Cancellation</h1>
-<p>Scope: Cross-service (<code>order-service</code>, <code>product-service</code>, <code>payment-service</code>, <code>notification-service</code>)</p>
+<p>Scope: Cross-service (<code>order-service</code>, <code>product-service</code>, <code>refund-service</code>, <code>payment-service</code>, <code>notification-service</code>)</p>
 <h3>Use Case Coverage</h3>
 <table>
 <thead>
@@ -296,14 +296,14 @@
 <tr>
 <td>UC-ORDER-003: Cancel Order (Buyer)</td>
 <td>Implemented</td>
-<td><code>OrderController.cancelOrder</code> line 120, <code>OrderService.cancelOrder</code> line 279</td>
-<td>Code allows the customer who owns the order to cancel while status is <code>PENDING</code>.</td>
+<td><code>OrderController.cancelOrder</code> line 120, <code>OrderService.cancelOrder</code> line 282</td>
+<td>Buyer can cancel <code>PENDING</code> or unshipped <code>PAID</code> orders. Paid cancellation starts an automatic full-refund request.</td>
 </tr>
 <tr>
 <td>UC-ORDER-008: Cancel Order (Seller)</td>
-<td>Partial</td>
-<td><code>OrderService.cancelOrder</code> line 279</td>
-<td>Code allows the seller who owns the order to cancel, but only when status is <code>PENDING</code>. The use case says seller can cancel <code>PAID</code> before shipment, which is not implemented.</td>
+<td>Implemented</td>
+<td><code>OrderService.cancelOrder</code> line 282, <code>OrderService.publishAutoFullRefundRequested</code> line 353, <code>OrderProcessingSaga</code> line 190</td>
+<td>Seller can cancel an unshipped <code>PAID</code> order with a reason of at least 10 characters.</td>
 </tr>
 </tbody>
 </table>
@@ -315,13 +315,14 @@
     participant Saga as Order Processing Saga
     participant Kafka as Kafka
     participant Product as Product Service
+    participant Refund as Refund Service
     participant Payment as Payment Service
     participant Notif as Notification Service
 
     User-&gt;&gt;GW: POST /api/v1/orders/{orderId}/cancel
     GW-&gt;&gt;OS: Route to /v1/orders/{orderId}/cancel
     OS-&gt;&gt;OS: Load order and verify user is buyer or seller
-    OS-&gt;&gt;OS: Require order.status = PENDING
+    OS-&gt;&gt;OS: Validate cancellable state
     alt Valid cancellation
         OS-&gt;&gt;OS: Set status = CANCELLED and save cancel reason
         OS-&gt;&gt;Saga: Publish OrderCancelledEvent
@@ -329,15 +330,18 @@
         opt Cancelled by seller
             Saga-&gt;&gt;Kafka: seller.order_cancelled
         end
-        par Release or confirm product-side state
+        opt Cancelled order was PAID
+            OS-&gt;&gt;Kafka: refund.full_requested auto_process=true
+            Kafka-&gt;&gt;Refund: Create and execute full Stripe refund
+        end
+        par Release product-side state
             Kafka-&gt;&gt;Product: Consume order.cancelled
             Product-&gt;&gt;Product: Release reservation and restore stock
-        and Cancel pending payment intent
+        and Cancel pending payment intent when applicable
             Kafka-&gt;&gt;Payment: Consume order.cancelled
-            Payment-&gt;&gt;Payment: Mark transaction cancelled
             Payment-&gt;&gt;Payment: Cancel Stripe PaymentIntent when still pending
         and Notify users
-            Kafka-&gt;&gt;Notif: Consume order.cancelled / seller.order_cancelled
+            Kafka-&gt;&gt;Notif: Consume order.cancelled / seller.order_cancelled / refund events
             Notif--&gt;&gt;User: SSE notification when connected
         end
         OS--&gt;&gt;User: 200 CancelOrderResponse
@@ -358,39 +362,24 @@
 <td><code>POST /v1/orders/{orderId}/cancel</code> receives <code>CancelOrderRequest</code> and reads <code>X-User-Role</code>.</td>
 </tr>
 <tr>
-<td>State rule</td>
-<td><code>OrderService.cancelOrder</code> rejects every status except <code>PENDING</code>.</td>
+<td>Buyer state rule</td>
+<td>Buyer can cancel <code>PENDING</code> or <code>PAID</code>; <code>PAID</code> must not have tracking.</td>
+</tr>
+<tr>
+<td>Seller state rule</td>
+<td>Seller can cancel only <code>PAID</code> before shipping and must provide a reason of at least 10 characters.</td>
 </tr>
 <tr>
 <td>Event bridge</td>
-<td><code>OrderProcessingSaga</code> publishes <code>order.cancelled</code>; seller cancellations also publish <code>seller.order_cancelled</code>.</td>
+<td><code>OrderProcessingSaga</code> publishes <code>order.cancelled</code>; seller cancellations also publish enriched <code>seller.order_cancelled</code>.</td>
 </tr>
 <tr>
-<td>Payment side effect</td>
-<td><code>PaymentService.onOrderCancelled</code> consumes <code>order.cancelled</code> and cancels the Stripe PaymentIntent only when the transaction is still pending.</td>
+<td>Paid refund side effect</td>
+<td><code>order-service</code> publishes <code>refund.full_requested</code> with <code>auto_process=true</code>; <code>refund-service</code> creates and attempts the Stripe refund.</td>
 </tr>
 <tr>
-<td>Product side effect</td>
-<td><code>product-service</code> consumes order events to release reservations on cancel and payment failure.</td>
-</tr>
-</tbody>
-</table>
-<h3>Gaps To Track</h3>
-<table>
-<thead>
-<tr>
-<th>Gap</th>
-<th>Impact</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>UC-ORDER-008 documents seller cancellation from <code>PAID</code>, but code only accepts <code>PENDING</code>.</td>
-<td>Seller cannot cancel a paid-but-unshipped order through the current implementation.</td>
-</tr>
-<tr>
-<td>Existing docs mention <code>PENDING_PAYMENT</code>; code uses <code>PENDING</code>.</td>
-<td>Contract text should use <code>PENDING</code> unless the domain model changes.</td>
+<td>Pending payment side effect</td>
+<td><code>payment-service</code> still consumes <code>order.cancelled</code> for pending PaymentIntent cancellation.</td>
 </tr>
 </tbody>
 </table></div></section>

@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
+
 @Repository
 public interface NotificationRepository extends ReactiveMongoRepository<Notification, String> {
 
@@ -29,4 +31,6 @@ public interface NotificationRepository extends ReactiveMongoRepository<Notifica
      * Paginated notification history for a user, ordered by creation time descending.
      */
     Flux<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+
+    Flux<Notification> findByUserIdAndCreatedAtAfterOrderByCreatedAtAsc(Long userId, LocalDateTime createdAt);
 }

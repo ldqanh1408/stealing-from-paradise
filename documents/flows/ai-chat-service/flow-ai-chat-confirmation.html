@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: AI Chat Streaming and Human Confirmation</h1>
-              <div class="doc-meta">DOC-FLOWS-AI-CHAT-SERVICE-FLOW-AI-CHAT-CONFIRMATION | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-AI-CHAT-SERVICE-FLOW-AI-CHAT-CONFIRMATION | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">ai-chat-service</span></div>
           </div>
@@ -296,20 +296,20 @@
 <tr>
 <td>UC-AICHAT-001: Start New Chat Session</td>
 <td>Implemented</td>
-<td><code>ChatController.createSession</code> line 90, <code>ChatService.createSession</code> line 252</td>
-<td>Session close and history endpoints also exist.</td>
+<td><code>ChatController.createSession</code> line 90, <code>ChatService.createSession</code> line 260</td>
+<td>Session creation persists the session, publishes <code>ai.session.created</code>, and active sessions are listed by <code>GET /api/ai/sessions</code>.</td>
 </tr>
 <tr>
 <td>UC-AICHAT-002: Send Message</td>
 <td>Implemented</td>
-<td><code>ChatController.chat</code> line 35, <code>ChatService.streamChat</code> line 77</td>
-<td>Streams tool events, deltas, done, and error events via SSE.</td>
+<td><code>ChatController.chat</code> line 35, <code>ChatService.streamChat</code> line 77, <code>ChatService.publishMessageSent</code> line 533</td>
+<td>Streams tool events, deltas, done, and error events via SSE. The service publishes both legacy <code>ai_chat.message_sent</code> and documented <code>ai.chat.message_received</code> events.</td>
 </tr>
 <tr>
 <td>UC-AICHAT-003: Confirm or Reject Pending Action</td>
 <td>Implemented</td>
 <td><code>ChatController.confirm</code> line 134, <code>ChatService.confirmAction</code> line 297, <code>SystemActionTool.performSystemAction</code> line 42</td>
-<td>Current confirmed action path supports the coded action types in <code>ChatService.executeConfirmedAction</code>.</td>
+<td>Pending confirmations are persisted in MongoDB with TTL. Resolution publishes the legacy resolved event plus <code>ai.confirmation.confirmed</code> or <code>ai.confirmation.rejected</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -319,12 +319,13 @@
     participant Chat as Chat Service
     participant LLM as Chat Client
     participant Tools as Tool Layer
-    participant DB as PostgreSQL
+    participant DB as MongoDB
     participant Kafka as Kafka
     participant Core as Core Services
 
     User-&gt;&gt;Chat: POST /api/ai/sessions
-    Chat-&gt;&gt;DB: Insert CHAT_SESSIONS
+    Chat-&gt;&gt;DB: Insert chat session
+    Chat-&gt;&gt;Kafka: ai.session.created
     Chat--&gt;&gt;User: ChatSession
 
     User-&gt;&gt;Chat: POST /api/ai/chat (SSE)
@@ -334,9 +335,9 @@
     alt Normal response
         Chat--&gt;&gt;User: SSE tool_start/tool_done/delta/done
         Chat-&gt;&gt;DB: Save assistant message
-        Chat-&gt;&gt;Kafka: ai_chat.message_sent
+        Chat-&gt;&gt;Kafka: ai_chat.message_sent and ai.chat.message_received
     else Level 3 action requires confirmation
-        Tools-&gt;&gt;DB: Insert PENDING_CONFIRMATIONS
+        Tools-&gt;&gt;DB: Insert pending confirmation
         Tools-&gt;&gt;Kafka: ai_chat.tool_call_executed
         Chat--&gt;&gt;User: SSE confirmation_required
     end
@@ -345,29 +346,37 @@
     alt Confirmed
         Chat-&gt;&gt;Core: Execute confirmed action through WebClient/tool logic
         Chat-&gt;&gt;DB: Mark confirmation CONFIRMED
-        Chat-&gt;&gt;Kafka: ai_chat.confirmation_resolved
+        Chat-&gt;&gt;Kafka: ai_chat.confirmation_resolved and ai.confirmation.confirmed
         Chat--&gt;&gt;User: Result message
     else Rejected
         Chat-&gt;&gt;DB: Mark confirmation REJECTED
-        Chat-&gt;&gt;Kafka: ai_chat.confirmation_resolved
+        Chat-&gt;&gt;Kafka: ai_chat.confirmation_resolved and ai.confirmation.rejected
         Chat--&gt;&gt;User: Rejection message
     end</pre>
-<h3>Implementation Gaps</h3>
+<h3>Implementation Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>RateLimiter</code> is in-memory and has a TODO for Redis.</td>
-<td>Rate limits reset on service restart and are not cluster-safe yet.</td>
+<td>Pending confirmation storage</td>
+<td>MongoDB <code>pending_confirmations</code> with TTL is the authoritative store; no Redis <code>pending:{confirmId}</code> key is used.</td>
 </tr>
 <tr>
-<td>Confirmed actions depend on the hard-coded action handling in <code>ChatService.executeConfirmedAction</code>.</td>
-<td>New Level 3 tools must add explicit execution logic before the flow is truly supported.</td>
+<td>Event compatibility</td>
+<td>The service keeps legacy <code>ai_chat.*</code> topics and also publishes the documented <code>ai.*</code> aliases.</td>
+</tr>
+<tr>
+<td>Rate limiting</td>
+<td><code>RateLimiter</code> is in-memory, so limits reset on service restart and are not cluster-wide.</td>
+</tr>
+<tr>
+<td>Confirmed action execution</td>
+<td>New Level 3 tools must add explicit handling in <code>ChatService.executeConfirmedAction</code>.</td>
 </tr>
 </tbody>
 </table></div></section>

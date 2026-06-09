@@ -5,9 +5,9 @@ Scope: `notification-service`
 
 | Use case | Status against current code | Evidence | Notes |
 |----------|-----------------------------|----------|-------|
-| UC-NOTIF-001: Stream Real-Time Notifications | Implemented | `NotificationController.stream` line 30, `NotificationService.getNotificationStream` line 87 | Uses per-user Reactor sinks and SSE. |
+| UC-NOTIF-001: Stream Real-Time Notifications | Implemented | `NotificationController.stream` line 32, `NotificationService.getNotificationStream` line 87 | Uses per-user Reactor sinks for live delivery and persisted Mongo notifications for `Last-Event-ID` replay. |
 | UC-NOTIF-002: View Notification History | Implemented | `NotificationController.getNotifications` line 46, `NotificationService.getNotifications` line 95 | Supports page and size query params. |
-| UC-NOTIF-003: Mark Notification as Read | Implemented with contract drift | `NotificationController.markAsRead` line 56, `markAllAsRead` line 65 | Code uses `PATCH`, while the use case text says `PUT`. |
+| UC-NOTIF-003: Mark Notification as Read | Implemented | `NotificationController.markAsRead` line 63, `markAllAsRead` line 72 | Code supports both documented `PUT` and compatibility `PATCH` routes. |
 
 ### Sequence Diagram
 
@@ -21,11 +21,12 @@ sequenceDiagram
     participant Producers as Domain Services
 
     Client->>Notif: GET /v1/notifications/stream
+    Notif->>Mongo: If Last-Event-ID exists, load missed notifications
     Notif->>Sink: getOrCreateSink(userId)
-    Notif-->>Client: text/event-stream
+    Notif-->>Client: ServerSentEvent id + event + data
 
     Producers->>Kafka: order/payment/refund/product/chat/transfer events
-    Kafka->>Notif: Service consumers handle event
+    Kafka->>Notif: Topic-specific consumer handles event
     Notif->>Mongo: Persist notification
     Notif->>Sink: emitToUser(notification)
     Sink-->>Client: SSE notification
@@ -34,16 +35,18 @@ sequenceDiagram
     Notif->>Mongo: Query notification history
     Notif-->>Client: Flux<Notification>
 
-    Client->>Notif: PATCH /v1/notifications/{notifId}/read
+    Client->>Notif: PUT or PATCH /v1/notifications/{notifId}/read
     Notif->>Mongo: Mark one notification read
-    Client->>Notif: PATCH /v1/notifications/read-all
+    Client->>Notif: PUT or PATCH /v1/notifications/read-all
     Notif->>Mongo: Mark unread notifications read
     Client->>Notif: GET /v1/notifications/unread-count
 ```
 
-### Implementation Gaps
+### Implementation Notes
 
-| Gap | Impact |
-|-----|--------|
-| Use case text says `PUT /notifications/{id}/read` and `PUT /notifications/read-all`; code exposes `PATCH`. | API contract docs should use PATCH to match the implementation. |
-| Consumers exist for many topics, but payload-specific formatting is handled inside each consumer class. | Event payload contracts should be documented per topic if strict schemas are required. |
+| Concern | Current behavior |
+|---------|------------------|
+| Live stream | In-memory Reactor sinks fan out events to connected clients. |
+| Replay | `Last-Event-ID` is resolved to a stored notification, then Mongo history after that timestamp is replayed before live events. |
+| Consumer modularity | Each Kafka topic family is handled by a focused consumer class under `service.consumer`. |
+| Redis Pub/Sub | Redis is not part of the notification replay path in the current implementation. |

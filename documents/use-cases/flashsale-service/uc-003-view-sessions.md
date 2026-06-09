@@ -8,7 +8,7 @@
 ---
 
 ## Brief
-Users view flash sale sessions and their items. Public endpoint returns UPCOMING + ACTIVE sessions. Admin endpoint returns all sessions including ENDED. Redis-backed endpoint serves active sessions at high concurrency.
+Users view flash sale sessions and their items. Public endpoint returns UPCOMING + ACTIVE sessions. Admin endpoint returns all sessions including ENDED. A dedicated active endpoint returns currently active sessions for high-traffic storefront reads.
 
 ---
 
@@ -38,12 +38,12 @@ Users view flash sale sessions and their items. Public endpoint returns UPCOMING
 | 3 | System | Joins `fs_items` for the session |
 | 4 | System | Returns `200 OK` with session + items |
 
-### Active Sessions (Redis: GET /flash-sales/active)
+### Active Sessions (GET /flash-sales/active)
 
 | Step | Actor | Action |
 |------|-------|--------|
 | 1 | User | Sends `GET /flash-sales/active` |
-| 2 | System | Reads from database (high-concurrency via read replicas) |
+| 2 | System | Queries active sessions through the same session listing service |
 | 3 | System | Returns `200 OK` with active sessions |
 
 ### Admin (GET /flash-sales with ADMIN JWT)
@@ -92,4 +92,4 @@ Users view flash sale sessions and their items. Public endpoint returns UPCOMING
 
 ---
 
-*Generated: 2026-05-09*
+*Updated: 2026-06-08*

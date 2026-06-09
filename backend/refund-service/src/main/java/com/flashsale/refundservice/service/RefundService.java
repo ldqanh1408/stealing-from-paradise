@@ -355,6 +355,17 @@ public class RefundService {
             Long parentOrderId = toLong(payload.get("parent_order_id"));
             Long userId        = toLong(payload.get("user_id"));
             UUID groupRef      = parseUUID(payload.get("group_ref"));
+            String initiatedBy = payload.get("initiated_by") != null
+                    ? String.valueOf(payload.get("initiated_by"))
+                    : "BUYER";
+            String reasonType = payload.get("refund_reason_type") != null
+                    ? String.valueOf(payload.get("refund_reason_type"))
+                    : "BUYER_CANCEL";
+            String reason = payload.get("reason") != null
+                    ? String.valueOf(payload.get("reason"))
+                    : "Full refund requested by buyer";
+            boolean autoProcess = Boolean.TRUE.equals(payload.get("auto_process"))
+                    || "true".equalsIgnoreCase(String.valueOf(payload.get("auto_process")));
 
             Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
                     .orElse(null);
@@ -383,14 +394,44 @@ public class RefundService {
                         .orderId(orderId)
                         .groupRef(groupRef)
                         .type("FULL")
-                        .initiatedBy("BUYER")
-                        .refundReasonType("BUYER_CANCEL")
+                        .initiatedBy(initiatedBy)
+                        .refundReasonType(reasonType)
                         .amount(amt)
-                        .reason("Full refund requested by buyer")
+                        .reason(reason)
                         .status("PENDING")
                         .build();
                 refund = refundRepository.save(refund);
+
+                if (autoProcess) {
+                    try {
+                        String stripeRefundId = executeStripeRefund(tx.getId(), amt);
+                        refund.setStatus("SUCCESS");
+                        refund.setRefundRef(stripeRefundId);
+                        refund.setReviewedAt(LocalDateTime.now());
+                        reverseSellerTransfer(orderId, amt, refund.getId());
+                        refund = refundRepository.save(refund);
+                    } catch (AppException e) {
+                        log.error("Auto full refund failed for orderId={}: {}", orderId, e.getMessage());
+                        refund.setStatus("FAILED");
+                        refund = refundRepository.save(refund);
+                    }
+                }
+
                 createdIds.add(refund.getId());
+
+                Map<String, Object> refundCreatedEvent = new LinkedHashMap<>();
+                refundCreatedEvent.put("refund_id", refund.getId());
+                refundCreatedEvent.put("order_id", orderId);
+                refundCreatedEvent.put("parent_order_id", parentOrderId);
+                refundCreatedEvent.put("user_id", userId);
+                refundCreatedEvent.put("amount", amt);
+                refundCreatedEvent.put("type", "FULL");
+                refundCreatedEvent.put("initiated_by", initiatedBy);
+                refundCreatedEvent.put("refund_reason_type", reasonType);
+                refundCreatedEvent.put("status", refund.getStatus());
+                refundCreatedEvent.put("auto_process", autoProcess);
+                refundCreatedEvent.put("timestamp", Instant.now().toString());
+                publish(KafkaTopics.REFUND_CREATED, String.valueOf(refund.getId()), refundCreatedEvent);
             }
 
             log.info("Full refund created from REFUND_FULL_REQUESTED: parentOrderId={}, refundCount={}",

@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Order Lifecycle and Returns</h1>
-              <div class="doc-meta">DOC-FLOWS-ORDER-SERVICE-FLOW-ORDER-LIFECYCLE | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-ORDER-SERVICE-FLOW-ORDER-LIFECYCLE | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">order-service</span></div>
           </div>
@@ -308,20 +308,20 @@
 <tr>
 <td>UC-ORDER-003: Cancel Order (Buyer)</td>
 <td>Implemented</td>
-<td><code>OrderController.cancelOrder</code> line 120, <code>OrderService.cancelOrder</code> line 279</td>
-<td>Only <code>PENDING</code> can be cancelled.</td>
+<td><code>OrderController.cancelOrder</code> line 120, <code>OrderService.cancelOrder</code> line 282</td>
+<td>Buyer can cancel <code>PENDING</code> or unshipped <code>PAID</code>; paid cancellation publishes <code>refund.full_requested</code> with <code>auto_process=true</code>.</td>
 </tr>
 <tr>
 <td>UC-ORDER-004: Ship Order</td>
 <td>Implemented</td>
-<td><code>OrderController.updateTracking</code> line 137, <code>OrderService.updateTracking</code> line 331</td>
+<td><code>OrderController.updateTracking</code> line 137, <code>OrderService.updateTracking</code> line 405</td>
 <td>Seller sets tracking and status becomes <code>SHIPPING</code>.</td>
 </tr>
 <tr>
 <td>UC-ORDER-005: Confirm Delivery</td>
-<td>Implemented manual, auto branch delegated/not found here</td>
-<td><code>OrderController.confirmReceived</code> line 154, <code>OrderService.confirmReceived</code> line 374</td>
-<td>Code comments say worker-service handles auto-delivery, but no worker-service module exists in this repo snapshot.</td>
+<td>Implemented</td>
+<td><code>OrderController.confirmReceived</code> line 154, <code>OrderService.confirmReceived</code> line 446, <code>OrderLifecycleScheduler</code> line 55</td>
+<td>Manual confirm and auto-delivery scheduler are implemented.</td>
 </tr>
 <tr>
 <td>UC-ORDER-006: Request Return / RTS</td>
@@ -337,9 +337,9 @@
 </tr>
 <tr>
 <td>UC-ORDER-008: Seller Cancel Order</td>
-<td>Partial</td>
-<td><code>OrderService.cancelOrder</code> line 279</td>
-<td>Ownership check accepts seller, but status rule only permits <code>PENDING</code>, not <code>PAID</code>.</td>
+<td>Implemented</td>
+<td><code>OrderService.cancelOrder</code> line 282, <code>OrderService.publishAutoFullRefundRequested</code> line 353, <code>OrderProcessingSaga</code> line 190</td>
+<td>Seller can cancel unshipped <code>PAID</code> orders with a reason; order-service publishes seller cancellation and auto full-refund events.</td>
 </tr>
 </tbody>
 </table>
@@ -366,10 +366,21 @@
     Kafka-&gt;&gt;Order: payment.success or payment.failed
     Order-&gt;&gt;Order: Move orders to PAID or cancel/fail
 
-    Seller-&gt;&gt;Order: PUT /v1/orders/{id}/tracking
-    Order-&gt;&gt;Order: Set tracking and SHIPPING
-    Saga-&gt;&gt;Kafka: order.shipped
-    Kafka-&gt;&gt;Notif: Notify buyer
+    alt Buyer or seller cancels before shipping
+        Buyer-&gt;&gt;Order: POST /v1/orders/{id}/cancel
+        Seller-&gt;&gt;Order: POST /v1/orders/{id}/cancel
+        Order-&gt;&gt;Order: Validate owner, status, and tracking state
+        Order-&gt;&gt;Kafka: order.cancelled
+        opt Paid order
+            Order-&gt;&gt;Kafka: refund.full_requested auto_process=true
+            Kafka-&gt;&gt;Refund: Create and execute full refund
+        end
+    else Seller ships
+        Seller-&gt;&gt;Order: PUT /v1/orders/{id}/tracking
+        Order-&gt;&gt;Order: Set tracking and SHIPPING
+        Saga-&gt;&gt;Kafka: order.shipped
+        Kafka-&gt;&gt;Notif: Notify buyer
+    end
 
     Buyer-&gt;&gt;Order: POST /v1/orders/{id}/confirm-received
     Order-&gt;&gt;Order: Set DELIVERED
@@ -385,22 +396,26 @@
         Order-&gt;&gt;Kafka: order.returned_rts
         Kafka-&gt;&gt;Refund: Auto refund
     end</pre>
-<h3>Implementation Gaps</h3>
+<h3>Implementation Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Seller cancel use case expects <code>PAID</code> order cancellation before shipping, but code only accepts <code>PENDING</code>.</td>
-<td>UC-ORDER-008 should be marked partial until the status rule changes.</td>
+<td>Axon scope</td>
+<td>Axon is used inside <code>order-service</code> for order/payment saga orchestration.</td>
 </tr>
 <tr>
-<td>Auto confirm delivery is referenced as worker-service/JOB-22, but no worker-service directory exists in this repo snapshot.</td>
-<td>Treat auto-delivery as external/not implemented in this checkout.</td>
+<td>Paid cancellation</td>
+<td>Buyer and seller paid-cancel paths emit auto full-refund requests; refund-service can auto-process those requests.</td>
+</tr>
+<tr>
+<td>Auto lifecycle</td>
+<td><code>OrderLifecycleScheduler</code> handles payment timeout and auto-delivery safety paths.</td>
 </tr>
 </tbody>
 </table></div></section>

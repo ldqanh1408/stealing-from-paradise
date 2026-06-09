@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Notification Stream and Read State</h1>
-              <div class="doc-meta">DOC-FLOWS-NOTIFICATION-SERVICE-FLOW-NOTIFICATION-STREAM | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-NOTIFICATION-SERVICE-FLOW-NOTIFICATION-STREAM | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">notification-service</span></div>
           </div>
@@ -296,8 +296,8 @@
 <tr>
 <td>UC-NOTIF-001: Stream Real-Time Notifications</td>
 <td>Implemented</td>
-<td><code>NotificationController.stream</code> line 30, <code>NotificationService.getNotificationStream</code> line 87</td>
-<td>Uses per-user Reactor sinks and SSE.</td>
+<td><code>NotificationController.stream</code> line 32, <code>NotificationService.getNotificationStream</code> line 87</td>
+<td>Uses per-user Reactor sinks for live delivery and persisted Mongo notifications for <code>Last-Event-ID</code> replay.</td>
 </tr>
 <tr>
 <td>UC-NOTIF-002: View Notification History</td>
@@ -307,9 +307,9 @@
 </tr>
 <tr>
 <td>UC-NOTIF-003: Mark Notification as Read</td>
-<td>Implemented with contract drift</td>
-<td><code>NotificationController.markAsRead</code> line 56, <code>markAllAsRead</code> line 65</td>
-<td>Code uses <code>PATCH</code>, while the use case text says <code>PUT</code>.</td>
+<td>Implemented</td>
+<td><code>NotificationController.markAsRead</code> line 63, <code>markAllAsRead</code> line 72</td>
+<td>Code supports both documented <code>PUT</code> and compatibility <code>PATCH</code> routes.</td>
 </tr>
 </tbody>
 </table>
@@ -323,11 +323,12 @@
     participant Producers as Domain Services
 
     Client-&gt;&gt;Notif: GET /v1/notifications/stream
+    Notif-&gt;&gt;Mongo: If Last-Event-ID exists, load missed notifications
     Notif-&gt;&gt;Sink: getOrCreateSink(userId)
-    Notif--&gt;&gt;Client: text/event-stream
+    Notif--&gt;&gt;Client: ServerSentEvent id + event + data
 
     Producers-&gt;&gt;Kafka: order/payment/refund/product/chat/transfer events
-    Kafka-&gt;&gt;Notif: Service consumers handle event
+    Kafka-&gt;&gt;Notif: Topic-specific consumer handles event
     Notif-&gt;&gt;Mongo: Persist notification
     Notif-&gt;&gt;Sink: emitToUser(notification)
     Sink--&gt;&gt;Client: SSE notification
@@ -336,27 +337,35 @@
     Notif-&gt;&gt;Mongo: Query notification history
     Notif--&gt;&gt;Client: Flux&lt;Notification&gt;
 
-    Client-&gt;&gt;Notif: PATCH /v1/notifications/{notifId}/read
+    Client-&gt;&gt;Notif: PUT or PATCH /v1/notifications/{notifId}/read
     Notif-&gt;&gt;Mongo: Mark one notification read
-    Client-&gt;&gt;Notif: PATCH /v1/notifications/read-all
+    Client-&gt;&gt;Notif: PUT or PATCH /v1/notifications/read-all
     Notif-&gt;&gt;Mongo: Mark unread notifications read
     Client-&gt;&gt;Notif: GET /v1/notifications/unread-count</pre>
-<h3>Implementation Gaps</h3>
+<h3>Implementation Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Use case text says <code>PUT /notifications/{id}/read</code> and <code>PUT /notifications/read-all</code>; code exposes <code>PATCH</code>.</td>
-<td>API contract docs should use PATCH to match the implementation.</td>
+<td>Live stream</td>
+<td>In-memory Reactor sinks fan out events to connected clients.</td>
 </tr>
 <tr>
-<td>Consumers exist for many topics, but payload-specific formatting is handled inside each consumer class.</td>
-<td>Event payload contracts should be documented per topic if strict schemas are required.</td>
+<td>Replay</td>
+<td><code>Last-Event-ID</code> is resolved to a stored notification, then Mongo history after that timestamp is replayed before live events.</td>
+</tr>
+<tr>
+<td>Consumer modularity</td>
+<td>Each Kafka topic family is handled by a focused consumer class under <code>service.consumer</code>.</td>
+</tr>
+<tr>
+<td>Redis Pub/Sub</td>
+<td>Redis is not part of the notification replay path in the current implementation.</td>
 </tr>
 </tbody>
 </table></div></section>

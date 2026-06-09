@@ -17,13 +17,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,28 +41,30 @@ public class SellerPaymentsService {
     private final StripeConfig stripeConfig;
 
     private static final DateTimeFormatter ISO_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+    private static final Set<String> PENDING_BALANCE_STATUSES = Set.of(
+            "PENDING", "AWAITING_DELIVERY", "RETURN_WINDOW", "READY_FOR_PAYOUT"
+    );
+    private static final Set<String> EXCLUDED_EARNED_STATUSES = Set.of(
+            "REFUNDED", "CANCELLED", "FAILED", "SKIPPED"
+    );
 
     @Transactional(readOnly = true)
     public SellerEarningsResponse getSellerEarnings(Long sellerId) {
         List<SellerTransfer> transfers = sellerTransferRepository.findAllBySellerIdOrderByCreatedAtDesc(sellerId);
 
-        java.math.BigDecimal totalEarnings = java.math.BigDecimal.ZERO;
-        java.math.BigDecimal availableBalance = java.math.BigDecimal.ZERO;
-        java.math.BigDecimal pendingBalance = java.math.BigDecimal.ZERO;
+        BigDecimal totalEarnings = BigDecimal.ZERO;
+        BigDecimal availableBalance = BigDecimal.ZERO;
+        BigDecimal pendingBalance = BigDecimal.ZERO;
 
         for (SellerTransfer t : transfers) {
-            java.math.BigDecimal fee = t.getTransferAmount() != null
-                    ? t.getTransferAmount().multiply(java.math.BigDecimal.valueOf(stripeConfig.getPlatformFeePercentage() / 100.0))
-                        .setScale(0, java.math.RoundingMode.HALF_UP)
-                    : java.math.BigDecimal.ZERO;
-            java.math.BigDecimal net = t.getTransferAmount() != null
-                    ? t.getTransferAmount().subtract(fee)
-                    : java.math.BigDecimal.ZERO;
-            totalEarnings = totalEarnings.add(net);
+            BigDecimal net = netAmount(t);
 
-            if ("SUCCEEDED".equals(t.getStatus())) {
+            if (!EXCLUDED_EARNED_STATUSES.contains(statusOf(t))) {
+                totalEarnings = totalEarnings.add(net);
+            }
+            if ("PAID_OUT".equals(statusOf(t))) {
                 availableBalance = availableBalance.add(net);
-            } else if ("PENDING".equals(t.getStatus())) {
+            } else if (PENDING_BALANCE_STATUSES.contains(statusOf(t))) {
                 pendingBalance = pendingBalance.add(net);
             }
         }
@@ -71,9 +77,57 @@ public class SellerPaymentsService {
                 .totalEarnings(totalEarnings)
                 .availableBalance(availableBalance)
                 .pendingBalance(pendingBalance)
-                .platformFeePercentage(java.math.BigDecimal.valueOf(stripeConfig.getPlatformFeePercentage()))
+                .platformFeePercentage(BigDecimal.valueOf(stripeConfig.getPlatformFeePercentage()))
                 .totalOrders((long) transfers.size())
                 .transfers(items)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<SellerTransferItem> getSellerTransfers(
+            Long sellerId,
+            String status,
+            LocalDateTime fromDate,
+            LocalDateTime toDate,
+            int page,
+            int size
+    ) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), 100),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        Page<SellerTransferItem> result = sellerTransferRepository
+                .findAllBySellerIdWithFilters(sellerId, normalizeStatus(status), fromDate, toDate, pageable)
+                .map(this::toTransferItem);
+        return PageResponse.of(result);
+    }
+
+    @Transactional(readOnly = true)
+    public SellerBalanceResponse getSellerBalance(Long sellerId) {
+        BigDecimal pendingBalance = BigDecimal.ZERO;
+        BigDecimal availableBalance = BigDecimal.ZERO;
+        BigDecimal totalEarned = BigDecimal.ZERO;
+
+        for (SellerTransfer transfer : sellerTransferRepository.findAllBySellerIdOrderByCreatedAtDesc(sellerId)) {
+            BigDecimal net = netAmount(transfer);
+            String status = statusOf(transfer);
+
+            if (!EXCLUDED_EARNED_STATUSES.contains(status)) {
+                totalEarned = totalEarned.add(net);
+            }
+            if ("PAID_OUT".equals(status)) {
+                availableBalance = availableBalance.add(net);
+            } else if (PENDING_BALANCE_STATUSES.contains(status)) {
+                pendingBalance = pendingBalance.add(net);
+            }
+        }
+
+        return SellerBalanceResponse.builder()
+                .sellerId(sellerId)
+                .pendingBalance(pendingBalance)
+                .availableBalance(availableBalance)
+                .totalEarned(totalEarned)
                 .build();
     }
 
@@ -117,5 +171,24 @@ public class SellerPaymentsService {
                 .createdAt(t.getCreatedAt() != null ? t.getCreatedAt().atOffset(ZoneOffset.UTC).format(ISO_FMT) : null)
                 .updatedAt(t.getUpdatedAt() != null ? t.getUpdatedAt().atOffset(ZoneOffset.UTC).format(ISO_FMT) : null)
                 .build();
+    }
+
+    private BigDecimal netAmount(SellerTransfer transfer) {
+        BigDecimal gross = transfer.getTransferAmount() != null ? transfer.getTransferAmount() : BigDecimal.ZERO;
+        BigDecimal commission = transfer.getPlatformCommissionAmount();
+        if (commission == null) {
+            commission = gross
+                    .multiply(BigDecimal.valueOf(stripeConfig.getPlatformFeePercentage() / 100.0))
+                    .setScale(0, RoundingMode.HALF_UP);
+        }
+        return gross.subtract(commission);
+    }
+
+    private String statusOf(SellerTransfer transfer) {
+        return transfer.getStatus() != null ? transfer.getStatus().toUpperCase() : "";
+    }
+
+    private String normalizeStatus(String status) {
+        return status == null || status.isBlank() ? null : status.trim().toUpperCase();
     }
 }

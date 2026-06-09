@@ -1,16 +1,22 @@
 package com.flashsale.identityservice.service;
 
 import com.flashsale.commonlib.dto.AuthResponse;
+import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.security.JwtUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.identityservice.domain.model.User;
 import com.flashsale.identityservice.domain.repository.UserRepository;
 import com.flashsale.identityservice.domain.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -23,6 +29,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final TokenBlacklistService tokenBlacklistService;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${jwt.expiration:3600}")
     private long accessTokenExpiration;
@@ -108,7 +116,29 @@ public class AuthService {
                 .build();
         roleRepository.save(role);
 
+        if ("SELLER".equalsIgnoreCase(assignedRole)) {
+            publishSellerRegistered(user);
+        }
+
         return user;
+    }
+
+    private void publishSellerRegistered(User user) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("event_type", KafkaTopics.SELLER_REGISTERED);
+        payload.put("user_id", user.getId());
+        payload.put("username", user.getUsername());
+        payload.put("email", user.getEmail());
+        payload.put("phone", user.getPhone());
+        payload.put("full_name", user.getFullName());
+        payload.put("registered_at", Instant.now().toString());
+        try {
+            kafkaTemplate.send(KafkaTopics.SELLER_REGISTERED,
+                    String.valueOf(user.getId()),
+                    objectMapper.writeValueAsString(payload));
+        } catch (Exception e) {
+            log.warn("Failed to publish seller.registered for userId={}: {}", user.getId(), e.getMessage());
+        }
     }
 
     public AuthResponse authenticateUser(String credential, String password, String domain) {

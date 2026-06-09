@@ -84,9 +84,26 @@ public class NotificationService {
      * Get the SSE notification stream for a user.
      * The returned Flux completes when the sink is completed (on disconnect).
      */
-    public Flux<Notification> getNotificationStream(Long userId) {
-        return getOrCreateSink(userId).asFlux()
+    public Flux<Notification> getNotificationStream(Long userId, String lastEventId) {
+        Flux<Notification> replay = replayAfter(userId, lastEventId);
+        Flux<Notification> live = getOrCreateSink(userId).asFlux()
                 .doOnCancel(() -> removeSink(userId));
+        return replay.concatWith(live);
+    }
+
+    private Flux<Notification> replayAfter(Long userId, String lastEventId) {
+        if (lastEventId == null || lastEventId.isBlank()) {
+            return Flux.empty();
+        }
+        return notificationRepository.findByIdAndUserId(lastEventId, userId)
+                .flatMapMany(lastSeen ->
+                        notificationRepository.findByUserIdAndCreatedAtAfterOrderByCreatedAtAsc(
+                                userId, lastSeen.getCreatedAt()))
+                .onErrorResume(e -> {
+                    log.warn("Cannot replay notifications for userId={}, lastEventId={}: {}",
+                            userId, lastEventId, e.getMessage());
+                    return Flux.empty();
+                });
     }
 
     /**

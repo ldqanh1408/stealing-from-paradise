@@ -22,9 +22,9 @@
 | # | Criterion |
 |---|-----------|
 | 1 | Client receives `text/event-stream` response with open connection |
-| 2 | Each event is delivered as `data: {JSON}\n\n` |
+| 2 | Each event is delivered as a Server-Sent Event with id, event name, and JSON data |
 | 3 | `Last-Event-ID` header enables missed event replay |
-| 4 | Redis Pub/Sub buffer holds events for 60 seconds |
+| 4 | Missed events replay from persisted MongoDB notifications |
 | 5 | Connection drops are detected; client auto-reconnects |
 
 ---
@@ -77,7 +77,7 @@
 | Attribute | Value |
 |-----------|-------|
 | **ID** | FR-NOTIF-004 |
-| **Description** | Consume 30+ Kafka topics, create MG_NOTIFICATIONS documents, push to Redis Pub/Sub |
+| **Description** | Consume 27 Kafka topics, create MG_NOTIFICATIONS documents, and emit live updates to connected SSE clients |
 
 **Acceptance Criteria**:
 | # | Criterion |
@@ -85,7 +85,7 @@
 | 1 | Notification created in MongoDB within 500ms of event arrival |
 | 2 | Failed deserialization logged without crashing consumer |
 | 3 | Each event mapped to correct notification `type` |
-| 4 | Redis Pub/Sub notified on successful MongoDB insert |
+| 4 | Active per-user SSE sink is notified on successful MongoDB insert |
 
 ---
 

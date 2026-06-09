@@ -16,7 +16,7 @@
 | Event payload has extra data | Store in `metadata` JSONB field |
 | Kafka event deserialization fails | Log error, skip event, no notification created |
 
-**Trigger Topics**: All 30+ consumer topics (identity, product, order, payment, flash_sale, stripe)
+**Trigger Topics**: All 27 consumer topics (identity, product, order, payment, flash_sale, chat)
 
 ---
 
@@ -24,10 +24,10 @@
 
 | Condition | Action |
 |-----------|--------|
-| Notification created successfully | Push to Redis Pub/Sub channel `user:{user_id}` |
+| Notification created successfully | Persist to MongoDB, then emit to the active per-user SSE sink when one exists |
 | User has active SSE connection | Deliver event immediately via `text/event-stream` |
-| User has no active SSE connection | Event buffered in Redis Pub/Sub (60s buffer) |
-| SSE connection established with `Last-Event-ID` header | Replay missed events from buffer |
+| User has no active SSE connection | Notification remains available through MongoDB history/replay |
+| SSE connection established with `Last-Event-ID` header | Replay missed events from MongoDB using persisted notification order |
 
 ---
 
@@ -97,7 +97,7 @@ Each Kafka event mapped to a notification has a stable template ID. Templates de
 | NOTIF-ORDER-SHIPPED | BUYER | `order.shipped` | NORMAL | Đơn hàng đang giao | Đơn #{order_code} đang được giao bởi {carrier}, mã {tracking_number}. |
 | NOTIF-ORDER-DELIVERED | BUYER, SELLER | `order.delivered` | NORMAL | Giao hàng thành công | Đơn #{order_code} đã giao thành công. |
 | NOTIF-ORDER-CANCELLED-BY-BUYER | SELLER | `order.cancelled` (cancelled_by=BUYER) | HIGH | Buyer đã hủy đơn | Đơn #{order_code} đã bị buyer hủy. Lý do: "{cancel_reason}". Stock đã được giải phóng. |
-| NOTIF-ORDER-AUTO-CANCELLED | BUYER | `order.auto_cancelled` (post-MVP) | HIGH | Đơn hàng bị hủy tự động | Đơn #{order_code} đã bị hủy do hết thời gian thanh toán. |
+| NOTIF-ORDER-AUTO-CANCELLED | BUYER | `order.auto_cancelled` | HIGH | Đơn hàng bị hủy tự động | Đơn #{order_code} đã bị hủy do hết thời gian thanh toán. |
 | NOTIF-ORDER-CANCELLED-BY-SELLER | BUYER | `seller.order_cancelled` | URGENT | Người bán đã hủy đơn — sẽ hoàn tiền | Rất tiếc, người bán không thể fulfill đơn #{order_code}. Lý do: "{cancel_reason}". Số tiền {refund_amount} {currency} sẽ được hoàn về phương thức thanh toán gốc trong 5–10 ngày làm việc. Mã giao dịch refund: #{transaction_id}. |
 | NOTIF-ORDER-RETURNED | BUYER | `order.returned` | HIGH | Đơn đã trả về người bán | Đơn #{order_code} đã được trả về. Refund sẽ được xử lý tự động. |
 | NOTIF-REFUND-APPROVED | BUYER, SELLER | `refund.admin_approved` | HIGH | Yêu cầu refund được duyệt | Refund cho đơn #{order_code} đã được admin duyệt ({type}). |

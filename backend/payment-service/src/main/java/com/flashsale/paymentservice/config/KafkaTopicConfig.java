@@ -49,6 +49,7 @@ public class KafkaTopicConfig {
     // ─── Payout topics ─────────────────────────────────────────────────────────
     @Bean public NewTopic payoutProcessed()             { return topic(KafkaTopics.PAYOUT_PROCESSED); }
     @Bean public NewTopic payoutFailed()                { return topic(KafkaTopics.PAYOUT_FAILED); }
+    @Bean public NewTopic transferCompleted()           { return topic(KafkaTopics.TRANSFER_COMPLETED); }
     @Bean public NewTopic orderDelivered()              { return topic(KafkaTopics.ORDER_DELIVERED); }
 
     // ─── Seller Transfer topics (new) ────────────────────────────────────────

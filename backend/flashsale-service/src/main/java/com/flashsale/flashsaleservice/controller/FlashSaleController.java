@@ -28,6 +28,12 @@ public class FlashSaleController {
                 .map(resp -> ApiResponse.success(resp.getSessions()));
     }
 
+    @GetMapping("/active")
+    public Mono<ApiResponse<List<SessionResponse>>> getActiveSessions() {
+        return flashSaleService.getActiveSessions()
+                .map(resp -> ApiResponse.success(resp.getSessions()));
+    }
+
     @GetMapping("/{sessionId}")
     public Mono<ApiResponse<SessionDetailResponse>> getSessionDetail(
             @PathVariable Long sessionId) {

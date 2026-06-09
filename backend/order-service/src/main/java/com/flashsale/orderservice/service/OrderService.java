@@ -2,6 +2,7 @@ package com.flashsale.orderservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.dto.PageResponse;
+import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.orderservice.axon.event.*;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,6 +46,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final ObjectMapper objectMapper;
     private final EventGateway eventGateway;
+    private final KafkaTemplate<String, String> kafkaTemplate;
     // Thời hạn giao hàng mặc định: 3 ngày
     private static final int DEFAULT_SHIPPING_DAYS = 3;
 
@@ -86,6 +89,7 @@ public class OrderService {
         // 7. Tạo ParentOrder
         ParentOrder parentOrder = parentOrderRepository.save(ParentOrder.builder()
                 .customerId(userId)
+                .sessionId(sessionId)
                 .totalAmt(totalAmt)
                 .finalAmt(finalAmt)
                 .build());
@@ -287,13 +291,31 @@ public class OrderService {
             throw new AppException(ErrorCode.FORBIDDEN, "Bạn không có quyền hủy đơn hàng này");
         }
 
-        // Chỉ hủy được khi đơn ở trạng thái PENDING
-        if (!"PENDING".equals(order.getStatus())) {
-            throw new AppException(ErrorCode.ORDER_NOT_CANCELLABLE,
-                    "Chỉ có thể hủy đơn ở trạng thái PENDING");
-        }
-
         String cancelledBy = isBuyer ? "BUYER" : "SELLER";
+        String status = order.getStatus();
+        boolean paid = "PAID".equals(status);
+        boolean pending = "PENDING".equals(status);
+        boolean shipped = order.getTrackingNumber() != null && !order.getTrackingNumber().isBlank();
+
+        if (isBuyer) {
+            if (!pending && !paid) {
+                throw new AppException(ErrorCode.ORDER_NOT_CANCELLABLE,
+                        "Buyer can only cancel PENDING or PAID orders before shipping");
+            }
+            if (paid && shipped) {
+                throw new AppException(ErrorCode.ORDER_NOT_CANCELLABLE,
+                        "Order already shipped; please request return/refund instead");
+            }
+        } else {
+            if (!paid || shipped) {
+                throw new AppException(ErrorCode.ORDER_NOT_CANCELLABLE,
+                        "Seller can only cancel PAID orders before shipping");
+            }
+            if (req.getReason() == null || req.getReason().trim().length() < 10) {
+                throw new AppException(ErrorCode.BAD_REQUEST,
+                        "Reason phai co toi thieu 10 ky tu khi seller huy");
+            }
+        }
         String cancelReason = req.getNote() != null
                 ? req.getReason() + " - " + req.getNote()
                 : req.getReason();
@@ -314,6 +336,10 @@ public class OrderService {
                 order.getTotalAmt()
         ));
 
+        if (paid) {
+            publishAutoFullRefundRequested(order, userId, cancelledBy, cancelReason);
+        }
+
         log.info("Order cancelled: orderId={}, cancelledBy={}", orderId, cancelledBy);
 
         return CancelOrderResponse.builder()
@@ -323,6 +349,38 @@ public class OrderService {
                 .cancelledBy(cancelledBy)
                 .cancelReason(cancelReason)
                 .build();
+    }
+
+    private void publishAutoFullRefundRequested(Order order, Long userId, String cancelledBy, String reason) {
+        BigDecimal amount = order.getFinalAmt() != null ? order.getFinalAmt() : order.getTotalAmt();
+        List<OrderItem> items = orderItemRepository.findAllByOrderId(order.getId());
+
+        Map<String, Object> refundItem = new LinkedHashMap<>();
+        refundItem.put("order_id", order.getId());
+        refundItem.put("seller_id", order.getSellerId());
+        refundItem.put("amount", amount);
+        refundItem.put("item_count", items.size());
+
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("parent_order_id", order.getParentOrderId());
+        event.put("user_id", userId);
+        event.put("group_ref", UUID.randomUUID().toString());
+        event.put("reason", reason);
+        event.put("total_amount", amount);
+        event.put("refunds", List.of(refundItem));
+        event.put("evidence_images", List.of());
+        event.put("initiated_by", cancelledBy);
+        event.put("refund_reason_type", "SELLER".equals(cancelledBy) ? "SELLER_CANCEL" : "BUYER_CANCEL");
+        event.put("auto_process", true);
+        event.put("timestamp", Instant.now().toString());
+
+        try {
+            kafkaTemplate.send(KafkaTopics.REFUND_FULL_REQUESTED,
+                    String.valueOf(order.getParentOrderId()),
+                    objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to publish auto full refund request", e);
+        }
     }
 
     // ─── Update Tracking (Seller) ─────────────────────────────────────────────

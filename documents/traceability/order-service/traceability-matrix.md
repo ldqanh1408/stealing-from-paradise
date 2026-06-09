@@ -111,7 +111,7 @@
 | `order.cancelled` | order-service | product-service (release stock), identity-service (audit), notification-service | PENDING→CANCELLED, PAID→CANCELLED |
 | `seller.order_cancelled` | order-service (only when cancelled_by=SELLER) | payment-service (auto-refund), notification-service (buyer apology), product-service (idempotent stock release) | PAID→CANCELLED |
 | `order.returned` | order-service | payment-service, product-service, notification-service | SHIPPING→RETURNED |
-| `order.auto_cancelled` (post-MVP) | order-service (JOB-13) | product-service, notification-service | PENDING→CANCELLED |
+| `order.auto_cancelled` | order-service (JOB-13/Axon deadline) | product-service, payment-service, notification-service | PENDING→CANCELLED |
 | `order.checkout_created` | order-service | product-service (cart) | → PENDING |
 | `payment.success` | payment-service | order-service | → PAID |
 | `payment.failed` | payment-service | order-service | (retry/stay PENDING) |

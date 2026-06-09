@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">UC-FLASHSALE-003: View Flash Sale Sessions</h1>
-              <div class="doc-meta">DOC-USE-CASES-FLASHSALE-SERVICE-UC-003-VIEW-SESSIONS | 2026-06-07</div>
+              <div class="doc-meta">DOC-USE-CASES-FLASHSALE-SERVICE-UC-003-VIEW-SESSIONS | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">use-case</span> <span class="badge text-bg-light">flashsale-service</span></div>
           </div>
@@ -287,7 +287,7 @@
 <strong>Auth:</strong> Public (no auth) / JWT (ADMIN for full list)</p>
 <hr>
 <h2>Brief</h2>
-<p>Users view flash sale sessions and their items. Public endpoint returns UPCOMING + ACTIVE sessions. Admin endpoint returns all sessions including ENDED. Redis-backed endpoint serves active sessions at high concurrency.</p>
+<p>Users view flash sale sessions and their items. Public endpoint returns UPCOMING + ACTIVE sessions. Admin endpoint returns all sessions including ENDED. A dedicated active endpoint returns currently active sessions for high-traffic storefront reads.</p>
 <hr>
 <h2>Preconditions</h2>
 <table>
@@ -369,7 +369,7 @@
 </tr>
 </tbody>
 </table>
-<h3>Active Sessions (Redis: GET /flash-sales/active)</h3>
+<h3>Active Sessions (GET /flash-sales/active)</h3>
 <table>
 <thead>
 <tr>
@@ -387,7 +387,7 @@
 <tr>
 <td>2</td>
 <td>System</td>
-<td>Reads from database (high-concurrency via read replicas)</td>
+<td>Queries active sessions through the same session listing service</td>
 </tr>
 <tr>
 <td>3</td>
@@ -507,7 +507,7 @@
 </tbody>
 </table>
 <hr>
-<p><em>Generated: 2026-05-09</em></p></div></section>
+<p><em>Updated: 2026-06-08</em></p></div></section>
       </main>
     </div>
   </div>

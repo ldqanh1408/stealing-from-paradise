@@ -118,6 +118,10 @@ public class FlashSaleService {
                 );
     }
 
+    public Mono<SessionListResponse> getActiveSessions() {
+        return getSessions("ACTIVE");
+    }
+
     // ─── Seller: Add item to session ────────────────────────────────────────
 
     public Mono<FlashSaleItemResponse> createFlashSaleItem(Long sessionId, Long sellerId, CreateFlashSaleItemRequest req) {
@@ -128,7 +132,7 @@ public class FlashSaleService {
                 .flashStock(req.getFlashStock())
                 .limitPerUser(req.getLimitPerUser() != null ? req.getLimitPerUser() : 1)
                 .soldQty(0)
-                .status("PENDING")
+                .status("APPROVED")
                 .build();
         return itemRepo.save(item)
                 .doOnSuccess(saved -> publishItemRegisteredEvent(saved, sellerId))
@@ -166,7 +170,45 @@ public class FlashSaleService {
                 .endTime(req.getEndTime())
                 .status("UPCOMING")
                 .build();
-        return sessionRepo.save(session).map(this::toSessionResponse);
+        return sessionRepo.save(session)
+                .flatMap(saved -> registerSessionTriggers(saved).thenReturn(saved))
+                .doOnSuccess(this::publishSessionCreatedEvent)
+                .map(this::toSessionResponse);
+    }
+
+    private Mono<Void> registerSessionTriggers(FlashSaleSession session) {
+        String key = "flash_sale:triggers";
+        Mono<Boolean> startTrigger = Mono.just(false);
+        Mono<Boolean> endTrigger = Mono.just(false);
+
+        if (session.getStartTime() != null) {
+            double score = session.getStartTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            startTrigger = redisTemplate.opsForZSet().add(key, "start:" + session.getId(), score);
+        }
+        if (session.getEndTime() != null) {
+            double score = session.getEndTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            endTrigger = redisTemplate.opsForZSet().add(key, "end:" + session.getId(), score);
+        }
+
+        return Mono.when(startTrigger, endTrigger)
+                .doOnError(e -> log.warn("Failed to register Redis ZSET triggers for flashSaleSessionId={}: {}",
+                        session.getId(), e.getMessage()))
+                .onErrorResume(e -> Mono.empty())
+                .then();
+    }
+
+    private void publishSessionCreatedEvent(FlashSaleSession session) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("event_id", "evt_" + System.currentTimeMillis() + "_" + session.getId());
+        event.put("event_type", KafkaTopics.FLASH_SALE_SESSION_CREATED);
+        event.put("session_id", session.getId());
+        event.put("name", session.getName());
+        event.put("status", session.getStatus());
+        event.put("start_time", session.getStartTime() != null ? session.getStartTime().toString() : null);
+        event.put("end_time", session.getEndTime() != null ? session.getEndTime().toString() : null);
+        event.put("timestamp", Instant.now().toString());
+        kafkaTemplate.send(KafkaTopics.FLASH_SALE_SESSION_CREATED,
+                String.valueOf(session.getId()), toJson(event));
     }
 
     public Flux<SessionResponse> getAdminSessions(String status, int page, int size) {

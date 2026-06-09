@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Identity Access, Profile, and Address</h1>
-              <div class="doc-meta">DOC-FLOWS-IDENTITY-SERVICE-FLOW-IDENTITY-ACCESS-PROFILE | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-IDENTITY-SERVICE-FLOW-IDENTITY-ACCESS-PROFILE | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">identity-service</span></div>
           </div>
@@ -308,20 +308,20 @@
 <tr>
 <td>UC-IDENTITY-003: Manage Profile</td>
 <td>Implemented</td>
-<td><code>UserController.getCurrentUser</code> line 29, <code>UserController.updateCurrentUser</code> line 35, <code>UserController.changePassword</code> line 92</td>
-<td>Avatar presigned URL is also implemented at line 43.</td>
+<td><code>UserController.getCurrentUser</code> line 29, <code>UserController.updateCurrentUser</code> line 35, <code>UserService.updateUserProfile</code> line 82</td>
+<td>Profile update persists user fields and publishes <code>account.updated</code>. Avatar presigned URL is also implemented.</td>
 </tr>
 <tr>
 <td>UC-IDENTITY-004: Manage Addresses</td>
 <td>Implemented</td>
 <td><code>UserController.getAddresses</code> line 60, <code>addAddress</code> line 66, <code>updateAddress</code> line 74, <code>deleteAddress</code> line 83</td>
-<td><code>AddressKafkaConsumer</code> line 34 also serves cross-service address snapshots.</td>
+<td><code>AddressKafkaConsumer</code> also serves cross-service address snapshots.</td>
 </tr>
 <tr>
 <td>UC-IDENTITY-006: Seller Registration</td>
-<td>Partial</td>
-<td><code>AuthController.registerSeller</code> line 135, <code>UserController.registerAsSeller</code> line 100, <code>UserService.registerAsSeller</code> line 154</td>
-<td>REST role assignment is implemented; no seller-registration Kafka event was found.</td>
+<td>Implemented</td>
+<td><code>AuthController.registerSeller</code> line 135, <code>UserController.registerAsSeller</code> line 100, <code>UserService.registerAsSeller</code> line 154, <code>AuthService.publishSellerRegistered</code> line 126</td>
+<td>Seller registration/role upgrade publishes <code>seller.registered</code>; notification-service has a dedicated consumer.</td>
 </tr>
 </tbody>
 </table>
@@ -334,25 +334,33 @@
     participant Svc as Identity Services
     participant DB as PostgreSQL
     participant Kafka as Kafka
+    participant Notif as Notification Service
     participant Order as Order or Flashsale Service
 
     alt Register or login
         User-&gt;&gt;GW: POST /api/v1/auth/register or /login
         GW-&gt;&gt;Auth: Route auth request
         Auth-&gt;&gt;Svc: registerUser or authenticateUser
-        Svc-&gt;&gt;DB: Read/write USERS and ROLES
+        Svc-&gt;&gt;DB: Read/write users and roles
+        opt Seller role assigned
+            Svc-&gt;&gt;Kafka: seller.registered
+            Kafka-&gt;&gt;Notif: SellerRegisteredConsumer
+        end
         Svc--&gt;&gt;User: AuthResponse with access and refresh tokens
     else Profile and password
         User-&gt;&gt;GW: GET/PUT /api/v1/users/me
         GW-&gt;&gt;Users: Route profile request
         Users-&gt;&gt;Svc: getUserProfile or updateUserProfile
-        Svc-&gt;&gt;DB: Read/write USERS
+        Svc-&gt;&gt;DB: Read/write users
+        opt Profile updated
+            Svc-&gt;&gt;Kafka: account.updated
+        end
         Users--&gt;&gt;User: UserProfileResponse
     else Address CRUD
         User-&gt;&gt;GW: /api/v1/users/me/addresses
         GW-&gt;&gt;Users: Route address request
         Users-&gt;&gt;Svc: Address CRUD methods
-        Svc-&gt;&gt;DB: Read/write ADDRESSES
+        Svc-&gt;&gt;DB: Read/write addresses
         Users--&gt;&gt;User: AddressResponse
     else Cross-service address snapshot
         Order-&gt;&gt;Kafka: order.address_request
@@ -360,22 +368,26 @@
         Svc-&gt;&gt;DB: Load default or requested address
         Svc-&gt;&gt;Kafka: order.address_response
     end</pre>
-<h3>Implementation Gaps</h3>
+<h3>Implementation Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Seller role assignment does not publish a seller-registration event.</td>
-<td>Downstream services cannot react asynchronously to seller onboarding from identity-service alone.</td>
+<td>Profile events</td>
+<td><code>account.updated</code> is emitted after <code>PUT /users/me</code>.</td>
 </tr>
 <tr>
-<td>Admin lock/unlock endpoints exist in code but are not part of the current active identity use cases.</td>
-<td>They are excluded from this business flow until the use case set reintroduces them.</td>
+<td>Seller events</td>
+<td><code>seller.registered</code> is emitted from both seller registration paths.</td>
+</tr>
+<tr>
+<td>Admin account controls</td>
+<td>Admin lock/unlock endpoints exist in code but are outside the current active identity use-case set.</td>
 </tr>
 </tbody>
 </table></div></section>

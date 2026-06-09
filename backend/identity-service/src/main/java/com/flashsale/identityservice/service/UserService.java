@@ -11,12 +11,15 @@ import com.flashsale.identityservice.dto.request.AddressCreateRequest;
 import com.flashsale.identityservice.dto.request.AddressUpdateRequest;
 import com.flashsale.identityservice.dto.request.UserProfileUpdateRequest;
 import com.flashsale.commonlib.dto.PageResponse;
+import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.identityservice.dto.response.AddressResponse;
 import com.flashsale.identityservice.dto.response.AdminUserResponse;
 import com.flashsale.identityservice.dto.response.UserProfileResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -25,7 +28,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +42,8 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final AddressRepository addressRepository;
     private final PasswordEncoder passwordEncoder;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
@@ -75,8 +83,18 @@ public class UserService {
             user.setPhone(request.getPhone());
         }
 
-        userRepository.save(user);
-        return getUserProfile(userId);
+        User saved = userRepository.save(user);
+        UserProfileResponse response = getUserProfile(userId);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("event_type", KafkaTopics.ACCOUNT_UPDATED);
+        payload.put("user_id", saved.getId());
+        payload.put("username", saved.getUsername());
+        payload.put("email", saved.getEmail());
+        payload.put("phone", saved.getPhone());
+        payload.put("full_name", saved.getFullName());
+        payload.put("updated_at", Instant.now().toString());
+        publishEvent(KafkaTopics.ACCOUNT_UPDATED, String.valueOf(userId), payload);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -167,7 +185,23 @@ public class UserService {
         role.setRoleName("SELLER");
         roleRepository.save(role);
 
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("event_type", KafkaTopics.SELLER_REGISTERED);
+        payload.put("user_id", user.getId());
+        payload.put("username", user.getUsername());
+        payload.put("email", user.getEmail());
+        payload.put("full_name", user.getFullName());
+        payload.put("registered_at", Instant.now().toString());
+        publishEvent(KafkaTopics.SELLER_REGISTERED, String.valueOf(userId), payload);
         log.info("User {} registered as seller", userId);
+    }
+
+    private void publishEvent(String topic, String key, Map<String, Object> payload) {
+        try {
+            kafkaTemplate.send(topic, key, objectMapper.writeValueAsString(payload));
+        } catch (Exception e) {
+            log.warn("Failed to publish identity event topic={}, key={}: {}", topic, key, e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">UC-NOTIF-001: Stream Real-Time Notifications</h1>
-              <div class="doc-meta">DOC-USE-CASES-NOTIFICATION-SERVICE-UC-001-STREAM-NOTIFICATIONS | 2026-06-07</div>
+              <div class="doc-meta">DOC-USE-CASES-NOTIFICATION-SERVICE-UC-001-STREAM-NOTIFICATIONS | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">use-case</span> <span class="badge text-bg-light">notification-service</span></div>
           </div>
@@ -289,7 +289,7 @@
 </blockquote>
 <hr>
 <h2>Brief</h2>
-<p>User opens the application and establishes an SSE connection to receive real-time notifications pushed from the server.</p>
+<p>User opens the application and establishes an SSE connection to receive real-time notifications pushed from the server. Missed events are replayed from persisted notification history when the client reconnects with <code>Last-Event-ID</code>.</p>
 <hr>
 <h2>Actors</h2>
 <table>
@@ -314,7 +314,7 @@
 </tr>
 <tr>
 <td>System</td>
-<td>Kafka consumers + Redis Pub/Sub + SSE handler</td>
+<td>Kafka consumers + MongoDB notification store + SSE handler</td>
 </tr>
 </tbody>
 </table>
@@ -338,7 +338,7 @@
 </tr>
 <tr>
 <td>3</td>
-<td>Redis Pub/Sub is operational</td>
+<td>Notification MongoDB collection is available for history/replay</td>
 </tr>
 </tbody>
 </table>
@@ -371,22 +371,22 @@
 <tr>
 <td>4</td>
 <td>Server</td>
-<td>Creates SSE connection, returns <code>text/event-stream</code></td>
+<td>If <code>Last-Event-ID</code> is present, replays persisted notifications created after that event</td>
 </tr>
 <tr>
 <td>5</td>
 <td>Server</td>
-<td>Subscribes to Redis Pub/Sub channel <code>user:{user_id}</code></td>
+<td>Creates SSE connection, returns <code>text/event-stream</code></td>
 </tr>
 <tr>
 <td>6</td>
 <td>System</td>
-<td>Kafka event arrives -&gt; creates MG_NOTIFICATIONS -&gt; publishes to Redis</td>
+<td>Kafka event arrives -&gt; consumer creates MG_NOTIFICATIONS record</td>
 </tr>
 <tr>
 <td>7</td>
 <td>Server</td>
-<td>Receives Redis message, formats as SSE <code>data:</code> event</td>
+<td>Emits the notification to the user's in-memory Reactor sink</td>
 </tr>
 <tr>
 <td>8</td>
@@ -419,12 +419,12 @@
 <tr>
 <td>A2</td>
 <td><code>Last-Event-ID</code> present</td>
-<td>Server replays missed events from Redis buffer (60s)</td>
+<td>Server replays missed events from MongoDB notification history</td>
 </tr>
 <tr>
 <td>A3</td>
-<td>No events in buffer</td>
-<td>Server sends heartbeat comment <code>: heartbeat\n\n</code> every 30s</td>
+<td>No missed events</td>
+<td>Server attaches to the live per-user SSE sink</td>
 </tr>
 <tr>
 <td>A4</td>
@@ -449,7 +449,7 @@
 </tr>
 <tr>
 <td>2</td>
-<td>Missed notifications replayable via <code>Last-Event-ID</code></td>
+<td>Missed persisted notifications are replayable via <code>Last-Event-ID</code></td>
 </tr>
 </tbody>
 </table>
@@ -471,8 +471,8 @@
 </tr>
 <tr>
 <td>503</td>
-<td>Redis Pub/Sub unavailable</td>
-<td>SSE stream opens but no events delivered; server logs error</td>
+<td>Notification store unavailable</td>
+<td>Stream cannot replay history and server logs the error</td>
 </tr>
 </tbody>
 </table>

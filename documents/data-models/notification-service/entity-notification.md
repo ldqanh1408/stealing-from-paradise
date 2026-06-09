@@ -50,7 +50,7 @@ erDiagram
 | ORDER_SHIPPED | NORMAL | order.shipped |
 | ORDER_DELIVERED | NORMAL | order.delivered |
 | ORDER_CANCELLED | HIGH | order.cancelled |
-| ORDER_AUTO_CANCELLED (post-MVP) | HIGH | order.auto_cancelled |
+| ORDER_AUTO_CANCELLED | HIGH | order.auto_cancelled |
 | REFUND_REQUESTED | NORMAL | refund.requested |
 | REFUND_APPROVED | HIGH | refund.admin_approved |
 | REFUND_REJECTED | HIGH | refund.rejected |
@@ -80,7 +80,7 @@ Notification Service produces **zero** events. It consumes topics from:
 
 - **Identity Service**: no domain events currently consumed
 - **Product Service**: product.pending_review, product.approved, product.rejected, product.auto_hidden (post-MVP)
-- **Order Service**: order.shipped, order.delivered, order.cancelled, order.auto_cancelled (post-MVP), order.returned
+- **Order Service**: order.shipped, order.delivered, order.cancelled, order.auto_cancelled, order.returned
 - **Payment Service**: payment.success, payment.failed, refund.*, stripe.* (stripe.account_suspended is post-MVP)
 - **Flash Sale Service**: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_* (post-MVP)
 

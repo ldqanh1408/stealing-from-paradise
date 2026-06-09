@@ -5,10 +5,10 @@ Scope: `flashsale-service` with identity/order/product/search edges
 
 | Use case | Status against current code | Evidence | Notes |
 |----------|-----------------------------|----------|-------|
-| UC-FLASHSALE-001: Admin Create Session | Implemented | `FlashSaleController.createSession` line 40, `FlashSaleService.createSession` line 146 | Admin create/update/delete session endpoints exist. |
-| UC-FLASHSALE-002: Seller Register Product | Implemented | `FlashSaleController.createFlashSaleItem` line 75, `FlashSaleService.createFlashSaleItem` line 131 | Admin approve/reject item endpoints also exist. |
-| UC-FLASHSALE-003: View Sessions | Partial | `FlashSaleController.getSessions` line 25, `getSessionDetail` line 32 | List/detail exist; `GET /flash-sales/active` from the use case was not found. |
-| UC-FLASHSALE-006: System End Session | Partial | `FlashSaleService.onSessionStarted` line 93 | Session-start listener exists; no session-ended consumer/publisher/scheduler was found in this repo snapshot. |
+| UC-FLASHSALE-001: Admin Create Session | Implemented | `FlashSaleController.createSession` line 46, `FlashSaleService.createSession` line 166 | Session creation persists `UPCOMING`, registers Redis ZSET start/end triggers, and publishes `flash_sale.session_created`. |
+| UC-FLASHSALE-002: Seller Register Product | Implemented | `FlashSaleController.createFlashSaleItem` line 81, `FlashSaleService.createFlashSaleItem` line 127 | Items are auto-approved as `APPROVED`, publish `flash_sale.item_registered`, and notification copy matches the auto-approve behavior. |
+| UC-FLASHSALE-003: View Sessions | Implemented | `FlashSaleController.getSessions` line 25, `getActiveSessions` line 32, `getSessionDetail` line 39 | List/detail and `GET /v1/flash-sales/active` are implemented. |
+| UC-FLASHSALE-006: System End Session | Implemented | `FlashSaleSessionScheduler` line 39, lifecycle payload with `flashItems` line 92 | Scheduler starts/ends sessions and emits payloads that product-service can use for flash price sync by SKU. |
 
 ### Sequence Diagram
 
@@ -21,21 +21,25 @@ sequenceDiagram
     participant Redis as Redis
     participant Kafka as Kafka
     participant Identity as Identity Service
+    participant Product as Product Service
     participant Order as Order Service
     participant Search as Search Service
 
     Admin->>FS: POST /v1/flash-sales
     FS->>FS: Persist flash sale session
+    FS->>Redis: ZADD flash_sale:triggers start/end entries
+    FS->>Kafka: flash_sale.session_created
+
     Seller->>FS: POST /v1/flash-sales/{sessionId}/items
-    FS->>FS: Persist submitted flash-sale item
-    Admin->>FS: POST /v1/flash-sales/{sessionId}/items/{itemId}/approve
-    FS->>FS: Mark item approved
+    FS->>FS: Persist approved flash-sale item
+    FS->>Kafka: flash_sale.item_registered
 
-    Kafka->>FS: flash_sale.session_started
-    FS->>Redis: Load item stock counters for fast purchase
-    Kafka->>Search: flash_sale.price_sync if product-service publishes sync events
+    FS->>FS: Scheduler detects due start/end
+    FS->>Kafka: flash_sale.session_started or flash_sale.session_ended with flashItems
+    Kafka->>Product: FlashSaleEventHandler applies or resets flash prices
+    Kafka->>Search: Product/search events refresh visible pricing
 
-    Buyer->>FS: GET /v1/flash-sales and /v1/flash-sales/{id}
+    Buyer->>FS: GET /v1/flash-sales and /v1/flash-sales/active
     FS-->>Buyer: Sessions and details
     Buyer->>FS: POST /v1/flash-sales/{sessionId}/buy
     FS->>Redis: Lua decrement fs:stock:{itemId}
@@ -47,10 +51,10 @@ sequenceDiagram
     Kafka->>Order: Create order from flash-sale checkout
 ```
 
-### Implementation Gaps
+### Implementation Notes
 
-| Gap | Impact |
-|-----|--------|
-| `GET /flash-sales/active` is documented but not implemented in `FlashSaleController`. | Frontend should use `GET /v1/flash-sales?status=ACTIVE` until an active endpoint exists. |
-| `flash_sale.session_ended` handling was not found. | Session end/price rollback should be tracked as a missing implementation branch. |
-| Reminder endpoints still exist in code, but the current active flashsale use cases no longer include reminders. | Reminder behavior is excluded from this business flow. |
+| Concern | Current behavior |
+|---------|------------------|
+| Session triggers | Redis ZSET triggers are registered on create; the DB scheduler remains the executable lifecycle worker. |
+| Price sync payload | Start/end events include `flashItems` with `sku_code`, `flash_price`, and `flash_stock`; product-service also keeps legacy `flashPriceMap` support. |
+| Reminder features | Reminder endpoints exist in code, but reminder-specific use cases are not part of the current active flashsale use-case set. |

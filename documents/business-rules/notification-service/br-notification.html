@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">BR-NOTIF-001: Notification Lifecycle Business Rules</h1>
-              <div class="doc-meta">DOC-BUSINESS-RULES-NOTIFICATION-SERVICE-BR-NOTIFICATION | 2026-06-07</div>
+              <div class="doc-meta">DOC-BUSINESS-RULES-NOTIFICATION-SERVICE-BR-NOTIFICATION | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-rule</span> <span class="badge text-bg-light">notification-service</span></div>
           </div>
@@ -318,7 +318,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Trigger Topics</strong>: All 30+ consumer topics (identity, product, order, payment, flash_sale, stripe)</p>
+<p><strong>Trigger Topics</strong>: All 27 consumer topics (identity, product, order, payment, flash_sale, chat)</p>
 <hr>
 <h2>BR-NOTIF-001-02: SSE Real-Time Delivery</h2>
 <table>
@@ -331,7 +331,7 @@
 <tbody>
 <tr>
 <td>Notification created successfully</td>
-<td>Push to Redis Pub/Sub channel <code>user:{user_id}</code></td>
+<td>Persist to MongoDB, then emit to the active per-user SSE sink when one exists</td>
 </tr>
 <tr>
 <td>User has active SSE connection</td>
@@ -339,11 +339,11 @@
 </tr>
 <tr>
 <td>User has no active SSE connection</td>
-<td>Event buffered in Redis Pub/Sub (60s buffer)</td>
+<td>Notification remains available through MongoDB history/replay</td>
 </tr>
 <tr>
 <td>SSE connection established with <code>Last-Event-ID</code> header</td>
-<td>Replay missed events from buffer</td>
+<td>Replay missed events from MongoDB using persisted notification order</td>
 </tr>
 </tbody>
 </table>
@@ -551,7 +551,7 @@
 <tr>
 <td>NOTIF-ORDER-AUTO-CANCELLED</td>
 <td>BUYER</td>
-<td><code>order.auto_cancelled</code> (post-MVP)</td>
+<td><code>order.auto_cancelled</code></td>
 <td>HIGH</td>
 <td>Đơn hàng bị hủy tự động</td>
 <td>Đơn #{order_code} đã bị hủy do hết thời gian thanh toán.</td>

@@ -47,7 +47,7 @@ public class FlashSaleItem {
 
     @Default
     @Column("status")
-    private String status = "PENDING";
+    private String status = "APPROVED";
 
     @Version
     private Integer version;

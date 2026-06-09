@@ -257,7 +257,13 @@ public class ChatService {
                 .updatedAt(LocalDateTime.now())
                 .build();
         return sessionRepo.save(session)
+                .flatMap(saved -> publishSessionEvent(KafkaTopics.AI_SESSION_CREATED, saved)
+                        .thenReturn(saved))
                 .doOnSuccess(s -> log.info("[ChatService] Session created: id={}, userId={}", s.getId(), userId));
+    }
+
+    public Flux<ChatSession> getActiveSessions(Long userId) {
+        return sessionRepo.findByUserIdAndStatus(userId, "ACTIVE");
     }
 
     public Mono<Void> closeSession(String sessionId, Long userId) {
@@ -269,6 +275,8 @@ public class ChatService {
                     session.setUpdatedAt(LocalDateTime.now());
                     return sessionRepo.save(session);
                 })
+                .flatMap(saved -> publishSessionEvent(KafkaTopics.AI_SESSION_CLOSED, saved)
+                        .thenReturn(saved))
                 .doOnSuccess(s -> log.info("[ChatService] Session closed: id={}", sessionId))
                 .then();
     }
@@ -530,10 +538,35 @@ public class ChatService {
                     "userId", userId,
                     "timestamp", System.currentTimeMillis()
             ));
+            String receivedPayload = objectMapper.writeValueAsString(Map.of(
+                    "eventType", KafkaTopics.AI_CHAT_MESSAGE_RECEIVED,
+                    "sessionId", sessionId,
+                    "userId", userId,
+                    "timestamp", System.currentTimeMillis()
+            ));
             return Mono.fromRunnable(() ->
-                    kafkaTemplate.send(KafkaTopics.AI_CHAT_MESSAGE_SENT, payload));
+            {
+                kafkaTemplate.send(KafkaTopics.AI_CHAT_MESSAGE_SENT, payload);
+                kafkaTemplate.send(KafkaTopics.AI_CHAT_MESSAGE_RECEIVED, receivedPayload);
+            });
         } catch (JsonProcessingException e) {
             log.warn("[ChatService] Failed to serialize Kafka payload", e);
+            return Mono.empty();
+        }
+    }
+
+    private Mono<Void> publishSessionEvent(String topic, ChatSession session) {
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "eventType", topic,
+                    "sessionId", session.getId(),
+                    "userId", session.getUserId(),
+                    "status", session.getStatus(),
+                    "timestamp", System.currentTimeMillis()
+            ));
+            return Mono.fromRunnable(() -> kafkaTemplate.send(topic, payload));
+        } catch (JsonProcessingException e) {
+            log.warn("[ChatService] Failed to serialize session Kafka payload", e);
             return Mono.empty();
         }
     }
@@ -548,8 +581,22 @@ public class ChatService {
                     "status", status,
                     "timestamp", System.currentTimeMillis()
             ));
+            String decisionTopic = "CONFIRMED".equals(status)
+                    ? KafkaTopics.AI_CONFIRMATION_CONFIRMED
+                    : KafkaTopics.AI_CONFIRMATION_REJECTED;
+            String decisionPayload = objectMapper.writeValueAsString(Map.of(
+                    "eventType", decisionTopic,
+                    "sessionId", sessionId,
+                    "userId", userId,
+                    "confirmId", confirmId,
+                    "status", status,
+                    "timestamp", System.currentTimeMillis()
+            ));
             return Mono.fromRunnable(() ->
-                    kafkaTemplate.send(KafkaTopics.AI_CHAT_CONFIRMATION_RESOLVED, payload));
+            {
+                kafkaTemplate.send(KafkaTopics.AI_CHAT_CONFIRMATION_RESOLVED, payload);
+                kafkaTemplate.send(decisionTopic, decisionPayload);
+            });
         } catch (JsonProcessingException e) {
             log.warn("[ChatService] Failed to serialize Kafka payload", e);
             return Mono.empty();

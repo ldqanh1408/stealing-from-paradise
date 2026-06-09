@@ -4,6 +4,7 @@ import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.productservice.dto.product.PendingProductCard;
+import com.flashsale.productservice.dto.product.ProductResponse;
 import com.flashsale.productservice.dto.product.RejectProductRequest;
 import com.flashsale.productservice.service.ProductService;
 import jakarta.validation.Valid;
@@ -40,7 +41,7 @@ public class AdminProductController {
     }
 
     @PostMapping("/{productId}/reject")
-    public ResponseEntity<ApiResponse<Void>> rejectProduct(
+    public ResponseEntity<ApiResponse<ProductResponse>> rejectProduct(
             @PathVariable UUID productId,
             @Valid @RequestBody RejectProductRequest request,
             @AuthenticationPrincipal UserDetailsImpl user) {

@@ -67,9 +67,9 @@ sequenceDiagram
 | Transfer reversal | Transfer reversal logic exists inside `RefundService`; there is no payment-service listener for `refund.admin_approved` in current code. |
 | Order status update | `order-service` consumes `refund.admin_approved` and `refund.rts_completed`. |
 
-### Gaps To Track
+### Architecture Notes
 
-| Gap | Impact |
+| Concern | Current behavior |
 |-----|--------|
 | Old flow text described a Feign call from order-service to refund-service. Current code uses Kafka. | Architecture docs must describe async creation, not direct HTTP creation. |
 | UC-REFUND-001 mentions direct `POST /refunds`; current implementation has no such refund-service controller endpoint. | Client-facing contract should point to order-service refund endpoints. |

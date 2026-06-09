@@ -41,13 +41,13 @@ After the AI proposes a Muc 3 action (e.g., cancel order), the user confirms or 
 | 1 | User | Clicks [Xac nhan] button |
 | 2 | Client | Sends POST /confirm `{confirmId, sessionId, decision: CONFIRMED}` |
 | 3 | Server | Validates JWT + session status |
-| 4 | Server | Checks Redis `pending:{confirmId}` for fast lookup |
+| 4 | Server | Loads pending confirmation from MongoDB by `confirmId` and `userId` |
 | 5 | Server | Verifies userId matches confirm token owner |
 | 6 | Server | Verifies token not already used |
 | 7 | Server | Updates PENDING_CONFIRMATIONS: status = CONFIRMED, resolved_at = NOW() |
 | 8 | Server | Executes the action via Core Service API call |
-| 9 | Server | Logs result in TOOL_CALL_LOGS |
-| 10 | Server | Publishes `ai.confirmation.confirmed` Kafka event |
+| 9 | Server | Logs result in TOOL_CALL_LOGS when the action path records one |
+| 10 | Server | Publishes `ai_chat.confirmation_resolved` and `ai.confirmation.confirmed` Kafka events |
 | 11 | Server | Returns `{"confirmId": "...", "status": "CONFIRMED", "executionResult": {...}}` |
 | 12 | Client | Hides [Xac nhan]/[Huy bo] buttons, displays result message |
 
@@ -61,7 +61,7 @@ After the AI proposes a Muc 3 action (e.g., cancel order), the user confirms or 
 | 2 | Client | Sends POST /confirm `{confirmId, sessionId, decision: REJECTED}` |
 | 3 | Server | Validates JWT + session status |
 | 4 | Server | Updates PENDING_CONFIRMATIONS: status = REJECTED, resolved_at = NOW() |
-| 5 | Server | Publishes `ai.confirmation.rejected` Kafka event |
+| 5 | Server | Publishes `ai_chat.confirmation_resolved` and `ai.confirmation.rejected` Kafka events |
 | 6 | Server | Returns `{"confirmId": "...", "status": "REJECTED", "message": "Da huy yeu cau..."}` |
 
 ---
@@ -84,8 +84,8 @@ After the AI proposes a Muc 3 action (e.g., cancel order), the user confirms or 
 |---|-----------|
 | 1 | Confirmation status resolved (CONFIRMED or REJECTED) |
 | 2 | If CONFIRMED: action executed against Core Service |
-| 3 | Kafka event published for audit |
-| 4 | TOOL_CALL_LOGS record created with execution result |
+| 3 | Kafka events published for audit and compatibility |
+| 4 | Confirmation resolution persisted |
 
 ---
 

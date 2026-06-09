@@ -24,15 +24,23 @@ public class OrderEventHandler {
     private final ObjectMapper objectMapper;
 
     public void handleOrderCancelled(String message) {
+        handleReleaseEvent(message, "order.cancelled");
+    }
+
+    public void handleOrderAutoCancelled(String message) {
+        handleReleaseEvent(message, "order.auto_cancelled");
+    }
+
+    private void handleReleaseEvent(String message, String eventName) {
         try {
             JsonNode payload = objectMapper.readTree(message);
             String sessionId = extractSessionId(payload);
             Long userId = extractUserId(payload);
 
-            log.info("Received order.cancelled event: sessionId={}, userId={}", sessionId, userId);
+            log.info("Received {} event: sessionId={}, userId={}", eventName, sessionId, userId);
             processRelease(sessionId, userId);
         } catch (Exception e) {
-            log.error("Error processing order.cancelled event: {}", message, e);
+            log.error("Error processing {} event: {}", eventName, message, e);
         }
     }
 

@@ -46,9 +46,9 @@ sequenceDiagram
     Admin->>Search: GET /v1/search/reindex/status
 ```
 
-### Implementation Gaps
+### Operational Notes
 
-| Gap | Impact |
+| Concern | Current behavior |
 |-----|--------|
 | Search endpoints are implemented as `/v1/search/...`; gateway/public docs may prefix `/api`. | Keep API gateway route docs explicit to avoid client confusion. |
 | Reindex state is stored in-memory in `ReindexService`. | Reindex status resets on service restart. |

@@ -296,7 +296,7 @@
 - [ ] `order.delivered` — on delivery confirmation
 - [ ] `order.cancelled` — on buyer/seller cancel
 - [ ] `order.returned` — on RTS
-- [ ] `order.auto_cancelled` (post-MVP) — on JOB-13 timeout
+- [x] `order.auto_cancelled` — on JOB-13/Axon timeout
 - [ ] `order.checkout_created` — on successful checkout
 
 **Related:** BR-ORDER-009, BR-ORDER-010, BR-ORDER-011, BR-ORDER-013, BR-ORDER-014, BR-ORDER-016

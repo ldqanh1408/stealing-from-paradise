@@ -29,7 +29,7 @@ public class FlashSaleItemRegisteredConsumer {
             publisher.emitToUser(sellerId, "FLASH_SALE_ITEM_REGISTERED",
                     "Đăng ký Flash Sale thành công",
                     "Sản phẩm " + event.get("sku_code")
-                            + " đã được đăng ký vào phiên Flash Sale và đang chờ admin duyệt.",
+                            + " đã được đăng ký và được áp dụng vào phiên Flash Sale.",
                     message,
                     "flash_sale.item_registered");
         } catch (Exception e) {

@@ -329,7 +329,7 @@ public class ProductService {
     }
 
     @Transactional
-    public ApiResponse<Void> rejectProduct(UUID productId, String reason, UserDetailsImpl user) {
+    public ApiResponse<ProductResponse> rejectProduct(UUID productId, String reason, UserDetailsImpl user) {
         if (reason == null || reason.length() < 10) {
             throw new AppException(ErrorCode.BAD_REQUEST, "Rejection reason must be at least 10 characters");
         }
@@ -347,7 +347,7 @@ public class ProductService {
         product.setRejectCount(product.getRejectCount() + 1);
         product.setReviewedAt(LocalDateTime.now());
         product.setReviewedBy(user.getId());
-        productRepository.save(product);
+        Product saved = productRepository.save(product);
 
         emitEvent(KafkaTopics.PRODUCT_REJECTED, product.getId().toString(),
                 Map.of(
@@ -359,7 +359,7 @@ public class ProductService {
                         "rejectCount", product.getRejectCount()
                 ));
 
-        return ApiResponse.success(null);
+        return ApiResponse.success(toProductResponse(saved));
     }
 
     public boolean canTransition(ProductStatus from, ProductStatus to) {

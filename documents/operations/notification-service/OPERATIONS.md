@@ -4,12 +4,12 @@
 
 ## Overview
 
-Event-driven notification pipeline: consumes Kafka events, persists to MongoDB, pushes to Redis Pub/Sub, and streams to clients via SSE (Server-Sent Events).
+Event-driven notification pipeline: consumes Kafka events, persists to MongoDB, emits live notifications to active per-user SSE sinks, and replays missed notifications from MongoDB.
 
 ## Architecture
 
 ```
-Kafka (events) → Consumer → MongoDB (persistence) → Redis Pub/Sub → SSE (clients)
+Kafka (events) -> Consumer -> MongoDB (persistence) -> per-user SSE sink -> SSE clients
 ```
 
 ## Key MongoDB Collections
@@ -26,7 +26,7 @@ Document schema fields: `_id`, `userId`, `type`, `title`, `message`, `payload`, 
 # Via docker-compose (recommended)
 docker-compose up -d notification-service
 
-# Standalone (requires MongoDB + Kafka + Redis)
+# Standalone (requires MongoDB + Kafka)
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
@@ -37,8 +37,8 @@ docker-compose up -d notification-service
 | `MONGODB_URI` | Yes | `mongodb://localhost:27017` | MongoDB connection string |
 | `MONGODB_DATABASE` | Yes | `notification_db` | MongoDB database name |
 | `KAFKA_BOOTSTRAP_SERVERS` | Yes | `localhost:9092` | Kafka broker |
-| `REDIS_HOST` | Yes | `localhost` | Redis host for Pub/Sub |
-| `REDIS_PORT` | Yes | `6379` | Redis port |
+| `REDIS_HOST` | No | `localhost` | Reserved for future multi-instance fan-out; not required for current SSE replay path |
+| `REDIS_PORT` | No | `6379` | Reserved for future multi-instance fan-out |
 
 ## Health Check
 
@@ -46,7 +46,7 @@ docker-compose up -d notification-service
 GET /actuator/health
 ```
 
-Healthy response includes MongoDB, Kafka consumer, and Redis components.
+Healthy response includes MongoDB and Kafka consumer components.
 
 ## Logging
 
@@ -100,7 +100,7 @@ db.mg_notifications.updateMany(
 
 | Symptom | Likely Cause | Check |
 |---|---|---|
-| SSE stream not receiving | Redis Pub/Sub channel down | Verify Redis connectivity; `redis-cli PING` |
+| SSE stream not receiving | No active sink, auth header missing, or Kafka consumer lag | Check `X-User-Id`, consumer logs, and `sse.connections.active` metric |
 | Notifications not persisted | Kafka consumer lag or MongoDB down | Check consumer group lag; verify MongoDB connection |
 | High memory usage | Too many open SSE connections | Check `sse.connections.active` metric; add connection timeout |
 | Duplicate notifications | Kafka consumer rebalance or no idempotency | Check consumer group stability; verify idempotency key handling |

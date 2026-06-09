@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-06-07",
+  "generated_at": "2026-06-09",
   "project": "Stealing-from-Paradise",
-  "artifact_count": 241,
+  "artifact_count": 243,
   "by_group": {
-    "overview": 5,
+    "overview": 7,
     "interfaces": 68,
     "domain": 68,
     "business-flows": 13,
@@ -18,7 +18,7 @@
     "observability": 1
   },
   "by_type": {
-    "doc": 3,
+    "doc": 5,
     "api": 67,
     "business-rule": 12,
     "entity": 30,

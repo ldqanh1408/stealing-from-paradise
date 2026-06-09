@@ -46,9 +46,9 @@ sequenceDiagram
     end
 ```
 
-### Implementation Gaps
+### Implementation Notes
 
-| Gap | Impact |
+| Concern | Current behavior |
 |-----|--------|
 | Direct `POST /refunds` is not implemented in refund-service. | Client refund initiation should go through order-service endpoints. |
 | `RefundService` owns transfer reversal logic; payment-service does not consume `refund.admin_approved` in current code. | Cross-service flow docs should avoid claiming payment-service performs this listener step. |

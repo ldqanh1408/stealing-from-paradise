@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">UC-AICHAT-003: Confirm or Reject Pending Action</h1>
-              <div class="doc-meta">DOC-USE-CASES-AI-CHAT-SERVICE-UC-003-CONFIRM-ACTION | 2026-06-07</div>
+              <div class="doc-meta">DOC-USE-CASES-AI-CHAT-SERVICE-UC-003-CONFIRM-ACTION | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">use-case</span> <span class="badge text-bg-light">ai-chat-service</span></div>
           </div>
@@ -371,7 +371,7 @@
 <tr>
 <td>4</td>
 <td>Server</td>
-<td>Checks Redis <code>pending:{confirmId}</code> for fast lookup</td>
+<td>Loads pending confirmation from MongoDB by <code>confirmId</code> and <code>userId</code></td>
 </tr>
 <tr>
 <td>5</td>
@@ -396,12 +396,12 @@
 <tr>
 <td>9</td>
 <td>Server</td>
-<td>Logs result in TOOL_CALL_LOGS</td>
+<td>Logs result in TOOL_CALL_LOGS when the action path records one</td>
 </tr>
 <tr>
 <td>10</td>
 <td>Server</td>
-<td>Publishes <code>ai.confirmation.confirmed</code> Kafka event</td>
+<td>Publishes <code>ai_chat.confirmation_resolved</code> and <code>ai.confirmation.confirmed</code> Kafka events</td>
 </tr>
 <tr>
 <td>11</td>
@@ -449,7 +449,7 @@
 <tr>
 <td>5</td>
 <td>Server</td>
-<td>Publishes <code>ai.confirmation.rejected</code> Kafka event</td>
+<td>Publishes <code>ai_chat.confirmation_resolved</code> and <code>ai.confirmation.rejected</code> Kafka events</td>
 </tr>
 <tr>
 <td>6</td>
@@ -516,11 +516,11 @@
 </tr>
 <tr>
 <td>3</td>
-<td>Kafka event published for audit</td>
+<td>Kafka events published for audit and compatibility</td>
 </tr>
 <tr>
 <td>4</td>
-<td>TOOL_CALL_LOGS record created with execution result</td>
+<td>Confirmation resolution persisted</td>
 </tr>
 </tbody>
 </table>

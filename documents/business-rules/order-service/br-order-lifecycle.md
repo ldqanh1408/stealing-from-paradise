@@ -80,9 +80,9 @@ CANCELLED (terminal for PENDING/PAID)                              │
 | Trigger | Payment timeout (30 min regular / 10 min flash sale) |
 | Precondition | `orders.status = PENDING` AND `NOW() > created_at + timeout` |
 | Postcondition | `orders.status = CANCELLED`, `cancelled_by = SYSTEM` |
-| Side Effect | `order.auto_cancelled` (post-MVP, JOB-13 not implemented) Kafka event, stock unlocked |
+| Side Effect | `order.auto_cancelled` Kafka event, stock unlocked |
 
-**Kafka Event Produced:** `order.auto_cancelled` (post-MVP, JOB-13 not implemented)
+**Kafka Event Produced:** `order.auto_cancelled`
 
 ---
 

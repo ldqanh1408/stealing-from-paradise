@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Product Catalog, Cart, Checkout, and Review</h1>
-              <div class="doc-meta">DOC-FLOWS-PRODUCT-SERVICE-FLOW-PRODUCT-CATALOG-CART-REVIEW | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-PRODUCT-SERVICE-FLOW-PRODUCT-CATALOG-CART-REVIEW | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">product-service</span></div>
           </div>
@@ -297,7 +297,7 @@
 <td>UC-PRODUCT-001: Browse Catalog</td>
 <td>Implemented with search-service split</td>
 <td><code>CategoryController.getCategoryTree</code> line 21, <code>ProductController.getProduct</code> line 39</td>
-<td>Product listing is handled by search-service, not product-service.</td>
+<td>Product listing is handled by search-service; product-service owns detail/category reads.</td>
 </tr>
 <tr>
 <td>UC-PRODUCT-002: Manage Categories</td>
@@ -363,7 +363,7 @@
 <td>UC-PRODUCT-012: Submit Product Review</td>
 <td>Implemented</td>
 <td><code>ProductController.submitForReview</code> line 113, <code>ProductService.submitForReview</code> line 175</td>
-<td>Publish/unpublish are implemented at lines 121 and 129; resubmit lockout is enforced when <code>rejectCount &gt;= 3</code>.</td>
+<td>Publish/unpublish are implemented; resubmit lockout is enforced when <code>rejectCount &gt;= 3</code>.</td>
 </tr>
 <tr>
 <td>UC-PRODUCT-013: List Pending Products</td>
@@ -379,9 +379,9 @@
 </tr>
 <tr>
 <td>UC-PRODUCT-015: Reject Product</td>
-<td>Partial</td>
-<td><code>AdminProductController.rejectProduct</code> line 43, <code>ProductService.rejectProduct</code> line 327</td>
-<td>Reject state, reason, <code>rejectCount</code>, and <code>product.rejected</code> event are implemented; response body differs because code returns <code>Void</code> instead of full product summary.</td>
+<td>Implemented</td>
+<td><code>AdminProductController.rejectProduct</code> line 43, <code>ProductService.rejectProduct</code> line 332</td>
+<td>Reject returns the updated <code>ProductResponse</code>, persists reason/count/status, and publishes <code>product.rejected</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -415,6 +415,7 @@
     else Reject
         Admin-&gt;&gt;Product: POST /v1/admin/products/{id}/reject
         Product-&gt;&gt;Kafka: product.rejected
+        Product--&gt;&gt;Admin: ProductResponse
     end
     Kafka-&gt;&gt;Search: ProductEventConsumer updates index
 
@@ -426,26 +427,26 @@
     Product-&gt;&gt;Product: Reserve stock
     Product-&gt;&gt;Kafka: order.checkout_submitted
     Kafka-&gt;&gt;Order: CheckoutSubmittedConsumer creates order</pre>
-<h3>Implementation Gaps</h3>
+<h3>Implementation Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Inventory log endpoint currently returns an empty placeholder.</td>
-<td>Stock audit UI cannot show real log history yet.</td>
+<td>Inventory logs</td>
+<td>Inventory log endpoint currently returns an empty placeholder; stock mutations themselves are implemented.</td>
 </tr>
 <tr>
-<td>UC-PRODUCT-015 expects a full product summary response after reject, but code returns <code>ApiResponse&lt;Void&gt;</code>.</td>
-<td>API contract/consumer expectations should align before frontend depends on the reject response body.</td>
+<td>Reject response</td>
+<td>Admin reject now returns the updated product summary body.</td>
 </tr>
 <tr>
+<td>Resubmit lockout</td>
 <td>The 3-strike resubmit lockout is implemented in <code>submitForReview</code>, not as a seller-account lock.</td>
-<td>This is aligned with the current use case wording: the next submit attempt fails after the reject count reaches 3.</td>
 </tr>
 </tbody>
 </table></div></section>

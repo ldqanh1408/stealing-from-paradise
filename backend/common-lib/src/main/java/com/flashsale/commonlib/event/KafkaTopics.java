@@ -48,6 +48,7 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     public static final String PAYOUT_PROCESSED         = "payout.processed";
     public static final String PAYOUT_FAILED            = "payout.failed";
+    public static final String TRANSFER_COMPLETED       = "transfer.completed";
 
     // ──────────────────────────────────────────────
     // Refund  (Producer: Payment Service)
@@ -65,6 +66,7 @@ public final class KafkaTopics {
     // ──────────────────────────────────────────────
     public static final String FLASH_SALE_SESSION_STARTED = "flash_sale.session_started";
     public static final String FLASH_SALE_SESSION_ENDED   = "flash_sale.session_ended";
+    public static final String FLASH_SALE_SESSION_CREATED = "flash_sale.session_created";
     public static final String FLASH_SALE_ITEM_REGISTERED = "flash_sale.item_registered";
     public static final String FLASH_SALE_ITEM_APPROVED   = "flash_sale.item_approved";
     public static final String FLASH_SALE_ITEM_REJECTED   = "flash_sale.item_rejected";
@@ -76,6 +78,10 @@ public final class KafkaTopics {
     // Stock Reservation (Producer: Product Service)
     // ──────────────────────────────────────────────
     public static final String STOCK_RESERVATION_EXPIRED   = "stock.reservation.expired";
+
+    // Identity (Producer: Identity Service)
+    public static final String ACCOUNT_UPDATED              = "account.updated";
+    public static final String SELLER_REGISTERED            = "seller.registered";
 
     // ──────────────────────────────────────────────
     // Category (Producer: Product Service)
@@ -100,6 +106,11 @@ public final class KafkaTopics {
     public static final String AI_CHAT_MESSAGE_SENT         = "ai_chat.message_sent";
     public static final String AI_CHAT_TOOL_CALL_EXECUTED   = "ai_chat.tool_call_executed";
     public static final String AI_CHAT_CONFIRMATION_RESOLVED = "ai_chat.confirmation_resolved";
+    public static final String AI_SESSION_CREATED           = "ai.session.created";
+    public static final String AI_SESSION_CLOSED            = "ai.session.closed";
+    public static final String AI_CHAT_MESSAGE_RECEIVED     = "ai.chat.message_received";
+    public static final String AI_CONFIRMATION_CONFIRMED    = "ai.confirmation.confirmed";
+    public static final String AI_CONFIRMATION_REJECTED     = "ai.confirmation.rejected";
 
     // ──────────────────────────────────────────────
     // Checkout (Producer: Product Service → Order Service)

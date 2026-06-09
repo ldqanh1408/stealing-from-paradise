@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Payment, Stripe Webhooks, and Seller Payouts</h1>
-              <div class="doc-meta">DOC-FLOWS-PAYMENT-SERVICE-FLOW-PAYMENT-STRIPE-PAYOUT | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-PAYMENT-SERVICE-FLOW-PAYMENT-STRIPE-PAYOUT | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">payment-service</span></div>
           </div>
@@ -301,9 +301,9 @@
 </tr>
 <tr>
 <td>UC-PAYMENT-002: Process Payment</td>
-<td>Implemented with contract drift</td>
+<td>Implemented</td>
 <td><code>PaymentService.onPaymentRequested</code> line 562, <code>PaymentController.getTransactionByParentOrder</code> line 30</td>
-<td>Payment creation is event-driven. Lookup endpoint is <code>/v1/payments/parent-order/{parentOrderId}</code>, not <code>/payments/by-order/{id}</code>.</td>
+<td>Payment creation is event-driven. Lookup endpoint is <code>/v1/payments/parent-order/{parentOrderId}</code>.</td>
 </tr>
 <tr>
 <td>UC-PAYMENT-003: Handle Stripe Webhook</td>
@@ -313,15 +313,15 @@
 </tr>
 <tr>
 <td>UC-PAYMENT-007: Transfer to Seller</td>
-<td>Implemented scheduled flow</td>
-<td><code>PaymentService.onOrderDelivered</code> line 682, <code>PayoutScheduler.processEligiblePayouts</code> line 61</td>
-<td>Delivery moves transfers to return-window; scheduler pays eligible transfers.</td>
+<td>Implemented</td>
+<td><code>PaymentService.onOrderDelivered</code> line 682, <code>PayoutScheduler.processEligiblePayouts</code> line 61, <code>PayoutScheduler.publishPayoutEvent</code> line 160</td>
+<td>Delayed payout is implemented and successful payouts publish <code>transfer.completed</code> in addition to existing seller transfer events.</td>
 </tr>
 <tr>
 <td>UC-PAYMENT-008: View Transfers</td>
-<td>Partial</td>
-<td><code>SellerPaymentsController.getEarnings</code> line 29, <code>getStripeDashboardLink</code> line 43</td>
-<td>Earnings and Stripe dashboard exist; <code>/transfers</code> and <code>/balance</code> endpoints from the use case were not found.</td>
+<td>Implemented</td>
+<td><code>SellerPaymentsController.getSellerTransfers</code> line 42, <code>SellerPaymentsController.getSellerBalance</code> line 59, <code>SellerPaymentsService.getSellerTransfers</code> line 87</td>
+<td>Seller transfer history, balance, earnings, and Stripe dashboard endpoints are available.</td>
 </tr>
 </tbody>
 </table>
@@ -339,7 +339,7 @@
     Order-&gt;&gt;Kafka: payment.requested
     Kafka-&gt;&gt;Pay: onPaymentRequested
     Pay-&gt;&gt;Stripe: PaymentIntent.create
-    Pay-&gt;&gt;Pay: Insert TRANSACTIONS and PENDING seller transfers
+    Pay-&gt;&gt;Pay: Insert transaction and pending seller transfers
     Buyer-&gt;&gt;Pay: GET /v1/payments/parent-order/{parentOrderId}
     Pay--&gt;&gt;Buyer: clientSecret, status, remaining seconds
 
@@ -353,31 +353,33 @@
     Scheduler-&gt;&gt;Pay: Every 5 minutes find eligible RETURN_WINDOW transfers
     Pay-&gt;&gt;Stripe: Transfer.create to seller connected account
     Pay-&gt;&gt;Pay: Mark PAID_OUT or FAILED
-    Pay-&gt;&gt;Kafka: seller.transfer_paid_out or seller.transfer_failed
+    Pay-&gt;&gt;Kafka: seller.transfer_paid_out, payout.processed, transfer.completed
     Kafka-&gt;&gt;Notif: Notify seller
 
     Seller-&gt;&gt;Pay: GET /v1/seller/payments/earnings
+    Seller-&gt;&gt;Pay: GET /v1/seller/payments/transfers
+    Seller-&gt;&gt;Pay: GET /v1/seller/payments/balance
     Seller-&gt;&gt;Pay: GET /v1/seller/payments/stripe-dashboard</pre>
-<h3>Implementation Gaps</h3>
+<h3>Implementation Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>UC-PAYMENT-002 endpoint text uses <code>/payments/by-order/{parentOrderId}</code>; code exposes <code>/v1/payments/parent-order/{parentOrderId}</code>.</td>
-<td>API contract docs should be aligned before frontend integration.</td>
+<td>Transfer event compatibility</td>
+<td><code>seller.transfer.paid_out</code> and <code>payout.processed</code> remain; <code>transfer.completed</code> is also emitted for the documented contract.</td>
 </tr>
 <tr>
-<td>UC-PAYMENT-003 mentions <code>/stripe/webhook</code>; code exposes <code>/v1/stripe/webhooks</code>.</td>
-<td>Gateway route/docs mismatch risk.</td>
+<td>Balance calculation</td>
+<td>Pending balance uses pending/awaiting-delivery/return-window/ready-for-payout states; paid-out transfers count as available.</td>
 </tr>
 <tr>
-<td>UC-PAYMENT-008 transfer history and balance endpoints were not found.</td>
-<td>Seller payout UI can use earnings and Stripe dashboard now, but not a dedicated transfer ledger/balance API.</td>
+<td>Webhook route</td>
+<td>Implemented route is <code>/v1/stripe/webhooks</code>; gateway docs should preserve that final route.</td>
 </tr>
 </tbody>
 </table></div></section>

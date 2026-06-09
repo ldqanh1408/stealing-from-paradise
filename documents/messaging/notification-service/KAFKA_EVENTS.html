@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Kafka Events -- Notification Service</h1>
-              <div class="doc-meta">DOC-MESSAGING-NOTIFICATION-SERVICE-KAFKA-EVENTS | 2026-06-07</div>
+              <div class="doc-meta">DOC-MESSAGING-NOTIFICATION-SERVICE-KAFKA-EVENTS | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">message</span> <span class="badge text-bg-light">notification-service</span></div>
           </div>
@@ -289,7 +289,7 @@ Generated: 2026-05-10</p>
 </blockquote>
 <hr>
 <h2>Events Consumed</h2>
-<p>Notification Service is a consumer-only service. It listens to 22 Kafka topics from all services and pushes SSE real-time notifications to users. It produces <strong>zero</strong> events.</p>
+<p>Notification Service is a consumer-only service. It listens to 27 Kafka topics from all services and pushes SSE real-time notifications to users. It produces <strong>zero</strong> events.</p>
 <hr>
 <h3>From Identity Service</h3>
 <p>Identity Service does NOT produce Kafka domain events. No events consumed from this service.</p>
@@ -587,6 +587,44 @@ Generated: 2026-05-10</p>
 </tr>
 </tbody>
 </table>
+<h4>order.auto_cancelled</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Type</strong></td>
+<td>ORDER_AUTO_CANCELLED</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Notify buyer: order was automatically cancelled after payment timeout</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Payload:</strong></p>
+<pre><code class="language-json">{
+  &quot;topic&quot;: &quot;order.auto_cancelled&quot;,
+  &quot;payload&quot;: {
+    &quot;order_id&quot;: 5,
+    &quot;parent_order_id&quot;: 1,
+    &quot;user_id&quot;: 42,
+    &quot;seller_id&quot;: 99,
+    &quot;session_id&quot;: &quot;checkout-session-abc&quot;,
+    &quot;cancelled_by&quot;: &quot;SYSTEM&quot;,
+    &quot;cancel_reason&quot;: &quot;Payment timeout&quot;,
+    &quot;timestamp&quot;: &quot;2026-05-10T08:30:00Z&quot;
+  }
+}
+</code></pre>
 <hr>
 <h3>From Payment Service</h3>
 <h4>payment.success</h4>
@@ -993,7 +1031,7 @@ Notification Service Consumer (Spring Kafka)
 Create MG_NOTIFICATIONS document (MongoDB)
     |
     v
-Publish to Redis Pub/Sub channel &quot;user:{user_id}&quot;
+Emit to active per-user SSE sink when connected
     |
     v
 SSE Emitter (Spring WebFlux SseEmitter)
@@ -1034,7 +1072,7 @@ event: ORDER_STATUS
 data: {&quot;title&quot;:&quot;Don hang #5 da duoc giao&quot;,&quot;body&quot;:&quot;Don hang cua ban da duoc giao thanh cong vao luc 14:30&quot;,&quot;type&quot;:&quot;ORDER_STATUS&quot;,&quot;metadata&quot;:{&quot;order_id&quot;:5,&quot;deeplink&quot;:&quot;/orders/5&quot;},&quot;created_at&quot;:&quot;2026-05-12T14:30:00Z&quot;}
 
 </code></pre>
-<h3>Redis Pub/Sub Buffer</h3>
+<h3>Replay and Live Delivery</h3>
 <table>
 <thead>
 <tr>
@@ -1044,12 +1082,12 @@ data: {&quot;title&quot;:&quot;Don hang #5 da duoc giao&quot;,&quot;body&quot;:&
 </thead>
 <tbody>
 <tr>
-<td><strong>Channel Pattern</strong></td>
-<td><code>user:{user_id}</code></td>
+<td><strong>Live Channel</strong></td>
+<td>In-memory per-user Reactor sink</td>
 </tr>
 <tr>
-<td><strong>Buffer TTL</strong></td>
-<td>60 seconds</td>
+<td><strong>Sink Backpressure Buffer</strong></td>
+<td>64 notifications per connected user</td>
 </tr>
 <tr>
 <td><strong>Replay Mechanism</strong></td>
@@ -1057,7 +1095,7 @@ data: {&quot;title&quot;:&quot;Don hang #5 da duoc giao&quot;,&quot;body&quot;:&
 </tr>
 <tr>
 <td><strong>Missed Events</strong></td>
-<td>Replayed from Redis buffer if within TTL; otherwise fetched from MongoDB</td>
+<td>Replayed from MongoDB after the last seen notification timestamp</td>
 </tr>
 </tbody>
 </table>
@@ -1195,8 +1233,8 @@ data: {&quot;title&quot;:&quot;Don hang #5 da duoc giao&quot;,&quot;body&quot;:&
 <td><code>created_at</code> + 90 days (MongoDB TTL index auto-delete)</td>
 </tr>
 <tr>
-<td><strong>Redis Buffer</strong></td>
-<td>60 seconds per channel</td>
+<td><strong>Replay Source</strong></td>
+<td>MongoDB persisted notifications</td>
 </tr>
 <tr>
 <td><strong>SSE Timeout</strong></td>

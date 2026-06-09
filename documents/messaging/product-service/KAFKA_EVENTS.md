@@ -474,7 +474,7 @@ Supported `requestType` values:
 | **Action** | Release all PENDING stock reservations for the given `session_id`. Calls `releaseReservation()` to restore stock and set status to RELEASED. |
 | **Trigger** | Payment failure — Payment Service publishes `payment.failed`, Order Service re-publishes as `order.payment_failed` |
 
-### order.cancelled (from Order Service)
+### order.cancelled / order.auto_cancelled (from Order Service)
 
 | Field | Value |
 |-------|-------|

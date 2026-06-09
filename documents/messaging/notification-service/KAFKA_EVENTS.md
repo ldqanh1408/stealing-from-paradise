@@ -9,7 +9,7 @@
 
 ## Events Consumed
 
-Notification Service is a consumer-only service. It listens to 22 Kafka topics from all services and pushes SSE real-time notifications to users. It produces **zero** events.
+Notification Service is a consumer-only service. It listens to 27 Kafka topics from all services and pushes SSE real-time notifications to users. It produces **zero** events.
 
 ---
 
@@ -174,6 +174,31 @@ Identity Service does NOT produce Kafka domain events. No events consumed from t
 | **Type** | ORDER_STATUS |
 | **Priority** | HIGH |
 | **Action** | Notify buyer: payment timeout, order will be cancelled |
+
+#### order.auto_cancelled
+
+| Field | Value |
+|-------|-------|
+| **Type** | ORDER_AUTO_CANCELLED |
+| **Priority** | HIGH |
+| **Action** | Notify buyer: order was automatically cancelled after payment timeout |
+
+**Payload:**
+```json
+{
+  "topic": "order.auto_cancelled",
+  "payload": {
+    "order_id": 5,
+    "parent_order_id": 1,
+    "user_id": 42,
+    "seller_id": 99,
+    "session_id": "checkout-session-abc",
+    "cancelled_by": "SYSTEM",
+    "cancel_reason": "Payment timeout",
+    "timestamp": "2026-05-10T08:30:00Z"
+  }
+}
+```
 
 ---
 
@@ -446,7 +471,7 @@ Notification Service Consumer (Spring Kafka)
 Create MG_NOTIFICATIONS document (MongoDB)
     |
     v
-Publish to Redis Pub/Sub channel "user:{user_id}"
+Emit to active per-user SSE sink when connected
     |
     v
 SSE Emitter (Spring WebFlux SseEmitter)
@@ -473,14 +498,14 @@ data: {"title":"Don hang #5 da duoc giao","body":"Don hang cua ban da duoc giao 
 
 ```
 
-### Redis Pub/Sub Buffer
+### Replay and Live Delivery
 
 | Property | Value |
 |----------|-------|
-| **Channel Pattern** | `user:{user_id}` |
-| **Buffer TTL** | 60 seconds |
+| **Live Channel** | In-memory per-user Reactor sink |
+| **Sink Backpressure Buffer** | 64 notifications per connected user |
 | **Replay Mechanism** | `Last-Event-ID` header on SSE reconnect |
-| **Missed Events** | Replayed from Redis buffer if within TTL; otherwise fetched from MongoDB |
+| **Missed Events** | Replayed from MongoDB after the last seen notification timestamp |
 
 ---
 
@@ -530,5 +555,5 @@ Notification Service does **NOT** produce any Kafka events. It is a pure consume
 | Policy | Value |
 |--------|-------|
 | **TTL Index** | `created_at` + 90 days (MongoDB TTL index auto-delete) |
-| **Redis Buffer** | 60 seconds per channel |
+| **Replay Source** | MongoDB persisted notifications |
 | **SSE Timeout** | 30 minutes (SseEmitter timeout, client reconnects) |

@@ -3,7 +3,9 @@ package com.flashsale.orderservice.scheduler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.orderservice.domain.model.Order;
+import com.flashsale.orderservice.domain.model.ParentOrder;
 import com.flashsale.orderservice.domain.repository.OrderRepository;
+import com.flashsale.orderservice.domain.repository.ParentOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -28,6 +30,7 @@ import java.util.Map;
 public class OrderLifecycleScheduler {
 
     private final OrderRepository orderRepository;
+    private final ParentOrderRepository parentOrderRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
@@ -83,6 +86,7 @@ public class OrderLifecycleScheduler {
             payload.put("order_code", order.getOrderCode());
             payload.put("customer_id", order.getCustomerId());
             payload.put("seller_id", order.getSellerId());
+            payload.put("session_id", sessionIdFor(order));
             payload.put("status", order.getStatus());
             payload.put("timestamp", Instant.now().toString());
             payload.putAll(extras);
@@ -90,5 +94,14 @@ public class OrderLifecycleScheduler {
         } catch (Exception e) {
             log.error("Failed to publish {} for orderId={}: {}", topic, order.getId(), e.getMessage(), e);
         }
+    }
+
+    private String sessionIdFor(Order order) {
+        if (order.getParentOrderId() == null) {
+            return "";
+        }
+        return parentOrderRepository.findById(order.getParentOrderId())
+                .map(ParentOrder::getSessionId)
+                .orElse("");
     }
 }

@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">FR-NOTIF: Notification Service Functional Requirements</h1>
-              <div class="doc-meta">DOC-SRS-FR-NOTIFICATION-SERVICE-FR-NOTIFICATION | 2026-06-07</div>
+              <div class="doc-meta">DOC-SRS-FR-NOTIFICATION-SERVICE-FR-NOTIFICATION | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">requirement</span> <span class="badge text-bg-light">notification-service</span></div>
           </div>
@@ -323,9 +323,9 @@
 | # | Criterion |
 |---|-----------|
 | 1 | Client receives <code>text/event-stream</code> response with open connection |
-| 2 | Each event is delivered as <code>data: {JSON}\n\n</code> |
+| 2 | Each event is delivered as a Server-Sent Event with id, event name, and JSON data |
 | 3 | <code>Last-Event-ID</code> header enables missed event replay |
-| 4 | Redis Pub/Sub buffer holds events for 60 seconds |
+| 4 | Missed events replay from persisted MongoDB notifications |
 | 5 | Connection drops are detected; client auto-reconnects |</p>
 <hr>
 <h2>FR-NOTIF-002: Paginated Notification History</h2>
@@ -413,7 +413,7 @@
 </tr>
 <tr>
 <td><strong>Description</strong></td>
-<td>Consume 30+ Kafka topics, create MG_NOTIFICATIONS documents, push to Redis Pub/Sub</td>
+<td>Consume 27 Kafka topics, create MG_NOTIFICATIONS documents, and emit live updates to connected SSE clients</td>
 </tr>
 </tbody>
 </table>
@@ -423,7 +423,7 @@
 | 1 | Notification created in MongoDB within 500ms of event arrival |
 | 2 | Failed deserialization logged without crashing consumer |
 | 3 | Each event mapped to correct notification <code>type</code> |
-| 4 | Redis Pub/Sub notified on successful MongoDB insert |</p>
+| 4 | Active per-user SSE sink is notified on successful MongoDB insert |</p>
 <hr>
 <h2>Cross-References</h2>
 <table>

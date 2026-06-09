@@ -99,6 +99,19 @@ public class ChatController {
                         .body(ApiResponse.success(session, "Session created")));
     }
 
+    @GetMapping("/api/ai/sessions")
+    public Mono<ResponseEntity<ApiResponse<List<ChatSession>>>> listSessions(ServerWebExchange exchange) {
+        Long userId = extractUserId(exchange);
+        if (userId == null) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
+        }
+
+        return chatService.getActiveSessions(userId)
+                .collectList()
+                .map(sessions -> ResponseEntity.ok(ApiResponse.success(sessions)));
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     //  DELETE /api/ai/sessions/{sessionId} — close session
     // ────────────────────────────────────────────────────────────────────────

@@ -62,6 +62,7 @@ public class OrderProcessingSaga {
     private Long sellerId;
     private BigDecimal totalAmount;
     private boolean isFlashSale;
+    private String sessionId;
     private String paymentDeadlineId;
     private String shippingDeadlineId;
 
@@ -76,6 +77,7 @@ public class OrderProcessingSaga {
         sellerId          = event.getSellerId();
         totalAmount       = event.getTotalAmount();
         isFlashSale       = event.isFlashSale();
+        sessionId         = event.getSessionId();
 
         // Secondary association so payment events can also route by parentOrderId if needed
         SagaLifecycle.associateWith("parentOrderId", String.valueOf(parentOrderId));
@@ -96,6 +98,7 @@ public class OrderProcessingSaga {
         payload.put("order_code",          event.getOrderCode());
         payload.put("total_amount",        totalAmount);
         payload.put("is_flash_sale",       isFlashSale);
+        payload.put("session_id",          sessionId != null ? sessionId : "");
         payload.put("timestamp",           Instant.now().toString());
         send(KafkaTopics.ORDER_CREATED, String.valueOf(parentOrderId), payload);
     }
@@ -169,6 +172,7 @@ public class OrderProcessingSaga {
         payload.put("parent_order_id", parentOrderId);
         payload.put("user_id",        userId);
         payload.put("seller_id",      sellerId);
+        payload.put("session_id",     sessionId != null ? sessionId : "");
         payload.put("cancelled_by",   event.getCancelledBy());
         payload.put("cancel_reason",  event.getCancelReason());
         payload.put("total_amount",   event.getTotalAmount());
@@ -177,10 +181,17 @@ public class OrderProcessingSaga {
 
         if ("SELLER".equals(event.getCancelledBy())) {
             Map<String, Object> sellerPayload = new HashMap<>();
-            sellerPayload.put("order_id",  orderId);
-            sellerPayload.put("seller_id", sellerId);
-            sellerPayload.put("buyer_id",  userId);
-            sellerPayload.put("timestamp", Instant.now().toString());
+            sellerPayload.put("order_id",        orderId);
+            sellerPayload.put("parent_order_id", parentOrderId);
+            sellerPayload.put("seller_id",       sellerId);
+            sellerPayload.put("buyer_id",        userId);
+            sellerPayload.put("customer_id",     userId);
+            sellerPayload.put("session_id",      sessionId != null ? sessionId : "");
+            sellerPayload.put("cancel_reason",   event.getCancelReason());
+            sellerPayload.put("refund_amount",   event.getTotalAmount());
+            sellerPayload.put("currency",        "VND");
+            sellerPayload.put("cancelled_at",    Instant.now().toString());
+            sellerPayload.put("timestamp",       Instant.now().toString());
             send(KafkaTopics.SELLER_ORDER_CANCELLED, String.valueOf(sellerId), sellerPayload);
         }
     }
@@ -197,6 +208,7 @@ public class OrderProcessingSaga {
         payload.put("parent_order_id",        parentOrderId);
         payload.put("user_id",                userId);
         payload.put("seller_id",              sellerId);
+        payload.put("session_id",             sessionId != null ? sessionId : "");
         payload.put("refund_reason_type",     "RETURN_TO_SENDER");
         payload.put("return_tracking_number", event.getReturnTrackingNumber() != null
                 ? event.getReturnTrackingNumber() : "");
@@ -232,7 +244,7 @@ public class OrderProcessingSaga {
         Map<String, Object> timeoutPayload = new HashMap<>();
         timeoutPayload.put("parent_order_id", parentOrderId);
         timeoutPayload.put("order_ids", java.util.List.of(orderId));
-        timeoutPayload.put("session_id", "");
+        timeoutPayload.put("session_id", sessionId != null ? sessionId : "");
         timeoutPayload.put("timeout_threshold_minutes", 30);
         timeoutPayload.put("timeout_reason", "PAYMENT_NOT_COMPLETED");
         timeoutPayload.put("auto_cancelled_at", Instant.now().toString());
@@ -243,6 +255,7 @@ public class OrderProcessingSaga {
         payload.put("parent_order_id", parentOrderId);
         payload.put("user_id",         userId);
         payload.put("seller_id",       sellerId);
+        payload.put("session_id",      sessionId != null ? sessionId : "");
         payload.put("cancelled_by",    "SYSTEM");
         payload.put("cancel_reason",   "Payment timeout");
         payload.put("total_amount", totalAmount);

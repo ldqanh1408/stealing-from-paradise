@@ -1,7 +1,39 @@
 {
-  "generated_at": "2026-06-07",
+  "generated_at": "2026-06-09",
   "project": "Stealing-from-Paradise",
   "items": [
+    {
+      "id": "DOC-BUSINESS-FLOW-USE-CASE-CODE-AUDIT",
+      "title": "Business Flow and Use Case Code Audit",
+      "type": "doc",
+      "group": "overview",
+      "path": "BUSINESS_FLOW_USE_CASE_CODE_AUDIT.html",
+      "status": "documented",
+      "summary": "doc for platform (Business Flow and Use Case Code Audit)",
+      "tags": [
+        "doc",
+        "overview",
+        "platform"
+      ],
+      "related_ids": [],
+      "search_text": "business flow and use case code audit doc platform overview business_flow_use_case_code_audit.md"
+    },
+    {
+      "id": "DOC-GAP-ANALYSIS",
+      "title": "Gap Analysis: Tài liệu vs Code thực tế",
+      "type": "doc",
+      "group": "overview",
+      "path": "GAP_ANALYSIS.html",
+      "status": "documented",
+      "summary": "doc for platform (Gap Analysis: Tài liệu vs Code thực tế)",
+      "tags": [
+        "doc",
+        "overview",
+        "platform"
+      ],
+      "related_ids": [],
+      "search_text": "gap analysis: tài liệu vs code thực tế doc platform overview gap_analysis.md"
+    },
     {
       "id": "DOC-PROJECT-OVERVIEW",
       "title": "NỀN TẢNG THƯƠNG MẠI ĐIỆN TỬ ĐA NGƯỜI BÁN",
@@ -3826,7 +3858,7 @@
       "group": "overview",
       "path": "groups/overview.html",
       "status": "documented",
-      "summary": "Overview group page (3 artifacts).",
+      "summary": "Overview group page (5 artifacts).",
       "tags": [
         "group",
         "overview"

@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Flash Sale Session, Item Registration, and Purchase</h1>
-              <div class="doc-meta">DOC-FLOWS-FLASHSALE-SERVICE-FLOW-FLASHSALE-SESSION-PURCHASE | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-FLASHSALE-SERVICE-FLOW-FLASHSALE-SESSION-PURCHASE | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">flashsale-service</span></div>
           </div>
@@ -296,26 +296,26 @@
 <tr>
 <td>UC-FLASHSALE-001: Admin Create Session</td>
 <td>Implemented</td>
-<td><code>FlashSaleController.createSession</code> line 40, <code>FlashSaleService.createSession</code> line 146</td>
-<td>Admin create/update/delete session endpoints exist.</td>
+<td><code>FlashSaleController.createSession</code> line 46, <code>FlashSaleService.createSession</code> line 166</td>
+<td>Session creation persists <code>UPCOMING</code>, registers Redis ZSET start/end triggers, and publishes <code>flash_sale.session_created</code>.</td>
 </tr>
 <tr>
 <td>UC-FLASHSALE-002: Seller Register Product</td>
 <td>Implemented</td>
-<td><code>FlashSaleController.createFlashSaleItem</code> line 75, <code>FlashSaleService.createFlashSaleItem</code> line 131</td>
-<td>Admin approve/reject item endpoints also exist.</td>
+<td><code>FlashSaleController.createFlashSaleItem</code> line 81, <code>FlashSaleService.createFlashSaleItem</code> line 127</td>
+<td>Items are auto-approved as <code>APPROVED</code>, publish <code>flash_sale.item_registered</code>, and notification copy matches the auto-approve behavior.</td>
 </tr>
 <tr>
 <td>UC-FLASHSALE-003: View Sessions</td>
-<td>Partial</td>
-<td><code>FlashSaleController.getSessions</code> line 25, <code>getSessionDetail</code> line 32</td>
-<td>List/detail exist; <code>GET /flash-sales/active</code> from the use case was not found.</td>
+<td>Implemented</td>
+<td><code>FlashSaleController.getSessions</code> line 25, <code>getActiveSessions</code> line 32, <code>getSessionDetail</code> line 39</td>
+<td>List/detail and <code>GET /v1/flash-sales/active</code> are implemented.</td>
 </tr>
 <tr>
 <td>UC-FLASHSALE-006: System End Session</td>
-<td>Partial</td>
-<td><code>FlashSaleService.onSessionStarted</code> line 93</td>
-<td>Session-start listener exists; no session-ended consumer/publisher/scheduler was found in this repo snapshot.</td>
+<td>Implemented</td>
+<td><code>FlashSaleSessionScheduler</code> line 39, lifecycle payload with <code>flashItems</code> line 92</td>
+<td>Scheduler starts/ends sessions and emits payloads that product-service can use for flash price sync by SKU.</td>
 </tr>
 </tbody>
 </table>
@@ -328,21 +328,25 @@
     participant Redis as Redis
     participant Kafka as Kafka
     participant Identity as Identity Service
+    participant Product as Product Service
     participant Order as Order Service
     participant Search as Search Service
 
     Admin-&gt;&gt;FS: POST /v1/flash-sales
     FS-&gt;&gt;FS: Persist flash sale session
+    FS-&gt;&gt;Redis: ZADD flash_sale:triggers start/end entries
+    FS-&gt;&gt;Kafka: flash_sale.session_created
+
     Seller-&gt;&gt;FS: POST /v1/flash-sales/{sessionId}/items
-    FS-&gt;&gt;FS: Persist submitted flash-sale item
-    Admin-&gt;&gt;FS: POST /v1/flash-sales/{sessionId}/items/{itemId}/approve
-    FS-&gt;&gt;FS: Mark item approved
+    FS-&gt;&gt;FS: Persist approved flash-sale item
+    FS-&gt;&gt;Kafka: flash_sale.item_registered
 
-    Kafka-&gt;&gt;FS: flash_sale.session_started
-    FS-&gt;&gt;Redis: Load item stock counters for fast purchase
-    Kafka-&gt;&gt;Search: flash_sale.price_sync if product-service publishes sync events
+    FS-&gt;&gt;FS: Scheduler detects due start/end
+    FS-&gt;&gt;Kafka: flash_sale.session_started or flash_sale.session_ended with flashItems
+    Kafka-&gt;&gt;Product: FlashSaleEventHandler applies or resets flash prices
+    Kafka-&gt;&gt;Search: Product/search events refresh visible pricing
 
-    Buyer-&gt;&gt;FS: GET /v1/flash-sales and /v1/flash-sales/{id}
+    Buyer-&gt;&gt;FS: GET /v1/flash-sales and /v1/flash-sales/active
     FS--&gt;&gt;Buyer: Sessions and details
     Buyer-&gt;&gt;FS: POST /v1/flash-sales/{sessionId}/buy
     FS-&gt;&gt;Redis: Lua decrement fs:stock:{itemId}
@@ -352,26 +356,26 @@
     Kafka-&gt;&gt;FS: onAddressResponse
     FS-&gt;&gt;Kafka: order.checkout_submitted
     Kafka-&gt;&gt;Order: Create order from flash-sale checkout</pre>
-<h3>Implementation Gaps</h3>
+<h3>Implementation Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>GET /flash-sales/active</code> is documented but not implemented in <code>FlashSaleController</code>.</td>
-<td>Frontend should use <code>GET /v1/flash-sales?status=ACTIVE</code> until an active endpoint exists.</td>
+<td>Session triggers</td>
+<td>Redis ZSET triggers are registered on create; the DB scheduler remains the executable lifecycle worker.</td>
 </tr>
 <tr>
-<td><code>flash_sale.session_ended</code> handling was not found.</td>
-<td>Session end/price rollback should be tracked as a missing implementation branch.</td>
+<td>Price sync payload</td>
+<td>Start/end events include <code>flashItems</code> with <code>sku_code</code>, <code>flash_price</code>, and <code>flash_stock</code>; product-service also keeps legacy <code>flashPriceMap</code> support.</td>
 </tr>
 <tr>
-<td>Reminder endpoints still exist in code, but the current active flashsale use cases no longer include reminders.</td>
-<td>Reminder behavior is excluded from this business flow.</td>
+<td>Reminder features</td>
+<td>Reminder endpoints exist in code, but reminder-specific use cases are not part of the current active flashsale use-case set.</td>
 </tr>
 </tbody>
 </table></div></section>

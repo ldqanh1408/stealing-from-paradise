@@ -1,5 +1,6 @@
 package com.flashsale.flashsaleservice.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.flashsaleservice.domain.model.FlashSaleItem;
 import com.flashsale.flashsaleservice.domain.model.FlashSaleReminder;
 import com.flashsale.flashsaleservice.domain.model.FlashSaleSession;
@@ -12,11 +13,14 @@ import com.flashsale.flashsaleservice.dto.response.FlashSaleItemResponse;
 import com.flashsale.flashsaleservice.dto.response.SessionDetailResponse;
 import com.flashsale.flashsaleservice.dto.response.SessionListResponse;
 import com.flashsale.flashsaleservice.dto.response.SessionResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.data.redis.core.ReactiveZSetOperations;
+import org.springframework.kafka.core.KafkaTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -24,7 +28,7 @@ import reactor.test.StepVerifier;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,8 +43,30 @@ class FlashSaleServiceTest {
     @Mock
     private FlashSaleReminderRepository reminderRepo;
 
-    @InjectMocks
+    @Mock
+    private ReactiveStringRedisTemplate redisTemplate;
+
+    @Mock
+    private ReactiveZSetOperations<String, String> zSetOperations;
+
+    @Mock
+    private KafkaTemplate<String, String> kafkaTemplate;
+
     private FlashSaleService flashSaleService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
+        lenient().when(zSetOperations.add(anyString(), anyString(), anyDouble())).thenReturn(Mono.just(true));
+        flashSaleService = new FlashSaleService(
+                sessionRepo,
+                itemRepo,
+                reminderRepo,
+                redisTemplate,
+                kafkaTemplate,
+                new ObjectMapper(),
+                "http://localhost:8084");
+    }
 
     @Test
     void getSessionsShouldReturnAllWhenNoStatusFilter() {
@@ -131,16 +157,16 @@ class FlashSaleServiceTest {
                 .flashStock(50)
                 .limitPerUser(1)
                 .soldQty(0)
-                .status("PENDING")
+                .status("APPROVED")
                 .build();
         when(itemRepo.save(any(FlashSaleItem.class))).thenReturn(Mono.just(saved));
 
-        Mono<FlashSaleItemResponse> result = flashSaleService.createFlashSaleItem(1L, req);
+        Mono<FlashSaleItemResponse> result = flashSaleService.createFlashSaleItem(1L, 9L, req);
 
         StepVerifier.create(result)
                 .expectNextMatches(resp ->
                         resp.getSkuCode().equals("SKU-002") &&
-                        resp.getStatus().equals("PENDING") &&
+                        resp.getStatus().equals("APPROVED") &&
                         resp.getFlashStock() == 50)
                 .verifyComplete();
     }

@@ -3,7 +3,20 @@ package com.flashsale.paymentservice;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:payment_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
+        "spring.flyway.enabled=false",
+        "spring.kafka.listener.auto-startup=false",
+        "spring.kafka.admin.auto-create=false",
+        "axon.axonserver.enabled=false",
+        "dev-data.enabled=false",
+        "eureka.client.enabled=false"
+})
 class PaymentServiceApplicationTests {
 
     @Test

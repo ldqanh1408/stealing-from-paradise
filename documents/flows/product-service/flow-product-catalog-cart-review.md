@@ -5,7 +5,7 @@ Scope: `product-service` with search/order cross-service edges
 
 | Use case | Status against current code | Evidence | Notes |
 |----------|-----------------------------|----------|-------|
-| UC-PRODUCT-001: Browse Catalog | Implemented with search-service split | `CategoryController.getCategoryTree` line 21, `ProductController.getProduct` line 39 | Product listing is handled by search-service, not product-service. |
+| UC-PRODUCT-001: Browse Catalog | Implemented with search-service split | `CategoryController.getCategoryTree` line 21, `ProductController.getProduct` line 39 | Product listing is handled by search-service; product-service owns detail/category reads. |
 | UC-PRODUCT-002: Manage Categories | Implemented | `AdminCategoryController` lines 27, 35, 43; `CategoryService` lines 58, 84, 131 | Category updates publish category events. |
 | UC-PRODUCT-003: Create Product | Implemented | `ProductController.createProduct` line 45, `ProductService.createProduct` line 56 | Seller product listing and soft delete are also implemented. |
 | UC-PRODUCT-004: Manage Variants | Implemented | `ProductController` lines 79, 89, 96, 105; `VariantService` lines 51, 104, 168 | Variant price/stock events are emitted. |
@@ -16,10 +16,10 @@ Scope: `product-service` with search/order cross-service edges
 | UC-PRODUCT-009: Add to Cart | Implemented | `CartController.addItem` line 41, `CartService.addItem` line 49 | Validates variant and quantity. |
 | UC-PRODUCT-010: Update Cart Item | Implemented | `CartController.updateItem` line 49, `CartService.updateItem` line 90 | Revalidates quantity. |
 | UC-PRODUCT-011: Remove from Cart | Implemented | `CartController.removeItem` line 58, `CartController.clearCart` line 34 | Supports item removal and cart clear. |
-| UC-PRODUCT-012: Submit Product Review | Implemented | `ProductController.submitForReview` line 113, `ProductService.submitForReview` line 175 | Publish/unpublish are implemented at lines 121 and 129; resubmit lockout is enforced when `rejectCount >= 3`. |
+| UC-PRODUCT-012: Submit Product Review | Implemented | `ProductController.submitForReview` line 113, `ProductService.submitForReview` line 175 | Publish/unpublish are implemented; resubmit lockout is enforced when `rejectCount >= 3`. |
 | UC-PRODUCT-013: List Pending Products | Implemented | `AdminProductController.getPendingProducts` line 28, `ProductService.getPendingProducts` line 279 | Admin review queue. |
 | UC-PRODUCT-014: Approve Product | Implemented | `AdminProductController.approveProduct` line 36, `ProductService.approveProduct` line 299 | Publishes `product.approved`. |
-| UC-PRODUCT-015: Reject Product | Partial | `AdminProductController.rejectProduct` line 43, `ProductService.rejectProduct` line 327 | Reject state, reason, `rejectCount`, and `product.rejected` event are implemented; response body differs because code returns `Void` instead of full product summary. |
+| UC-PRODUCT-015: Reject Product | Implemented | `AdminProductController.rejectProduct` line 43, `ProductService.rejectProduct` line 332 | Reject returns the updated `ProductResponse`, persists reason/count/status, and publishes `product.rejected`. |
 
 ### Sequence Diagram
 
@@ -53,6 +53,7 @@ sequenceDiagram
     else Reject
         Admin->>Product: POST /v1/admin/products/{id}/reject
         Product->>Kafka: product.rejected
+        Product-->>Admin: ProductResponse
     end
     Kafka->>Search: ProductEventConsumer updates index
 
@@ -66,10 +67,10 @@ sequenceDiagram
     Kafka->>Order: CheckoutSubmittedConsumer creates order
 ```
 
-### Implementation Gaps
+### Implementation Notes
 
-| Gap | Impact |
-|-----|--------|
-| Inventory log endpoint currently returns an empty placeholder. | Stock audit UI cannot show real log history yet. |
-| UC-PRODUCT-015 expects a full product summary response after reject, but code returns `ApiResponse<Void>`. | API contract/consumer expectations should align before frontend depends on the reject response body. |
-| The 3-strike resubmit lockout is implemented in `submitForReview`, not as a seller-account lock. | This is aligned with the current use case wording: the next submit attempt fails after the reject count reaches 3. |
+| Concern | Current behavior |
+|---------|------------------|
+| Inventory logs | Inventory log endpoint currently returns an empty placeholder; stock mutations themselves are implemented. |
+| Reject response | Admin reject now returns the updated product summary body. |
+| Resubmit lockout | The 3-strike resubmit lockout is implemented in `submitForReview`, not as a seller-account lock. |

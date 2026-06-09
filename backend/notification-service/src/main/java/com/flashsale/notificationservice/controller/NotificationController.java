@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -28,11 +29,16 @@ public class NotificationController {
      * Supports Last-Event-ID for reconnection replay.
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<Notification> stream(@RequestHeader("X-User-Id") Long userId,
-                                      @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
+    public Flux<ServerSentEvent<Notification>> stream(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
         log.info("SSE stream connected: userId={}, lastEventId={}", userId, lastEventId);
-        return notificationService.getNotificationStream(userId)
+        return notificationService.getNotificationStream(userId, lastEventId)
                 .delayElements(Duration.ofMillis(100))
+                .map(notification -> ServerSentEvent.<Notification>builder(notification)
+                        .id(notification.getId())
+                        .event("notification")
+                        .build())
                 .doOnCancel(() -> {
                     notificationService.removeSink(userId);
                     log.info("SSE stream disconnected: userId={}", userId);

@@ -274,7 +274,7 @@
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
               <h1 class="h2 mb-1">Business Flow: Stripe Connect Onboarding</h1>
-              <div class="doc-meta">DOC-FLOWS-CROSS-SERVICE-FLOW-STRIPE-ONBOARDING | 2026-06-07</div>
+              <div class="doc-meta">DOC-FLOWS-CROSS-SERVICE-FLOW-STRIPE-ONBOARDING | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">business-flow</span> <span class="badge text-bg-light">cross-service</span></div>
           </div>
@@ -301,9 +301,9 @@
 </tr>
 <tr>
 <td>UC-PAYMENT-003: Handle Stripe Webhook</td>
-<td>Implemented with contract drift</td>
+<td>Implemented</td>
 <td><code>PaymentController.handleStripeWebhook</code> line 52, <code>PaymentService.handleWebhook</code> line 124</td>
-<td>Code endpoint is <code>/v1/stripe/webhooks</code>; some docs say <code>/stripe/webhook</code>.</td>
+<td>Code endpoint is <code>/v1/stripe/webhooks</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -370,12 +370,12 @@
 </tr>
 </tbody>
 </table>
-<h3>Gaps To Track</h3>
+<h3>Architecture Notes</h3>
 <table>
 <thead>
 <tr>
-<th>Gap</th>
-<th>Impact</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>

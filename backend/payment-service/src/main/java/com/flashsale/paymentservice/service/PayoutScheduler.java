@@ -157,6 +157,17 @@ public class PayoutScheduler {
                     "payout_at", Instant.now().toString()
             ));
 
+            publishPayoutEvent(st, "TRANSFER_COMPLETED", Map.of(
+                    "transfer_id", st.getId(),
+                    "order_id", st.getOrderId(),
+                    "seller_id", st.getSellerId(),
+                    "transfer_amount", transferAmount,
+                    "commission", commission,
+                    "net_amount", netAmount,
+                    "stripe_transfer_id", transfer.getId(),
+                    "payout_at", Instant.now().toString()
+            ));
+
         } catch (StripeException e) {
             log.error("Stripe transfer failed for orderId={}, sellerId={}: {}",
                     st.getOrderId(), st.getSellerId(), e.getMessage());
@@ -192,6 +203,7 @@ public class PayoutScheduler {
             case "SELLER_TRANSFER_ELIGIBLE" -> KafkaTopics.SELLER_TRANSFER_ELIGIBLE;
             case "SELLER_TRANSFER_PAID_OUT" -> KafkaTopics.SELLER_TRANSFER_PAID_OUT;
             case "SELLER_TRANSFER_FAILED" -> KafkaTopics.SELLER_TRANSFER_FAILED;
+            case "TRANSFER_COMPLETED" -> KafkaTopics.TRANSFER_COMPLETED;
             default -> type;
         };
 
