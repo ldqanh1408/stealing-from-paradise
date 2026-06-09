@@ -4,10 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.chatservice.domain.model.ChatMessage;
 import com.flashsale.chatservice.domain.model.ChatSession;
-import com.flashsale.chatservice.domain.model.PendingConfirmation;
-import com.flashsale.chatservice.domain.repository.ChatMessageRepository;
-import com.flashsale.chatservice.domain.repository.ChatSessionRepository;
-import com.flashsale.chatservice.domain.repository.PendingConfirmationRepository;
 import com.flashsale.commonlib.event.KafkaTopics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,17 +14,12 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,26 +44,20 @@ public class ChatService {
             - If you don't know something, be honest and suggest how the user can find out
             """;
 
-    private static final int MAX_HISTORY_MESSAGES = 20;
-
     private final RateLimiter rateLimiter;
-
     private final ChatModel chatModel;
-    private final ChatMessageRepository messageRepo;
-    private final ChatSessionRepository sessionRepo;
-    private final PendingConfirmationRepository confirmationRepo;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final WebClient.Builder webClientBuilder;
+
+    // Delegate Services
+    private final ChatMessageService messageService;
+    private final ChatSessionService sessionService;
+    private final ChatActionService actionService;
 
     // Tool beans for Spring AI tool calling
     private final ProductSearchTool productSearchTool;
     private final OrderQueryTool orderQueryTool;
     private final SystemActionTool systemActionTool;
-
-    // ────────────────────────────────────────────────────────────────────────
-    //  Stream Chat (SSE) — main endpoint
-    // ────────────────────────────────────────────────────────────────────────
 
     public Flux<ServerSentEvent<String>> streamChat(String sessionId, String message, Long userId, String accessToken) {
         return Flux.defer(() -> rateLimiter.tryAcquireChat(userId)
@@ -84,25 +69,21 @@ public class ChatService {
             ToolContext.setAccessToken(accessToken);
             ToolContext.setUserId(userId);
 
-            return getOrCreateSession(sessionId, userId)
+            return sessionService.getOrCreateSession(sessionId, userId)
                     .flatMapMany(session -> {
                         String sid = session.getId();
                         ToolContext.setSessionId(sid);
-                        updateSessionActivity(sid).subscribe();
+                        sessionService.updateSessionActivity(sid).subscribe();
 
-                        return saveUserMessage(sid, message, userId)
+                        return messageService.saveUserMessage(sid, message, userId)
                                 .flatMapMany(seqNo -> processConversation(sid, message, userId));
                     })
                     .doFinally(signal -> ToolContext.clear());
         }));
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    //  Conversation processing (two-phase)
-    // ────────────────────────────────────────────────────────────────────────
-
     private Flux<ServerSentEvent<String>> processConversation(String sessionId, String message, Long userId) {
-        return loadRecentHistory(sessionId)
+        return messageService.loadRecentHistory(sessionId)
                 .flatMapMany(history -> {
                     List<Message> llmMessages = buildInitialMessages(history, message);
                     return executeLlmWithTools(sessionId, userId, llmMessages);
@@ -131,12 +112,6 @@ public class ChatService {
         };
     }
 
-    /**
-     * Phase 1: Non-streaming LLM call with tools.
-     * Spring AI handles tool execution internally.
-     * Tool events are collected via ThreadLocal ToolContext.
-     * Phase 2: Emit collected tool events + stream final text as delta events.
-     */
     private Flux<ServerSentEvent<String>> executeLlmWithTools(
             String sessionId, Long userId, List<Message> messages) {
 
@@ -151,18 +126,7 @@ public class ChatService {
 
             String finalText = response.getResult().getOutput().getText();
 
-            // Save assistant message
-            return nextSequenceNo(sessionId)
-                    .flatMap(seqNo -> {
-                        ChatMessage assistantMsg = ChatMessage.builder()
-                                .sessionId(sessionId)
-                                .role("ASSISTANT")
-                                .content(finalText)
-                                .sequenceNo(seqNo)
-                                .createdAt(LocalDateTime.now())
-                                .build();
-                        return messageRepo.save(assistantMsg);
-                    })
+            return messageService.saveAssistantMessage(sessionId, finalText)
                     .flatMapMany(saved -> {
                         List<ToolContext.ToolEvent> toolEvents = ToolContext.getEvents();
                         Flux<ServerSentEvent<String>> toolEventFlux = Flux.fromIterable(toolEvents)
@@ -222,7 +186,6 @@ public class ChatService {
         if (text == null || text.isBlank()) {
             return Flux.empty();
         }
-        // Split on word boundaries for pseudo-streaming effect
         String[] chunks = text.split("(?<=\\s)");
         return Flux.fromArray(chunks)
                 .filter(s -> !s.isEmpty())
@@ -246,289 +209,28 @@ public class ChatService {
                 .build();
     }
 
-    // ────────────────────────────────────────────────────────────────────────
-    //  Session management
-    // ────────────────────────────────────────────────────────────────────────
-
     public Mono<ChatSession> createSession(Long userId) {
-        ChatSession session = ChatSession.builder()
-                .userId(userId)
-                .status("ACTIVE")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-        return sessionRepo.save(session)
-                .flatMap(saved -> publishSessionEvent(KafkaTopics.AI_SESSION_CREATED, saved)
-                        .thenReturn(saved))
-                .doOnSuccess(s -> log.info("[ChatService] Session created: id={}, userId={}", s.getId(), userId));
+        return sessionService.createSession(userId);
     }
 
     public Flux<ChatSession> getActiveSessions(Long userId) {
-        return sessionRepo.findByUserIdAndStatus(userId, "ACTIVE");
+        return sessionService.getActiveSessions(userId);
     }
 
     public Mono<Void> closeSession(String sessionId, Long userId) {
-        return sessionRepo.findByIdAndUserId(sessionId, userId)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found")))
-                .flatMap(session -> {
-                    session.setStatus("CLOSED");
-                    session.setClosedAt(LocalDateTime.now());
-                    session.setUpdatedAt(LocalDateTime.now());
-                    return sessionRepo.save(session);
-                })
-                .flatMap(saved -> publishSessionEvent(KafkaTopics.AI_SESSION_CLOSED, saved)
-                        .thenReturn(saved))
-                .doOnSuccess(s -> log.info("[ChatService] Session closed: id={}", sessionId))
-                .then();
+        return sessionService.closeSession(sessionId, userId);
     }
-
-    private Mono<ChatSession> getOrCreateSession(String sessionId, Long userId) {
-        if (sessionId != null && !sessionId.isBlank()) {
-            return sessionRepo.findByIdAndUserId(sessionId, userId)
-                    .switchIfEmpty(createSession(userId));
-        }
-        return createSession(userId);
-    }
-
-    private Mono<Void> updateSessionActivity(String sessionId) {
-        return sessionRepo.findById(sessionId)
-                .flatMap(session -> {
-                    session.setUpdatedAt(LocalDateTime.now());
-                    return sessionRepo.save(session);
-                })
-                .then();
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    //  Confirm / Reject Level-3 action
-    // ────────────────────────────────────────────────────────────────────────
 
     public Mono<ChatMessage> confirmAction(String confirmId, boolean confirmed, Long userId) {
-        return confirmationRepo.findByIdAndUserId(confirmId, userId)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Confirmation not found or expired")))
-                .flatMap(confirmation -> {
-                    if (!"PENDING".equals(confirmation.getStatus())) {
-                        return Mono.error(new ResponseStatusException(HttpStatus.CONFLICT,
-                                "Confirmation already resolved"));
-                    }
-
-                    if (confirmed) {
-                        return executeConfirmedAction(confirmation);
-                    } else {
-                        return rejectAction(confirmation);
-                    }
-                });
+        return actionService.confirmAction(confirmId, confirmed, userId);
     }
-
-    private Mono<ChatMessage> executeConfirmedAction(PendingConfirmation confirmation) {
-        String actionType = extractActionType(confirmation.getToolArguments());
-        String orderId = extractOrderId(confirmation.getToolArguments());
-        String confirmId = confirmation.getId();
-
-        log.info("[ChatService] Executing confirmed action: type={}, orderId={}", actionType, orderId);
-
-        String actionUrl = switch (actionType) {
-            case "CANCEL_ORDER" -> "/v1/orders/" + orderId + "/cancel";
-            case "REQUEST_REFUND" -> "/v1/orders/parent/" + orderId + "/refund";
-            default -> null;
-        };
-
-        if (actionUrl == null) {
-            return rejectWithError(confirmation, "Unknown action type: " + actionType).then(Mono.empty());
-        }
-
-        String accessToken = ToolContext.getAccessToken();
-
-        return webClientBuilder.build()
-                .post()
-                .uri("http://order-service" + actionUrl)
-                .header("X-Access-Token", accessToken != null ? accessToken : "")
-                .retrieve()
-                .bodyToMono(String.class)
-                .onErrorReturn("{\"error\": \"Action execution failed\"}")
-                .flatMap(result -> {
-                    confirmation.setStatus("CONFIRMED");
-                    confirmation.setConfirmedAt(LocalDateTime.now());
-                    confirmation.setUpdatedAt(LocalDateTime.now());
-
-                    return confirmationRepo.save(confirmation)
-                            .then(saveToolResultMessage(confirmation.getSessionId(),
-                                    confirmation.getToolName(), result, confirmation.getUserId()))
-                            .then(publishConfirmationResolved(confirmation.getSessionId(),
-                                    confirmation.getUserId(), confirmId, "CONFIRMED"))
-                            .then(generateConfirmationResponse(confirmation.getSessionId(),
-                                    confirmation.getUserId(), actionType, orderId, result, true));
-                });
-    }
-
-    private Mono<ChatMessage> rejectAction(PendingConfirmation confirmation) {
-        confirmation.setStatus("REJECTED");
-        confirmation.setUpdatedAt(LocalDateTime.now());
-
-        return confirmationRepo.save(confirmation)
-                .then(saveToolResultMessage(confirmation.getSessionId(),
-                        confirmation.getToolName(),
-                        "{\"status\":\"rejected\",\"message\":\"User rejected the action\"}",
-                        confirmation.getUserId()))
-                .then(publishConfirmationResolved(confirmation.getSessionId(),
-                        confirmation.getUserId(), confirmation.getId(), "REJECTED"))
-                .then(generateConfirmationResponse(confirmation.getSessionId(),
-                        confirmation.getUserId(),
-                        extractActionType(confirmation.getToolArguments()),
-                        extractOrderId(confirmation.getToolArguments()),
-                        "User rejected the action", false));
-    }
-
-    private Mono<ChatMessage> generateConfirmationResponse(String sessionId, Long userId,
-                                                            String actionType, String orderId,
-                                                            String result, boolean confirmed) {
-        String actionLabel = "CANCEL_ORDER".equals(actionType) ? "hủy đơn hàng" : "yêu cầu hoàn tiền";
-        String statusText = confirmed ? "đã được thực hiện thành công" : "đã bị từ chối";
-
-        String prompt = "Người dùng đã " + (confirmed ? "xác nhận" : "từ chối")
-                + " thao tác " + actionLabel + " cho đơn hàng #" + orderId + ". "
-                + "Kết quả: " + result + ". "
-                + "Hãy trả lời người dùng bằng tiếng Việt, thông báo kết quả một cách thân thiện.";
-
-        ChatClient chatClient = ChatClient.create(chatModel);
-
-        try {
-            ChatResponse response = chatClient.prompt()
-                    .system(SYSTEM_PROMPT)
-                    .user(prompt)
-                    .call()
-                    .chatResponse();
-
-            String content = response.getResult().getOutput().getText();
-
-            return nextSequenceNo(sessionId)
-                    .flatMap(seqNo -> {
-                        ChatMessage msg = ChatMessage.builder()
-                                .sessionId(sessionId)
-                                .role("ASSISTANT")
-                                .content(content)
-                                .sequenceNo(seqNo)
-                                .createdAt(LocalDateTime.now())
-                                .build();
-                        return messageRepo.save(msg);
-                    });
-        } catch (Exception e) {
-            log.error("[ChatService] Failed to generate confirmation response", e);
-            ChatMessage fallback = ChatMessage.builder()
-                    .sessionId(sessionId)
-                    .role("ASSISTANT")
-                    .content(confirmed
-                            ? "Thao tác " + actionLabel + " #" + orderId + " " + statusText + "."
-                            : "Thao tác " + actionLabel + " #" + orderId + " " + statusText + ".")
-                    .sequenceNo(1)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            return messageRepo.save(fallback);
-        }
-    }
-
-    private Mono<Void> rejectWithError(PendingConfirmation confirmation, String error) {
-        confirmation.setStatus("REJECTED");
-        confirmation.setUpdatedAt(LocalDateTime.now());
-        return confirmationRepo.save(confirmation).then();
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    //  Message history (cursor pagination)
-    // ────────────────────────────────────────────────────────────────────────
 
     public Flux<ChatMessage> getHistory(String sessionId, int pageSize, String before) {
-        int fetchSize = Math.min(pageSize + 5, 100);
-        return messageRepo.findBySessionIdOrderBySequenceNoDesc(sessionId,
-                        PageRequest.of(0, fetchSize))
-                .filter(msg -> {
-                    if (before == null || before.isBlank()) return true;
-                    try {
-                        return msg.getSequenceNo() < Integer.parseInt(before);
-                    } catch (NumberFormatException e) {
-                        return true;
-                    }
-                })
-                .take(pageSize);
+        return messageService.getHistory(sessionId, pageSize, before);
     }
-
-    // ────────────────────────────────────────────────────────────────────────
-    //  Suggestions
-    // ────────────────────────────────────────────────────────────────────────
 
     public Mono<List<String>> getSuggestions() {
-        return Mono.just(List.of(
-                "Tìm cho tôi sản phẩm bán chạy nhất",
-                "Đơn hàng gần đây của tôi thế nào?",
-                "Có flash sale nào đang diễn ra không?",
-                "Làm sao để theo dõi đơn hàng?",
-                "Tôi muốn tìm điện thoại dưới 10 triệu",
-                "Phí vận chuyển được tính thế nào?",
-                "Chính sách đổi trả ra sao?"
-        ));
-    }
-
-    // ────────────────────────────────────────────────────────────────────────
-    //  Internal helpers
-    // ────────────────────────────────────────────────────────────────────────
-
-    private Mono<Integer> nextSequenceNo(String sessionId) {
-        return messageRepo.countBySessionId(sessionId)
-                .map(count -> count.intValue() + 1);
-    }
-
-    private Mono<ChatMessage> saveUserMessage(String sessionId, String content, Long userId) {
-        return nextSequenceNo(sessionId)
-                .flatMap(seqNo -> {
-                    ChatMessage msg = ChatMessage.builder()
-                            .sessionId(sessionId)
-                            .role("USER")
-                            .content(content)
-                            .sequenceNo(seqNo)
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    return messageRepo.save(msg);
-                })
-                .doOnSuccess(m -> log.debug("[ChatService] Saved USER message: session={}, seq={}",
-                        sessionId, m.getSequenceNo()));
-    }
-
-    private Mono<ChatMessage> saveToolResultMessage(String sessionId, String toolName, String result, Long userId) {
-        return nextSequenceNo(sessionId)
-                .flatMap(seqNo -> {
-                    ChatMessage msg = ChatMessage.builder()
-                            .sessionId(sessionId)
-                            .role("TOOL_RESULT")
-                            .content(result)
-                            .toolName(toolName)
-                            .sequenceNo(seqNo)
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    return messageRepo.save(msg);
-                });
-    }
-
-    private Mono<List<ChatMessage>> loadRecentHistory(String sessionId) {
-        return messageRepo.findBySessionIdOrderBySequenceNoAsc(sessionId)
-                .take(MAX_HISTORY_MESSAGES)
-                .collectList();
-    }
-
-    private String extractActionType(String toolArguments) {
-        try {
-            return objectMapper.readTree(toolArguments).get("actionType").asText();
-        } catch (Exception e) {
-            return "UNKNOWN";
-        }
-    }
-
-    private String extractOrderId(String toolArguments) {
-        try {
-            return objectMapper.readTree(toolArguments).get("orderId").asText();
-        } catch (Exception e) {
-            return "UNKNOWN";
-        }
+        return sessionService.getSuggestions();
     }
 
     private Mono<Void> publishMessageSent(String sessionId, Long userId) {
@@ -549,54 +251,6 @@ public class ChatService {
             {
                 kafkaTemplate.send(KafkaTopics.AI_CHAT_MESSAGE_SENT, payload);
                 kafkaTemplate.send(KafkaTopics.AI_CHAT_MESSAGE_RECEIVED, receivedPayload);
-            });
-        } catch (JsonProcessingException e) {
-            log.warn("[ChatService] Failed to serialize Kafka payload", e);
-            return Mono.empty();
-        }
-    }
-
-    private Mono<Void> publishSessionEvent(String topic, ChatSession session) {
-        try {
-            String payload = objectMapper.writeValueAsString(Map.of(
-                    "eventType", topic,
-                    "sessionId", session.getId(),
-                    "userId", session.getUserId(),
-                    "status", session.getStatus(),
-                    "timestamp", System.currentTimeMillis()
-            ));
-            return Mono.fromRunnable(() -> kafkaTemplate.send(topic, payload));
-        } catch (JsonProcessingException e) {
-            log.warn("[ChatService] Failed to serialize session Kafka payload", e);
-            return Mono.empty();
-        }
-    }
-
-    private Mono<Void> publishConfirmationResolved(String sessionId, Long userId, String confirmId, String status) {
-        try {
-            String payload = objectMapper.writeValueAsString(Map.of(
-                    "eventType", KafkaTopics.AI_CHAT_CONFIRMATION_RESOLVED,
-                    "sessionId", sessionId,
-                    "userId", userId,
-                    "confirmId", confirmId,
-                    "status", status,
-                    "timestamp", System.currentTimeMillis()
-            ));
-            String decisionTopic = "CONFIRMED".equals(status)
-                    ? KafkaTopics.AI_CONFIRMATION_CONFIRMED
-                    : KafkaTopics.AI_CONFIRMATION_REJECTED;
-            String decisionPayload = objectMapper.writeValueAsString(Map.of(
-                    "eventType", decisionTopic,
-                    "sessionId", sessionId,
-                    "userId", userId,
-                    "confirmId", confirmId,
-                    "status", status,
-                    "timestamp", System.currentTimeMillis()
-            ));
-            return Mono.fromRunnable(() ->
-            {
-                kafkaTemplate.send(KafkaTopics.AI_CHAT_CONFIRMATION_RESOLVED, payload);
-                kafkaTemplate.send(decisionTopic, decisionPayload);
             });
         } catch (JsonProcessingException e) {
             log.warn("[ChatService] Failed to serialize Kafka payload", e);
