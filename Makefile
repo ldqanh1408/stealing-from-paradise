@@ -265,6 +265,12 @@ kafka-reset: ## Fix NOT_COORDINATOR loops: wipe kafka+zookeeper volumes, restart
 	-docker volume rm flashsale_kafka_data flashsale_zookeeper_data
 	$(COMPOSE) $(INFRA_F) up -d zookeeper kafka kafka-init
 
+connect-register: ## Register Debezium PostgreSQL connector
+	curl -i -X POST -H "Accept:application/json" -H "Content-Type:application/json" http://localhost:8083/connectors/ -d @backend/docker/debezium/postgres-outbox-connector.json
+
+connect-status: ## Check Debezium connector status
+	curl -s http://localhost:8083/connectors/postgres-outbox-connector/status
+
 axon-reset: ## Fix "Last applied index N higher than last log index 0": wipe axon volume
 	-docker rm -f fs-axonserver
 	-docker volume rm flashsale_axon_data

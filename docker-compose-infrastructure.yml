@@ -28,6 +28,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
+    command: postgres -c wal_level=logical -c max_replication_slots=10 -c max_wal_senders=10
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -159,6 +160,27 @@ services:
     command: bash /create-topics.sh
     restart: on-failure
     env_file: .env
+
+  kafka-connect:
+    image: debezium/connect:2.4
+    container_name: fs-kafka-connect
+    restart: unless-stopped
+    ports: ["8083:8083"]
+    env_file: .env
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      STATUS_STORAGE_TOPIC: my_connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    depends_on:
+      kafka: { condition: service_started }
+      postgres: { condition: service_healthy }
+    networks: [*network]
 
   axonserver:
     image: axoniq/axonserver:${AXON_VER:-latest}
