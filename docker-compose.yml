@@ -184,7 +184,7 @@ services:
     image: debezium/connect:2.4
     container_name: fs-kafka-connect
     restart: unless-stopped
-    ports: ["8083:8083"]
+    ports: ["${PORT_KAFKA_CONNECT:-18083}:8083"]
     env_file: .env
     environment:
       BOOTSTRAP_SERVERS: kafka:9092
