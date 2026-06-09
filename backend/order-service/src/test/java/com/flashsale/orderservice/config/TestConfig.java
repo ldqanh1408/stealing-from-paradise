@@ -1,6 +1,7 @@
 package com.flashsale.orderservice.config;
 
 import com.flashsale.commonlib.config.DevDataProperties;
+import com.flashsale.commonlib.infra.outbox.OutboxEventWriter;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -22,6 +23,12 @@ public class TestConfig {
     @Primary
     public DevDataProperties devDataProperties() {
         return mock(DevDataProperties.class);
+    }
+
+    @Bean
+    @Primary
+    public OutboxEventWriter outboxEventWriter() {
+        return mock(OutboxEventWriter.class);
     }
 
     @SuppressWarnings("unchecked")

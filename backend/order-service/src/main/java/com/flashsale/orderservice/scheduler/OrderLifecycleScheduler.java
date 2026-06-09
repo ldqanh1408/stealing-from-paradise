@@ -1,6 +1,7 @@
 package com.flashsale.orderservice.scheduler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.commonlib.infra.outbox.OutboxEventWriter;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.orderservice.domain.model.Order;
 import com.flashsale.orderservice.domain.model.ParentOrder;
@@ -9,7 +10,6 @@ import com.flashsale.orderservice.domain.repository.ParentOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +32,7 @@ public class OrderLifecycleScheduler {
 
     private final OrderRepository orderRepository;
     private final ParentOrderRepository parentOrderRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final OutboxEventWriter outboxEventWriter;
     private final ObjectMapper objectMapper;
 
     @Scheduled(cron = "${order.scheduler.auto-cancel-cron:0 */10 * * * *}")
@@ -93,7 +93,8 @@ public class OrderLifecycleScheduler {
             payload.put("status", order.getStatus());
             payload.put("timestamp", Instant.now().toString());
             payload.putAll(extras);
-            kafkaTemplate.send(topic, String.valueOf(order.getId()), objectMapper.writeValueAsString(payload));
+            
+            outboxEventWriter.append("order", String.valueOf(order.getId()), topic, topic, String.valueOf(order.getId()), payload);
         } catch (Exception e) {
             log.error("Failed to publish {} for orderId={}: {}", topic, order.getId(), e.getMessage(), e);
         }

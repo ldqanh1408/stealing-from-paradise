@@ -14,7 +14,8 @@ import org.springframework.boot.test.context.SpringBootTest;
         "spring.kafka.listener.auto-startup=false",
         "spring.kafka.admin.auto-create=false",
         "dev-data.enabled=false",
-        "eureka.client.enabled=false"
+        "eureka.client.enabled=false",
+        "flashsale.infra.outbox.enabled=true"
 })
 class RefundServiceApplicationTests {
 

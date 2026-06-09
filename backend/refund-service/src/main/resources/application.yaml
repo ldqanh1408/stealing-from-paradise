@@ -103,8 +103,13 @@ management:
 
 flashsale:
   infra:
+    shedlock:
+      enabled: true   # distributed lock for @Scheduled jobs (ShedLock)
     dlq:
       enabled: true   # Kafka consumer DLQ -> <topic>.DLT
+    outbox:
+      enabled: true   # Transactional Outbox pattern
+
 
 logging:
   level:

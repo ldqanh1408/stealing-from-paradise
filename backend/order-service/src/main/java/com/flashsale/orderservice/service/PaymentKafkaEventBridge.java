@@ -11,7 +11,7 @@ import com.flashsale.orderservice.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.flashsale.commonlib.infra.outbox.OutboxEventWriter;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +27,7 @@ public class PaymentKafkaEventBridge {
     private final EventGateway eventGateway;
     private final OrderRepository orderRepository;
     private final ParentOrderRepository parentOrderRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final OutboxEventWriter outboxEventWriter;
 
     public void onPaymentSuccess(String message) {
         try {
@@ -86,10 +86,9 @@ public class PaymentKafkaEventBridge {
         );
 
         try {
-            kafkaTemplate.send(KafkaTopics.ORDER_PAID,
-                    String.valueOf(parentOrderId),
-                    objectMapper.writeValueAsString(event));
-            log.info("Published order.paid: parentOrderId={}, sessionId={}", parentOrderId, sessionId);
+            outboxEventWriter.append("order", String.valueOf(parentOrderId), KafkaTopics.ORDER_PAID,
+                    KafkaTopics.ORDER_PAID, String.valueOf(parentOrderId), event);
+            log.info("Published order.paid to outbox: parentOrderId={}, sessionId={}", parentOrderId, sessionId);
         } catch (Exception e) {
             log.error("Failed to publish order.paid event: {}", e.getMessage(), e);
         }
@@ -117,10 +116,9 @@ public class PaymentKafkaEventBridge {
         );
 
         try {
-            kafkaTemplate.send(KafkaTopics.ORDER_PAYMENT_FAILED,
-                    String.valueOf(parentOrderId),
-                    objectMapper.writeValueAsString(event));
-            log.info("Published order.payment_failed: parentOrderId={}, sessionId={}", parentOrderId, sessionId);
+            outboxEventWriter.append("order", String.valueOf(parentOrderId), KafkaTopics.ORDER_PAYMENT_FAILED,
+                    KafkaTopics.ORDER_PAYMENT_FAILED, String.valueOf(parentOrderId), event);
+            log.info("Published order.payment_failed to outbox: parentOrderId={}, sessionId={}", parentOrderId, sessionId);
         } catch (Exception e) {
             log.error("Failed to publish order.payment_failed event: {}", e.getMessage(), e);
         }
