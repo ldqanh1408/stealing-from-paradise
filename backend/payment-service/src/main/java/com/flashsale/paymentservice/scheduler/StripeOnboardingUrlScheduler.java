@@ -4,6 +4,7 @@ import com.flashsale.paymentservice.domain.model.SellerStripeAccount;
 import com.flashsale.paymentservice.domain.repository.SellerStripeAccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class StripeOnboardingUrlScheduler {
     private final SellerStripeAccountRepository accountRepository;
 
     @Scheduled(cron = "${payment.scheduler.onboarding-url-cron:0 0 * * * *}")
+    @SchedulerLock(name = "payment-nullify-expired-onboarding-urls", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     @Transactional
     public void nullifyExpiredOnboardingUrls() {
         LocalDateTime now = LocalDateTime.now();

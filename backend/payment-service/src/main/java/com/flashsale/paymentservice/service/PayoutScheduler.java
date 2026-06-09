@@ -13,6 +13,7 @@ import com.stripe.model.Transfer;
 import com.stripe.param.TransferCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -57,6 +58,7 @@ public class PayoutScheduler {
      * Batch size: 100 per cycle to bound execution time.
      */
     @Scheduled(cron = "0 */5 * * * *")
+    @SchedulerLock(name = "payment-process-eligible-payouts", lockAtMostFor = "PT4M", lockAtLeastFor = "PT10S")
     @Transactional
     public void processEligiblePayouts() {
         List<SellerTransfer> eligible = sellerTransferRepository

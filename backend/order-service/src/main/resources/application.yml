@@ -77,6 +77,13 @@ eureka:
     register-with-eureka: true
     enabled: true
 
+flashsale:
+  infra:
+    shedlock:
+      enabled: true   # distributed lock for @Scheduled jobs (ShedLock)
+    dlq:
+      enabled: true   # Kafka consumer DLQ -> <topic>.DLT
+
 logging:
   level:
     org.flywaydb: DEBUG

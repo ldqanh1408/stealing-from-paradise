@@ -80,6 +80,18 @@ stripe:
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder}
   platform-fee-percentage: ${STRIPE_PLATFORM_FEE_PERCENTAGE:5.0}
 
+axon:
+  axonserver:
+    servers: ${AXON_SERVER:localhost:8124}
+    context: default
+    component-name: ${spring.application.name}
+  eventhandling:
+    poolsize: 10
+  serializer:
+    general: xstream
+  repository:
+    snapshot-filter: 10
+
 management:
   endpoints:
     web:
@@ -88,6 +100,11 @@ management:
   endpoint:
     health:
       show-details: always
+
+flashsale:
+  infra:
+    dlq:
+      enabled: true   # Kafka consumer DLQ -> <topic>.DLT
 
 logging:
   level:

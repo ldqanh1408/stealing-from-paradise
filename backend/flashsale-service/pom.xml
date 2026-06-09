@@ -76,6 +76,15 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- ShedLock R2DBC provider: distributed lock for reactive @Scheduled jobs.
+             common-lib already provides shedlock-spring transitively; this service is
+             R2DBC-only so it uses the reactive provider instead of the JDBC one. -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-r2dbc</artifactId>
+            <version>7.7.0</version>
+        </dependency>
+
         <!-- Flyway for database migration -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

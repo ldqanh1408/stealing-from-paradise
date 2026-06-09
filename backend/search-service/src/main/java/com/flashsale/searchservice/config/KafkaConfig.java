@@ -77,13 +77,15 @@ public class KafkaConfig {
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            @Qualifier("productConsumerFactory") ConsumerFactory<String, String> productConsumerFactory) {
+            @Qualifier("productConsumerFactory") ConsumerFactory<String, String> productConsumerFactory,
+            org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(productConsumerFactory);
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.BATCH);
         factory.setMissingTopicsFatal(false);
+        factory.setCommonErrorHandler(kafkaErrorHandler); // retry + route to <topic>.DLT
         return factory;
     }
 
@@ -94,13 +96,15 @@ public class KafkaConfig {
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> flashSaleKafkaListenerContainerFactory(
-            @Qualifier("flashSaleConsumerFactory") ConsumerFactory<String, String> flashSaleConsumerFactory) {
+            @Qualifier("flashSaleConsumerFactory") ConsumerFactory<String, String> flashSaleConsumerFactory,
+            org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(flashSaleConsumerFactory);
         factory.setConcurrency(1);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.BATCH);
         factory.setMissingTopicsFatal(false);
+        factory.setCommonErrorHandler(kafkaErrorHandler); // retry + route to <topic>.DLT
         return factory;
     }
 

@@ -66,13 +66,15 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+            org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(1);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.setMissingTopicsFatal(false);
+        factory.setCommonErrorHandler(kafkaErrorHandler); // retry + route to <topic>.DLT
         return factory;
     }
 }

@@ -8,6 +8,7 @@ import com.flashsale.orderservice.domain.repository.OrderRepository;
 import com.flashsale.orderservice.domain.repository.ParentOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,7 @@ public class OrderLifecycleScheduler {
     private final ObjectMapper objectMapper;
 
     @Scheduled(cron = "${order.scheduler.auto-cancel-cron:0 */10 * * * *}")
+    @SchedulerLock(name = "order-auto-cancel-stale", lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
     @Transactional
     public void autoCancelStalePendingOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(30);
@@ -56,6 +58,7 @@ public class OrderLifecycleScheduler {
     }
 
     @Scheduled(cron = "${order.scheduler.auto-deliver-cron:0 0 */6 * * *}")
+    @SchedulerLock(name = "order-auto-deliver-stale", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     @Transactional
     public void autoDeliverStaleShippingOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(7);

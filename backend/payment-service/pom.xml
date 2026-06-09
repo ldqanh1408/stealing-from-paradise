@@ -90,6 +90,12 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Axon: Trái tim xử lý Aggregate & Saga -->
+        <dependency>
+            <groupId>org.axonframework</groupId>
+            <artifactId>axon-spring-boot-starter</artifactId>
+        </dependency>
+
         <!-- Actuator — required by docker healthcheck -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -8,6 +8,7 @@ import com.flashsale.productservice.repository.CartRepository;
 import com.flashsale.productservice.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class ProductCleanupScheduler {
     private final ProductRepository productRepository;
 
     @Scheduled(cron = "${product.scheduler.stale-cart-cron:0 0 */2 * * *}")
+    @SchedulerLock(name = "product-cleanup-stale-carts", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     @Transactional
     public void cleanupStaleCarts() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
@@ -43,6 +45,7 @@ public class ProductCleanupScheduler {
     }
 
     @Scheduled(cron = "${product.scheduler.hard-delete-cron:0 0 3 * * SUN}")
+    @SchedulerLock(name = "product-hard-delete-soft-deleted", lockAtMostFor = "PT15M", lockAtLeastFor = "PT30S")
     @Transactional
     public void hardDeleteOldSoftDeletedProducts() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(90);
@@ -54,6 +57,7 @@ public class ProductCleanupScheduler {
     }
 
     @Scheduled(cron = "${product.scheduler.auto-hide-cron:0 0 2 * * *}")
+    @SchedulerLock(name = "product-auto-hide-rejected", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     @Transactional
     public void autoHideRejectedProducts() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(30);

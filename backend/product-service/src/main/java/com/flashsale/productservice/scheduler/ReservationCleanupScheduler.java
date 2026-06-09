@@ -3,6 +3,7 @@ package com.flashsale.productservice.scheduler;
 import com.flashsale.productservice.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ public class ReservationCleanupScheduler {
     private final InventoryService inventoryService;
 
     @Scheduled(fixedRateString = "${reservation.cleanup.interval-ms:180000}")
+    @SchedulerLock(name = "product-cleanup-expired-reservations", lockAtMostFor = "PT2M", lockAtLeastFor = "PT15S")
     public void cleanupExpiredReservations() {
         log.info("Starting expired reservation cleanup");
         try {

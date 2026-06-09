@@ -5,6 +5,7 @@ import com.flashsale.flashsaleservice.domain.repository.FlashSaleItemRepository;
 import com.flashsale.flashsaleservice.domain.repository.FlashSaleSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,8 +27,10 @@ public class FlashSaleMaintenanceScheduler {
     private final ReactiveStringRedisTemplate redisTemplate;
 
     @Scheduled(cron = "${flashsale.scheduler.cleanup-cron:0 0 3 * * *}")
+    @SchedulerLock(name = "flashsale-cleanup-soft-deleted", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     public void cleanupSoftDeletedSessions() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+        // Block so the ShedLock lock is held until the work completes.
         sessionRepo.findByDeletedAtIsNotNullAndDeletedAtBefore(cutoff)
                 .flatMap(session -> itemRepo.deleteBySessionId(session.getId())
                         .then(sessionRepo.delete(session))
@@ -35,19 +38,23 @@ public class FlashSaleMaintenanceScheduler {
                 .count()
                 .doOnNext(n -> { if (n > 0) log.info("JOB-08: hard-deleted {} flash-sale sessions older than {}", n, cutoff); })
                 .doOnError(e -> log.error("JOB-08 cleanup error: {}", e.getMessage(), e))
-                .subscribe();
+                .onErrorReturn(0L)
+                .block();
     }
 
     @Scheduled(cron = "${flashsale.scheduler.reconcile-cron:0 0 4 * * *}")
+    @SchedulerLock(name = "flashsale-reconcile-stock", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     public void reconcileStockForRecentlyEndedSessions() {
         LocalDateTime now = LocalDateTime.now();
+        // Block so the ShedLock lock is held until the work completes.
         sessionRepo.findByStatusAndEndTimeBetween("ENDED", now.minusDays(1), now)
                 .flatMap(session -> itemRepo.findBySessionId(session.getId())
                         .flatMap(this::reconcileItem))
                 .count()
                 .doOnNext(n -> { if (n > 0) log.info("JOB-21: reconciled {} flash-sale items", n); })
                 .doOnError(e -> log.error("JOB-21 reconciliation error: {}", e.getMessage(), e))
-                .subscribe();
+                .onErrorReturn(0L)
+                .block();
     }
 
     private Mono<FlashSaleItem> reconcileItem(FlashSaleItem item) {

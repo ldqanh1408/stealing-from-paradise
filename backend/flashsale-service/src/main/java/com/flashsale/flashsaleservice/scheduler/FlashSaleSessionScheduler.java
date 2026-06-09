@@ -8,9 +8,11 @@ import com.flashsale.flashsaleservice.domain.repository.FlashSaleItemRepository;
 import com.flashsale.flashsaleservice.domain.repository.FlashSaleSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
@@ -35,20 +37,23 @@ public class FlashSaleSessionScheduler {
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelayString = "${flashsale.session-scheduler.delay-ms:60000}")
+    @SchedulerLock(name = "flashsale-session-tick", lockAtMostFor = "PT55S", lockAtLeastFor = "PT1S")
     public void tick() {
         LocalDateTime now = LocalDateTime.now();
 
-        sessionRepo.findByStatusAndStartTimeLessThanEqual("UPCOMING", now)
+        Flux<FlashSaleSession> activations = sessionRepo.findByStatusAndStartTimeLessThanEqual("UPCOMING", now)
                 .filter(s -> s.getDeletedAt() == null)
-                .flatMap(this::activate)
-                .doOnError(e -> log.error("FlashSaleSessionScheduler: activate error: {}", e.getMessage(), e))
-                .subscribe();
+                .flatMap(this::activate);
 
-        sessionRepo.findByStatusAndEndTimeLessThanEqual("ACTIVE", now)
+        Flux<FlashSaleSession> endings = sessionRepo.findByStatusAndEndTimeLessThanEqual("ACTIVE", now)
                 .filter(s -> s.getDeletedAt() == null)
-                .flatMap(this::end)
-                .doOnError(e -> log.error("FlashSaleSessionScheduler: end error: {}", e.getMessage(), e))
-                .subscribe();
+                .flatMap(this::end);
+
+        // Block so the ShedLock lock is held for the whole tick (ShedLock releases on method return).
+        Flux.concat(activations, endings)
+                .doOnError(e -> log.error("FlashSaleSessionScheduler: tick error: {}", e.getMessage(), e))
+                .onErrorResume(e -> Flux.empty())
+                .blockLast();
     }
 
     private Mono<FlashSaleSession> activate(FlashSaleSession session) {

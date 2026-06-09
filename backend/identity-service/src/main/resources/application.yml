@@ -85,6 +85,11 @@ jwt:
 
 
 
+flashsale:
+  infra:
+    dlq:
+      enabled: true   # Kafka consumer DLQ -> <topic>.DLT
+
 logging:
   level:
     org.flywaydb: DEBUG

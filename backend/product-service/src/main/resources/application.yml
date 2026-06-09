@@ -114,6 +114,13 @@ kafka:
     flash-sale-session-started: flash_sale.session_started
     flash-sale-session-ended: flash_sale.session_ended
 
+flashsale:
+  infra:
+    shedlock:
+      enabled: true   # distributed lock for @Scheduled jobs (ShedLock)
+    dlq:
+      enabled: true   # Kafka consumer DLQ -> <topic>.DLT
+
 management:
   endpoints:
     web:
