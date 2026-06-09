@@ -20,19 +20,19 @@
     },
     {
       "id": "DOC-GAP-ANALYSIS",
-      "title": "Gap Analysis: Tài liệu vs Code thực tế",
+      "title": "Gap Analysis: Documentation vs Backend Code",
       "type": "doc",
       "group": "overview",
       "path": "GAP_ANALYSIS.html",
       "status": "documented",
-      "summary": "doc for platform (Gap Analysis: Tài liệu vs Code thực tế)",
+      "summary": "doc for platform (Gap Analysis: Documentation vs Backend Code)",
       "tags": [
         "doc",
         "overview",
         "platform"
       ],
       "related_ids": [],
-      "search_text": "gap analysis: tài liệu vs code thực tế doc platform overview gap_analysis.md"
+      "search_text": "gap analysis: documentation vs backend code doc platform overview gap_analysis.md"
     },
     {
       "id": "DOC-PROJECT-OVERVIEW",
@@ -772,19 +772,19 @@
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-DELETE-SELLER-PRODUCT",
-      "title": "Product Service - Delete Seller Product",
+      "title": "Api Delete Seller Product",
       "type": "api",
       "group": "interfaces",
       "path": "api-contracts/product-service/api-delete-seller-product.html",
       "status": "documented",
-      "summary": "api for product-service (Product Service - Delete Seller Product)",
+      "summary": "api for product-service (Api Delete Seller Product)",
       "tags": [
         "api",
         "interfaces",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service - delete seller product api product-service interfaces api-contracts/product-service/api-delete-seller-product.yaml"
+      "search_text": "api delete seller product api product-service interfaces api-contracts/product-service/api-delete-seller-product.yaml"
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-GET-ADMIN-PRODUCTS-PENDING",
@@ -820,35 +820,35 @@
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-GET-CATEGORIES",
-      "title": "Product Service - Public Category Listing",
+      "title": "Api Get Categories",
       "type": "api",
       "group": "interfaces",
       "path": "api-contracts/product-service/api-get-categories.html",
       "status": "documented",
-      "summary": "api for product-service (Product Service - Public Category Listing)",
+      "summary": "api for product-service (Api Get Categories)",
       "tags": [
         "api",
         "interfaces",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service - public category listing api product-service interfaces api-contracts/product-service/api-get-categories.yaml"
+      "search_text": "api get categories api product-service interfaces api-contracts/product-service/api-get-categories.yaml"
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-GET-CATEGORY-DETAIL",
-      "title": "Product Service - Category Detail API",
+      "title": "Api Get Category Detail",
       "type": "api",
       "group": "interfaces",
       "path": "api-contracts/product-service/api-get-category-detail.html",
       "status": "documented",
-      "summary": "api for product-service (Product Service - Category Detail API)",
+      "summary": "api for product-service (Api Get Category Detail)",
       "tags": [
         "api",
         "interfaces",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service - category detail api api product-service interfaces api-contracts/product-service/api-get-category-detail.yaml"
+      "search_text": "api get category detail api product-service interfaces api-contracts/product-service/api-get-category-detail.yaml"
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-GET-INVENTORY",
@@ -884,19 +884,19 @@
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-GET-SELLER-PRODUCTS",
-      "title": "Product Service - Seller Product Listing",
+      "title": "Api Get Seller Products",
       "type": "api",
       "group": "interfaces",
       "path": "api-contracts/product-service/api-get-seller-products.html",
       "status": "documented",
-      "summary": "api for product-service (Product Service - Seller Product Listing)",
+      "summary": "api for product-service (Api Get Seller Products)",
       "tags": [
         "api",
         "interfaces",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service - seller product listing api product-service interfaces api-contracts/product-service/api-get-seller-products.yaml"
+      "search_text": "api get seller products api product-service interfaces api-contracts/product-service/api-get-seller-products.yaml"
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-POST-ADMIN-PRODUCTS-APPROVE",
@@ -980,35 +980,35 @@
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-POST-CHECKOUT-SUBMIT",
-      "title": "Product Service - Checkout Submit API",
+      "title": "Api Post Checkout Submit",
       "type": "api",
       "group": "interfaces",
       "path": "api-contracts/product-service/api-post-checkout-submit.html",
       "status": "documented",
-      "summary": "api for product-service (Product Service - Checkout Submit API)",
+      "summary": "api for product-service (Api Post Checkout Submit)",
       "tags": [
         "api",
         "interfaces",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service - checkout submit api api product-service interfaces api-contracts/product-service/api-post-checkout-submit.yaml"
+      "search_text": "api post checkout submit api product-service interfaces api-contracts/product-service/api-post-checkout-submit.yaml"
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-POST-INVENTORY-RESERVE",
-      "title": "Product Service - Stock Reservation API",
+      "title": "Api Post Inventory Reserve",
       "type": "api",
       "group": "interfaces",
       "path": "api-contracts/product-service/api-post-inventory-reserve.html",
       "status": "documented",
-      "summary": "api for product-service (Product Service - Stock Reservation API)",
+      "summary": "api for product-service (Api Post Inventory Reserve)",
       "tags": [
         "api",
         "interfaces",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service - stock reservation api api product-service interfaces api-contracts/product-service/api-post-inventory-reserve.yaml"
+      "search_text": "api post inventory reserve api product-service interfaces api-contracts/product-service/api-post-inventory-reserve.yaml"
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-POST-PRODUCTS",
@@ -1044,19 +1044,19 @@
     },
     {
       "id": "DOC-API-CONTRACTS-PRODUCT-SERVICE-API-PUT-PRODUCTS-LIFECYCLE",
-      "title": "Product Service - Product Lifecycle",
+      "title": "Api Put Products Lifecycle",
       "type": "api",
       "group": "interfaces",
       "path": "api-contracts/product-service/api-put-products-lifecycle.html",
       "status": "documented",
-      "summary": "api for product-service (Product Service - Product Lifecycle)",
+      "summary": "api for product-service (Api Put Products Lifecycle)",
       "tags": [
         "api",
         "interfaces",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service - product lifecycle api product-service interfaces api-contracts/product-service/api-put-products-lifecycle.yaml"
+      "search_text": "api put products lifecycle api product-service interfaces api-contracts/product-service/api-put-products-lifecycle.yaml"
     },
     {
       "id": "DOC-API-CONTRACTS-REFUND-SERVICE-API-GET-ADMIN-REFUNDS-DETAIL",
@@ -2243,18 +2243,18 @@
     },
     {
       "id": "DOC-OPERATIONS-CRONJOBS",
-      "title": "Cronjobs",
+      "title": "Cronjobs Reference",
       "type": "runbook",
       "group": "platform",
       "path": "operations/CRONJOBS.html",
       "status": "documented",
-      "summary": "runbook for platform (Cronjobs)",
+      "summary": "runbook for platform (Cronjobs Reference)",
       "tags": [
         "platform",
         "runbook"
       ],
       "related_ids": [],
-      "search_text": "cronjobs runbook platform platform operations/cronjobs.md"
+      "search_text": "cronjobs reference runbook platform platform operations/cronjobs.md"
     },
     {
       "id": "DOC-OPERATIONS-ENVIRONMENT-VARIABLES",
@@ -2461,18 +2461,18 @@
     },
     {
       "id": "DOC-OVERVIEW-FLASHSALE-SERVICE-ARCHITECTURE",
-      "title": "Flash Sale Service — Architecture Overview",
+      "title": "Flash Sale Service â€” Architecture Overview",
       "type": "architecture",
       "group": "architecture",
       "path": "overview/flashsale-service/ARCHITECTURE.html",
       "status": "documented",
-      "summary": "architecture for flashsale-service (Flash Sale Service — Architecture Overview)",
+      "summary": "architecture for flashsale-service (Flash Sale Service â€” Architecture Overview)",
       "tags": [
         "architecture",
         "flashsale-service"
       ],
       "related_ids": [],
-      "search_text": "flash sale service — architecture overview architecture flashsale-service architecture overview/flashsale-service/architecture.md"
+      "search_text": "flash sale service â€” architecture overview architecture flashsale-service architecture overview/flashsale-service/architecture.md"
     },
     {
       "id": "DOC-OVERVIEW-IDENTITY-SERVICE-ARCHITECTURE",
@@ -2521,48 +2521,48 @@
     },
     {
       "id": "DOC-OVERVIEW-PAYMENT-SERVICE-ARCHITECTURE",
-      "title": "Payment Service — Architecture Overview",
+      "title": "Payment Service â€” Architecture Overview",
       "type": "architecture",
       "group": "architecture",
       "path": "overview/payment-service/ARCHITECTURE.html",
       "status": "documented",
-      "summary": "architecture for payment-service (Payment Service — Architecture Overview)",
+      "summary": "architecture for payment-service (Payment Service â€” Architecture Overview)",
       "tags": [
         "architecture",
         "payment-service"
       ],
       "related_ids": [],
-      "search_text": "payment service — architecture overview architecture payment-service architecture overview/payment-service/architecture.md"
+      "search_text": "payment service â€” architecture overview architecture payment-service architecture overview/payment-service/architecture.md"
     },
     {
       "id": "DOC-OVERVIEW-PRODUCT-SERVICE-ARCHITECTURE",
-      "title": "Product Service — Architecture Overview",
+      "title": "Product Service â€” Architecture Overview",
       "type": "architecture",
       "group": "architecture",
       "path": "overview/product-service/ARCHITECTURE.html",
       "status": "documented",
-      "summary": "architecture for product-service (Product Service — Architecture Overview)",
+      "summary": "architecture for product-service (Product Service â€” Architecture Overview)",
       "tags": [
         "architecture",
         "product-service"
       ],
       "related_ids": [],
-      "search_text": "product service — architecture overview architecture product-service architecture overview/product-service/architecture.md"
+      "search_text": "product service â€” architecture overview architecture product-service architecture overview/product-service/architecture.md"
     },
     {
       "id": "DOC-OVERVIEW-SEARCH-SERVICE-ARCHITECTURE",
-      "title": "Search Service — Architecture Overview",
+      "title": "Search Service â€” Architecture Overview",
       "type": "architecture",
       "group": "architecture",
       "path": "overview/search-service/ARCHITECTURE.html",
       "status": "documented",
-      "summary": "architecture for search-service (Search Service — Architecture Overview)",
+      "summary": "architecture for search-service (Search Service â€” Architecture Overview)",
       "tags": [
         "architecture",
         "search-service"
       ],
       "related_ids": [],
-      "search_text": "search service — architecture overview architecture search-service architecture overview/search-service/architecture.md"
+      "search_text": "search service â€” architecture overview architecture search-service architecture overview/search-service/architecture.md"
     },
     {
       "id": "DOC-SRS-FR-AI-CHAT-SERVICE-FR-AI-CHAT",
@@ -3010,18 +3010,18 @@
     },
     {
       "id": "DOC-TRACEABILITY-ORDER-SERVICE-TRACEABILITY-MATRIX",
-      "title": "Traceability Matrix — Order Service",
+      "title": "Traceability Matrix â€” Order Service",
       "type": "traceability",
       "group": "traceability",
       "path": "traceability/order-service/traceability-matrix.html",
       "status": "documented",
-      "summary": "traceability for order-service (Traceability Matrix — Order Service)",
+      "summary": "traceability for order-service (Traceability Matrix â€” Order Service)",
       "tags": [
         "order-service",
         "traceability"
       ],
       "related_ids": [],
-      "search_text": "traceability matrix — order service traceability order-service traceability traceability/order-service/traceability-matrix.md"
+      "search_text": "traceability matrix â€” order service traceability order-service traceability traceability/order-service/traceability-matrix.md"
     },
     {
       "id": "DOC-TRACEABILITY-PAYMENT-SERVICE-TRACEABILITY-MATRIX",
@@ -3629,19 +3629,19 @@
     },
     {
       "id": "DOC-USE-CASES-PRODUCT-SERVICE-UC-007-RESERVE-STOCK",
-      "title": "UC-PRODUCT-007: Reserve Stock (System, During Checkout)",
+      "title": "UC-PRODUCT-007: Reserve Stock During Checkout",
       "type": "use-case",
       "group": "use-cases",
       "path": "use-cases/product-service/uc-007-reserve-stock.html",
       "status": "documented",
-      "summary": "use-case for product-service (UC-PRODUCT-007: Reserve Stock (System, During Checkout))",
+      "summary": "use-case for product-service (UC-PRODUCT-007: Reserve Stock During Checkout)",
       "tags": [
         "product-service",
         "use-case",
         "use-cases"
       ],
       "related_ids": [],
-      "search_text": "uc-product-007: reserve stock (system, during checkout) use-case product-service use-cases use-cases/product-service/uc-007-reserve-stock.md"
+      "search_text": "uc-product-007: reserve stock during checkout use-case product-service use-cases use-cases/product-service/uc-007-reserve-stock.md"
     },
     {
       "id": "DOC-USE-CASES-PRODUCT-SERVICE-UC-008-VIEW-CART",

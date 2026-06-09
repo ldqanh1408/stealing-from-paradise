@@ -1,16 +1,16 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Product Service - Cart Items API
   description: |
     Cart item operations: add, update quantity, remove.
     Base URL: `/api/v1`
-    Service: product-service (Port 8090)
+    Service: product-service (Port 8084)
   version: "5.4.0"
 
 servers:
   - url: https://api.marketplace.vn/api/v1
     description: Production
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 
 paths:

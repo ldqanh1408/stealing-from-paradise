@@ -439,12 +439,12 @@
 <td>flash_sale.session_ended</td>
 </tr>
 <tr>
-<td>FS_ITEM_APPROVED (post-MVP)</td>
+<td>FS_ITEM_APPROVED</td>
 <td>NORMAL</td>
 <td>flash_sale.item_approved</td>
 </tr>
 <tr>
-<td>FS_ITEM_REJECTED (post-MVP)</td>
+<td>FS_ITEM_REJECTED</td>
 <td>NORMAL</td>
 <td>flash_sale.item_rejected</td>
 </tr>
@@ -459,7 +459,12 @@
 <td>product.rejected</td>
 </tr>
 <tr>
-<td>STRIPE_ACCOUNT_SUSPENDED (post-MVP)</td>
+<td>SELLER_STRIPE_REQUIREMENT</td>
+<td>HIGH</td>
+<td>seller.stripe_requirement</td>
+</tr>
+<tr>
+<td>STRIPE_ACCOUNT_SUSPENDED</td>
 <td>URGENT</td>
 <td>stripe.account_suspended</td>
 </tr>
@@ -501,11 +506,11 @@
 <h2>Kafka Integration (Consumer Only)</h2>
 <p>Notification Service produces <strong>zero</strong> events. It consumes topics from:</p>
 <ul>
-<li><strong>Identity Service</strong>: no domain events currently consumed</li>
-<li><strong>Product Service</strong>: product.pending_review, product.approved, product.rejected, product.auto_hidden (post-MVP)</li>
+<li><strong>Identity Service</strong>: seller.registered</li>
+<li><strong>Product Service</strong>: product.pending_review, product.approved, product.rejected</li>
 <li><strong>Order Service</strong>: order.shipped, order.delivered, order.cancelled, order.auto_cancelled, order.returned</li>
-<li><strong>Payment Service</strong>: payment.success, payment.failed, refund.<em>, stripe.</em> (stripe.account_suspended is post-MVP)</li>
-<li><strong>Flash Sale Service</strong>: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_* (post-MVP)</li>
+<li><strong>Payment Service</strong>: payment.success, payment.failed, refund.<em>, seller.transfer.</em>, seller.stripe_requirement, stripe.account_suspended</li>
+<li><strong>Flash Sale Service</strong>: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_registered, flash_sale.item_approved, flash_sale.item_rejected</li>
 </ul>
 <hr>
 <h2>Cross-References</h2>

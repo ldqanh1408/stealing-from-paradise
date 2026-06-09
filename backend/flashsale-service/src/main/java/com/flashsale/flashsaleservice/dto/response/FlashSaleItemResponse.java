@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class FlashSaleItemResponse {
     private Long id;
     private Long sessionId;
+    private Long sellerId;
     private String skuCode;
     private BigDecimal flashPrice;
     private Integer flashStock;

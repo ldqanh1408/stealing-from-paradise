@@ -1,4 +1,4 @@
-# Running Guide
+﻿# Running Guide
 
 > **Source**: documents/operations/RUNNING_GUIDE.md (2026-05-11)
 > **Entry Script**: flashsale-build.ps1
@@ -190,9 +190,9 @@ Services: `discovery`, `gateway`, `identity`, `payment`, `order`, `flashsale`, `
 | Identity | `fs-identity` | 8081 | http://localhost:8081 |
 | Payment | `fs-payment` | 8082 | http://localhost:8082 |
 | Order | `fs-order` | 8083 | http://localhost:8083 |
-| Flash Sale | `fs-flashsale` | 8085 | http://localhost:8085 |
-| Product | `fs-product` | 8090 | http://localhost:8090 |
-| Search | `fs-search` | 8091 | http://localhost:8091 |
+| Flash Sale | `fs-flashsale` | 8086 | http://localhost:8086 |
+| Product | `fs-product` | 8084 | http://localhost:8084 |
+| Search | `fs-search` | 8087 | http://localhost:8087 |
 | Notification | `fs-notification` | 8092 | http://localhost:8092 |
 | AI Chat | `fs-chat` | 8093 | http://localhost:8093 |
 

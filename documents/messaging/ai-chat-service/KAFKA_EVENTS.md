@@ -1,4 +1,4 @@
-# Kafka Events -- AI Chat Service
+﻿# Kafka Events -- AI Chat Service
 
 > Service: ai-chat-service (Port 8093)
 > Database: MongoDB (collections: chat_sessions, chat_messages, pending_confirmations, tool_call_logs)
@@ -174,7 +174,7 @@ AI Chat Service does **NOT** consume Kafka events from other services. All inter
 
 | Dependency | Protocol | Purpose |
 |------------|----------|---------|
-| Product Service (Port 8090) | REST | Tool: `searchProducts` -- query product catalog |
+| Product Service (Port 8084) | REST | Tool: `searchProducts` -- query product catalog |
 | Order Service (Port 8083) | REST | Tool: `getOrderDetail`, `cancelOrder` -- order lookup and mutation |
 | Identity Service (Port 8081) | REST | Tool: `getUserProfile` -- user profile lookup |
 | FAQ / Knowledge Base | REST | Tool: `searchFaq` -- knowledge base queries |

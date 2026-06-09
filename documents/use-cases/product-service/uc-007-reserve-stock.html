@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UC-PRODUCT-007: Reserve Stock (System, During Checkout)</title>
+  <title>UC-PRODUCT-007: Reserve Stock During Checkout</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
@@ -273,14 +273,14 @@
         <section class="doc-hero doc-section">
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
-              <h1 class="h2 mb-1">UC-PRODUCT-007: Reserve Stock (System, During Checkout)</h1>
+              <h1 class="h2 mb-1">UC-PRODUCT-007: Reserve Stock During Checkout</h1>
               <div class="doc-meta">DOC-USE-CASES-PRODUCT-SERVICE-UC-007-RESERVE-STOCK | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">use-case</span> <span class="badge text-bg-light">product-service</span></div>
           </div>
         </section>
 
-        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>UC-PRODUCT-007: Reserve Stock (System, During Checkout)</h1>
+        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>UC-PRODUCT-007: Reserve Stock During Checkout</h1>
 <table>
 <thead>
 <tr>
@@ -295,7 +295,7 @@
 </tr>
 <tr>
 <td><strong>Actor</strong></td>
-<td>System (triggered by Order Service via Kafka or request-reply)</td>
+<td>Product Service checkout submit</td>
 </tr>
 <tr>
 <td><strong>Priority</strong></td>
@@ -303,81 +303,44 @@
 </tr>
 <tr>
 <td><strong>Precondition</strong></td>
-<td>Customer has confirmed checkout; preview_token is valid</td>
+<td>Buyer has a valid <code>preview_token</code></td>
 </tr>
 <tr>
 <td><strong>Postcondition</strong></td>
-<td>Stock reserved with 15-min TTL; stock_quantity deducted</td>
+<td>Stock reserved with 15-minute TTL and checkout event emitted</td>
 </tr>
 </tbody>
 </table>
 <hr>
 <h2>Main Flow</h2>
-<h3>Phase 1: Stock Check (Request-Reply)</h3>
-<pre><code>1. Order Service sends order.stock_check.request
-   Payload: { items: [{ variantId, quantity }] }
-
-2. Product Service (Inventory module) checks each variant:
-   - stock_quantity &gt;= requested quantity
-   - status = 'active'
-
-3. Product Service returns order.stock_check.response:
-   { allAvailable: true/false,
-     results: [{ variantId, available: bool, currentStock, reason? }] }
-
-4. IF any unavailable: Order Service rejects checkout
-</code></pre>
-<h3>Phase 2: Reserve Stock (On order.checkout_submitted Event)</h3>
-<pre><code>1. Order Service emits order.checkout_submitted event after creating order
-   Payload includes:
-   - session_id: unique checkout session ID
-   - customer_id: buyer's user ID
-   - items: [{ variantId, quantity, skuCode, priceSnapshot, sellerId, ... }]
-
-2. Product Service: DB Transaction with Pessimistic Lock for each variant:
-   a) SELECT ... FOR UPDATE on product_variant (acquires row lock)
-
-   b) IF stock_quantity &lt; requested quantity:
-      ROLLBACK lock, return error &quot;out of stock&quot;
-
-   c) INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
-      VALUES (:vid, :sid, :qty, 'pending', NOW() + INTERVAL '15 minutes')
-
-   d) UPDATE product_variant
-      SET stock_quantity = stock_quantity - :qty,
-          status = CASE WHEN stock_quantity - :qty = 0 THEN 'out_of_stock' ELSE status END
-      WHERE id = :vid
-
-3. Product status recomputed in same transaction
-
-4. Returns success -&gt; Order Service proceeds to payment
-</code></pre>
+<h3>Phase 1: Checkout Preview</h3>
+<ol>
+<li>Buyer calls <code>POST /v1/cart/checkout/preview</code> with <code>item_ids[]</code>.</li>
+<li>Product Service validates cart ownership, active variants, current price, and available stock.</li>
+<li>Product Service stores the preview in Redis and returns a one-time <code>preview_token</code> with 10-minute TTL.</li>
+</ol>
+<h3>Phase 2: Checkout Submit and Reservation</h3>
+<ol>
+<li>Buyer calls <code>POST /v1/cart/checkout/submit</code> with <code>preview_token</code> and <code>address_id</code>.</li>
+<li>Product Service validates the address via <code>order.address.request</code> / <code>order.address.response</code>.</li>
+<li>Product Service revalidates stock and price.</li>
+<li>Product Service reserves each variant with a shared <code>session_id</code>.</li>
+<li>Product Service stores a checkout session in Redis for 15 minutes.</li>
+<li>Product Service emits <code>order.checkout_submitted</code> with item snapshots, address snapshot, totals, and <code>session_id</code>.</li>
+<li>Order Service consumes the event and creates parent/sub-orders.</li>
+</ol>
 <h3>Phase 3: Confirm or Release</h3>
-<pre><code>Payment Succeeds (order.paid event with session_id + customer_id):
-  UPDATE stock_reservation SET status = 'confirmed'
-  WHERE session_id = :sid
-  -- Stock already deducted, no further action
-  -- HARD DELETE cart_items WHERE (customer_id, variant_id) IN (...)
-     via: CartItemRepository.deleteAllByCustomerIdAndVariantIds(userId, variantIds)
+<pre><code>order.paid:
+  stock_reservation -&gt; CONFIRMED
+  cart_items for the reserved variants are deleted
 
-Payment Fails (order.payment_failed event with session_id + customer_id):
-  UPDATE stock_reservation SET status = 'released'
-  WHERE session_id = :sid
-  -- DB: UPDATE product_variant SET stock_quantity += qty (pessimistic lock via SELECT FOR UPDATE)
+order.payment_failed / order.cancelled / order.auto_cancelled:
+  stock_reservation -&gt; RELEASED
+  product_variant.stock_quantity is restored
 
-Cleanup Job (runs every 1-5 min):
-  SELECT * FROM stock_reservation
-  WHERE status = 'pending' AND expires_at &lt; NOW()
-  -- For each: release (set released, restore DB stock via pessimistic lock)
+Reservation cleanup:
+  expired PENDING reservations are released by product-service scheduler
 </code></pre>
-<hr>
-<h2>Cart Item Deletion Flow</h2>
-<p>When <code>order.paid</code> or <code>order.payment_failed</code> is received:
-1. Extract <code>session_id</code> and <code>customer_id</code> (userId) from event payload
-2. Find all <code>stock_reservation</code> records matching <code>session_id</code>
-3. For each reservation: extract <code>variant_id</code>
-4. Hard-delete: <code>DELETE FROM cart_items WHERE customer_id = :cid AND variant_id IN (:variantIds)</code></p>
-<p>No <code>cart_item_id</code> stored in <code>stock_reservation</code>. Composite key <code>(customer_id, variant_id)</code> used instead.</p>
 <hr>
 <h2>Error Scenarios</h2>
 <table>
@@ -389,12 +352,20 @@ Cleanup Job (runs every 1-5 min):
 </thead>
 <tbody>
 <tr>
-<td>Insufficient stock</td>
-<td>Pessimistic lock acquired, stock check fails -&gt; 422 Insufficient stock</td>
+<td>Invalid preview token</td>
+<td>400 / 409 depending on validation path</td>
+</tr>
+<tr>
+<td>Address missing or not owned by buyer</td>
+<td>409</td>
+</tr>
+<tr>
+<td>Stock or price changed after preview</td>
+<td>409 with item-level details</td>
 </tr>
 <tr>
 <td>Concurrent reservation</td>
-<td>Pessimistic lock serializes requests (second request waits for first to complete)</td>
+<td>Pessimistic lock serializes reservations</td>
 </tr>
 </tbody>
 </table>

@@ -1,6 +1,6 @@
-# FR-PRODUCT-016 through FR-PRODUCT-022: Cart Functional Requirements
+﻿# FR-PRODUCT-016 through FR-PRODUCT-022: Cart Functional Requirements
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Domain**: Cart
 > **Source**: 02_API_product_service.md Cart Endpoints, product_service_ui_logic.md Sections 3-4
 
@@ -77,7 +77,7 @@
 |-----------|-------|
 | **Priority** | CRITICAL |
 | **Actor** | Customer (JWT required) |
-| **Endpoint** | `POST /v1/checkout/preview` |
+| **Endpoint** | `POST /v1/cart/checkout/preview` |
 | **Description** | Validates ALL cart items: price must match snapshot, stock must be sufficient, variant must be active. If all pass, returns a `preview_token` (TTL 10 min) stored in Redis. If any check fails, returns 409 Conflict with per-item error details -- UI must force cart refresh before retrying. |
 | **Acceptance Criteria** | AC1: Price mismatch -> 409 with `PRICE_CHANGED` detail. AC2: Insufficient stock -> 409 with `INSUFFICIENT_STOCK` detail. AC3: Inactive/unavailable variant -> 409 with `VARIANT_INACTIVE` detail. AC4: All checks pass -> returns `preview_token` + `expires_at` (10 min TTL). AC5: Token is invalidated after successful checkout. |
 | **Related** | ENTITY-PRODUCT-007, BR-PRODUCT-011, BR-PRODUCT-012 |
@@ -90,7 +90,7 @@
 |-----------|-------|
 | **Priority** | CRITICAL |
 | **Actor** | Customer (JWT required) |
-| **Endpoint** | `POST /v1/checkout/submit` |
+| **Endpoint** | `POST /v1/cart/checkout/submit` |
 | **Description** | Receives a valid `preview_token` and address. Re-validates all items one final time. On success: reserves stock (PENDING), stores checkout session in Redis (TTL 15 min), emits `order.checkout_submitted` Kafka event to Order Service, and invalidates the `preview_token`. On failure: returns 409 Conflict with details. |
 | **Acceptance Criteria** | AC1: Missing/invalid `preview_token` -> 409. AC2: Stock or price changed since preview -> 409 Conflict with details. AC3: All checks pass -> stock reserved (PENDING), `order.checkout_submitted` event sent, `preview_token` invalidated, returns `session_id`. AC4: On `order.paid` event -> confirmReservation(). AC5: On `order.payment_failed` event -> releaseReservation(). |
 | **Related** | ENTITY-PRODUCT-007, ENTITY-PRODUCT-008, KafkaTopics.ORDER_CHECKOUT_SUBMITTED, KafkaTopics.ORDER_PAID, KafkaTopics.ORDER_PAYMENT_FAILED |

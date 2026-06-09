@@ -9,13 +9,19 @@
 
 ## Events Consumed
 
-Notification Service is a consumer-only service. It listens to 27 Kafka topics from all services and pushes SSE real-time notifications to users. It produces **zero** events.
+Notification Service is a consumer-only service. It listens to Kafka topics from all backend domains and pushes SSE real-time notifications to users. It produces **zero** events.
 
 ---
 
 ### From Identity Service
 
-Identity Service does NOT produce Kafka domain events. No events consumed from this service.
+#### seller.registered
+
+| Field | Value |
+|-------|-------|
+| **Type** | SYSTEM |
+| **Priority** | NORMAL |
+| **Action** | Notify user that the seller account is ready |
 
 ---
 
@@ -248,6 +254,22 @@ Identity Service does NOT produce Kafka domain events. No events consumed from t
 }
 ```
 
+#### seller.stripe_requirement
+
+| Field | Value |
+|-------|-------|
+| **Type** | SYSTEM |
+| **Priority** | HIGH |
+| **Action** | Notify seller that Stripe requires additional verification |
+
+#### stripe.account_suspended
+
+| Field | Value |
+|-------|-------|
+| **Type** | STRIPE_ACCOUNT_SUSPENDED |
+| **Priority** | URGENT |
+| **Action** | Notify seller that the Stripe account is suspended |
+
 #### refund.requested
 
 | Field | Value |
@@ -396,6 +418,22 @@ Identity Service does NOT produce Kafka domain events. No events consumed from t
 }
 ```
 
+#### flash_sale.item_approved
+
+| Field | Value |
+|-------|-------|
+| **Type** | FS_ITEM_APPROVED |
+| **Priority** | NORMAL |
+| **Action** | Notify seller that the flash-sale item was approved |
+
+#### flash_sale.item_rejected
+
+| Field | Value |
+|-------|-------|
+| **Type** | FS_ITEM_REJECTED |
+| **Priority** | NORMAL |
+| **Action** | Notify seller that the flash-sale item was rejected |
+
 ---
 
 ### From AI Chat Service
@@ -484,7 +522,7 @@ Browser receives via EventSource /text/event-stream
 
 | Field | Value |
 |-------|-------|
-| **Endpoint** | `GET /v1/notifications` |
+| **Endpoint** | `GET /v1/notifications/stream` |
 | **Content-Type** | `text/event-stream` |
 | **Auth** | JWT Bearer token required |
 | **Reconnection** | Client sends `Last-Event-ID` header to replay missed events |
@@ -513,9 +551,11 @@ data: {"title":"Don hang #5 da duoc giao","body":"Don hang cua ban da duoc giao 
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| `GET` | `/v1/notifications` | SSE stream of real-time notifications |
-| `GET` | `/v1/notifications/history` | Paginated notification history (`?page=0&size=20&is_read=false`) |
-| `PUT` | `/v1/notifications/read-all` | Mark all unread notifications as read for authenticated user |
+| `GET` | `/v1/notifications/stream` | SSE stream of real-time notifications |
+| `GET` | `/v1/notifications` or `/v1/notifications/history` | Paginated notification history (`?page=0&size=20`) |
+| `PUT` / `PATCH` | `/v1/notifications/{notifId}/read` | Mark one notification as read |
+| `PUT` / `PATCH` | `/v1/notifications/read-all` | Mark all unread notifications as read for authenticated user |
+| `GET` | `/v1/notifications/unread-count` | Unread notification count |
 
 ---
 

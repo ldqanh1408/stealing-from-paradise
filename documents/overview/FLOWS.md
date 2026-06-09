@@ -1,4 +1,4 @@
-# Cross-Service Flow Diagrams
+﻿# Cross-Service Flow Diagrams
 
 > Generated: 2026-05-10
 > Source: `docs/services/flashsale-service/flashsale_service_flow.md`, `docs/services/product-service/product_service_flow.md`, KAFKA_EVENTS.md files
@@ -166,7 +166,7 @@ sequenceDiagram
     participant PS as Product Service
     participant Redis
 
-    Customer->>PS: POST /v1/checkout/preview (item_ids[])
+    Customer->>PS: POST /v1/cart/checkout/preview (item_ids[])
     PS->>PS: Validate ALL items (price, stock, status)
     alt Any validation fails
         PS-->>Customer: 409 Conflict (per-item details)
@@ -187,7 +187,7 @@ sequenceDiagram
     participant PayS as Payment Service
 
     Note over Customer,PayS: Step 1: Checkout Preview
-    Customer->>PS: POST /v1/checkout/preview (item_ids[])
+    Customer->>PS: POST /v1/cart/checkout/preview (item_ids[])
     PS->>PS: Validate ALL items (price, stock, variant)
     alt Validation fails
         PS-->>Customer: 409 Conflict (per-item details)
@@ -197,7 +197,7 @@ sequenceDiagram
     end
 
     Note over Customer,PayS: Step 2: Checkout Submit
-    Customer->>PS: POST /v1/checkout/submit (preview_token, address_snapshot)
+    Customer->>PS: POST /v1/cart/checkout/submit (preview_token, address_snapshot)
     PS->>PS: Validate preview_token (Redis)
     PS->>PS: Re-validate stock for ALL items
     PS->>Redis: Reserve stock (DECR + stock_reservation PENDING)
@@ -217,13 +217,13 @@ sequenceDiagram
         OS->>PayS: Kafka: order.paid
         OS->>OS: Update order PAID
         PayS->>PS: Kafka: order.paid
-        PS->>PS: confirmReservation() → CONFIRMED
+        PS->>PS: confirmReservation() â†’ CONFIRMED
     else Payment failed
         PayS->>OS: payment.failed
         OS->>PayS: Kafka: order.payment_failed
         OS->>OS: Update order CANCELLED
         PayS->>PS: Kafka: order.payment_failed
-        PS->>PS: releaseReservation() → RELEASED
+        PS->>PS: releaseReservation() â†’ RELEASED
     end
 ```
 
@@ -239,16 +239,16 @@ sequenceDiagram
 
     Stripe->>PayS: Webhook payment_intent.succeeded
     PayS->>Kafka: payment.success
-    Kafka->>OS: Consume → update orders PAID
+    Kafka->>OS: Consume â†’ update orders PAID
     Kafka->>PayS: order.paid
-    PayS->>PS: Consume → confirmReservation()
+    PayS->>PS: Consume â†’ confirmReservation()
 
     alt Payment fails
         Stripe->>PayS: Webhook payment_intent.payment_failed
         PayS->>Kafka: payment.failed
-        Kafka->>OS: Consume → update orders CANCELLED
+        Kafka->>OS: Consume â†’ update orders CANCELLED
         Kafka->>PayS: order.payment_failed
-        PayS->>PS: Consume → releaseReservation()
+        PayS->>PS: Consume â†’ releaseReservation()
     end
 ```
 

@@ -38,6 +38,7 @@ public class CheckoutSubmitService {
     private final ProductVariantRepository variantRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final KafkaReplyService kafkaReplyService;
 
     @Transactional
     public ApiResponse<CheckoutSubmitResponse> submit(CheckoutSubmitRequest request, Long customerId) {
@@ -47,6 +48,8 @@ public class CheckoutSubmitService {
                 checkoutPreviewService.validateAndGetPreview(previewToken, customerId);
 
         revalidateStock(preview);
+        Map<String, Object> addressInfo = fetchAddress(customerId, request.getAddressId());
+        String addressSnapshot = buildAddressSnapshot(addressInfo);
 
         String sessionId = UUID.randomUUID().toString();
         List<Map<String, Object>> orderItems = new ArrayList<>();
@@ -86,11 +89,10 @@ public class CheckoutSubmitService {
             }
         }
 
-        String addressSnapshot = buildAddressSnapshot(request);
-
         Map<String, Object> sessionPayload = new LinkedHashMap<>();
         sessionPayload.put("session_id", sessionId);
         sessionPayload.put("customer_id", customerId);
+        sessionPayload.put("address_id", request.getAddressId());
         sessionPayload.put("preview_token", previewToken);
         sessionPayload.put("items", orderItems);
         sessionPayload.put("total_amount", totalAmount);
@@ -108,6 +110,7 @@ public class CheckoutSubmitService {
         event.put("timestamp", Instant.now().toString());
         event.put("session_id", sessionId);
         event.put("customer_id", customerId);
+        event.put("address_id", request.getAddressId());
         event.put("preview_token", previewToken);
         event.put("items", orderItems);
         event.put("total_amount", totalAmount);
@@ -216,17 +219,47 @@ public class CheckoutSubmitService {
         }
     }
 
-    private String buildAddressSnapshot(CheckoutSubmitRequest request) {
+    private Map<String, Object> fetchAddress(Long customerId, Long addressId) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("user_id", customerId);
+        payload.put("address_id", addressId);
+
+        Map<String, Object> response = kafkaReplyService.sendAndReceive(KafkaTopics.ORDER_ADDRESS_REQUEST, payload);
+        Object error = response.get("error");
+        if (Boolean.TRUE.equals(error)
+                || "true".equalsIgnoreCase(String.valueOf(error))
+                || response.get("addressId") == null) {
+            throw new AppException(ErrorCode.CONFLICT, "Dia chi giao hang khong hop le");
+        }
+
+        return response;
+    }
+
+    private String buildAddressSnapshot(Map<String, Object> addressInfo) {
         try {
             Map<String, Object> addr = new LinkedHashMap<>();
-            addr.put("address_id", request.getAddressId());
-            addr.put("province_id", request.getProvinceId());
-            addr.put("district_id", request.getDistrictId());
-            addr.put("full_address", request.getFullAddress());
+            addr.put("address_id", toLong(addressInfo.get("addressId")));
+            addr.put("province_id", toLong(addressInfo.get("provinceId")));
+            addr.put("district_id", toLong(addressInfo.get("districtId")));
+            addr.put("full_address", addressInfo.get("fullAddress"));
             return objectMapper.writeValueAsString(addr);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize address snapshot", e);
             return "{}";
+        }
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

@@ -1,6 +1,6 @@
-# Kafka Events -- Product Service (Catalog + Cart + Inventory)
+﻿# Kafka Events -- Product Service (Catalog + Cart + Inventory)
 
-> Service: product-service (Port 8090)
+> Service: product-service (Port 8084)
 > Source: `docs/services/product-service/KAFKA_EVENTS.md`, `docs/services/product-service/02_API_product_service.md`
 > Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots moved from internal REST/WebClient to Kafka request-reply `search.index_data.*`)
 
@@ -13,7 +13,7 @@
 | Field | Value |
 |-------|-------|
 | **Consumers** | Order Service |
-| **Trigger** | Buyer submits checkout via `POST /v1/checkout/submit` (Product Service) |
+| **Trigger** | Buyer submits checkout via `POST /v1/cart/checkout/submit` (Product Service) |
 | **Retention** | 7 days |
 | **Partition Key** | `customer_id` |
 
@@ -174,7 +174,7 @@
 |-------|-------|
 | **Consumers** | Order Service, Notification Service |
 | **Trigger** | `ReservationCleanupScheduler` (cron every minute) detects `stock_reservation.expires_at < NOW()` and `status = PENDING` |
-| **Status** | NEW -- bo sung 2026-05-10 (MVP MUST-HAVE, xem `MVP_ANALYSIS.md` §3.1) |
+| **Status** | NEW -- bo sung 2026-05-10 (MVP MUST-HAVE, xem `MVP_ANALYSIS.md` Â§3.1) |
 | **Retention** | 7 days |
 | **Partition Key** | `session_id` |
 
@@ -198,7 +198,7 @@
 ```
 
 **Consumer actions:**
-- Order Service: neu `parent_orders.session_id` = nay va status `PENDING_PAYMENT` → cascade goi `order.payment_timeout` flow.
+- Order Service: neu `parent_orders.session_id` = nay va status `PENDING_PAYMENT` â†’ cascade goi `order.payment_timeout` flow.
 - Notification Service: thong bao buyer "Phien giu cho da het han".
 
 ---
@@ -211,7 +211,7 @@
 |-------|-------|
 | **Producer** | product-service (`POST /seller/products/{id}/submit`) |
 | **Consumers** | notification-service (broadcast to admin queue) |
-| **Trigger** | Seller submits product for admin review (`draft → pending`) |
+| **Trigger** | Seller submits product for admin review (`draft â†’ pending`) |
 | **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
@@ -249,7 +249,7 @@
 |-------|-------|
 | **Producer** | product-service (`POST /admin/products/{id}/approve`) |
 | **Consumers** | notification-service (notify seller) |
-| **Trigger** | Admin approves a pending product (`pending → approved`) |
+| **Trigger** | Admin approves a pending product (`pending â†’ approved`) |
 | **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
@@ -286,8 +286,8 @@
 |-------|-------|
 | **Producer** | product-service (`POST /admin/products/{id}/reject`) |
 | **Consumers** | notification-service (notify seller with reason) |
-| **Trigger** | Admin rejects a pending product (`pending → rejected`) |
-| **Note** | No Search Service consumer — product has never been indexed at this point. |
+| **Trigger** | Admin rejects a pending product (`pending â†’ rejected`) |
+| **Note** | No Search Service consumer â€” product has never been indexed at this point. |
 | **Status** | RE-ACTIVATED 2026-05-10 v3 -- P3-11 APPROVED |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
@@ -314,7 +314,7 @@
 
 **Downstream effects:**
 - Notification Service: NOTIF-PRODUCT-REJECTED to seller, body includes `{rejectReason}` so seller biet phai sua gi.
-- Product Service (self): tang counter `rejectCount`; neu >=3 → lock product khoi auto-resubmit (BR-PRODUCT-009.8).
+- Product Service (self): tang counter `rejectCount`; neu >=3 â†’ lock product khoi auto-resubmit (BR-PRODUCT-009.8).
 
 ---
 
@@ -323,7 +323,7 @@
 || Field | Value |
 |-------|-------|
 | **Consumers** | Search Service (primary), Notification Service (optional) |
-| **Trigger** | Seller publishes product (`approved → active` via `POST /seller/products/{id}/publish`) |
+| **Trigger** | Seller publishes product (`approved â†’ active` via `POST /seller/products/{id}/publish`) |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
 
@@ -358,7 +358,7 @@
 || Field | Value |
 |-------|-------|
 | **Consumers** | Search Service (primary), Notification Service (optional) |
-| **Trigger** | Seller unpublishes product (`active/out_of_stock → inactive` via `POST /seller/products/{id}/unpublish`) |
+| **Trigger** | Seller unpublishes product (`active/out_of_stock â†’ inactive` via `POST /seller/products/{id}/unpublish`) |
 | **Retention** | 30 days |
 | **Partition Key** | `product_id` |
 
@@ -464,7 +464,7 @@ Supported `requestType` values:
 |-------|-------|
 | **Module** | Inventory |
 | **Action** | Confirm all PENDING stock reservations for the given `session_id`. Calls `confirmReservation()` to set status to CONFIRMED. |
-| **Trigger** | Payment success — Payment Service publishes `payment.success`, Order Service re-publishes as `order.paid` |
+| **Trigger** | Payment success â€” Payment Service publishes `payment.success`, Order Service re-publishes as `order.paid` |
 
 ### order.payment_failed (from Order Service)
 
@@ -472,7 +472,7 @@ Supported `requestType` values:
 |-------|-------|
 | **Module** | Inventory |
 | **Action** | Release all PENDING stock reservations for the given `session_id`. Calls `releaseReservation()` to restore stock and set status to RELEASED. |
-| **Trigger** | Payment failure — Payment Service publishes `payment.failed`, Order Service re-publishes as `order.payment_failed` |
+| **Trigger** | Payment failure â€” Payment Service publishes `payment.failed`, Order Service re-publishes as `order.payment_failed` |
 
 ### order.cancelled / order.auto_cancelled (from Order Service)
 

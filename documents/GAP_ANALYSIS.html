@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gap Analysis: Tài liệu vs Code thực tế</title>
+  <title>Gap Analysis: Documentation vs Backend Code</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
@@ -273,458 +273,145 @@
         <section class="doc-hero doc-section">
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
-              <h1 class="h2 mb-1">Gap Analysis: Tài liệu vs Code thực tế</h1>
+              <h1 class="h2 mb-1">Gap Analysis: Documentation vs Backend Code</h1>
               <div class="doc-meta">DOC-GAP-ANALYSIS | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">doc</span> <span class="badge text-bg-light">platform</span></div>
           </div>
         </section>
 
-        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Gap Analysis: Tài liệu vs Code thực tế</h1>
-<p><strong>Ngày phân tích:</strong> 2026-06-07<br>
-<strong>Phương pháp:</strong> So sánh trực tiếp giữa documents/ và source code Java trong backend/<br>
-<strong>Các file đã đọc:</strong> KAFKA_CATALOG.md, KAFKA_EVENTS.md (mỗi service), CRONJOBS.md, tất cả Controllers, tất cả Kafka Consumers/Producers</p>
-<hr>
-<h2>Tóm tắt nhanh</h2>
+        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Gap Analysis: Documentation vs Backend Code</h1>
+<p>Updated: 2026-06-09</p>
+<p>This file is a current-state audit of the backend implementation against the documented business flows, Kafka catalog, API contracts, and scheduled jobs.</p>
+<h2>Current Summary</h2>
 <table>
 <thead>
 <tr>
-<th>Hạng mục</th>
-<th>Tổng trong tài liệu</th>
-<th>Đã implement</th>
-<th>Chưa implement</th>
+<th>Area</th>
+<th>Current Evidence</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>Business use cases</td>
+<td><code>BUSINESS_FLOW_USE_CASE_CODE_AUDIT.md</code> reports 48 documented use cases: 47 implemented, 1 implemented through an alternate path, 0 fully absent.</td>
+<td>GREEN</td>
+</tr>
+<tr>
+<td>Kafka consumers</td>
+<td>Consumers are split into dedicated Java classes; duplicate multi-listener files were removed.</td>
+<td>GREEN</td>
+</tr>
 <tr>
 <td>Cronjobs</td>
-<td>15 jobs (1 MongoDB TTL, không phải job thật)</td>
-<td>1 (JOB-23)</td>
-<td><strong>13</strong></td>
+<td>Implemented <code>@Scheduled</code> jobs cover flash sale lifecycle/maintenance, product cleanup/reservation expiry, order auto-cancel/auto-deliver, Stripe onboarding URL cleanup, and payouts.</td>
+<td>GREEN</td>
 </tr>
 <tr>
-<td>Kafka Producers</td>
-<td>~30 topics được produce</td>
-<td>~26</td>
-<td><strong>4</strong> (toàn bộ flashsale events)</td>
+<td>Notifications</td>
+<td>Notification-service now consumes product, order, payment, refund, seller transfer, identity, chat, flash-sale item, and Stripe account events.</td>
+<td>GREEN</td>
 </tr>
 <tr>
-<td>Kafka Consumers</td>
-<td>~25 listeners</td>
-<td>~24 (1 stub không logic)</td>
-<td><strong>1 missing + 4 stubs</strong></td>
+<td>Runtime ports</td>
+<td>Docker-compose and application ports align for notification-service after setting it to <code>8092</code>.</td>
+<td>GREEN</td>
 </tr>
 <tr>
-<td>API Endpoints</td>
-<td>~80+ endpoints</td>
-<td>~79</td>
-<td><strong>1 confirmed missing</strong></td>
-</tr>
-<tr>
-<td>REST discrepancy</td>
-<td>—</td>
-<td>—</td>
-<td>3 (HTTP method khác)</td>
+<td>Chat rate limiting</td>
+<td>Chat-service uses Redis keys <code>rate:{userId}:chat</code> and <code>rate:{userId}:tool</code> with local fallback.</td>
+<td>GREEN</td>
 </tr>
 </tbody>
 </table>
-<hr>
-<h2>1. Cronjobs chưa implement</h2>
-<p>Nguồn xác nhận: <code>documents/operations/CRONJOBS.md</code> + audit <code>@Scheduled</code> trong toàn bộ Java code.<br>
-<strong>Chỉ có JOB-23 (<code>PayoutScheduler</code>) có <code>@Scheduled</code> thực sự trong code.</strong></p>
-<h3>flashsale-service (:8085)</h3>
+<h2>Implemented Since The Original Gap Audit</h2>
 <table>
 <thead>
 <tr>
-<th>Job ID</th>
-<th>Cron</th>
-<th>Mô tả</th>
+<th>Former Gap</th>
+<th>Current Implementation</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>JOB-01</td>
-<td><code>*/1 * * * *</code></td>
-<td>Session lifecycle tự động: UPCOMING→ACTIVE→ENDED</td>
+<td>Flash sale sessions did not emit lifecycle events.</td>
+<td><code>FlashSaleSessionScheduler</code> publishes <code>flash_sale.session_started</code> and <code>flash_sale.session_ended</code>.</td>
 </tr>
 <tr>
-<td>JOB-08</td>
-<td><code>0 3 * * *</code></td>
-<td>Dọn flash sale data soft-delete &gt;30 ngày</td>
+<td>Flash sale item registration did not notify seller.</td>
+<td><code>flash_sale.item_registered</code>, <code>flash_sale.item_approved</code>, and <code>flash_sale.item_rejected</code> are produced and consumed by notification-service.</td>
 </tr>
 <tr>
-<td>JOB-21</td>
-<td><code>0 4 * * *</code></td>
-<td>Stock reconciliation sau flash sale kết thúc</td>
+<td><code>order.auto_cancelled</code> lacked downstream handling.</td>
+<td>Product, payment, and notification services consume <code>order.auto_cancelled</code>.</td>
+</tr>
+<tr>
+<td>Stale pending orders were not auto-cancelled.</td>
+<td><code>OrderLifecycleScheduler</code> publishes <code>order.auto_cancelled</code>.</td>
+</tr>
+<tr>
+<td>Stale shipping orders were not auto-delivered.</td>
+<td><code>OrderLifecycleScheduler</code> auto-delivers and publishes delivery events.</td>
+</tr>
+<tr>
+<td>Stripe onboarding URL expiry was previously deferred.</td>
+<td><code>StripeOnboardingUrlScheduler</code> nullifies expired onboarding URLs.</td>
+</tr>
+<tr>
+<td>Stripe account suspension notification was previously deferred.</td>
+<td>Payment-service publishes <code>stripe.account_suspended</code>; notification-service consumes it as urgent.</td>
+</tr>
+<tr>
+<td>Chat rate limiter was in-memory only.</td>
+<td>Chat-service rate limiter is Redis-backed with local fallback.</td>
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p><strong>JOB-01 là critical:</strong> Không có job này, sessions sẽ mãi ở UPCOMING — flash sale <strong>không bao giờ bắt đầu/kết thúc tự động</strong>.</p>
-</blockquote>
-<h3>product-service (:8090)</h3>
+<h2>Remaining Intentional Alternate Path</h2>
 <table>
 <thead>
 <tr>
-<th>Job ID</th>
-<th>Cron</th>
-<th>Mô tả</th>
+<th>Item</th>
+<th>Current Design</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>JOB-07</td>
-<td><code>0 */2 * * *</code></td>
-<td>Xóa stale cart &gt;24h không hoạt động</td>
-</tr>
-<tr>
-<td>JOB-10</td>
-<td><code>0 3 * * 0</code></td>
-<td>Hard delete product soft-delete &gt;90 ngày</td>
-</tr>
-<tr>
-<td>JOB-16</td>
-<td><code>0 2 * * *</code></td>
-<td>Auto-hide rejected products &gt;30 ngày</td>
+<td>Direct public <code>POST /refunds</code> in refund-service</td>
+<td>Buyer refund initiation goes through order-service endpoints (<code>/orders/{orderId}/refunds</code>, <code>/orders/parent/{parentOrderId}/refund</code>, <code>/orders/parent/{parentOrderId}/refunds/partial</code>) and Kafka events into refund-service. Refund-service owns admin review and refund execution.</td>
 </tr>
 </tbody>
 </table>
-<h3>order-service (:8083)</h3>
+<h2>Deferred Architectural Items</h2>
 <table>
 <thead>
 <tr>
-<th>Job ID</th>
-<th>Cron</th>
-<th>Mô tả</th>
+<th>Item</th>
+<th>Reason</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>JOB-13</td>
-<td><code>*/10 * * * *</code></td>
-<td>Auto-cancel PENDING orders &gt;30 phút</td>
+<td>Outbox jobs <code>JOB-04</code>, <code>JOB-05</code>, <code>JOB-06</code></td>
+<td>Outbox tables/pattern are not part of the current backend implementation; services publish Kafka directly.</td>
 </tr>
 <tr>
-<td>JOB-22</td>
-<td><code>0 */6 * * *</code></td>
-<td>Auto-deliver SHIPPING orders &gt;7 ngày không cập nhật</td>
+<td>ShedLock cleanup <code>JOB-12</code></td>
+<td>ShedLock is not used by the implemented schedulers.</td>
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p><strong>JOB-13 là critical:</strong> Không có job này, đơn hàng PENDING quá giờ sẽ tồn tại mãi mãi. Luồng cancel do timeout hiện được trigger bởi <code>stock.reservation.expired</code> (ReservationCleanupScheduler đã implement), nhưng các đơn không có reservation sẽ không được auto-cancel.</p>
-</blockquote>
-<h3>payment-service (:8082)</h3>
-<table>
-<thead>
-<tr>
-<th>Job ID</th>
-<th>Cron</th>
-<th>Mô tả</th>
-<th>Ghi chú</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>JOB-04</td>
-<td><code>*/5 * * * *</code></td>
-<td>Outbox event publisher</td>
-<td>deferred — outbox pattern chưa implement</td>
-</tr>
-<tr>
-<td>JOB-05</td>
-<td><code>0 2 * * *</code></td>
-<td>Cleanup outbox events &gt;7 ngày</td>
-<td>deferred</td>
-</tr>
-<tr>
-<td>JOB-06</td>
-<td><code>0 2 * * *</code></td>
-<td>Cleanup failed events &gt;30 ngày</td>
-<td>deferred</td>
-</tr>
-<tr>
-<td>JOB-12</td>
-<td><code>0 3 * * *</code></td>
-<td>ShedLock stale lock cleanup</td>
-<td>post-MVP</td>
-</tr>
-<tr>
-<td>JOB-15</td>
-<td><code>0 */1 * * *</code></td>
-<td>Nullify expired Stripe onboarding URLs &gt;24h</td>
-<td>post-MVP</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>2. Kafka Producers chưa implement</h2>
-<h3>flashsale-service — KHÔNG produce bất kỳ domain event nào</h3>
-<p><strong>Theo tài liệu</strong>, flashsale-service phải produce 4 events:</p>
-<table>
-<thead>
-<tr>
-<th>Topic</th>
-<th>Trigger</th>
-<th>Consumers</th>
-<th>Trạng thái</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>flash_sale.session_started</code></td>
-<td>JOB-01 khi <code>start_time</code> đến</td>
-<td>Product Service, Notification Service</td>
-<td>❌ KHÔNG produce</td>
-</tr>
-<tr>
-<td><code>flash_sale.session_ended</code></td>
-<td>JOB-01 khi <code>end_time</code> đến</td>
-<td>Product Service, Notification Service</td>
-<td>❌ KHÔNG produce</td>
-</tr>
-<tr>
-<td><code>flash_sale.item_registered</code></td>
-<td>Seller đăng ký sản phẩm vào session</td>
-<td>Notification Service</td>
-<td>❌ KHÔNG produce</td>
-</tr>
-<tr>
-<td><code>flash_sale.session_created</code></td>
-<td>Admin tạo session</td>
-<td>Audit log</td>
-<td>❌ KHÔNG produce</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Code thực tế:</strong> FlashSaleService chỉ send 2 topics:
-- <code>order.checkout_submitted</code> (khi buyer mua flash sale) ✅
-- <code>order.address.request</code> (request-reply lấy địa chỉ) ✅</p>
-<p><strong>Còn có stub consumer không có ý nghĩa:</strong></p>
-<pre><code class="language-java">// FlashSaleService.java line 92
-@KafkaListener(topics = KafkaTopics.FLASH_SALE_SESSION_STARTED, ...)
-public void onSessionStarted(String sessionId) {
-    log.info(&quot;Flash sale session started: {}&quot;, sessionId);  // chỉ log, không làm gì
-}
+<h2>Axon Scope</h2>
+<p>Axon is actively used by <code>order-service</code> for order/payment saga orchestration and event handling. Other services may still have older documentation references to Axon, but current backend behavior uses Kafka plus service-local persistence outside order-service.</p>
+<h2>Verification Commands</h2>
+<p>Run from <code>backend/</code>:</p>
+<pre><code class="language-bash">mvn -pl common-lib,identity-service,payment-service,product-service,order-service,refund-service,flashsale-service,notification-service,chat-service,search-service -am test
 </code></pre>
-<p>Service này consume event của chính mình nhưng chưa bao giờ emit nó.</p>
-<p><strong>Hậu quả dây chuyền:</strong> Vì <code>flash_sale.session_started</code> không bao giờ được emit:
-1. <code>product-service</code> không bao giờ áp dụng flash price cho variant → <code>flash_sale.price_sync</code> không bao giờ được emit
-2. <code>search-service</code> không bao giờ cập nhật giá flash trong Elasticsearch
-3. <code>notification-service</code> không bao giờ thông báo user về flash sale bắt đầu/kết thúc</p>
-<hr>
-<h2>3. Kafka Consumers chưa implement / là Stub</h2>
-<h3>notification-service — thiếu <code>flash_sale.item_registered</code></h3>
-<p><strong>Theo tài liệu:</strong> notification-service nên consume <code>flash_sale.item_registered</code> để thông báo seller khi sản phẩm được đăng ký vào flash sale session.</p>
-<p><strong>Code thực tế:</strong> <code>FlashSaleEventConsumer.java</code> chỉ có:</p>
-<pre><code class="language-java">@KafkaListener(topics = KafkaTopics.FLASH_SALE_SESSION_STARTED, ...)
-@KafkaListener(topics = KafkaTopics.FLASH_SALE_SESSION_ENDED, ...)
-</code></pre>
-<p>Không có listener cho <code>flash_sale.item_registered</code>. ❌</p>
-<hr>
-<h3>payment-service — stub listener undocumented</h3>
-<p><strong>Không có trong tài liệu</strong> nhưng tồn tại trong code:</p>
-<pre><code class="language-java">// PaymentService.java line 670
-@KafkaListener(topics = KafkaTopics.PAYMENT_SUCCESS, groupId = &quot;payment-service-group&quot;)
-public void onPaymentSuccess(String message) {
-    log.info(&quot;Payment success event received: {}&quot;, message);  // chỉ log
-}
-</code></pre>
-<p>Payment-service tự consume event của chính mình nhưng không làm gì. Dead stub code.</p>
-<hr>
-<h3>identity-service — 4 consumers là stub (post-MVP)</h3>
-<p>File: <code>IdentityEventConsumer.java</code></p>
-<p>Tất cả 4 listeners chỉ ghi log, không có business logic:</p>
-<table>
-<thead>
-<tr>
-<th>Topic consumed</th>
-<th>Logic theo tài liệu</th>
-<th>Trạng thái trong code</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>order.delivered</code></td>
-<td>Unlock seller posting capability</td>
-<td><code>log.info(...)</code> only</td>
-</tr>
-<tr>
-<td><code>order.cancelled</code></td>
-<td>Audit log</td>
-<td><code>log.info(...)</code> only</td>
-</tr>
-<tr>
-<td><code>refund.admin_approved</code></td>
-<td>Log refund approval</td>
-<td><code>log.info(...)</code> only</td>
-</tr>
-<tr>
-<td><code>refund.rejected</code></td>
-<td>Notify buyer</td>
-<td><code>log.info(...)</code> only</td>
-</tr>
-</tbody>
-</table>
-<p>Comment trong code: <code>// Post-MVP: unlock seller posting capability</code></p>
-<hr>
-<h2>4. API Endpoints chưa implement / sai</h2>
-<h3>product-service — thiếu public product listing</h3>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>Path</th>
-<th>Mô tả</th>
-<th>Contract</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>GET</code></td>
-<td><code>/v1/products</code></td>
-<td>Public product listing có phân trang + filters (category_id, seller_id, min_price, max_price, page, size)</td>
-<td><a href="api-contracts/product-service/api-get-products.html"><code>api-get-products.yaml</code></a></td>
-</tr>
-</tbody>
-</table>
-<p><code>ProductController</code> chỉ có <code>GET /products/{productId}</code> (single product). Không có paginated list.</p>
-<hr>
-<h3>notification-service — HTTP method discrepancy</h3>
-<table>
-<thead>
-<tr>
-<th>Endpoint theo tài liệu</th>
-<th>Endpoint trong code</th>
-<th>Vấn đề</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>GET /v1/notifications/history</code></td>
-<td><code>GET /v1/notifications</code></td>
-<td>Path khác</td>
-</tr>
-<tr>
-<td><code>PUT /v1/notifications/{id}/read</code></td>
-<td><code>PATCH /v1/notifications/{notifId}/read</code></td>
-<td>PUT → PATCH</td>
-</tr>
-<tr>
-<td><code>PUT /v1/notifications/read-all</code></td>
-<td><code>PATCH /v1/notifications/read-all</code></td>
-<td>PUT → PATCH</td>
-</tr>
-</tbody>
-</table>
-<hr>
-<h2>5. Những thứ ĐÃ implement đầy đủ</h2>
-<h3>Kafka Producers ✅</h3>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Topics produced</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>product-service</td>
-<td><code>product.activated</code>, <code>product.deactivated</code>, <code>product.updated</code>, <code>product.deleted</code>, <code>product.pending_review</code>, <code>product.approved</code>, <code>product.rejected</code>, <code>variant.price_updated</code>, <code>variant.stock_updated</code>, <code>category.updated</code>, <code>flash_sale.price_sync</code>, <code>search.index_data.response</code>, <code>order.checkout_submitted</code>, <code>stock.reservation.expired</code></td>
-</tr>
-<tr>
-<td>order-service (Axon saga)</td>
-<td><code>order.created</code>, <code>order.shipped</code>, <code>order.delivered</code>, <code>order.cancelled</code>, <code>seller.order_cancelled</code>, <code>order.returned</code>, <code>order.paid</code>, <code>order.payment_failed</code>, <code>order.payment_timeout</code>, <code>order.auto_cancelled</code>, <code>refund.requested</code>, <code>refund.full_requested</code>, <code>payment.requested</code></td>
-</tr>
-<tr>
-<td>payment-service</td>
-<td><code>payment.success</code>, <code>payment.failed</code>, <code>seller.transfer.eligible</code>, <code>seller.transfer.paid_out</code>, <code>seller.transfer.failed</code></td>
-</tr>
-<tr>
-<td>refund-service</td>
-<td><code>refund.created</code>, <code>refund.admin_approved</code>, <code>refund.rejected</code>, <code>refund.rts_completed</code>, <code>refund.stripe_auto</code>, request-reply responses</td>
-</tr>
-<tr>
-<td>flashsale-service</td>
-<td><code>order.checkout_submitted</code> (flash buy), <code>order.address.request</code></td>
-</tr>
-<tr>
-<td>search-service</td>
-<td><code>search.index_data.request</code></td>
-</tr>
-</tbody>
-</table>
-<h3>Kafka Consumers ✅</h3>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Topics consumed</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>product-service</td>
-<td><code>order.paid</code>, <code>order.payment_failed</code>, <code>order.cancelled</code>, <code>order.returned</code>, <code>flash_sale.session_started</code>, <code>flash_sale.session_ended</code>, <code>search.index_data.request</code></td>
-</tr>
-<tr>
-<td>order-service</td>
-<td><code>payment.success</code>, <code>payment.failed</code>, <code>refund.admin_approved</code>, <code>refund.rts_completed</code>, <code>stock.reservation.expired</code>, <code>order.checkout_submitted</code></td>
-</tr>
-<tr>
-<td>payment-service</td>
-<td><code>payment.requested</code>, <code>order.delivered</code>, <code>order.cancelled</code>, <code>order.auto_cancelled</code></td>
-</tr>
-<tr>
-<td>refund-service</td>
-<td><code>refund.requested</code>, <code>refund.full_requested</code>, <code>order.returned</code>, <code>refund.stripe_auto</code>, request-reply (<code>order.refunds.request</code>, <code>order.refund_presigned_url.request</code>, <code>order.payment_status.request</code>)</td>
-</tr>
-<tr>
-<td>search-service</td>
-<td><code>product.activated</code>, <code>product.deactivated</code>, <code>product.updated</code>, <code>product.deleted</code>, <code>category.updated</code>, <code>variant.price_updated</code>, <code>variant.stock_updated</code>, <code>flash_sale.price_sync</code>, <code>search.index_data.response</code></td>
-</tr>
-<tr>
-<td>notification-service</td>
-<td><code>product.pending_review</code>, <code>product.approved</code>, <code>product.rejected</code>, <code>order.created</code>, <code>order.shipped</code>, <code>order.delivered</code>, <code>order.cancelled</code>, <code>order.returned</code>, <code>seller.order_cancelled</code>, <code>order.payment_timeout</code>, <code>payment.success</code>, <code>payment.failed</code>, <code>refund.requested</code>, <code>refund.admin_approved</code>, <code>refund.rejected</code>, <code>seller.transfer.eligible</code>, <code>seller.transfer.paid_out</code>, <code>seller.transfer.failed</code>, <code>stock.reservation.expired</code>, <code>ai_chat.message_sent</code>, <code>ai_chat.tool_call_executed</code>, <code>ai_chat.confirmation_resolved</code></td>
-</tr>
-<tr>
-<td>identity-service</td>
-<td><code>order.address.request</code> (request-reply ✅), <code>order.delivered</code>, <code>order.cancelled</code>, <code>refund.admin_approved</code>, <code>refund.rejected</code> (stub ⚠️)</td>
-</tr>
-<tr>
-<td>flashsale-service</td>
-<td><code>order.address.response</code> (request-reply)</td>
-</tr>
-</tbody>
-</table>
-<h3>APIs ✅ (tất cả services có đầy đủ trừ mục §4)</h3>
-<p>identity-service, product-service (CRUD + cart + inventory + admin review), order-service (checkout + lifecycle + refunds), payment-service (stripe + onboarding + earnings), refund-service (admin review), notification-service (SSE + history), search-service (search + reindex), flashsale-service (CRUD + buy + reminders), ai-chat-service.</p>
-<hr>
-<h2>6. Ưu tiên xử lý</h2>
-<h3>Phải làm trước production</h3>
-<ol>
-<li><strong>flashsale-service: emit <code>flash_sale.session_started</code> / <code>flash_sale.session_ended</code></strong> — implement JOB-01 hoặc mechanism tương đương; không có thì toàn bộ flash sale pricing chain bị broken</li>
-<li><strong>flashsale-service: emit <code>flash_sale.item_registered</code></strong> — khi seller đăng ký sản phẩm</li>
-<li><strong>JOB-13: auto-cancel PENDING orders &gt;30 phút</strong> — tránh đơn hàng zombie</li>
-<li><strong><code>GET /v1/products</code></strong> — public product listing</li>
-</ol>
-<h3>Nên làm sớm (ảnh hưởng UX)</h3>
-<ol start="5">
-<li><strong>notification-service: add <code>flash_sale.item_registered</code> consumer</strong></li>
-<li><strong>JOB-22: auto-deliver stale SHIPPING orders</strong></li>
-<li><strong>JOB-07: stale cart cleanup</strong></li>
-<li><strong>notification-service: đồng bộ HTTP method</strong> (PUT vs PATCH)</li>
-<li><strong>identity-service: implement logic thực cho <code>order.delivered</code></strong> (unlock seller posting)</li>
-</ol>
-<h3>Deferred post-MVP</h3>
-<ol start="10">
-<li><strong>Outbox pattern</strong> (JOB-04/05/06) — hiện tại payment-service publish Kafka trực tiếp</li>
-<li><strong>JOB-08, JOB-10, JOB-16, JOB-21</strong> — data cleanup jobs</li>
-<li><strong>JOB-12, JOB-15</strong> — maintenance jobs</li>
-<li><strong>payment-service: xóa stub <code>onPaymentSuccess</code> listener</strong> (dead code)</li>
-</ol>
-<hr>
-<p><em>Phân tích dựa trên code tại branch <code>main</code>, commit <code>0175bc9</code>.</em></p></div></section>
+<p>Run from repository root:</p>
+<pre><code class="language-bash">python documents/_meta/generate_html.py
+python documents/_meta/audit_coverage.py
+</code></pre></div></section>
       </main>
     </div>
   </div>

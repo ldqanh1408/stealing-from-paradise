@@ -152,6 +152,7 @@ class FlashSaleServiceTest {
         FlashSaleItem saved = FlashSaleItem.builder()
                 .id(20L)
                 .sessionId(1L)
+                .sellerId(9L)
                 .skuCode("SKU-002")
                 .flashPrice(new BigDecimal("49.99"))
                 .flashStock(50)
@@ -166,6 +167,7 @@ class FlashSaleServiceTest {
         StepVerifier.create(result)
                 .expectNextMatches(resp ->
                         resp.getSkuCode().equals("SKU-002") &&
+                        resp.getSellerId().equals(9L) &&
                         resp.getStatus().equals("APPROVED") &&
                         resp.getFlashStock() == 50)
                 .verifyComplete();

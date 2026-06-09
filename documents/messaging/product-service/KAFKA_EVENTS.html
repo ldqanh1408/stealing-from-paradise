@@ -282,7 +282,7 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Kafka Events -- Product Service (Catalog + Cart + Inventory)</h1>
 <blockquote>
-<p>Service: product-service (Port 8090)
+<p>Service: product-service (Port 8084)
 Source: <code>docs/services/product-service/KAFKA_EVENTS.md</code>, <code>docs/services/product-service/02_API_product_service.md</code>
 Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots moved from internal REST/WebClient to Kafka request-reply <code>search.index_data.*</code>)</p>
 </blockquote>
@@ -303,7 +303,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </tr>
 <tr>
 <td><strong>Trigger</strong></td>
-<td>Buyer submits checkout via <code>POST /v1/checkout/submit</code> (Product Service)</td>
+<td>Buyer submits checkout via <code>POST /v1/cart/checkout/submit</code> (Product Service)</td>
 </tr>
 <tr>
 <td><strong>Retention</strong></td>
@@ -550,7 +550,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </tr>
 <tr>
 <td><strong>Status</strong></td>
-<td>NEW -- bo sung 2026-05-10 (MVP MUST-HAVE, xem <code>MVP_ANALYSIS.md</code> §3.1)</td>
+<td>NEW -- bo sung 2026-05-10 (MVP MUST-HAVE, xem <code>MVP_ANALYSIS.md</code> Â§3.1)</td>
 </tr>
 <tr>
 <td><strong>Retention</strong></td>
@@ -580,7 +580,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 }
 </code></pre>
 <p><strong>Consumer actions:</strong>
-- Order Service: neu <code>parent_orders.session_id</code> = nay va status <code>PENDING_PAYMENT</code> → cascade goi <code>order.payment_timeout</code> flow.
+- Order Service: neu <code>parent_orders.session_id</code> = nay va status <code>PENDING_PAYMENT</code> â†’ cascade goi <code>order.payment_timeout</code> flow.
 - Notification Service: thong bao buyer "Phien giu cho da het han".</p>
 <hr>
 <hr>
@@ -603,7 +603,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </tr>
 <tr>
 <td><strong>Trigger</strong></td>
-<td>Seller submits product for admin review (<code>draft → pending</code>)</td>
+<td>Seller submits product for admin review (<code>draft â†’ pending</code>)</td>
 </tr>
 <tr>
 <td><strong>Status</strong></td>
@@ -662,7 +662,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </tr>
 <tr>
 <td><strong>Trigger</strong></td>
-<td>Admin approves a pending product (<code>pending → approved</code>)</td>
+<td>Admin approves a pending product (<code>pending â†’ approved</code>)</td>
 </tr>
 <tr>
 <td><strong>Status</strong></td>
@@ -719,11 +719,11 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </tr>
 <tr>
 <td><strong>Trigger</strong></td>
-<td>Admin rejects a pending product (<code>pending → rejected</code>)</td>
+<td>Admin rejects a pending product (<code>pending â†’ rejected</code>)</td>
 </tr>
 <tr>
 <td><strong>Note</strong></td>
-<td>No Search Service consumer — product has never been indexed at this point.</td>
+<td>No Search Service consumer â€” product has never been indexed at this point.</td>
 </tr>
 <tr>
 <td><strong>Status</strong></td>
@@ -759,13 +759,13 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </code></pre>
 <p><strong>Downstream effects:</strong>
 - Notification Service: NOTIF-PRODUCT-REJECTED to seller, body includes <code>{rejectReason}</code> so seller biet phai sua gi.
-- Product Service (self): tang counter <code>rejectCount</code>; neu &gt;=3 → lock product khoi auto-resubmit (BR-PRODUCT-009.8).</p>
+- Product Service (self): tang counter <code>rejectCount</code>; neu &gt;=3 â†’ lock product khoi auto-resubmit (BR-PRODUCT-009.8).</p>
 <hr>
 <h3>product.activated</h3>
 <p>|| Field | Value |
 |-------|-------|
 | <strong>Consumers</strong> | Search Service (primary), Notification Service (optional) |
-| <strong>Trigger</strong> | Seller publishes product (<code>approved → active</code> via <code>POST /seller/products/{id}/publish</code>) |
+| <strong>Trigger</strong> | Seller publishes product (<code>approved â†’ active</code> via <code>POST /seller/products/{id}/publish</code>) |
 | <strong>Retention</strong> | 30 days |
 | <strong>Partition Key</strong> | <code>product_id</code> |</p>
 <blockquote>
@@ -795,7 +795,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 <p>|| Field | Value |
 |-------|-------|
 | <strong>Consumers</strong> | Search Service (primary), Notification Service (optional) |
-| <strong>Trigger</strong> | Seller unpublishes product (<code>active/out_of_stock → inactive</code> via <code>POST /seller/products/{id}/unpublish</code>) |
+| <strong>Trigger</strong> | Seller unpublishes product (<code>active/out_of_stock â†’ inactive</code> via <code>POST /seller/products/{id}/unpublish</code>) |
 | <strong>Retention</strong> | 30 days |
 | <strong>Partition Key</strong> | <code>product_id</code> |</p>
 <blockquote>
@@ -966,7 +966,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </tr>
 <tr>
 <td><strong>Trigger</strong></td>
-<td>Payment success — Payment Service publishes <code>payment.success</code>, Order Service re-publishes as <code>order.paid</code></td>
+<td>Payment success â€” Payment Service publishes <code>payment.success</code>, Order Service re-publishes as <code>order.paid</code></td>
 </tr>
 </tbody>
 </table>
@@ -989,7 +989,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing snapshots m
 </tr>
 <tr>
 <td><strong>Trigger</strong></td>
-<td>Payment failure — Payment Service publishes <code>payment.failed</code>, Order Service re-publishes as <code>order.payment_failed</code></td>
+<td>Payment failure â€” Payment Service publishes <code>payment.failed</code>, Order Service re-publishes as <code>order.payment_failed</code></td>
 </tr>
 </tbody>
 </table>

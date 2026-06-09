@@ -47,7 +47,7 @@
 | **Rule** | Stripe `account.updated` webhook MUST sync local state |
 | **Synced Fields** | `charges_enabled`, `payouts_enabled`, `details_submitted` |
 | **Status Mapping** | If `charges_enabled AND payouts_enabled AND details_submitted` -> `account_status = ACTIVE` |
-| **Suspension** | If Stripe flags account -> `account_status = SUSPENDED`; publish `stripe.account_suspended` (post-MVP) |
+| **Suspension** | If Stripe flags account -> `account_status = SUSPENDED`; publish `stripe.account_suspended` |
 | **Additional KYC** | If Stripe requires more info -> `account_status = RESTRICTED`; publish `seller.stripe_requirement` |
 | **Cites** | UC-PAYMENT-003 |
 

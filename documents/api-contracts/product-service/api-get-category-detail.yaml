@@ -1,29 +1,29 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Product Service - Category Detail API
   description: |
-    Lấy chi tiết một danh mục bao gồm danh mục con (cây phân cấp tự tham chiếu)
-    và breadcrumb dẫn về root.
+    Láº¥y chi tiáº¿t má»™t danh má»¥c bao gá»“m danh má»¥c con (cÃ¢y phÃ¢n cáº¥p tá»± tham chiáº¿u)
+    vÃ  breadcrumb dáº«n vá» root.
     Base URL: `/api/v1`
-    Service: product-service (Port 8090)
+    Service: product-service (Port 8084)
   version: "5.4.0"
 
 servers:
   - url: https://api.marketplace.vn/api/v1
     description: Production
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 
 paths:
   /categories/{categoryId}:
     get:
       operationId: getCategoryDetail
-      summary: Lấy chi tiết một danh mục
+      summary: Láº¥y chi tiáº¿t má»™t danh má»¥c
       description: |
-        Trả về thông tin một danh mục, danh sách danh mục con trực tiếp,
-        và breadcrumb path từ root đến danh mục hiện tại.
-        Endpoint công khai, không yêu cầu xác thực.
-        Liên quan: UC-PRODUCT-002, FR-PRODUCT-002.
+        Tráº£ vá» thÃ´ng tin má»™t danh má»¥c, danh sÃ¡ch danh má»¥c con trá»±c tiáº¿p,
+        vÃ  breadcrumb path tá»« root Ä‘áº¿n danh má»¥c hiá»‡n táº¡i.
+        Endpoint cÃ´ng khai, khÃ´ng yÃªu cáº§u xÃ¡c thá»±c.
+        LiÃªn quan: UC-PRODUCT-002, FR-PRODUCT-002.
       tags: [Categories]
       parameters:
         - name: categoryId
@@ -32,16 +32,16 @@ paths:
           schema:
             type: string
             format: uuid
-          description: UUID danh mục
+          description: UUID danh má»¥c
       responses:
         "200":
-          description: Chi tiết danh mục
+          description: Chi tiáº¿t danh má»¥c
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CategoryDetailResponse"
         "404":
-          description: Không tìm thấy danh mục
+          description: KhÃ´ng tÃ¬m tháº¥y danh má»¥c
           content:
             application/json:
               schema:
@@ -61,12 +61,12 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: NULL nếu là root
+          description: NULL náº¿u lÃ  root
           example: null
         name:
           type: string
           maxLength: 255
-          example: "Áo Thun Nam"
+          example: "Ão Thun Nam"
         slug:
           type: string
           maxLength: 255
@@ -74,7 +74,7 @@ components:
         description:
           type: string
           nullable: true
-          example: "Tất cả áo thun dành cho nam giới"
+          example: "Táº¥t cáº£ Ã¡o thun dÃ nh cho nam giá»›i"
         image_url:
           type: string
           nullable: true
@@ -87,16 +87,16 @@ components:
           example: true
         product_count:
           type: integer
-          description: Số sản phẩm `active` thuộc danh mục này (cache 5 phút)
+          description: Sá»‘ sáº£n pháº©m `active` thuá»™c danh má»¥c nÃ y (cache 5 phÃºt)
           example: 142
         children:
           type: array
-          description: Danh mục con trực tiếp (1 level)
+          description: Danh má»¥c con trá»±c tiáº¿p (1 level)
           items:
             $ref: "#/components/schemas/CategoryNode"
         breadcrumb:
           type: array
-          description: Đường dẫn từ root → danh mục hiện tại
+          description: ÄÆ°á»ng dáº«n tá»« root â†’ danh má»¥c hiá»‡n táº¡i
           items:
             $ref: "#/components/schemas/CategoryNode"
         created_at:

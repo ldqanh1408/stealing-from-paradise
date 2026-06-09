@@ -1,4 +1,4 @@
-# Payment Service — Architecture Overview
+﻿# Payment Service â€” Architecture Overview
 
 > Service: payment-service (SVC-004, Port 8082)
 > Database: PostgreSQL + Axon Framework
@@ -49,9 +49,9 @@ Payment processing via Stripe Connect, multi-vendor payment splits, seller onboa
 ## Refund Status Flow
 
 ```
-PENDING → APPROVED → SUCCESS (Stripe refund processed)
-       ↘ REJECTED
-       ↘ FAILED
+PENDING â†’ APPROVED â†’ SUCCESS (Stripe refund processed)
+       â†˜ REJECTED
+       â†˜ FAILED
 ```
 
 ## Kafka Integration
@@ -59,7 +59,7 @@ PENDING → APPROVED → SUCCESS (Stripe refund processed)
 | Direction | Topic | Purpose |
 |-----------|-------|---------|
 | Consume | `order.returned` | Auto-create RTS full refund |
-| Consume | `order.checkout_created` | Create PaymentIntent |
+| Consume | `payment.requested` | Create PaymentIntent |
 | Produce | `payment.success` | Notify payment completed |
 | Produce | `payment.failed` | Notify payment failed |
 | Produce | `refund.admin_approved` | Notify refund approved |

@@ -1,6 +1,6 @@
-# Business Rules: Flash Sale Service
+﻿# Business Rules: Flash Sale Service
 
-**Service:** flashsale-service (port :8085)
+**Service:** flashsale-service (port :8086)
 **Stable ID Prefix:** `BR-FLASHSALE-`
 
 ---

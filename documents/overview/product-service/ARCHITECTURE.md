@@ -1,6 +1,6 @@
-# Product Service — Architecture Overview
+﻿# Product Service â€” Architecture Overview
 
-> Service: product-service (SVC-007, Port 8090)
+> Service: product-service (SVC-007, Port 8084)
 > Database: PostgreSQL
 > Source: `documents` micro-docs
 > Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing feed moved to Kafka request-reply)
@@ -41,8 +41,8 @@ Product catalog management, variant/price/stock management, category management,
 ## Product Lifecycle
 
 ```
-draft → pending → approved → active ↔ out_of_stock
-                      ↓               ↓
+draft â†’ pending â†’ approved â†’ active â†” out_of_stock
+                      â†“               â†“
                   rejected      inactive
 ```
 
@@ -70,12 +70,12 @@ draft → pending → approved → active ↔ out_of_stock
 
 | Direction | Topic | Purpose |
 |-----------|-------|---------|
-| Produce | `product.activated` | Index product in Search Service (sole indexing trigger: `approved → active`) |
-| Produce | `product.deactivated` | Remove/hide product from Search Service (`active/out_of_stock → inactive`) |
+| Produce | `product.activated` | Index product in Search Service (sole indexing trigger: `approved â†’ active`) |
+| Produce | `product.deactivated` | Remove/hide product from Search Service (`active/out_of_stock â†’ inactive`) |
 | Produce | `product.updated` | Update product fields in Search Service (name, description, attributes, images) |
 | Produce | `product.deleted` | Remove product from Search Service |
 | Produce | `product.pending_review` | Notify admins of pending review |
-| Produce | `product.approved` | Notify seller — product approved |
+| Produce | `product.approved` | Notify seller â€” product approved |
 | Produce | `product.rejected` | Notify seller with rejection reason |
 | Produce | `variant.stock_updated` | Update search index |
 | Produce | `search.index_data.response` | Reply to Search Service indexing data requests |

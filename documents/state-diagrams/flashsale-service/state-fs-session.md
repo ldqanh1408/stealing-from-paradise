@@ -1,8 +1,8 @@
-# State Diagram: FS_SESSIONS
+﻿# State Diagram: FS_SESSIONS
 
 **Stable ID:** `STATE-FLASHSALE-001`
 **Entity:** `FS_SESSIONS`
-**Service:** flashsale-service (port :8085)
+**Service:** flashsale-service (port :8086)
 
 ---
 
@@ -93,7 +93,7 @@ stateDiagram-v2
 
 ```
 Soft delete is available ONLY from UPCOMING state (and requires no registered items).
-It sets deleted_at = NOW() — the row remains in the database but is filtered from all queries.
+It sets deleted_at = NOW() â€” the row remains in the database but is filtered from all queries.
 ```
 
 | State | Soft Delete Allowed? |

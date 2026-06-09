@@ -282,7 +282,7 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>UC-SEARCH-001: Product Listing &amp; Search</h1>
 <blockquote>
-<p><strong>Service</strong>: search-service (Port 8091)
+<p><strong>Service</strong>: search-service (Port 8087)
 <strong>Use Case ID</strong>: UC-SEARCH-001
 <strong>Priority</strong>: HIGH
 <strong>Source</strong>: 02_API_search_service.md
@@ -474,9 +474,9 @@
 GET /search/products?category_id=uuid                  # Browse category by UUID
 GET /search/products?category=electronics              # Browse root category by slug, including children
 GET /search/products?category_id=uuid&amp;price_min=100000&amp;price_max=500000  # Browse + price filter
-GET /search/products?q=áo thun                          # Full-text search
-GET /search/products?q=áo thun&amp;category_id=uuid        # Search + category filter
-GET /search/products?q=áo thun&amp;sort=price_asc&amp;in_stock=true  # Search + filters + sort
+GET /search/products?q=Ã¡o thun                          # Full-text search
+GET /search/products?q=Ã¡o thun&amp;category_id=uuid        # Search + category filter
+GET /search/products?q=Ã¡o thun&amp;sort=price_asc&amp;in_stock=true  # Search + filters + sort
 </code></pre>
 <hr>
 <h2>Alternate Flows</h2>

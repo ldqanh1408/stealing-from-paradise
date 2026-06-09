@@ -1,6 +1,6 @@
-# ENTITY-PRODUCT-005: STOCK_RESERVATION
+﻿# ENTITY-PRODUCT-005: STOCK_RESERVATION
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Database**: PostgreSQL
 > **Table**: stock_reservations
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 5
@@ -32,7 +32,7 @@ erDiagram
 | # | Field | Type | Constraints | Meaning |
 |---|-------|------|-------------|---------|
 | 1 | `id` | UUID | PK | Unique reservation identifier |
-| 2 | `variant_id` | UUID | NOT NULL, FK → product_variant.id | Reserved variant (SKU) |
+| 2 | `variant_id` | UUID | NOT NULL, FK â†’ product_variant.id | Reserved variant (SKU) |
 | 3 | `session_id` | VARCHAR(255) | NOT NULL | Checkout session ID; links to Order Service's `parent_orders.session_id` |
 | 4 | `quantity` | INT | NOT NULL | Number of units reserved |
 | 5 | `status` | VARCHAR(50) | NOT NULL, DEFAULT 'pending' | Reservation lifecycle: `pending`, `confirmed`, `released` |

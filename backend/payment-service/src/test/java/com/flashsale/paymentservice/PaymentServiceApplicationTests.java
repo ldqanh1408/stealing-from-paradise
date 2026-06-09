@@ -13,7 +13,6 @@ import org.springframework.boot.test.context.SpringBootTest;
         "spring.flyway.enabled=false",
         "spring.kafka.listener.auto-startup=false",
         "spring.kafka.admin.auto-create=false",
-        "axon.axonserver.enabled=false",
         "dev-data.enabled=false",
         "eureka.client.enabled=false"
 })

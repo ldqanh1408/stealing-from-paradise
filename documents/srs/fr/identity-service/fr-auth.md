@@ -15,5 +15,5 @@ Document ID: FR-IDENTITY
 | FR-IDENTITY-009 | The system SHALL provide CRUD operations for user addresses via GET/POST/PUT/DELETE /users/me/addresses, with default-address enforcement (BR-IDENTITY-006) | MEDIUM | BR-IDENTITY-006 | UC-IDENTITY-004 |
 | FR-IDENTITY-010 | The system SHALL allow public registration as a seller via POST /auth/register/seller, creating a user with SELLER role | HIGH | BR-IDENTITY-001, BR-IDENTITY-002, BR-IDENTITY-005 | UC-IDENTITY-006 |
 | FR-IDENTITY-011 | The system SHALL allow admin users to list users with filters (role, query) via GET /admin/users | MEDIUM | BR-IDENTITY-008 | -- |
-| FR-IDENTITY-014 | The system MAY (post-MVP) publish Kafka events for account lifecycle: account.created, account.updated, seller.registered. Note: identity-service does not currently produce Kafka domain events. | MEDIUM | -- | UC-IDENTITY-001, UC-IDENTITY-003, UC-IDENTITY-006 |
+| FR-IDENTITY-014 | The system SHALL publish Kafka events for implemented account lifecycle changes: `account.updated` and `seller.registered`. `account.created` is not part of the current event contract. | MEDIUM | -- | UC-IDENTITY-003, UC-IDENTITY-006 |
 | FR-IDENTITY-015 | The system SHALL respond to order.address Kafka request-reply pattern to provide shipping address data to Order Service during checkout | MEDIUM | -- | UC-IDENTITY-004 |

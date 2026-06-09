@@ -79,9 +79,9 @@
 | Transition | Kafka Topic |
 |------------|-------------|
 | IN_PROGRESS -> COMPLETE | (none needed; account is now operational) |
-| IN_PROGRESS -> SUSPENDED | `stripe.account_suspended` (post-MVP) |
+| IN_PROGRESS -> SUSPENDED | `stripe.account_suspended` |
 | COMPLETE -> RESTRICTED | `seller.stripe_requirement` |
-| RESTRICTED -> SUSPENDED | `stripe.account_suspended` (post-MVP) |
+| RESTRICTED -> SUSPENDED | `stripe.account_suspended` |
 
 ---
 

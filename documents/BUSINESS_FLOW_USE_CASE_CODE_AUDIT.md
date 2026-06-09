@@ -1,4 +1,4 @@
-# Business Flow and Use Case Code Audit
+﻿# Business Flow and Use Case Code Audit
 
 **Audit date:** 2026-06-08  
 **Scope:** `documents/use-cases` (48 Markdown files), `documents/flows` (12 Markdown files), and current Java backend code under `backend/`.  
@@ -134,7 +134,7 @@ Code-only / docs gaps for flash sale:
 
 | Use case | Status | Code evidence | Audit note |
 |----------|--------|---------------|------------|
-| UC-REFUND-001 Create Refund | Implemented via alternate path | Order-service `RefundController`, refund-service consumers `RefundRequestedConsumer`, `RefundFullRequestedConsumer`, `OrderReturnedRtsConsumer` | Refund creation enters through order-service endpoints and Kafka. Direct public `POST /refunds` in refund-service is not implemented. |
+| UC-REFUND-001 Create Refund | Implemented via alternate path | Order-service `RefundController`, refund-service consumers `RefundRequestedConsumer`, `RefundFullRequestedConsumer`, `OrderReturnedRtsConsumer` | Refund creation enters through order-service endpoints and Kafka. Direct public `POST /refunds` is intentionally not exposed by refund-service. |
 | UC-REFUND-002 Approve Refund | Implemented | `AdminRefundController.approveRefund`, `RefundService.approveRefund` | Admin approval flow exists. |
 | UC-REFUND-003 Reject Refund | Implemented | `AdminRefundController.rejectRefund`, `RefundService.rejectRefund` | Admin rejection flow exists. |
 
@@ -155,7 +155,7 @@ Code-only / docs gaps for flash sale:
 | `flows/order-service/flow-order-lifecycle.md` | Implemented | Updated to document paid cancellation, auto full-refund request, Axon saga scope, and auto-delivery scheduler. |
 | `flows/payment-service/flow-payment-stripe-payout.md` | Implemented | Updated to document transfer/balance endpoints and `transfer.completed`. |
 | `flows/product-service/flow-product-catalog-cart-review.md` | Implemented | Updated to document reject response body. |
-| `flows/refund-service/flow-refund-admin-review.md` | Implemented via current architecture | Admin list/detail/approve/reject exist. Direct public `POST /refunds` remains absent by current architecture. |
+| `flows/refund-service/flow-refund-admin-review.md` | Implemented via current architecture | Admin list/detail/approve/reject exist. Direct public `POST /refunds` remains intentionally absent by current architecture. |
 | `flows/search-service/flow-search-indexing.md` | Implemented | Search, event indexing, and reindex request/reply exist. Operational caveat: reindex status is in-memory. |
 | `flows/flashsale-service/flow-flashsale-session-purchase.md` | Implemented | Updated to document Redis ZSET trigger registration, session events, active endpoint, auto-approved item registration, and product price sync payload. |
 | `flows/cross-service/flow-order-cancellation.md` | Implemented | Updated to document buyer/seller paid cancellation and auto full-refund request. |

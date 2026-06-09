@@ -281,7 +281,7 @@
         </section>
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Search Service Operations</h1>
-<p><strong>Service:</strong> search-service | <strong>Port:</strong> 8091 | <strong>Database:</strong> Elasticsearch (index: skus)</p>
+<p><strong>Service:</strong> search-service | <strong>Port:</strong> 8087 | <strong>Database:</strong> Elasticsearch (index: skus)</p>
 <h2>Overview</h2>
 <p>Full-text product search with Vietnamese language analysis. Consumes product Kafka events and requests authoritative Product Service indexing snapshots over Kafka request-reply to keep the <code>skus</code> index in sync. Supports aliased index swapping for zero-downtime reindexing.</p>
 <h2>Elasticsearch Resources</h2>
@@ -366,8 +366,8 @@
 </code></pre>
 <h2>Common Operational Tasks</h2>
 <h3>Reindex All Products</h3>
-<pre><code class="language-bash">curl -X POST &quot;http://localhost:8091/api/v1/search/reindex&quot;
-curl &quot;http://localhost:8091/api/v1/search/reindex/status&quot;
+<pre><code class="language-bash">curl -X POST &quot;http://localhost:8087/api/v1/search/reindex&quot;
+curl &quot;http://localhost:8087/api/v1/search/reindex/status&quot;
 </code></pre>
 <h3>Check Index Health</h3>
 <pre><code class="language-bash">curl -s &quot;http://localhost:9200/_cluster/health?pretty&quot;

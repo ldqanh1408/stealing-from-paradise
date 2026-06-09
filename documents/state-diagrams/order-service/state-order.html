@@ -286,28 +286,28 @@
 <strong>Last Updated:</strong> 2026-05-10 (transition #14 reactivated with <code>seller.order_cancelled</code>)</p>
 <hr>
 <h2>Full 8-State Lifecycle Diagram</h2>
-<pre><code>                              ┌─────────────────────────────────────────────────────┐
-                              │                                                     │
-                              ▼                                                     │
-┌─────────┐    ┌──────┐    ┌──────────┐    ┌───────────┐    ┌──────────┐          │
-│ PENDING │───▶│ PAID │───▶│ SHIPPING │───▶│ DELIVERED │───▶│ REFUNDED │          │
-└────┬────┘    └──┬───┘    └────┬─────┘    └─────┬─────┘    └──────────┘          │
-     │            │             │                │              ▲                   │
-     │            │             │                │              │                   │
-     │            │             ▼                │              │                   │
-     │            │       ┌──────────┐           ├──────────────┘                   │
-     │            │       │ RETURNED │───────────┘                                  │
-     │            │       └────┬─────┘           │                                  │
-     │            │            │                 │                                  │
-     │            │            ▼                 ▼                                  │
-     │            │       ┌──────────┐    ┌────────────────────┐                    │
-     │            │       │ REFUNDED │    │ PARTIALLY_REFUNDED │                    │
-     │            │       └──────────┘    └────────────────────┘                    │
-     │            │                                                                 │
-     ▼            ▼                                                                 │
-┌───────────┐                                                                       │
-│ CANCELLED │ (terminal)                                                            │
-└───────────┘                                                                       │
+<pre><code>                              â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                              â”‚                                                     â”‚
+                              â–¼                                                     â”‚
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”Œâ”€â”€â”€â”€â”€â”€â”    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”          â”‚
+â”‚ PENDING â”‚â”€â”€â”€â–¶â”‚ PAID â”‚â”€â”€â”€â–¶â”‚ SHIPPING â”‚â”€â”€â”€â–¶â”‚ DELIVERED â”‚â”€â”€â”€â–¶â”‚ REFUNDED â”‚          â”‚
+â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”˜    â””â”€â”€â”¬â”€â”€â”€â”˜    â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”˜    â””â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”˜    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜          â”‚
+     â”‚            â”‚             â”‚                â”‚              â–²                   â”‚
+     â”‚            â”‚             â”‚                â”‚              â”‚                   â”‚
+     â”‚            â”‚             â–¼                â”‚              â”‚                   â”‚
+     â”‚            â”‚       â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”           â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                   â”‚
+     â”‚            â”‚       â”‚ RETURNED â”‚â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                                  â”‚
+     â”‚            â”‚       â””â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”˜           â”‚                                  â”‚
+     â”‚            â”‚            â”‚                 â”‚                                  â”‚
+     â”‚            â”‚            â–¼                 â–¼                                  â”‚
+     â”‚            â”‚       â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                    â”‚
+     â”‚            â”‚       â”‚ REFUNDED â”‚    â”‚ PARTIALLY_REFUNDED â”‚                    â”‚
+     â”‚            â”‚       â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                    â”‚
+     â”‚            â”‚                                                                 â”‚
+     â–¼            â–¼                                                                 â”‚
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                                                                       â”‚
+â”‚ CANCELLED â”‚ (terminal)                                                            â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                                                                       â”‚
 </code></pre>
 <hr>
 <h2>Transition Table (All 8 States)</h2>
@@ -329,7 +329,7 @@
 <td>1</td>
 <td>(none)</td>
 <td>PENDING</td>
-<td>POST /orders/checkout</td>
+<td><code>order.checkout_submitted</code></td>
 <td>BUYER</td>
 <td>UC-ORDER-001</td>
 <td>BR-ORDER-001..009</td>
@@ -339,7 +339,7 @@
 <td>2</td>
 <td>PENDING</td>
 <td>PAID</td>
-<td>Stripe payment_intent.succeeded webhook → <code>payment.success</code></td>
+<td>Stripe payment_intent.succeeded webhook â†’ <code>payment.success</code></td>
 <td>SYSTEM</td>
 <td>UC-ORDER-001</td>
 <td>BR-ORDER-010</td>
@@ -361,7 +361,7 @@
 <td>CANCELLED</td>
 <td>JOB-13/Axon auto-cancel (payment timeout: 30m / 10m flash sale)</td>
 <td>SYSTEM</td>
-<td>—</td>
+<td>â€”</td>
 <td>BR-ORDER-012</td>
 <td><code>order.auto_cancelled</code></td>
 </tr>
@@ -391,7 +391,7 @@
 <td>DELIVERED</td>
 <td>JOB-22 auto-confirm (7 days after shipping, not RTS'd)</td>
 <td>SYSTEM</td>
-<td>—</td>
+<td>â€”</td>
 <td>BR-ORDER-015</td>
 <td><code>order.delivered</code></td>
 </tr>
@@ -409,11 +409,11 @@
 <td>9</td>
 <td>RETURNED</td>
 <td>REFUNDED</td>
-<td>Stripe auto-refund completes → <code>refund.rts_completed</code></td>
+<td>Stripe auto-refund completes â†’ <code>refund.rts_completed</code></td>
 <td>SYSTEM</td>
 <td>UC-ORDER-006</td>
 <td>BR-ORDER-020</td>
-<td>— (consumed)</td>
+<td>â€” (consumed)</td>
 </tr>
 <tr>
 <td>10</td>
@@ -520,29 +520,29 @@
 <td><strong>REFUNDED</strong></td>
 <td>Full refund processed</td>
 <td><code>refund.admin_approved</code> or <code>refund.rts_completed</code></td>
-<td>— (terminal)</td>
+<td>â€” (terminal)</td>
 </tr>
 <tr>
 <td>7</td>
 <td><strong>PARTIALLY_REFUNDED</strong></td>
 <td>Partial refund processed</td>
 <td><code>refund.admin_approved</code></td>
-<td>— (terminal)</td>
+<td>â€” (terminal)</td>
 </tr>
 <tr>
 <td>8</td>
 <td><strong>CANCELLED</strong></td>
 <td>Order cancelled, stock released</td>
 <td><code>order.cancelled</code> or <code>order.auto_cancelled</code></td>
-<td>— (terminal)</td>
+<td>â€” (terminal)</td>
 </tr>
 </tbody>
 </table>
 <hr>
 <h2>Parent Order State Transitions</h2>
-<pre><code>PENDING_PAYMENT ──┬──▶ PAID (all sub-orders PAID or beyond)
-                  │
-                  └──▶ CANCELLED (all sub-orders CANCELLED)
+<pre><code>PENDING_PAYMENT â”€â”€â”¬â”€â”€â–¶ PAID (all sub-orders PAID or beyond)
+                  â”‚
+                  â””â”€â”€â–¶ CANCELLED (all sub-orders CANCELLED)
 </code></pre>
 <table>
 <thead>
@@ -680,23 +680,23 @@
 </table>
 <hr>
 <h2>Kafka Events per Transition</h2>
-<pre><code>checkout ──────────────▶ order.created
-                          order.checkout_created
+<pre><code>checkout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ order.created
+                          payment.requested
 
-payment success ───────▶ order.paid (consumed payment.success)
+payment success â”€â”€â”€â”€â”€â”€â”€â–¶ order.paid (consumed payment.success)
 
-cancel (buyer/seller) ─▶ order.cancelled
-cancel (auto) ─────────▶ order.auto_cancelled
+cancel (buyer/seller) â”€â–¶ order.cancelled
+cancel (auto) â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ order.auto_cancelled
 
-ship (tracking) ───────▶ order.shipped
+ship (tracking) â”€â”€â”€â”€â”€â”€â”€â–¶ order.shipped
 
-confirm delivery ──────▶ order.delivered
-auto-delivery ─────────▶ order.delivered (autoDelivered=true)
+confirm delivery â”€â”€â”€â”€â”€â”€â–¶ order.delivered
+auto-delivery â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ order.delivered (autoDelivered=true)
 
-RTS ───────────────────▶ order.returned
+RTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¶ order.returned
 
-refund (RTS auto) ─────▶ (consumed refund.rts_completed)
-refund (admin) ────────▶ (consumed refund.admin_approved)
+refund (RTS auto) â”€â”€â”€â”€â”€â–¶ (consumed refund.rts_completed)
+refund (admin) â”€â”€â”€â”€â”€â”€â”€â”€â–¶ (consumed refund.admin_approved)
 </code></pre>
 <hr>
 <h2>Cross-References</h2>

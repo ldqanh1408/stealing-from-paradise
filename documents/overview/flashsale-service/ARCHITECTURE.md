@@ -1,6 +1,6 @@
-# Flash Sale Service — Architecture Overview
+﻿# Flash Sale Service â€” Architecture Overview
 
-> Service: flashsale-service (SVC-006, Port 8085)
+> Service: flashsale-service (SVC-006, Port 8086)
 > Database: PostgreSQL + Axon + Redis
 > Source: `documents` micro-docs
 > Generated: 2026-05-10
@@ -23,9 +23,9 @@ Time-limited flash sale sessions with price promotion management.
 - Redis Worker: polls `flash_sale:triggers` ZSET every 100ms for zero-latency state transitions
 
 ## Key Features
-- Session management (UPCOMING → ACTIVE → ENDED)
+- Session management (UPCOMING â†’ ACTIVE â†’ ENDED)
 - Redis ZSET worker for near-zero latency session transitions (100ms poll vs 60s cron)
-- Auto-calculated flash_price = sku.price × (1 - discount/100)
+- Auto-calculated flash_price = sku.price Ã— (1 - discount/100)
 - Seller product registration with deadline enforcement
 
 ## Architecture Pattern

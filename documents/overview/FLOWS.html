@@ -433,7 +433,7 @@ Source: <code>docs/services/flashsale-service/flashsale_service_flow.md</code>, 
     participant PS as Product Service
     participant Redis
 
-    Customer-&gt;&gt;PS: POST /v1/checkout/preview (item_ids[])
+    Customer-&gt;&gt;PS: POST /v1/cart/checkout/preview (item_ids[])
     PS-&gt;&gt;PS: Validate ALL items (price, stock, status)
     alt Any validation fails
         PS--&gt;&gt;Customer: 409 Conflict (per-item details)
@@ -450,7 +450,7 @@ Source: <code>docs/services/flashsale-service/flashsale_service_flow.md</code>, 
     participant PayS as Payment Service
 
     Note over Customer,PayS: Step 1: Checkout Preview
-    Customer-&gt;&gt;PS: POST /v1/checkout/preview (item_ids[])
+    Customer-&gt;&gt;PS: POST /v1/cart/checkout/preview (item_ids[])
     PS-&gt;&gt;PS: Validate ALL items (price, stock, variant)
     alt Validation fails
         PS--&gt;&gt;Customer: 409 Conflict (per-item details)
@@ -460,7 +460,7 @@ Source: <code>docs/services/flashsale-service/flashsale_service_flow.md</code>, 
     end
 
     Note over Customer,PayS: Step 2: Checkout Submit
-    Customer-&gt;&gt;PS: POST /v1/checkout/submit (preview_token, address_snapshot)
+    Customer-&gt;&gt;PS: POST /v1/cart/checkout/submit (preview_token, address_snapshot)
     PS-&gt;&gt;PS: Validate preview_token (Redis)
     PS-&gt;&gt;PS: Re-validate stock for ALL items
     PS-&gt;&gt;Redis: Reserve stock (DECR + stock_reservation PENDING)
@@ -480,13 +480,13 @@ Source: <code>docs/services/flashsale-service/flashsale_service_flow.md</code>, 
         OS-&gt;&gt;PayS: Kafka: order.paid
         OS-&gt;&gt;OS: Update order PAID
         PayS-&gt;&gt;PS: Kafka: order.paid
-        PS-&gt;&gt;PS: confirmReservation() → CONFIRMED
+        PS-&gt;&gt;PS: confirmReservation() â†’ CONFIRMED
     else Payment failed
         PayS-&gt;&gt;OS: payment.failed
         OS-&gt;&gt;PayS: Kafka: order.payment_failed
         OS-&gt;&gt;OS: Update order CANCELLED
         PayS-&gt;&gt;PS: Kafka: order.payment_failed
-        PS-&gt;&gt;PS: releaseReservation() → RELEASED
+        PS-&gt;&gt;PS: releaseReservation() â†’ RELEASED
     end</pre>
 <h3>2.7 Payment Resolution</h3>
 <pre class="mermaid">sequenceDiagram
@@ -498,16 +498,16 @@ Source: <code>docs/services/flashsale-service/flashsale_service_flow.md</code>, 
 
     Stripe-&gt;&gt;PayS: Webhook payment_intent.succeeded
     PayS-&gt;&gt;Kafka: payment.success
-    Kafka-&gt;&gt;OS: Consume → update orders PAID
+    Kafka-&gt;&gt;OS: Consume â†’ update orders PAID
     Kafka-&gt;&gt;PayS: order.paid
-    PayS-&gt;&gt;PS: Consume → confirmReservation()
+    PayS-&gt;&gt;PS: Consume â†’ confirmReservation()
 
     alt Payment fails
         Stripe-&gt;&gt;PayS: Webhook payment_intent.payment_failed
         PayS-&gt;&gt;Kafka: payment.failed
-        Kafka-&gt;&gt;OS: Consume → update orders CANCELLED
+        Kafka-&gt;&gt;OS: Consume â†’ update orders CANCELLED
         Kafka-&gt;&gt;PayS: order.payment_failed
-        PayS-&gt;&gt;PS: Consume → releaseReservation()
+        PayS-&gt;&gt;PS: Consume â†’ releaseReservation()
     end</pre>
 <hr>
 <h2>3. Order Lifecycle Flow</h2>

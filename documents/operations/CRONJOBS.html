@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cronjobs</title>
+  <title>Cronjobs Reference</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
@@ -273,18 +273,17 @@
         <section class="doc-hero doc-section">
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
-              <h1 class="h2 mb-1">Cronjobs</h1>
+              <h1 class="h2 mb-1">Cronjobs Reference</h1>
               <div class="doc-meta">DOC-OPERATIONS-CRONJOBS | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">runbook</span> <span class="badge text-bg-light">platform</span></div>
           </div>
         </section>
 
-        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h2>Cronjobs Reference</h2>
+        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Cronjobs Reference</h1>
 <p>Service: platform
-Generated: 2026-05-09
-Updated: 2026-05-11</p>
-<h3>Design Principles</h3>
+Updated: 2026-06-09</p>
+<h2>Design Principles</h2>
 <table>
 <thead>
 <tr>
@@ -295,220 +294,184 @@ Updated: 2026-05-11</p>
 <tbody>
 <tr>
 <td>Service Ownership</td>
-<td>Each job runs in the service that owns the primary data</td>
-</tr>
-<tr>
-<td>Distributed Lock</td>
-<td>ShedLock (PostgreSQL provider) ensures single-node execution</td>
-</tr>
-<tr>
-<td>Soft Delete First</td>
-<td>Data marked before hard delete, with grace period</td>
-</tr>
-<tr>
-<td>Audit Trail</td>
-<td>Financial tables (TRANSACTIONS, REFUNDS) never hard-deleted</td>
+<td>Each job runs in the service that owns the primary data.</td>
 </tr>
 <tr>
 <td>Idempotent</td>
-<td>Every cleanup job must be idempotent</td>
+<td>Jobs can run repeatedly without duplicating business effects.</td>
 </tr>
 <tr>
-<td>Off-peak</td>
-<td>Heavy jobs run 02:00–05:00 UTC+7</td>
+<td>Event Bridge</td>
+<td>Jobs that change cross-service state publish Kafka events.</td>
 </tr>
 <tr>
-<td>Batch Size</td>
-<td>Max 500–1000 records per batch to avoid table locks</td>
+<td>Retention</td>
+<td>Financial/audit records are retained; user notifications use MongoDB TTL.</td>
+</tr>
+<tr>
+<td>Operational Safety</td>
+<td>Heavy cleanup runs outside peak hours where possible.</td>
 </tr>
 </tbody>
 </table>
-<h3>Cronjob Inventory (15 real cronjobs (1 implemented: JOB-23, 14 post-MVP) + JOB-09 MongoDB TTL)</h3>
-<blockquote>
-<p><strong>JOB ID gaps:</strong> JOB-03, JOB-11, JOB-14, JOB-17, JOB-18, JOB-19, JOB-20 are intentionally skipped (reserved for future use).</p>
-</blockquote>
-<h4>flashsale-service (:8085)</h4>
+<h2>Implemented Scheduled Jobs</h2>
+<p>Source of truth: Java <code>@Scheduled</code> annotations in <code>backend/*-service/src/main/java</code>.</p>
 <table>
 <thead>
 <tr>
 <th>Job</th>
-<th>Cron</th>
-<th>Description</th>
-<th>Tables</th>
+<th>Schedule</th>
+<th>Service</th>
+<th>Class</th>
+<th>Responsibility</th>
 <th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>JOB-01</td>
-<td>*/1 * * * *</td>
-<td>Session lifecycle: UPCOMING→ACTIVE→ENDED</td>
-<td>FS_SESSIONS</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>fixedDelay=${flashsale.session-scheduler.delay-ms:60000}</code></td>
+<td>flashsale-service</td>
+<td><code>FlashSaleSessionScheduler</code></td>
+<td>Move flash sale sessions through UPCOMING/ACTIVE/ENDED and publish session lifecycle events.</td>
+<td>IMPLEMENTED</td>
 </tr>
 <tr>
 <td>JOB-08</td>
-<td>0 3 * * *</td>
-<td>Flash sale data cleanup (soft-deleted &gt; 30d)</td>
-<td>FS_SESSIONS</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${flashsale.scheduler.cleanup-cron:0 0 3 * * *}</code></td>
+<td>flashsale-service</td>
+<td><code>FlashSaleMaintenanceScheduler</code></td>
+<td>Clean up soft-deleted flash sale sessions after retention.</td>
+<td>IMPLEMENTED</td>
 </tr>
 <tr>
 <td>JOB-21</td>
-<td>0 4 * * *</td>
-<td>Stock reconciliation post-flash-sale</td>
-<td>PRODUCT_VARIANT</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${flashsale.scheduler.reconcile-cron:0 0 4 * * *}</code></td>
+<td>flashsale-service</td>
+<td><code>FlashSaleMaintenanceScheduler</code></td>
+<td>Reconcile post-flash-sale item stock from Redis/JPA state.</td>
+<td>IMPLEMENTED</td>
 </tr>
-</tbody>
-</table>
-<blockquote>
-<p><strong>CROSS-SERVICE NOTE (JOB-21):</strong> JOB-21 operates on <code>PRODUCT_VARIANT</code> (owned by product-service) but is scheduled in flashsale-service. This is a known cross-service concern for MVP — flashsale-service has the most accurate view of post-sale stock delta and reconciles directly. Post-MVP, this should move to product-service or use a Kafka event-driven approach.</p>
-</blockquote>
-<h4>product-service (:8090)</h4>
-<table>
-<thead>
-<tr>
-<th>Job</th>
-<th>Cron</th>
-<th>Description</th>
-<th>Tables</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td>JOB-07</td>
-<td>0 */2 * * *</td>
-<td>Stale cart cleanup (&gt; 24h inactive)</td>
-<td>CART, CART_ITEM</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${product.scheduler.stale-cart-cron:0 0 */2 * * *}</code></td>
+<td>product-service</td>
+<td><code>ProductCleanupScheduler</code></td>
+<td>Remove stale cart items.</td>
+<td>IMPLEMENTED</td>
 </tr>
 <tr>
 <td>JOB-10</td>
-<td>0 3 * * 0</td>
-<td>Soft-deleted products hard cleanup (&gt; 90d)</td>
-<td>PRODUCT</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${product.scheduler.hard-delete-cron:0 0 3 * * SUN}</code></td>
+<td>product-service</td>
+<td><code>ProductCleanupScheduler</code></td>
+<td>Hard-delete products after soft-delete retention.</td>
+<td>IMPLEMENTED</td>
 </tr>
 <tr>
 <td>JOB-16</td>
-<td>0 2 * * *</td>
-<td>Auto-hide rejected products (&gt; 30d)</td>
-<td>PRODUCT</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${product.scheduler.auto-hide-cron:0 0 2 * * *}</code></td>
+<td>product-service</td>
+<td><code>ProductCleanupScheduler</code></td>
+<td>Auto-hide rejected products after retention.</td>
+<td>IMPLEMENTED</td>
 </tr>
-</tbody>
-</table>
-<h4>order-service (:8083)</h4>
-<table>
-<thead>
-<tr>
-<th>Job</th>
-<th>Cron</th>
-<th>Description</th>
-<th>Tables</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td>JOB-13</td>
-<td>*/10 * * * *</td>
-<td>Auto-cancel stale PENDING orders (&gt; 30min)</td>
-<td>PARENT_ORDERS, ORDERS</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${order.scheduler.auto-cancel-cron:0 */10 * * * *}</code></td>
+<td>order-service</td>
+<td><code>OrderLifecycleScheduler</code></td>
+<td>Auto-cancel stale pending parent orders and publish <code>order.auto_cancelled</code>.</td>
+<td>IMPLEMENTED</td>
 </tr>
 <tr>
 <td>JOB-22</td>
-<td>0 */6 * * *</td>
-<td>Auto-deliver stale SHIPPING orders (&gt; 7d no update)</td>
-<td>ORDERS</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
-</tr>
-</tbody>
-</table>
-<h4>payment-service (:8082)</h4>
-<table>
-<thead>
-<tr>
-<th>Job</th>
-<th>Cron</th>
-<th>Description</th>
-<th>Tables</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>JOB-04</td>
-<td>*/5 * * * *</td>
-<td>Outbox event publisher</td>
-<td>OUTBOX_EVENTS</td>
-<td>NOT_IMPLEMENTED (outbox pattern deferred)</td>
-</tr>
-<tr>
-<td>JOB-05</td>
-<td>0 2 * * *</td>
-<td>Outbox events cleanup (&gt; 7d)</td>
-<td>OUTBOX_EVENTS</td>
-<td>NOT_IMPLEMENTED (outbox pattern deferred)</td>
-</tr>
-<tr>
-<td>JOB-06</td>
-<td>0 2 * * *</td>
-<td>Failed events cleanup (&gt; 30d)</td>
-<td>FAILED_EVENTS</td>
-<td>NOT_IMPLEMENTED (outbox pattern deferred)</td>
-</tr>
-<tr>
-<td>JOB-12</td>
-<td>0 3 * * *</td>
-<td>ShedLock stale lock cleanup</td>
-<td>SHEDLOCK</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${order.scheduler.auto-deliver-cron:0 0 */6 * * *}</code></td>
+<td>order-service</td>
+<td><code>OrderLifecycleScheduler</code></td>
+<td>Auto-deliver stale shipping orders and publish order delivery events.</td>
+<td>IMPLEMENTED</td>
 </tr>
 <tr>
 <td>JOB-15</td>
-<td>0 */1 * * *</td>
-<td>Nullify expired Stripe onboarding URLs (&gt; 24h)</td>
-<td>SELLER_STRIPE_ACCOUNTS</td>
-<td>NOT_IMPLEMENTED (post-MVP)</td>
+<td><code>${payment.scheduler.onboarding-url-cron:0 0 * * * *}</code></td>
+<td>payment-service</td>
+<td><code>StripeOnboardingUrlScheduler</code></td>
+<td>Nullify expired Stripe onboarding URLs.</td>
+<td>IMPLEMENTED</td>
 </tr>
 <tr>
-<td><strong>JOB-23</strong></td>
-<td><strong>0 */5 * * * * (every 5 min)</strong></td>
-<td><strong>PayoutScheduler — process seller payouts after return window expiry (batch 100)</strong></td>
-<td><strong>SELLER_TRANSFERS</strong></td>
-<td><strong>IMPLEMENTED</strong></td>
+<td>JOB-23</td>
+<td><code>0 */5 * * * *</code></td>
+<td>payment-service</td>
+<td><code>PayoutScheduler</code></td>
+<td>Process seller payouts after the return window.</td>
+<td>IMPLEMENTED</td>
+</tr>
+<tr>
+<td>RES-01</td>
+<td><code>${reservation.cleanup.interval-ms:180000}</code></td>
+<td>product-service</td>
+<td><code>ReservationCleanupScheduler</code></td>
+<td>Expire stock reservations and publish <code>stock.reservation.expired</code>.</td>
+<td>IMPLEMENTED</td>
 </tr>
 </tbody>
 </table>
-<h4>notification-service (:8092)</h4>
+<h2>Native TTL / Non-Cron Retention</h2>
 <table>
 <thead>
 <tr>
-<th>Job</th>
-<th>Cron</th>
-<th>Description</th>
-<th>Tables</th>
+<th>ID</th>
+<th>Mechanism</th>
+<th>Store</th>
+<th>Responsibility</th>
 <th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>JOB-09</td>
-<td>—</td>
-<td>TTL Index (MongoDB native — NOT a real cronjob)</td>
-<td>MG_NOTIFICATIONS</td>
-<td>N/A (MongoDB TTL Index)</td>
+<td>MongoDB TTL index</td>
+<td><code>mg_notifications.created_at</code></td>
+<td>Delete notifications after 90 days.</td>
+<td>IMPLEMENTED</td>
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p><strong>AUDIT NOTE (2026-05-10, updated 2026-05-11):</strong> Java source audit reveals only JOB-23 (PayoutScheduler in payment-service) has an actual <code>@Scheduled</code> annotation in the codebase. The other 14 real cronjobs have NO corresponding <code>@Scheduled</code> in Java and are NOT_IMPLEMENTED. JOB-09 is not a cronjob at all -- it is a MongoDB TTL Index. JOB-04, JOB-05, JOB-06 (outbox pattern) are deferred post-MVP. See CONTRADICTIONS.md #19, #33, #34.</p>
-</blockquote>
-<h3>Retention Policies</h3>
+<h2>Deferred Jobs</h2>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Description</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JOB-04</td>
+<td>Outbox event publisher</td>
+<td>Outbox pattern is deferred; current services publish Kafka directly.</td>
+</tr>
+<tr>
+<td>JOB-05</td>
+<td>Outbox event cleanup</td>
+<td>Depends on JOB-04/outbox tables.</td>
+</tr>
+<tr>
+<td>JOB-06</td>
+<td>Failed event cleanup</td>
+<td>Depends on deferred failed-event/DLQ audit tables.</td>
+</tr>
+<tr>
+<td>JOB-12</td>
+<td>ShedLock stale-lock cleanup</td>
+<td>ShedLock is not currently part of the implemented scheduler stack.</td>
+</tr>
+</tbody>
+</table>
+<h2>Retention Policies</h2>
 <table>
 <thead>
 <tr>
@@ -519,39 +482,29 @@ Updated: 2026-05-11</p>
 </thead>
 <tbody>
 <tr>
-<td>account.*</td>
-<td>7 days</td>
-<td>Account security events</td>
-</tr>
-<tr>
-<td>product.*</td>
-<td>30 days</td>
-<td>Product lifecycle tracking</td>
-</tr>
-<tr>
-<td>order.*</td>
-<td>30 days</td>
-<td>Order history &amp; audit</td>
-</tr>
-<tr>
-<td>payment.<em>, refund.</em></td>
-<td>90 days</td>
-<td>Payment compliance</td>
-</tr>
-<tr>
-<td>outbox_events</td>
-<td>7 days</td>
-<td>Event relay cleanup (deferred post-MVP)</td>
-</tr>
-<tr>
-<td>failed_events</td>
-<td>30 days</td>
-<td>DLQ audit trail (deferred post-MVP)</td>
-</tr>
-<tr>
 <td>notifications</td>
-<td>90 days (MongoDB TTL auto-delete)</td>
-<td>User notification history</td>
+<td>90 days</td>
+<td>MongoDB TTL auto-delete.</td>
+</tr>
+<tr>
+<td>flash sale soft-deletes</td>
+<td>30 days</td>
+<td>Cleanup by <code>FlashSaleMaintenanceScheduler</code>.</td>
+</tr>
+<tr>
+<td>product soft-deletes</td>
+<td>90 days</td>
+<td>Cleanup by <code>ProductCleanupScheduler</code>.</td>
+</tr>
+<tr>
+<td>seller transfers</td>
+<td>retained</td>
+<td>Financial reconciliation and payout audit.</td>
+</tr>
+<tr>
+<td>transactions/refunds</td>
+<td>retained</td>
+<td>Payment compliance and support audit.</td>
 </tr>
 </tbody>
 </table></div></section>

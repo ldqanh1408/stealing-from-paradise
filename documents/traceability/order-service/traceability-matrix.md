@@ -1,4 +1,4 @@
-# Traceability Matrix — Order Service
+﻿# Traceability Matrix â€” Order Service
 
 **Document ID:** TRACE-ORDER-001
 **Service:** order-service (port 8083)
@@ -6,81 +6,81 @@
 
 ---
 
-## Matrix: FR → BR → UC → Entity → API → State
+## Matrix: FR â†’ BR â†’ UC â†’ Entity â†’ API â†’ State
 
 | FR ID | Description | BR IDs | UC IDs | Entity IDs | API Contract | State Transition |
 |-------|-------------|--------|--------|------------|-------------|------------------|
-| FR-ORDER-001 | Multi-Vendor Checkout | BR-001..009 | UC-ORDER-001 | ENTITY-001,002,003 | api-post-orders-checkout.yaml | → PENDING |
-| FR-ORDER-002 | Stock Validation (Req-Rep) | BR-ORDER-002 | UC-ORDER-001 | ENTITY-003 | — | — |
-| FR-ORDER-003 | Address Validation (Req-Rep) | BR-ORDER-003 | UC-ORDER-001 | ENTITY-002 | — | — |
-| FR-ORDER-004 | Order Code Generation | BR-ORDER-006 | — | ENTITY-002 | — | — |
-| FR-ORDER-005 | Buyer Order Listing | — | UC-ORDER-002 | ENTITY-002 | api-get-orders.yaml | — |
-| FR-ORDER-006 | Order Detail | — | UC-ORDER-002 | ENTITY-002,003 | api-get-orders.yaml | — |
-| FR-ORDER-007 | Parent Order Detail | — | UC-ORDER-002 | ENTITY-001,002 | — | — |
-| FR-ORDER-008 | Buyer Cancel Order | BR-011,021,025 | UC-ORDER-003 | ENTITY-002 | api-post-orders-cancel.yaml | PENDING→CANCELLED, PAID→CANCELLED |
-| FR-ORDER-019 | Seller Cancel Order (PAID, pre-ship) | BR-011,021,026 | UC-ORDER-008 | ENTITY-002 | api-post-orders-cancel.yaml | PAID→CANCELLED |
-| FR-ORDER-009 | Seller Update Tracking | BR-ORDER-013 | UC-ORDER-004 | ENTITY-002 | api-put-orders-ship.yaml | PAID→SHIPPING |
-| FR-ORDER-010 | Buyer Confirm Delivery | BR-ORDER-014 | UC-ORDER-005 | ENTITY-002 | api-put-orders-ship.yaml | SHIPPING→DELIVERED |
-| FR-ORDER-011 | Auto-Confirm Delivery (JOB-22) | BR-ORDER-015 | — | ENTITY-002 | — | SHIPPING→DELIVERED |
-| FR-ORDER-012 | Seller RTS | BR-016,022 | UC-ORDER-006 | ENTITY-002 | api-post-orders-return.yaml | SHIPPING→RETURNED |
-| FR-ORDER-013 | Buyer Refund Request | BR-017,018,019 | UC-ORDER-006 | ENTITY-002 | api-post-orders-return.yaml | DELIVERED→REFUNDED/PARTIALLY_REFUNDED |
-| FR-ORDER-014 | Seller Order Listing | — | UC-ORDER-007 | ENTITY-002 | api-get-orders.yaml | — |
-| FR-ORDER-015 | Seller Dashboard | — | — | ENTITY-002 | api-get-orders.yaml | — |
-| FR-ORDER-016 | Kafka Event Production | BR-009..016 | — | — | — | ALL |
-| FR-ORDER-017 | Kafka Event Consumption | — | — | — | — | PENDING→PAID, etc. |
-| FR-ORDER-018 | Saga Orchestration (Axon) | — | UC-ORDER-001 | — | — | Payment lifecycle |
+| FR-ORDER-001 | Multi-Vendor Checkout | BR-001..009 | UC-ORDER-001 | ENTITY-001,002,003 | product-service api-post-checkout-submit.yaml | -> PENDING |
+| FR-ORDER-002 | Checkout Stock Reservation | BR-ORDER-002 | UC-ORDER-001 | ENTITY-003 | â€” | â€” |
+| FR-ORDER-003 | Checkout Address Validation | BR-ORDER-003 | UC-ORDER-001 | ENTITY-002 | â€” | â€” |
+| FR-ORDER-004 | Order Code Generation | BR-ORDER-006 | â€” | ENTITY-002 | â€” | â€” |
+| FR-ORDER-005 | Buyer Order Listing | â€” | UC-ORDER-002 | ENTITY-002 | api-get-orders.yaml | â€” |
+| FR-ORDER-006 | Order Detail | â€” | UC-ORDER-002 | ENTITY-002,003 | api-get-orders.yaml | â€” |
+| FR-ORDER-007 | Parent Order Detail | â€” | UC-ORDER-002 | ENTITY-001,002 | â€” | â€” |
+| FR-ORDER-008 | Buyer Cancel Order | BR-011,021,025 | UC-ORDER-003 | ENTITY-002 | api-post-orders-cancel.yaml | PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED |
+| FR-ORDER-019 | Seller Cancel Order (PAID, pre-ship) | BR-011,021,026 | UC-ORDER-008 | ENTITY-002 | api-post-orders-cancel.yaml | PAIDâ†’CANCELLED |
+| FR-ORDER-009 | Seller Update Tracking | BR-ORDER-013 | UC-ORDER-004 | ENTITY-002 | api-put-orders-ship.yaml | PAIDâ†’SHIPPING |
+| FR-ORDER-010 | Buyer Confirm Delivery | BR-ORDER-014 | UC-ORDER-005 | ENTITY-002 | api-put-orders-ship.yaml | SHIPPINGâ†’DELIVERED |
+| FR-ORDER-011 | Auto-Confirm Delivery (JOB-22) | BR-ORDER-015 | â€” | ENTITY-002 | â€” | SHIPPINGâ†’DELIVERED |
+| FR-ORDER-012 | Seller RTS | BR-016,022 | UC-ORDER-006 | ENTITY-002 | api-post-orders-return.yaml | SHIPPINGâ†’RETURNED |
+| FR-ORDER-013 | Buyer Refund Request | BR-017,018,019 | UC-ORDER-006 | ENTITY-002 | api-post-orders-return.yaml | DELIVEREDâ†’REFUNDED/PARTIALLY_REFUNDED |
+| FR-ORDER-014 | Seller Order Listing | â€” | UC-ORDER-007 | ENTITY-002 | api-get-orders.yaml | â€” |
+| FR-ORDER-015 | Seller Dashboard | â€” | â€” | ENTITY-002 | api-get-orders.yaml | â€” |
+| FR-ORDER-016 | Kafka Event Production | BR-009..016 | â€” | â€” | â€” | ALL |
+| FR-ORDER-017 | Kafka Event Consumption | â€” | â€” | â€” | â€” | PENDINGâ†’PAID, etc. |
+| FR-ORDER-018 | Saga Orchestration (Axon) | â€” | UC-ORDER-001 | â€” | â€” | Payment lifecycle |
 
 ---
 
-## Matrix: Use Case → FR → API → State
+## Matrix: Use Case â†’ FR â†’ API â†’ State
 
 | UC ID | Use Case | Actor | FR IDs | API | State Change |
 |-------|----------|-------|--------|-----|-------------|
-| UC-ORDER-001 | Checkout | BUYER | FR-001,002,003,004 | POST /orders/checkout | → PENDING |
+| UC-ORDER-001 | Checkout | BUYER | FR-001,002,003,004 | POST /v1/cart/checkout/submit | â†’ PENDING |
 | UC-ORDER-002 | View Orders | BUYER | FR-005,006,007 | GET /orders, /orders/{id}, /orders/parent/{id} | None (read) |
-| UC-ORDER-003 | Cancel Order (Buyer) | BUYER | FR-ORDER-008 | POST /orders/{id}/cancel | PENDING→CANCELLED, PAID→CANCELLED |
-| UC-ORDER-008 | Cancel Order (Seller) | SELLER | FR-ORDER-008,019 | POST /orders/{id}/cancel | PAID→CANCELLED (tracking_number IS NULL) |
-| UC-ORDER-004 | Ship Order | SELLER | FR-ORDER-009 | PUT /orders/{id}/tracking | PAID→SHIPPING |
-| UC-ORDER-005 | Confirm Delivery | BUYER | FR-010,011 | POST /orders/{id}/confirm-received | SHIPPING→DELIVERED |
-| UC-ORDER-006 | Request Return | BUYER/SELLER | FR-012,013 | POST /orders/{id}/return-to-sender, POST /orders/{id}/refunds | SHIPPING→RETURNED, DELIVERED→REFUNDED |
+| UC-ORDER-003 | Cancel Order (Buyer) | BUYER | FR-ORDER-008 | POST /orders/{id}/cancel | PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED |
+| UC-ORDER-008 | Cancel Order (Seller) | SELLER | FR-ORDER-008,019 | POST /orders/{id}/cancel | PAIDâ†’CANCELLED (tracking_number IS NULL) |
+| UC-ORDER-004 | Ship Order | SELLER | FR-ORDER-009 | PUT /orders/{id}/tracking | PAIDâ†’SHIPPING |
+| UC-ORDER-005 | Confirm Delivery | BUYER | FR-010,011 | POST /orders/{id}/confirm-received | SHIPPINGâ†’DELIVERED |
+| UC-ORDER-006 | Request Return | BUYER/SELLER | FR-012,013 | POST /orders/{id}/return-to-sender, POST /orders/{id}/refunds | SHIPPINGâ†’RETURNED, DELIVEREDâ†’REFUNDED |
 | UC-ORDER-007 | View Seller Orders | SELLER | FR-014,015 | GET /sellers/me/orders, GET /sellers/me/dashboard | None (read) |
 
 ---
 
-## Matrix: Business Rule → Entity → State
+## Matrix: Business Rule â†’ Entity â†’ State
 
 | BR ID | Rule Summary | Entity | State Transition |
 |-------|-------------|--------|-----------------|
-| BR-ORDER-001 | Cart not empty | ENTITY-003 | — |
-| BR-ORDER-002 | Stock availability check | ENTITY-003 | — |
-| BR-ORDER-003 | Address validation | ENTITY-002 | — |
-| BR-ORDER-004 | Multi-vendor split | ENTITY-001,002 | → PENDING |
-| BR-ORDER-005 | Parent financial integrity | ENTITY-001,002 | — |
-| BR-ORDER-006 | Order code generation | ENTITY-002 | — |
-| BR-ORDER-007 | Shipping deadline (3 days) | ENTITY-002 | — |
-| BR-ORDER-008 | Checkout idempotency | ENTITY-001 | — |
-| BR-ORDER-009 | Kafka event on checkout | — | → PENDING |
-| BR-ORDER-010 | PENDING→PAID | ENTITY-002 | PENDING→PAID |
-| BR-ORDER-011 | PENDING/PAID→CANCELLED (buyer or seller per BR-021) | ENTITY-002 | PENDING→CANCELLED, PAID→CANCELLED |
-| BR-ORDER-012 | Auto-cancel (JOB-13) | ENTITY-002 | PENDING→CANCELLED |
-| BR-ORDER-013 | PAID→SHIPPING | ENTITY-002 | PAID→SHIPPING |
-| BR-ORDER-014 | SHIPPING→DELIVERED (buyer) | ENTITY-002 | SHIPPING→DELIVERED |
-| BR-ORDER-015 | SHIPPING→DELIVERED (auto) | ENTITY-002 | SHIPPING→DELIVERED |
-| BR-ORDER-016 | SHIPPING→RETURNED (RTS) | ENTITY-002 | SHIPPING→RETURNED |
-| BR-ORDER-017 | Return window (7 days) | ENTITY-002 | — |
-| BR-ORDER-018 | DELIVERED→REFUNDED | ENTITY-002 | DELIVERED→REFUNDED |
-| BR-ORDER-019 | DELIVERED→PARTIALLY_REFUNDED | ENTITY-002 | DELIVERED→PARTIALLY_REFUNDED |
-| BR-ORDER-020 | RETURNED→REFUNDED (auto) | ENTITY-002 | RETURNED→REFUNDED |
-| BR-ORDER-021 | Cancellation actor rules (BUYER: PENDING/PAID; SELLER: PAID + tracking_number IS NULL) | ENTITY-002 | — |
-| BR-ORDER-022 | RTS vs Buyer Refund | ENTITY-002 | — |
-| BR-ORDER-023 | Parent status sync | ENTITY-001,002 | — |
-| BR-ORDER-024 | Immutable shipping snapshot | ENTITY-002 | — |
-| BR-ORDER-025 | Stock reservation release | ENTITY-003 | — |
-| BR-ORDER-026 | Seller cancel — full refund + reason ≥10 chars + emit `seller.order_cancelled` | ENTITY-002 | PAID→CANCELLED |
+| BR-ORDER-001 | Cart not empty | ENTITY-003 | â€” |
+| BR-ORDER-002 | Stock availability check | ENTITY-003 | â€” |
+| BR-ORDER-003 | Address validation | ENTITY-002 | â€” |
+| BR-ORDER-004 | Multi-vendor split | ENTITY-001,002 | â†’ PENDING |
+| BR-ORDER-005 | Parent financial integrity | ENTITY-001,002 | â€” |
+| BR-ORDER-006 | Order code generation | ENTITY-002 | â€” |
+| BR-ORDER-007 | Shipping deadline (3 days) | ENTITY-002 | â€” |
+| BR-ORDER-008 | Checkout idempotency | ENTITY-001 | â€” |
+| BR-ORDER-009 | Kafka event on checkout | â€” | â†’ PENDING |
+| BR-ORDER-010 | PENDINGâ†’PAID | ENTITY-002 | PENDINGâ†’PAID |
+| BR-ORDER-011 | PENDING/PAIDâ†’CANCELLED (buyer or seller per BR-021) | ENTITY-002 | PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED |
+| BR-ORDER-012 | Auto-cancel (JOB-13) | ENTITY-002 | PENDINGâ†’CANCELLED |
+| BR-ORDER-013 | PAIDâ†’SHIPPING | ENTITY-002 | PAIDâ†’SHIPPING |
+| BR-ORDER-014 | SHIPPINGâ†’DELIVERED (buyer) | ENTITY-002 | SHIPPINGâ†’DELIVERED |
+| BR-ORDER-015 | SHIPPINGâ†’DELIVERED (auto) | ENTITY-002 | SHIPPINGâ†’DELIVERED |
+| BR-ORDER-016 | SHIPPINGâ†’RETURNED (RTS) | ENTITY-002 | SHIPPINGâ†’RETURNED |
+| BR-ORDER-017 | Return window (7 days) | ENTITY-002 | â€” |
+| BR-ORDER-018 | DELIVEREDâ†’REFUNDED | ENTITY-002 | DELIVEREDâ†’REFUNDED |
+| BR-ORDER-019 | DELIVEREDâ†’PARTIALLY_REFUNDED | ENTITY-002 | DELIVEREDâ†’PARTIALLY_REFUNDED |
+| BR-ORDER-020 | RETURNEDâ†’REFUNDED (auto) | ENTITY-002 | RETURNEDâ†’REFUNDED |
+| BR-ORDER-021 | Cancellation actor rules (BUYER: PENDING/PAID; SELLER: PAID + tracking_number IS NULL) | ENTITY-002 | â€” |
+| BR-ORDER-022 | RTS vs Buyer Refund | ENTITY-002 | â€” |
+| BR-ORDER-023 | Parent status sync | ENTITY-001,002 | â€” |
+| BR-ORDER-024 | Immutable shipping snapshot | ENTITY-002 | â€” |
+| BR-ORDER-025 | Stock reservation release | ENTITY-003 | â€” |
+| BR-ORDER-026 | Seller cancel â€” full refund + reason â‰¥10 chars + emit `seller.order_cancelled` | ENTITY-002 | PAIDâ†’CANCELLED |
 
 ---
 
-## Matrix: API Contract → Operations
+## Matrix: API Contract â†’ Operations
 
 | API Contract File | Method | Path | Auth | UC |
 |-------------------|--------|------|------|----|
@@ -100,23 +100,23 @@
 
 ---
 
-## Matrix: Kafka Events → Producers / Consumers
+## Matrix: Kafka Events â†’ Producers / Consumers
 
 | Event | Producer | Consumers | Related State |
 |-------|----------|-----------|---------------|
-| `order.created` | order-service | product-service, search-service | → PENDING |
-| `order.paid` | order-service | — | PENDING→PAID |
-| `order.shipped` | order-service | notification-service | PAID→SHIPPING |
-| `order.delivered` | order-service | payment-service, notification-service | SHIPPING→DELIVERED |
-| `order.cancelled` | order-service | product-service (release stock), identity-service (audit), notification-service | PENDING→CANCELLED, PAID→CANCELLED |
-| `seller.order_cancelled` | order-service (only when cancelled_by=SELLER) | payment-service (auto-refund), notification-service (buyer apology), product-service (idempotent stock release) | PAID→CANCELLED |
-| `order.returned` | order-service | payment-service, product-service, notification-service | SHIPPING→RETURNED |
-| `order.auto_cancelled` | order-service (JOB-13/Axon deadline) | product-service, payment-service, notification-service | PENDING→CANCELLED |
-| `order.checkout_created` | order-service | product-service (cart) | → PENDING |
-| `payment.success` | payment-service | order-service | → PAID |
+| `order.created` | order-service | product-service, search-service | â†’ PENDING |
+| `order.paid` | order-service | â€” | PENDINGâ†’PAID |
+| `order.shipped` | order-service | notification-service | PAIDâ†’SHIPPING |
+| `order.delivered` | order-service | payment-service, notification-service | SHIPPINGâ†’DELIVERED |
+| `order.cancelled` | order-service | product-service (release stock), identity-service (audit), notification-service | PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED |
+| `seller.order_cancelled` | order-service (only when cancelled_by=SELLER) | payment-service (auto-refund), notification-service (buyer apology), product-service (idempotent stock release) | PAIDâ†’CANCELLED |
+| `order.returned` | order-service | payment-service, product-service, notification-service | SHIPPINGâ†’RETURNED |
+| `order.auto_cancelled` | order-service (JOB-13/Axon deadline) | product-service, payment-service, notification-service | PENDINGâ†’CANCELLED |
+| `payment.requested` | order-service | payment-service | payment orchestration |
+| `payment.success` | payment-service | order-service | â†’ PAID |
 | `payment.failed` | payment-service | order-service | (retry/stay PENDING) |
-| `refund.rts_completed` | refund-service | order-service | RETURNED→REFUNDED |
-| `refund.admin_approved` | refund-service | order-service | → REFUNDED/PARTIALLY_REFUNDED |
+| `refund.rts_completed` | refund-service | order-service | RETURNEDâ†’REFUNDED |
+| `refund.admin_approved` | refund-service | order-service | â†’ REFUNDED/PARTIALLY_REFUNDED |
 
 ---
 

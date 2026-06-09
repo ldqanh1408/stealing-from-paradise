@@ -1,6 +1,6 @@
-# Kafka Events -- Search Service
+﻿# Kafka Events -- Search Service
 
-> Service: search-service (SVC-008, Port 8091)
+> Service: search-service (SVC-008, Port 8087)
 > Database: Elasticsearch (index: skus)
 > Source: `documents/messaging/KAFKA_CATALOG.md`, `documents/overview/search-service/ARCHITECTURE.md`
 > Generated: 2026-05-10 | Updated: 2026-06-07 (search-product indexing data now uses Kafka request-reply `search.index_data.*`; WebClient/Product REST dependency removed)

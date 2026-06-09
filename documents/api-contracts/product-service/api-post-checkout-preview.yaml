@@ -1,4 +1,4 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Product Service - Checkout Preview API
   description: |
@@ -8,7 +8,7 @@ info:
   contact:
     name: Product Service Team
 servers:
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 tags:
   - name: Checkout
@@ -54,7 +54,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Cart items changed — price/stock/status mismatch
+          description: Cart items changed â€” price/stock/status mismatch
           content:
             application/json:
               schema:

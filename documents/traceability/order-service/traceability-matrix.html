@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Traceability Matrix — Order Service</title>
+  <title>Traceability Matrix â€” Order Service</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
@@ -273,19 +273,19 @@
         <section class="doc-hero doc-section">
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
-              <h1 class="h2 mb-1">Traceability Matrix — Order Service</h1>
+              <h1 class="h2 mb-1">Traceability Matrix â€” Order Service</h1>
               <div class="doc-meta">DOC-TRACEABILITY-ORDER-SERVICE-TRACEABILITY-MATRIX | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">traceability</span> <span class="badge text-bg-light">order-service</span></div>
           </div>
         </section>
 
-        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Traceability Matrix — Order Service</h1>
+        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Traceability Matrix â€” Order Service</h1>
 <p><strong>Document ID:</strong> TRACE-ORDER-001
 <strong>Service:</strong> order-service (port 8083)
 <strong>Last Updated:</strong> 2026-05-11 (FR-ORDER-019 added; UC-ORDER-008 Seller Cancel re-activated; BR-ORDER-026 + <code>seller.order_cancelled</code> added)</p>
 <hr>
-<h2>Matrix: FR → BR → UC → Entity → API → State</h2>
+<h2>Matrix: FR â†’ BR â†’ UC â†’ Entity â†’ API â†’ State</h2>
 <table>
 <thead>
 <tr>
@@ -305,62 +305,62 @@
 <td>BR-001..009</td>
 <td>UC-ORDER-001</td>
 <td>ENTITY-001,002,003</td>
-<td>api-post-orders-checkout.yaml</td>
-<td>→ PENDING</td>
+<td>product-service api-post-checkout-submit.yaml</td>
+<td>-&gt; PENDING</td>
 </tr>
 <tr>
 <td>FR-ORDER-002</td>
-<td>Stock Validation (Req-Rep)</td>
+<td>Checkout Stock Reservation</td>
 <td>BR-ORDER-002</td>
 <td>UC-ORDER-001</td>
 <td>ENTITY-003</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-003</td>
-<td>Address Validation (Req-Rep)</td>
+<td>Checkout Address Validation</td>
 <td>BR-ORDER-003</td>
 <td>UC-ORDER-001</td>
 <td>ENTITY-002</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-004</td>
 <td>Order Code Generation</td>
 <td>BR-ORDER-006</td>
-<td>—</td>
+<td>â€”</td>
 <td>ENTITY-002</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-005</td>
 <td>Buyer Order Listing</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-002</td>
 <td>ENTITY-002</td>
 <td>api-get-orders.yaml</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-006</td>
 <td>Order Detail</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-002</td>
 <td>ENTITY-002,003</td>
 <td>api-get-orders.yaml</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-007</td>
 <td>Parent Order Detail</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-002</td>
 <td>ENTITY-001,002</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-008</td>
@@ -369,7 +369,7 @@
 <td>UC-ORDER-003</td>
 <td>ENTITY-002</td>
 <td>api-post-orders-cancel.yaml</td>
-<td>PENDING→CANCELLED, PAID→CANCELLED</td>
+<td>PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED</td>
 </tr>
 <tr>
 <td>FR-ORDER-019</td>
@@ -378,7 +378,7 @@
 <td>UC-ORDER-008</td>
 <td>ENTITY-002</td>
 <td>api-post-orders-cancel.yaml</td>
-<td>PAID→CANCELLED</td>
+<td>PAIDâ†’CANCELLED</td>
 </tr>
 <tr>
 <td>FR-ORDER-009</td>
@@ -387,7 +387,7 @@
 <td>UC-ORDER-004</td>
 <td>ENTITY-002</td>
 <td>api-put-orders-ship.yaml</td>
-<td>PAID→SHIPPING</td>
+<td>PAIDâ†’SHIPPING</td>
 </tr>
 <tr>
 <td>FR-ORDER-010</td>
@@ -396,16 +396,16 @@
 <td>UC-ORDER-005</td>
 <td>ENTITY-002</td>
 <td>api-put-orders-ship.yaml</td>
-<td>SHIPPING→DELIVERED</td>
+<td>SHIPPINGâ†’DELIVERED</td>
 </tr>
 <tr>
 <td>FR-ORDER-011</td>
 <td>Auto-Confirm Delivery (JOB-22)</td>
 <td>BR-ORDER-015</td>
-<td>—</td>
+<td>â€”</td>
 <td>ENTITY-002</td>
-<td>—</td>
-<td>SHIPPING→DELIVERED</td>
+<td>â€”</td>
+<td>SHIPPINGâ†’DELIVERED</td>
 </tr>
 <tr>
 <td>FR-ORDER-012</td>
@@ -414,7 +414,7 @@
 <td>UC-ORDER-006</td>
 <td>ENTITY-002</td>
 <td>api-post-orders-return.yaml</td>
-<td>SHIPPING→RETURNED</td>
+<td>SHIPPINGâ†’RETURNED</td>
 </tr>
 <tr>
 <td>FR-ORDER-013</td>
@@ -423,57 +423,57 @@
 <td>UC-ORDER-006</td>
 <td>ENTITY-002</td>
 <td>api-post-orders-return.yaml</td>
-<td>DELIVERED→REFUNDED/PARTIALLY_REFUNDED</td>
+<td>DELIVEREDâ†’REFUNDED/PARTIALLY_REFUNDED</td>
 </tr>
 <tr>
 <td>FR-ORDER-014</td>
 <td>Seller Order Listing</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-007</td>
 <td>ENTITY-002</td>
 <td>api-get-orders.yaml</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-015</td>
 <td>Seller Dashboard</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 <td>ENTITY-002</td>
 <td>api-get-orders.yaml</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-016</td>
 <td>Kafka Event Production</td>
 <td>BR-009..016</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
+<td>â€”</td>
 <td>ALL</td>
 </tr>
 <tr>
 <td>FR-ORDER-017</td>
 <td>Kafka Event Consumption</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-<td>PENDING→PAID, etc.</td>
+<td>â€”</td>
+<td>â€”</td>
+<td>â€”</td>
+<td>â€”</td>
+<td>PENDINGâ†’PAID, etc.</td>
 </tr>
 <tr>
 <td>FR-ORDER-018</td>
 <td>Saga Orchestration (Axon)</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-001</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 <td>Payment lifecycle</td>
 </tr>
 </tbody>
 </table>
 <hr>
-<h2>Matrix: Use Case → FR → API → State</h2>
+<h2>Matrix: Use Case â†’ FR â†’ API â†’ State</h2>
 <table>
 <thead>
 <tr>
@@ -491,8 +491,8 @@
 <td>Checkout</td>
 <td>BUYER</td>
 <td>FR-001,002,003,004</td>
-<td>POST /orders/checkout</td>
-<td>→ PENDING</td>
+<td>POST /v1/cart/checkout/submit</td>
+<td>â†’ PENDING</td>
 </tr>
 <tr>
 <td>UC-ORDER-002</td>
@@ -508,7 +508,7 @@
 <td>BUYER</td>
 <td>FR-ORDER-008</td>
 <td>POST /orders/{id}/cancel</td>
-<td>PENDING→CANCELLED, PAID→CANCELLED</td>
+<td>PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED</td>
 </tr>
 <tr>
 <td>UC-ORDER-008</td>
@@ -516,7 +516,7 @@
 <td>SELLER</td>
 <td>FR-ORDER-008,019</td>
 <td>POST /orders/{id}/cancel</td>
-<td>PAID→CANCELLED (tracking_number IS NULL)</td>
+<td>PAIDâ†’CANCELLED (tracking_number IS NULL)</td>
 </tr>
 <tr>
 <td>UC-ORDER-004</td>
@@ -524,7 +524,7 @@
 <td>SELLER</td>
 <td>FR-ORDER-009</td>
 <td>PUT /orders/{id}/tracking</td>
-<td>PAID→SHIPPING</td>
+<td>PAIDâ†’SHIPPING</td>
 </tr>
 <tr>
 <td>UC-ORDER-005</td>
@@ -532,7 +532,7 @@
 <td>BUYER</td>
 <td>FR-010,011</td>
 <td>POST /orders/{id}/confirm-received</td>
-<td>SHIPPING→DELIVERED</td>
+<td>SHIPPINGâ†’DELIVERED</td>
 </tr>
 <tr>
 <td>UC-ORDER-006</td>
@@ -540,7 +540,7 @@
 <td>BUYER/SELLER</td>
 <td>FR-012,013</td>
 <td>POST /orders/{id}/return-to-sender, POST /orders/{id}/refunds</td>
-<td>SHIPPING→RETURNED, DELIVERED→REFUNDED</td>
+<td>SHIPPINGâ†’RETURNED, DELIVEREDâ†’REFUNDED</td>
 </tr>
 <tr>
 <td>UC-ORDER-007</td>
@@ -553,7 +553,7 @@
 </tbody>
 </table>
 <hr>
-<h2>Matrix: Business Rule → Entity → State</h2>
+<h2>Matrix: Business Rule â†’ Entity â†’ State</h2>
 <table>
 <thead>
 <tr>
@@ -568,162 +568,162 @@
 <td>BR-ORDER-001</td>
 <td>Cart not empty</td>
 <td>ENTITY-003</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-002</td>
 <td>Stock availability check</td>
 <td>ENTITY-003</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-003</td>
 <td>Address validation</td>
 <td>ENTITY-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-004</td>
 <td>Multi-vendor split</td>
 <td>ENTITY-001,002</td>
-<td>→ PENDING</td>
+<td>â†’ PENDING</td>
 </tr>
 <tr>
 <td>BR-ORDER-005</td>
 <td>Parent financial integrity</td>
 <td>ENTITY-001,002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-006</td>
 <td>Order code generation</td>
 <td>ENTITY-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-007</td>
 <td>Shipping deadline (3 days)</td>
 <td>ENTITY-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-008</td>
 <td>Checkout idempotency</td>
 <td>ENTITY-001</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-009</td>
 <td>Kafka event on checkout</td>
-<td>—</td>
-<td>→ PENDING</td>
+<td>â€”</td>
+<td>â†’ PENDING</td>
 </tr>
 <tr>
 <td>BR-ORDER-010</td>
-<td>PENDING→PAID</td>
+<td>PENDINGâ†’PAID</td>
 <td>ENTITY-002</td>
-<td>PENDING→PAID</td>
+<td>PENDINGâ†’PAID</td>
 </tr>
 <tr>
 <td>BR-ORDER-011</td>
-<td>PENDING/PAID→CANCELLED (buyer or seller per BR-021)</td>
+<td>PENDING/PAIDâ†’CANCELLED (buyer or seller per BR-021)</td>
 <td>ENTITY-002</td>
-<td>PENDING→CANCELLED, PAID→CANCELLED</td>
+<td>PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED</td>
 </tr>
 <tr>
 <td>BR-ORDER-012</td>
 <td>Auto-cancel (JOB-13)</td>
 <td>ENTITY-002</td>
-<td>PENDING→CANCELLED</td>
+<td>PENDINGâ†’CANCELLED</td>
 </tr>
 <tr>
 <td>BR-ORDER-013</td>
-<td>PAID→SHIPPING</td>
+<td>PAIDâ†’SHIPPING</td>
 <td>ENTITY-002</td>
-<td>PAID→SHIPPING</td>
+<td>PAIDâ†’SHIPPING</td>
 </tr>
 <tr>
 <td>BR-ORDER-014</td>
-<td>SHIPPING→DELIVERED (buyer)</td>
+<td>SHIPPINGâ†’DELIVERED (buyer)</td>
 <td>ENTITY-002</td>
-<td>SHIPPING→DELIVERED</td>
+<td>SHIPPINGâ†’DELIVERED</td>
 </tr>
 <tr>
 <td>BR-ORDER-015</td>
-<td>SHIPPING→DELIVERED (auto)</td>
+<td>SHIPPINGâ†’DELIVERED (auto)</td>
 <td>ENTITY-002</td>
-<td>SHIPPING→DELIVERED</td>
+<td>SHIPPINGâ†’DELIVERED</td>
 </tr>
 <tr>
 <td>BR-ORDER-016</td>
-<td>SHIPPING→RETURNED (RTS)</td>
+<td>SHIPPINGâ†’RETURNED (RTS)</td>
 <td>ENTITY-002</td>
-<td>SHIPPING→RETURNED</td>
+<td>SHIPPINGâ†’RETURNED</td>
 </tr>
 <tr>
 <td>BR-ORDER-017</td>
 <td>Return window (7 days)</td>
 <td>ENTITY-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-018</td>
-<td>DELIVERED→REFUNDED</td>
+<td>DELIVEREDâ†’REFUNDED</td>
 <td>ENTITY-002</td>
-<td>DELIVERED→REFUNDED</td>
+<td>DELIVEREDâ†’REFUNDED</td>
 </tr>
 <tr>
 <td>BR-ORDER-019</td>
-<td>DELIVERED→PARTIALLY_REFUNDED</td>
+<td>DELIVEREDâ†’PARTIALLY_REFUNDED</td>
 <td>ENTITY-002</td>
-<td>DELIVERED→PARTIALLY_REFUNDED</td>
+<td>DELIVEREDâ†’PARTIALLY_REFUNDED</td>
 </tr>
 <tr>
 <td>BR-ORDER-020</td>
-<td>RETURNED→REFUNDED (auto)</td>
+<td>RETURNEDâ†’REFUNDED (auto)</td>
 <td>ENTITY-002</td>
-<td>RETURNED→REFUNDED</td>
+<td>RETURNEDâ†’REFUNDED</td>
 </tr>
 <tr>
 <td>BR-ORDER-021</td>
 <td>Cancellation actor rules (BUYER: PENDING/PAID; SELLER: PAID + tracking_number IS NULL)</td>
 <td>ENTITY-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-022</td>
 <td>RTS vs Buyer Refund</td>
 <td>ENTITY-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-023</td>
 <td>Parent status sync</td>
 <td>ENTITY-001,002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-024</td>
 <td>Immutable shipping snapshot</td>
 <td>ENTITY-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-025</td>
 <td>Stock reservation release</td>
 <td>ENTITY-003</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>BR-ORDER-026</td>
-<td>Seller cancel — full refund + reason ≥10 chars + emit <code>seller.order_cancelled</code></td>
+<td>Seller cancel â€” full refund + reason â‰¥10 chars + emit <code>seller.order_cancelled</code></td>
 <td>ENTITY-002</td>
-<td>PAID→CANCELLED</td>
+<td>PAIDâ†’CANCELLED</td>
 </tr>
 </tbody>
 </table>
 <hr>
-<h2>Matrix: API Contract → Operations</h2>
+<h2>Matrix: API Contract â†’ Operations</h2>
 <table>
 <thead>
 <tr>
@@ -829,7 +829,7 @@
 </tbody>
 </table>
 <hr>
-<h2>Matrix: Kafka Events → Producers / Consumers</h2>
+<h2>Matrix: Kafka Events â†’ Producers / Consumers</h2>
 <table>
 <thead>
 <tr>
@@ -844,61 +844,61 @@
 <td><code>order.created</code></td>
 <td>order-service</td>
 <td>product-service, search-service</td>
-<td>→ PENDING</td>
+<td>â†’ PENDING</td>
 </tr>
 <tr>
 <td><code>order.paid</code></td>
 <td>order-service</td>
-<td>—</td>
-<td>PENDING→PAID</td>
+<td>â€”</td>
+<td>PENDINGâ†’PAID</td>
 </tr>
 <tr>
 <td><code>order.shipped</code></td>
 <td>order-service</td>
 <td>notification-service</td>
-<td>PAID→SHIPPING</td>
+<td>PAIDâ†’SHIPPING</td>
 </tr>
 <tr>
 <td><code>order.delivered</code></td>
 <td>order-service</td>
 <td>payment-service, notification-service</td>
-<td>SHIPPING→DELIVERED</td>
+<td>SHIPPINGâ†’DELIVERED</td>
 </tr>
 <tr>
 <td><code>order.cancelled</code></td>
 <td>order-service</td>
 <td>product-service (release stock), identity-service (audit), notification-service</td>
-<td>PENDING→CANCELLED, PAID→CANCELLED</td>
+<td>PENDINGâ†’CANCELLED, PAIDâ†’CANCELLED</td>
 </tr>
 <tr>
 <td><code>seller.order_cancelled</code></td>
 <td>order-service (only when cancelled_by=SELLER)</td>
 <td>payment-service (auto-refund), notification-service (buyer apology), product-service (idempotent stock release)</td>
-<td>PAID→CANCELLED</td>
+<td>PAIDâ†’CANCELLED</td>
 </tr>
 <tr>
 <td><code>order.returned</code></td>
 <td>order-service</td>
 <td>payment-service, product-service, notification-service</td>
-<td>SHIPPING→RETURNED</td>
+<td>SHIPPINGâ†’RETURNED</td>
 </tr>
 <tr>
 <td><code>order.auto_cancelled</code></td>
 <td>order-service (JOB-13/Axon deadline)</td>
 <td>product-service, payment-service, notification-service</td>
-<td>PENDING→CANCELLED</td>
+<td>PENDINGâ†’CANCELLED</td>
 </tr>
 <tr>
-<td><code>order.checkout_created</code></td>
+<td><code>payment.requested</code></td>
 <td>order-service</td>
-<td>product-service (cart)</td>
-<td>→ PENDING</td>
+<td>payment-service</td>
+<td>payment orchestration</td>
 </tr>
 <tr>
 <td><code>payment.success</code></td>
 <td>payment-service</td>
 <td>order-service</td>
-<td>→ PAID</td>
+<td>â†’ PAID</td>
 </tr>
 <tr>
 <td><code>payment.failed</code></td>
@@ -910,13 +910,13 @@
 <td><code>refund.rts_completed</code></td>
 <td>refund-service</td>
 <td>order-service</td>
-<td>RETURNED→REFUNDED</td>
+<td>RETURNEDâ†’REFUNDED</td>
 </tr>
 <tr>
 <td><code>refund.admin_approved</code></td>
 <td>refund-service</td>
 <td>order-service</td>
-<td>→ REFUNDED/PARTIALLY_REFUNDED</td>
+<td>â†’ REFUNDED/PARTIALLY_REFUNDED</td>
 </tr>
 </tbody>
 </table>

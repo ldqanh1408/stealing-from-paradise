@@ -1,6 +1,6 @@
-# ENTITY-PRODUCT-006: CART
+﻿# ENTITY-PRODUCT-006: CART
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Database**: PostgreSQL
 > **Table**: carts
 > **Source**: database-entities.md Section 4, 03_database_tables.md Section 6
@@ -36,7 +36,7 @@ erDiagram
 
 - **PK = customer_id**: Each customer has exactly one cart. No separate UUID PK needed.
 - Cart record is created lazily on first `POST /cart/items`.
-- Cart is never deleted — only its items are removed.
+- Cart is never deleted â€” only its items are removed.
 - No `status` or `deleted_at` columns needed.
 
 ---

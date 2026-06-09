@@ -1,8 +1,8 @@
-# State Diagram: Search Index Lifecycle
+﻿# State Diagram: Search Index Lifecycle
 
 **Stable ID:** `STATE-SEARCH-001`
 
-> **Service**: search-service (Port 8091)
+> **Service**: search-service (Port 8087)
 > **Index**: `skus` (Elasticsearch)
 > **Source**: BR-SEARCH-001
 > **Updated**: 2026-06-07 (clarified that Search fetches Product indexing snapshots through Kafka request-reply)

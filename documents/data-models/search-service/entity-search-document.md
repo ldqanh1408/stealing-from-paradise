@@ -1,6 +1,6 @@
-# ENTITY-SEARCH-001: SKU Search Document (Elasticsearch)
+﻿# ENTITY-SEARCH-001: SKU Search Document (Elasticsearch)
 
-> **Service**: search-service (Port 8091)
+> **Service**: search-service (Port 8087)
 > **Database**: Elasticsearch (not PostgreSQL)
 > **Index**: `skus`
 > **Architecture**: SKU-first with field collapsing by `product_id`

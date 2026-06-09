@@ -56,11 +56,12 @@ erDiagram
 | REFUND_REJECTED | HIGH | refund.rejected |
 | FLASH_SALE_STARTING | HIGH | flash_sale.session_started |
 | FLASH_SALE_ENDED | LOW | flash_sale.session_ended |
-| FS_ITEM_APPROVED (post-MVP) | NORMAL | flash_sale.item_approved |
-| FS_ITEM_REJECTED (post-MVP) | NORMAL | flash_sale.item_rejected |
+| FS_ITEM_APPROVED | NORMAL | flash_sale.item_approved |
+| FS_ITEM_REJECTED | NORMAL | flash_sale.item_rejected |
 | PRODUCT_APPROVED | NORMAL | product.approved |
 | PRODUCT_REJECTED | HIGH | product.rejected |
-| STRIPE_ACCOUNT_SUSPENDED (post-MVP) | URGENT | stripe.account_suspended |
+| SELLER_STRIPE_REQUIREMENT | HIGH | seller.stripe_requirement |
+| STRIPE_ACCOUNT_SUSPENDED | URGENT | stripe.account_suspended |
 
 ---
 
@@ -78,11 +79,11 @@ erDiagram
 
 Notification Service produces **zero** events. It consumes topics from:
 
-- **Identity Service**: no domain events currently consumed
-- **Product Service**: product.pending_review, product.approved, product.rejected, product.auto_hidden (post-MVP)
+- **Identity Service**: seller.registered
+- **Product Service**: product.pending_review, product.approved, product.rejected
 - **Order Service**: order.shipped, order.delivered, order.cancelled, order.auto_cancelled, order.returned
-- **Payment Service**: payment.success, payment.failed, refund.*, stripe.* (stripe.account_suspended is post-MVP)
-- **Flash Sale Service**: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_* (post-MVP)
+- **Payment Service**: payment.success, payment.failed, refund.*, seller.transfer.*, seller.stripe_requirement, stripe.account_suspended
+- **Flash Sale Service**: flash_sale.session_started, flash_sale.session_ended, flash_sale.item_registered, flash_sale.item_approved, flash_sale.item_rejected
 
 ---
 

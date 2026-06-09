@@ -1,8 +1,8 @@
-# ============================================================
-# RE-ACTIVATED 2026-05-10 v3 — back in MVP scope.
-# P3-11 APPROVED 2026-05-10 — reject_reason / reviewed_at / reviewed_by / reject_count
-# applied to products table per database-entities.md §3 + DB_SCHEMA_CHANGE_PROPOSAL.md §P3-11.
-# Xem MVP_ANALYSIS.md §2.3 (đính chính v3) và BR-PRODUCT-009.
+﻿# ============================================================
+# RE-ACTIVATED 2026-05-10 v3 â€” back in MVP scope.
+# P3-11 APPROVED 2026-05-10 â€” reject_reason / reviewed_at / reviewed_by / reject_count
+# applied to products table per database-entities.md Â§3 + DB_SCHEMA_CHANGE_PROPOSAL.md Â§P3-11.
+# Xem MVP_ANALYSIS.md Â§2.3 (Ä‘Ã­nh chÃ­nh v3) vÃ  BR-PRODUCT-009.
 # ============================================================
 openapi: "3.0.3"
 info:
@@ -17,13 +17,13 @@ info:
     - Notification gui cho seller: NOTIF-PRODUCT-APPROVED
 
     Base URL: `/api/v1`
-    Service: product-service (Port 8090)
+    Service: product-service (Port 8084)
   version: "5.5.0"
 
 servers:
   - url: https://api.marketplace.vn/api/v1
     description: Production
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 
 paths:
@@ -98,7 +98,7 @@ components:
         note:
           type: string
           maxLength: 1000
-          description: Ghi chu cua admin khi duyet (tuỳ chon)
+          description: Ghi chu cua admin khi duyet (tuá»³ chon)
           example: "San pham dat yeu cau, duyet"
 
     ApproveProductResponse:
@@ -173,13 +173,13 @@ components:
         reject_reason:
           type: string
           nullable: true
-          description: Luon NULL sau approve (BR-PRODUCT-009.5 — reject_reason=NULL khi approve thanh cong; persisted vao products.reject_reason)
+          description: Luon NULL sau approve (BR-PRODUCT-009.5 â€” reject_reason=NULL khi approve thanh cong; persisted vao products.reject_reason)
           example: null
         reject_count:
           type: integer
           minimum: 0
           maximum: 3
-          description: So lan bi tu choi truoc do (reset ve 0 sau khi approve thanh cong — BR-PRODUCT-009.8)
+          description: So lan bi tu choi truoc do (reset ve 0 sau khi approve thanh cong â€” BR-PRODUCT-009.8)
           example: 0
         created_at:
           type: string

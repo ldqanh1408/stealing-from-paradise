@@ -16,6 +16,11 @@ spring:
     username: ${MONGO_INITDB_ROOT_USERNAME}
     password: ${MONGO_INITDB_ROOT_PASSWORD}
     authentication-database: admin
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      password: ${REDIS_PASSWORD:}
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
     producer:

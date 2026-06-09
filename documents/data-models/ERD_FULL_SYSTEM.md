@@ -430,14 +430,14 @@ erDiagram
 | Domain | Database | Service | Port |
 |--------|----------|---------|------|
 | Identity | PostgreSQL | identity-service | 8081 |
-| Catalog | PostgreSQL | product-service | 8090 |
-| Cart | PostgreSQL | product-service | 8090 |
-| Flash Sale | PostgreSQL | flashsale-service | 8085 |
+| Catalog | PostgreSQL | product-service | 8084 |
+| Cart | PostgreSQL | product-service | 8084 |
+| Flash Sale | PostgreSQL | flashsale-service | 8086 |
 | Orders | PostgreSQL | order-service | 8083 |
 | Payments | PostgreSQL | payment-service | 8082 |
 | Notifications | MongoDB | notification-service | 8092 |
 | AI Chat | MongoDB | ai-chat-service | 8093 |
-| Search | Elasticsearch | search-service | 8091 |
+| Search | Elasticsearch | search-service | 8087 |
 | Infrastructure | PostgreSQL | shared | -- |
 
 > **Note (2026-05-11):** Outbox pattern (OUTBOX_EVENTS, FAILED_EVENTS) is temporarily not used per MVP scope. Infrastructure tables are kept in schema but not currently active.

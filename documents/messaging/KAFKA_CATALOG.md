@@ -31,7 +31,7 @@ Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved 
 
 | Metric | Value |
 |--------|-------|
-| Total Topics | 64 (48 event + 16 request-reply) |
+| Total Topics | See service docs; active request-reply pairs: 5 |
 | Event Producers | Product, Order, Payment, Flash Sale, AI Chat |
 | Event Consumers | All 9 services |
 | Retention Policy | 7–365 days depending on topic type |
@@ -55,17 +55,14 @@ Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved 
 | notification-service | — (consumer-only) | 22 topics from all services |
 | ai-chat-service | ai_chat.* | — |
 
-### Kafka Request-Reply Pairs (8 pairs, 16 topics)
+### Kafka Request-Reply Pairs (5 active pairs)
 
 | Request Topic | Response Topic | Requester | Responder |
 |--------------|----------------|-----------|-----------|
-| cart.product_info.request | cart.product_info.response | Cart (Product) | Product catalog |
-| order.stock_check.request | order.stock_check.response | Order | Product |
-| order.payment_status.request | order.payment_status.response | Order | Payment |
-| order.cart_items.request | order.cart_items.response | Order | Product |
-| order.address.request | order.address.response | Order | Identity |
+| order.address.request | order.address.response | Product / Flash Sale | Identity |
 | order.refunds.request | order.refunds.response | Order | Refund |
 | order.refund_presigned_url.request | order.refund_presigned_url.response | Order | Refund |
+| order.payment_status.request | order.payment_status.response | Order | Refund |
 | search.index_data.request | search.index_data.response | Search | Product |
 
 ### Retention Policies

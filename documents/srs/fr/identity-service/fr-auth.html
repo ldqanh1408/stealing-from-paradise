@@ -373,10 +373,10 @@ Document ID: FR-IDENTITY</p>
 </tr>
 <tr>
 <td>FR-IDENTITY-014</td>
-<td>The system MAY (post-MVP) publish Kafka events for account lifecycle: account.created, account.updated, seller.registered. Note: identity-service does not currently produce Kafka domain events.</td>
+<td>The system SHALL publish Kafka events for implemented account lifecycle changes: <code>account.updated</code> and <code>seller.registered</code>. <code>account.created</code> is not part of the current event contract.</td>
 <td>MEDIUM</td>
 <td>--</td>
-<td>UC-IDENTITY-001, UC-IDENTITY-003, UC-IDENTITY-006</td>
+<td>UC-IDENTITY-003, UC-IDENTITY-006</td>
 </tr>
 <tr>
 <td>FR-IDENTITY-015</td>

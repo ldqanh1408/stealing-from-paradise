@@ -1,16 +1,16 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Search Service API
   description: |
     Elasticsearch-backed full-text product search with Vietnamese text analysis.
     SKU-first architecture with field collapsing by product_id.
-    Search service (Port 8091). Public endpoints for search, admin for reindex.
+    Search service (Port 8087). Public endpoints for search, admin for reindex.
   version: "5.6"
   contact:
     name: Search Service Team
 
 servers:
-  - url: http://localhost:8091/api/v1
+  - url: http://localhost:8087/api/v1
     description: Local development
 
 paths:

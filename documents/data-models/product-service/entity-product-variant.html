@@ -282,7 +282,7 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>ENTITY-PRODUCT-003: PRODUCT_VARIANT</h1>
 <blockquote>
-<p><strong>Service</strong>: product-service (Port 8090)
+<p><strong>Service</strong>: product-service (Port 8084)
 <strong>Database</strong>: PostgreSQL
 <strong>Table</strong>: product_variants
 <strong>Source</strong>: database-entities.md Section 3, 03_database_tables.md Section 3</p>
@@ -334,7 +334,7 @@
 <td>2</td>
 <td><code>product_id</code></td>
 <td>UUID</td>
-<td>NOT NULL, FK → product.id ON DELETE CASCADE</td>
+<td>NOT NULL, FK â†’ product.id ON DELETE CASCADE</td>
 <td>Parent product.</td>
 </tr>
 <tr>

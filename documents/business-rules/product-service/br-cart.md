@@ -1,6 +1,6 @@
-# BR-PRODUCT-010 through BR-PRODUCT-013: Cart Business Rules
+﻿# BR-PRODUCT-010 through BR-PRODUCT-013: Cart Business Rules
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Domain**: Cart -- Cart and Cart Items
 > **Source**: 03_database_tables.md Sections 6-7, product_service_ui_logic.md Section 3, 02_API_product_service.md
 
@@ -10,7 +10,7 @@
 
 | Rule | Detail |
 |------|--------|
-| Uniqueness | PK = `customer_id` in `carts` table — exactly one cart per customer |
+| Uniqueness | PK = `customer_id` in `carts` table â€” exactly one cart per customer |
 | Lazy creation | Cart is created on first `POST /cart/items` call |
 | Cart never deleted | Cart record persists; only items are removed |
 
@@ -73,9 +73,9 @@ Cart items are **hard-deleted** (not soft-deleted with `deleted_at`) for the fol
 
 | Event | Action |
 |-------|--------|
-| Customer removes item | `DELETE /cart/items/{variantId}` — hard delete by `(customer_id, variant_id)` |
-| Customer clears cart | `DELETE /cart` — hard delete all items for customer |
-| Checkout succeeded | `order.paid` event → hard delete cart items by `(customer_id, variant_id)` |
+| Customer removes item | `DELETE /cart/items/{variantId}` â€” hard delete by `(customer_id, variant_id)` |
+| Customer clears cart | `DELETE /cart` â€” hard delete all items for customer |
+| Checkout succeeded | `order.paid` event â†’ hard delete cart items by `(customer_id, variant_id)` |
 
 ---
 

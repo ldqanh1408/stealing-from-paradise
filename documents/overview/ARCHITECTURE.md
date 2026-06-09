@@ -8,11 +8,11 @@ Service: platform
 | SVC-001 | api-gateway | 8080 | — | Spring Cloud Gateway | JWT RS256 validation, routing, rate limiting |
 | SVC-002 | discovery-service | 8761 | — | Eureka | Service registry & health |
 | SVC-003 | identity-service | 8081 | PostgreSQL | JPA | Auth, JWT, users, addresses |
-| SVC-004 | payment-service | 8082 | PostgreSQL + Axon | CQRS/ES | Stripe Connect, multi-vendor splits |
+| SVC-004 | payment-service | 8082 | PostgreSQL | JPA + Kafka | Stripe Connect, multi-vendor splits |
 | SVC-005 | order-service | 8083 | PostgreSQL + Axon | CQRS/ES + Saga | Checkout, order lifecycle, RTS |
-| SVC-006 | flashsale-service | 8085 | PostgreSQL | CQRS/ES | Flash sale sessions, price promotion |
-| SVC-007 | product-service | 8090 | PostgreSQL | Traditional | Catalog, variants, cart, images (MinIO) |
-| SVC-008 | search-service | 8091 | Elasticsearch | Traditional | Full-text search, VN text analysis |
+| SVC-006 | product-service | 8084 | PostgreSQL | Traditional | Catalog, variants, cart, images (MinIO) |
+| SVC-007 | flashsale-service | 8086 | PostgreSQL + Redis | Reactive + Kafka | Flash sale sessions, price promotion |
+| SVC-008 | search-service | 8087 | Elasticsearch + Redis | Traditional | Full-text search, VN text analysis |
 | SVC-009 | notification-service | 8092 | MongoDB | Traditional | SSE real-time notifications |
 | SVC-010 | ai-chat-service | 8093 | MongoDB | Traditional | AI chat, tool calls, human-in-the-loop |
 | SVC-011 | refund-service | 8094 | PostgreSQL | JPA | Admin refund approval, buyer requests, RTS automatic refunds |
@@ -23,11 +23,11 @@ Service: platform
 |-----------|------|---------|---------|
 | PostgreSQL | 5432 | identity, payment, order, flashsale, product, refund | Primary relational store |
 | MongoDB | 27017 | notification, ai-chat | Document store |
-| Redis | 6379 | identity, api-gateway | Session cache, JWT blocklist |
+| Redis | 6379 | api-gateway, identity, product, flashsale, search, notification, ai-chat | JWT blocklist, reservation/session state, rate limits, cache |
 | Elasticsearch | 9200 | search | Full-text product index |
 | MinIO | 9000/9001 | product | Object storage (product images) |
 | Kafka | 9092 | all services | Async event streaming (58 Kafka topics: 44 event + 14 request-reply) |
-| Axon Server | 8024/8124 | payment, order, flashsale | Event store + command bus |
+| Axon Server | 8024/8124 | order-service | Event store + saga/event handling |
 
 ### Frontend Apps
 
@@ -56,9 +56,9 @@ Service: platform
 - Full-text search with Elasticsearch (Vietnamese text analysis)
 - Return To Sender (RTS) refund workflow
 - AI Chat Support (multi-turn, tool calls, human-in-the-loop)
-- 15 scheduled cronjobs (1 implemented, 14 post-MVP)
+- 11 implemented scheduled backend jobs plus MongoDB TTL retention
 - 58 Kafka topics (44 event + 14 request-reply)
-- Axon CQRS/ES for Order, Payment, Flashsale services
+- Axon CQRS/Saga orchestration in order-service
 
 ---
 

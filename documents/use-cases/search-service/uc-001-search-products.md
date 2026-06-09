@@ -1,6 +1,6 @@
-# UC-SEARCH-001: Product Listing & Search
+﻿# UC-SEARCH-001: Product Listing & Search
 
-> **Service**: search-service (Port 8091)
+> **Service**: search-service (Port 8087)
 > **Use Case ID**: UC-SEARCH-001
 > **Priority**: HIGH
 > **Source**: 02_API_search_service.md
@@ -73,9 +73,9 @@ GET /search/products                                    # Browse all (homepage)
 GET /search/products?category_id=uuid                  # Browse category by UUID
 GET /search/products?category=electronics              # Browse root category by slug, including children
 GET /search/products?category_id=uuid&price_min=100000&price_max=500000  # Browse + price filter
-GET /search/products?q=áo thun                          # Full-text search
-GET /search/products?q=áo thun&category_id=uuid        # Search + category filter
-GET /search/products?q=áo thun&sort=price_asc&in_stock=true  # Search + filters + sort
+GET /search/products?q=Ã¡o thun                          # Full-text search
+GET /search/products?q=Ã¡o thun&category_id=uuid        # Search + category filter
+GET /search/products?q=Ã¡o thun&sort=price_asc&in_stock=true  # Search + filters + sort
 ```
 
 ---

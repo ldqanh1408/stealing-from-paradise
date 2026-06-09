@@ -1,6 +1,6 @@
-# Functional Requirements: Flash Sale Service
+﻿# Functional Requirements: Flash Sale Service
 
-**Service:** flashsale-service (port :8085)
+**Service:** flashsale-service (port :8086)
 **Stable ID Prefix:** `FR-FLASHSALE-`
 **Version:** 1.0
 **Date:** 2026-05-09

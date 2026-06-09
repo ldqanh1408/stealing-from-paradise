@@ -1,4 +1,4 @@
-# Environment Variables Reference
+﻿# Environment Variables Reference
 
 > **Source**: documents/operations/ENVIRONMENT_VARIABLES.md (v5.5)
 > **Generated**: 2026-05-10
@@ -81,7 +81,7 @@ All environment variables needed to run the system. Fill these into your `.env` 
 
 | Variable | Default | Used By | Notes |
 |----------|---------|---------|-------|
-| `AXON_SERVER` | `axonserver:8124` | payment, order, flashsale | gRPC port |
+| `AXON_SERVER` | `axonserver:8124` | order-service | gRPC port |
 | `AXONIQ_AXONSERVER_STANDALONE` | `true` | axonserver container | Standalone mode |
 | `AXONIQ_AXONSERVER_DEVMODE_ENABLED` | `true` | axonserver container | Dev mode |
 
@@ -121,7 +121,6 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | `POSTGRES_USER` | `flashsale` | |
 | `POSTGRES_PASSWORD` | (set securely) | |
 | `KAFKA_SERVER` | `kafka:9092` | |
-| `AXON_SERVER` | `axonserver:8124` | |
 | `STRIPE_SECRET_KEY` | `sk_live_...` | Sensitive |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Sensitive |
 | `STRIPE_PLATFORM_FEE_PERCENTAGE` | `0.05` | Platform fee rate (5%) |
@@ -135,10 +134,10 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | `POSTGRES_USER` | `flashsale` | |
 | `POSTGRES_PASSWORD` | (set securely) | |
 | `KAFKA_SERVER` | `kafka:9092` | |
-| `AXON_SERVER` | `axonserver:8124` | |
+| `AXON_SERVER` | `axonserver:8124` | Order saga/event store |
 | `JWT_SECRET` | (same as identity-service) | For internal JWT decode |
 
-### flashsale-service (:8085)
+### flashsale-service (:8086)
 
 | Variable | Example | Notes |
 |----------|---------|-------|
@@ -148,9 +147,8 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | `POSTGRES_PASSWORD` | (set securely) | |
 | `REDIS_HOST` | `redis` | Session triggers and state management |
 | `KAFKA_SERVER` | `kafka:9092` | |
-| `AXON_SERVER` | `axonserver:8124` | |
 
-### product-service (:8090)
+### product-service (:8084)
 
 | Variable | Example | Notes |
 |----------|---------|-------|
@@ -163,7 +161,7 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | `MINIO_ACCESS_KEY` | (set securely) | |
 | `MINIO_SECRET_KEY` | (set securely) | |
 
-### search-service (:8091)
+### search-service (:8087)
 
 | Variable | Example | Notes |
 |----------|---------|-------|
@@ -208,7 +206,6 @@ All environment variables needed to run the system. Fill these into your `.env` 
 | `POSTGRES_USER` | `flashsale` | PostgreSQL username |
 | `POSTGRES_PASSWORD` | (set securely) | PostgreSQL password |
 | `KAFKA_SERVER` | `kafka:9092` | Message broker bootstrap |
-| `AXON_SERVER` | `axonserver:8124` | Axon Server endpoint |
 | `STRIPE_SECRET_KEY` | (same as payment-service) | Stripe Secret Key |
 | `STRIPE_WEBHOOK_SECRET` | (same as payment-service) | Stripe Webhook Secret |
 | `STRIPE_PLATFORM_FEE_PERCENTAGE` | `5.0` | Commission rate percentage |

@@ -1,6 +1,6 @@
-# ENTITY-PRODUCT-001: CATEGORY
+﻿# ENTITY-PRODUCT-001: CATEGORY
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Database**: PostgreSQL
 > **Table**: categories
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 1
@@ -34,7 +34,7 @@ erDiagram
 | # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
 | 1 | `id` | UUID | PK (gen_random_uuid()) | Unique category identifier |
-| 2 | `parent_id` | UUID | NULLABLE, FK → category.id | Parent category; NULL = root (top-level). No CASCADE. |
+| 2 | `parent_id` | UUID | NULLABLE, FK â†’ category.id | Parent category; NULL = root (top-level). No CASCADE. |
 | 3 | `name` | VARCHAR(255) | NOT NULL | Display name (e.g., "Ao Thun Nam") |
 | 4 | `slug` | VARCHAR(255) | UNIQUE | URL-friendly identifier for SEO (e.g., "ao-thun-nam") |
 | 5 | `description` | TEXT | NULLABLE | Optional category description |

@@ -283,7 +283,7 @@
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>State Diagram: FS_SESSIONS</h1>
 <p><strong>Stable ID:</strong> <code>STATE-FLASHSALE-001</code>
 <strong>Entity:</strong> <code>FS_SESSIONS</code>
-<strong>Service:</strong> flashsale-service (port :8085)</p>
+<strong>Service:</strong> flashsale-service (port :8086)</p>
 <hr>
 <h2>State Diagram</h2>
 <pre class="mermaid">stateDiagram-v2
@@ -489,7 +489,7 @@
 <hr>
 <h2>Soft Delete (BR-FLASHSALE-006)</h2>
 <pre><code>Soft delete is available ONLY from UPCOMING state (and requires no registered items).
-It sets deleted_at = NOW() — the row remains in the database but is filtered from all queries.
+It sets deleted_at = NOW() â€” the row remains in the database but is filtered from all queries.
 </code></pre>
 <table>
 <thead>

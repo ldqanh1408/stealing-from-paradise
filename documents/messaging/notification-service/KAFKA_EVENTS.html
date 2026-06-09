@@ -289,10 +289,32 @@ Generated: 2026-05-10</p>
 </blockquote>
 <hr>
 <h2>Events Consumed</h2>
-<p>Notification Service is a consumer-only service. It listens to 27 Kafka topics from all services and pushes SSE real-time notifications to users. It produces <strong>zero</strong> events.</p>
+<p>Notification Service is a consumer-only service. It listens to Kafka topics from all backend domains and pushes SSE real-time notifications to users. It produces <strong>zero</strong> events.</p>
 <hr>
 <h3>From Identity Service</h3>
-<p>Identity Service does NOT produce Kafka domain events. No events consumed from this service.</p>
+<h4>seller.registered</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Type</strong></td>
+<td>SYSTEM</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>NORMAL</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Notify user that the seller account is ready</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h3>From Product Service</h3>
 <h4>product.pending_review</h4>
@@ -697,6 +719,52 @@ Generated: 2026-05-10</p>
   }
 }
 </code></pre>
+<h4>seller.stripe_requirement</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Type</strong></td>
+<td>SYSTEM</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Notify seller that Stripe requires additional verification</td>
+</tr>
+</tbody>
+</table>
+<h4>stripe.account_suspended</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Type</strong></td>
+<td>STRIPE_ACCOUNT_SUSPENDED</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>URGENT</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Notify seller that the Stripe account is suspended</td>
+</tr>
+</tbody>
+</table>
 <h4>refund.requested</h4>
 <table>
 <thead>
@@ -921,6 +989,52 @@ Generated: 2026-05-10</p>
   }
 }
 </code></pre>
+<h4>flash_sale.item_approved</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Type</strong></td>
+<td>FS_ITEM_APPROVED</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>NORMAL</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Notify seller that the flash-sale item was approved</td>
+</tr>
+</tbody>
+</table>
+<h4>flash_sale.item_rejected</h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Type</strong></td>
+<td>FS_ITEM_REJECTED</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>NORMAL</td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Notify seller that the flash-sale item was rejected</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h3>From AI Chat Service</h3>
 <h4>ai_chat.message_sent</h4>
@@ -1050,7 +1164,7 @@ Browser receives via EventSource /text/event-stream
 <tbody>
 <tr>
 <td><strong>Endpoint</strong></td>
-<td><code>GET /v1/notifications</code></td>
+<td><code>GET /v1/notifications/stream</code></td>
 </tr>
 <tr>
 <td><strong>Content-Type</strong></td>
@@ -1112,18 +1226,28 @@ data: {&quot;title&quot;:&quot;Don hang #5 da duoc giao&quot;,&quot;body&quot;:&
 <tbody>
 <tr>
 <td><code>GET</code></td>
-<td><code>/v1/notifications</code></td>
+<td><code>/v1/notifications/stream</code></td>
 <td>SSE stream of real-time notifications</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
-<td><code>/v1/notifications/history</code></td>
-<td>Paginated notification history (<code>?page=0&amp;size=20&amp;is_read=false</code>)</td>
+<td><code>/v1/notifications</code> or <code>/v1/notifications/history</code></td>
+<td>Paginated notification history (<code>?page=0&amp;size=20</code>)</td>
 </tr>
 <tr>
-<td><code>PUT</code></td>
+<td><code>PUT</code> / <code>PATCH</code></td>
+<td><code>/v1/notifications/{notifId}/read</code></td>
+<td>Mark one notification as read</td>
+</tr>
+<tr>
+<td><code>PUT</code> / <code>PATCH</code></td>
 <td><code>/v1/notifications/read-all</code></td>
 <td>Mark all unread notifications as read for authenticated user</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/v1/notifications/unread-count</code></td>
+<td>Unread notification count</td>
 </tr>
 </tbody>
 </table>

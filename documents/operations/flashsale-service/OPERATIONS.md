@@ -1,6 +1,6 @@
-# Flashsale Service Operations
+﻿# Flashsale Service Operations
 
-**Service:** flashsale-service | **Port:** 8085 | **Database:** PostgreSQL (flashsale_db) + Redis
+**Service:** flashsale-service | **Port:** 8086 | **Database:** PostgreSQL (flashsale_db) + Redis
 
 ## Overview
 
@@ -34,8 +34,8 @@ docker-compose up -d flashsale-service
 | `DB_HOST` | Yes | `localhost` | PostgreSQL host |
 | `DB_PORT` | Yes | `5432` | PostgreSQL port |
 | `DB_NAME` | Yes | `flashsale_db` | Database name |
-| `DB_USER` | Yes | — | Database username |
-| `DB_PASSWORD` | Yes | — | Database password |
+| `DB_USER` | Yes | â€” | Database username |
+| `DB_PASSWORD` | Yes | â€” | Database password |
 | `REDIS_HOST` | Yes | `localhost` | Redis host |
 | `REDIS_PORT` | Yes | `6379` | Redis port |
 | `KAFKA_BOOTSTRAP_SERVERS` | Yes | `localhost:9092` | Kafka broker |
@@ -84,4 +84,4 @@ redis-cli ZREM fs:activations "<id>"               # remove stale entry
 | Symptom | Likely Cause | Check |
 |---|---|---|
 | Session didn't activate on time | ZSET worker not polling | Check worker thread in logs; `redis-cli INFO clients` |
-| Session stuck in UPCOMING | ZSET entry missing | `redis-cli ZSCORE fs:activations "<id>"` — if nil, re-insert |
+| Session stuck in UPCOMING | ZSET entry missing | `redis-cli ZSCORE fs:activations "<id>"` â€” if nil, re-insert |

@@ -1,4 +1,4 @@
-# UC-ORDER-001: Checkout (Create Order from Cart)
+﻿# UC-ORDER-001: Checkout (Create Order from Cart)
 
 **Stable ID:** UC-ORDER-001
 **Actor:** BUYER
@@ -19,7 +19,7 @@ Buyer selects items from cart, previews checkout (validates price/stock via Prod
 |---|-----------|
 | P1 | Buyer is authenticated (JWT with role=BUYER) |
 | P2 | Buyer has at least 1 valid item in cart |
-| P3 | Buyer has a valid `preview_token` from `POST /v1/checkout/preview` |
+| P3 | Buyer has a valid `preview_token` from `POST /v1/cart/checkout/preview` |
 
 ---
 
@@ -28,10 +28,10 @@ Buyer selects items from cart, previews checkout (validates price/stock via Prod
 | Step | Actor | Action |
 |------|-------|--------|
 | 1 | Buyer | Navigates to checkout page with selected items |
-| 2 | Buyer | Calls `POST /v1/checkout/preview` (Product Service) with `item_ids[]` |
-| 3 | Product Service | Validates ALL items (price, stock, variant status). If fail → 409, buyer refreshes cart |
+| 2 | Buyer | Calls `POST /v1/cart/checkout/preview` (Product Service) with `item_ids[]` |
+| 3 | Product Service | Validates ALL items (price, stock, variant status). If fail â†’ 409, buyer refreshes cart |
 | 4 | Product Service | Returns `preview_token` (TTL 10 min) + item summary |
-| 5 | Buyer | Calls `POST /v1/checkout/submit` (Product Service) with `{preview_token, address_snapshot}` |
+| 5 | Buyer | Calls `POST /v1/cart/checkout/submit` (Product Service) with `{preview_token, address_snapshot}` |
 | 6 | Product Service | Validates `preview_token` from Redis |
 | 7 | Product Service | Re-validates stock for ALL items |
 | 8 | Product Service | Reserves stock (PENDING status) |
@@ -42,7 +42,7 @@ Buyer selects items from cart, previews checkout (validates price/stock via Prod
 | 13 | Order Service | Consumes `order.checkout_submitted` event |
 | 14 | Order Service | Creates 1 PARENT_ORDER + N ORDERS in single transaction |
 | 15 | Order Service | Creates ORDER_ITEMS with price/image/name snapshots |
-| 16 | Order Service | Emits Axon `OrderCreatedEvent` → starts Saga |
+| 16 | Order Service | Emits Axon `OrderCreatedEvent` â†’ starts Saga |
 | 17 | Order Service | Returns (internal): parent_order created |
 
 ---
@@ -55,7 +55,7 @@ Buyer selects items from cart, previews checkout (validates price/stock via Prod
 |------|--------|
 | 7 | Product Service detects stock/price mismatch |
 | 8 | Returns 409 Conflict with per-item details |
-| 9 | Buyer must call `POST /v1/checkout/preview` again to get new token |
+| 9 | Buyer must call `POST /v1/cart/checkout/preview` again to get new token |
 
 ### A2: Payment Success
 
@@ -65,7 +65,7 @@ Buyer selects items from cart, previews checkout (validates price/stock via Prod
 | A2.2 | Payment Service emits `payment.success` |
 | A2.3 | Order Service publishes `order.paid` |
 | A2.4 | Product Service receives `order.paid`, calls `confirmReservation()` |
-| A2.5 | Stock reservation status → CONFIRMED |
+| A2.5 | Stock reservation status â†’ CONFIRMED |
 
 ### A3: Payment Failed
 
@@ -75,14 +75,14 @@ Buyer selects items from cart, previews checkout (validates price/stock via Prod
 | A3.2 | Payment Service emits `payment.failed` |
 | A3.3 | Order Service publishes `order.payment_failed` |
 | A3.4 | Product Service receives `order.payment_failed`, calls `releaseReservation()` |
-| A3.5 | Stock reservation status → RELEASED, stock restored |
+| A3.5 | Stock reservation status â†’ RELEASED, stock restored |
 
 ### A4: preview_token Expired or Invalid
 
 | Step | Action |
 |------|--------|
 | A4.1 | Redis lookup returns null or expired |
-| A4.2 | Product Service returns 409 "preview_token không tồn tại hoặc đã hết hạn" |
+| A4.2 | Product Service returns 409 "preview_token khÃ´ng tá»“n táº¡i hoáº·c Ä‘Ã£ háº¿t háº¡n" |
 
 ---
 

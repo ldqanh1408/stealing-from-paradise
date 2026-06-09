@@ -774,7 +774,7 @@
 <td>UC-REFUND-001 Create Refund</td>
 <td>Implemented via alternate path</td>
 <td>Order-service <code>RefundController</code>, refund-service consumers <code>RefundRequestedConsumer</code>, <code>RefundFullRequestedConsumer</code>, <code>OrderReturnedRtsConsumer</code></td>
-<td>Refund creation enters through order-service endpoints and Kafka. Direct public <code>POST /refunds</code> in refund-service is not implemented.</td>
+<td>Refund creation enters through order-service endpoints and Kafka. Direct public <code>POST /refunds</code> is intentionally not exposed by refund-service.</td>
 </tr>
 <tr>
 <td>UC-REFUND-002 Approve Refund</td>
@@ -858,7 +858,7 @@
 <tr>
 <td><code>flows/refund-service/flow-refund-admin-review.md</code></td>
 <td>Implemented via current architecture</td>
-<td>Admin list/detail/approve/reject exist. Direct public <code>POST /refunds</code> remains absent by current architecture.</td>
+<td>Admin list/detail/approve/reject exist. Direct public <code>POST /refunds</code> remains intentionally absent by current architecture.</td>
 </tr>
 <tr>
 <td><code>flows/search-service/flow-search-indexing.md</code></td>

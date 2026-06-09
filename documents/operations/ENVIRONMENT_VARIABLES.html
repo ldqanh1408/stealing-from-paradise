@@ -566,7 +566,7 @@
 <tr>
 <td><code>AXON_SERVER</code></td>
 <td><code>axonserver:8124</code></td>
-<td>payment, order, flashsale</td>
+<td>order-service</td>
 <td>gRPC port</td>
 </tr>
 <tr>
@@ -710,11 +710,6 @@
 <td></td>
 </tr>
 <tr>
-<td><code>AXON_SERVER</code></td>
-<td><code>axonserver:8124</code></td>
-<td></td>
-</tr>
-<tr>
 <td><code>STRIPE_SECRET_KEY</code></td>
 <td><code>sk_live_...</code></td>
 <td>Sensitive</td>
@@ -769,7 +764,7 @@
 <tr>
 <td><code>AXON_SERVER</code></td>
 <td><code>axonserver:8124</code></td>
-<td></td>
+<td>Order saga/event store</td>
 </tr>
 <tr>
 <td><code>JWT_SECRET</code></td>
@@ -778,7 +773,7 @@
 </tr>
 </tbody>
 </table>
-<h3>flashsale-service (:8085)</h3>
+<h3>flashsale-service (:8086)</h3>
 <table>
 <thead>
 <tr>
@@ -818,14 +813,9 @@
 <td><code>kafka:9092</code></td>
 <td></td>
 </tr>
-<tr>
-<td><code>AXON_SERVER</code></td>
-<td><code>axonserver:8124</code></td>
-<td></td>
-</tr>
 </tbody>
 </table>
-<h3>product-service (:8090)</h3>
+<h3>product-service (:8084)</h3>
 <table>
 <thead>
 <tr>
@@ -877,7 +867,7 @@
 </tr>
 </tbody>
 </table>
-<h3>search-service (:8091)</h3>
+<h3>search-service (:8087)</h3>
 <table>
 <thead>
 <tr>
@@ -1052,11 +1042,6 @@
 <td><code>KAFKA_SERVER</code></td>
 <td><code>kafka:9092</code></td>
 <td>Message broker bootstrap</td>
-</tr>
-<tr>
-<td><code>AXON_SERVER</code></td>
-<td><code>axonserver:8124</code></td>
-<td>Axon Server endpoint</td>
 </tr>
 <tr>
 <td><code>STRIPE_SECRET_KEY</code></td>

@@ -1,4 +1,4 @@
-# Kafka Events -- Order Service
+﻿# Kafka Events -- Order Service
 
 > Service: order-service (Port 8083)
 > Source: Backend code `com.flashsale.orderservice`
@@ -8,6 +8,17 @@
 
 ## Events Consumed
 
+### order.checkout_submitted (from Product Service)
+
+| Field | Value |
+|-------|-------|
+| **Consumer** | order-service (`CheckoutSubmittedConsumer`) |
+| **GroupId** | order-service-checkout-group |
+| **Topic** | `order.checkout_submitted` |
+| **Action** | Create parent order, seller sub-orders, order item snapshots, then publish Axon checkout events |
+
+**Payload includes:** `session_id`, `customer_id`, `address_id`, `address_snapshot`, `items[]`, `total_amount`, `total_items`.
+
 ### payment.success (from Payment Service)
 
 | Field | Value |
@@ -15,7 +26,7 @@
 | **Consumer** | order-service (PaymentKafkaEventBridge) |
 | **GroupId** | order-service-group |
 | **Topic** | `payment.success` |
-| **Action** | Publish Axon `ParentOrderPaymentSucceededEvent` → Saga transitions sub-orders to PAID |
+| **Action** | Publish Axon `ParentOrderPaymentSucceededEvent` â†’ Saga transitions sub-orders to PAID |
 
 **Payload:**
 ```json
@@ -29,7 +40,7 @@
 | **Consumer** | order-service (PaymentKafkaEventBridge) |
 | **GroupId** | order-service-group |
 | **Topic** | `payment.failed` |
-| **Action** | Publish Axon `ParentOrderPaymentFailedEvent` → Saga cancels sub-orders, releases stock |
+| **Action** | Publish Axon `ParentOrderPaymentFailedEvent` â†’ Saga cancels sub-orders, releases stock |
 
 **Payload:**
 ```json
@@ -43,7 +54,7 @@
 | **Consumer** | order-service (PaymentKafkaEventBridge) |
 | **GroupId** | order-service-group |
 | **Topic** | `refund.admin_approved` |
-| **Action** | PARTIAL refund → order.status = PARTIALLY_REFUNDED; FULL refund → order.status = REFUNDED |
+| **Action** | PARTIAL refund â†’ order.status = PARTIALLY_REFUNDED; FULL refund â†’ order.status = REFUNDED |
 
 **Payload:**
 ```json
@@ -72,7 +83,7 @@
 
 ## Events Produced
 
-All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPaymentSaga):
+Order events are produced through Axon sagas and Kafka bridge services:
 
 | Event | Axon Event Class | Kafka Topic | Consumers |
 |-------|-----------------|-------------|-----------|
@@ -83,7 +94,7 @@ All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPay
 | Order Delivered | `OrderDeliveredEvent` | `order.delivered` | Notification (delivery), Identity (unlock seller) |
 | Order Returned | `OrderReturnedEvent` | `order.returned` | Product (restore stock), Payment (auto-refund) |
 | Order Paid | `OrderPaidEvent` | `order.paid` | Product (confirm reservation) |
-| Parent Checkout Created | `ParentOrderCheckoutCreatedEvent` | `order.checkout_created` | Payment (create intent) |
+| Parent Checkout Created | `ParentOrderCheckoutCreatedEvent` | `payment.requested` | Payment (create payment intent) |
 | Parent Payment Succeeded | `ParentOrderPaymentSucceededEvent` | `order.parent_paid` | Internal |
 | Parent Payment Failed | `ParentOrderPaymentFailedEvent` | `order.parent_failed` | Internal |
 
@@ -128,12 +139,12 @@ All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPay
 
 | Field | Value |
 |-------|-------|
-| **Producer** | order-service (Saga) — chỉ emit khi `cancelled_by = SELLER` |
-| **Consumers** | payment-service (trigger full refund), notification-service (notify buyer + apology), product-service (release stock — nếu chưa nhận từ `order.cancelled`) |
+| **Producer** | order-service (Saga) â€” chá»‰ emit khi `cancelled_by = SELLER` |
+| **Consumers** | payment-service (trigger full refund), notification-service (notify buyer + apology), product-service (release stock â€” náº¿u chÆ°a nháº­n tá»« `order.cancelled`) |
 | **Partition Key** | `parent_order_id` |
 | **Retention** | 30 days |
-| **Status** | NEW — re-activated 2026-05-10 (xem `MVP_ANALYSIS.md` đính chính v3 và BR-ORDER-026) |
-| **Note** | Phát SONG SONG với `order.cancelled` (không thay thế). Subscribers cần idempotent dedupe theo `event_id`. |
+| **Status** | NEW â€” re-activated 2026-05-10 (xem `MVP_ANALYSIS.md` Ä‘Ã­nh chÃ­nh v3 vÃ  BR-ORDER-026) |
+| **Note** | PhÃ¡t SONG SONG vá»›i `order.cancelled` (khÃ´ng thay tháº¿). Subscribers cáº§n idempotent dedupe theo `event_id`. |
 
 **Payload:**
 ```json
@@ -159,9 +170,9 @@ All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPay
 ```
 
 **Downstream effects:**
-- Payment Service: tạo refund (type=FULL, reason=SELLER_CANCEL) tự động không cần admin duyệt. Khi Stripe refund thành công, Payment Service emit `refund.rts_completed` (hoặc tương đương) để Order Service cập nhật trạng thái.
-- Notification Service: gửi notification `NOTIF-ORDER-CANCELLED-BY-SELLER` cho buyer kèm reason + thông tin refund.
-- Product Service: idempotent — nếu đã release stock từ `order.cancelled` thì bỏ qua.
+- Payment Service: táº¡o refund (type=FULL, reason=SELLER_CANCEL) tá»± Ä‘á»™ng khÃ´ng cáº§n admin duyá»‡t. Khi Stripe refund thÃ nh cÃ´ng, Payment Service emit `refund.rts_completed` (hoáº·c tÆ°Æ¡ng Ä‘Æ°Æ¡ng) Ä‘á»ƒ Order Service cáº­p nháº­t tráº¡ng thÃ¡i.
+- Notification Service: gá»­i notification `NOTIF-ORDER-CANCELLED-BY-SELLER` cho buyer kÃ¨m reason + thÃ´ng tin refund.
+- Product Service: idempotent â€” náº¿u Ä‘Ã£ release stock tá»« `order.cancelled` thÃ¬ bá» qua.
 
 ### order.shipped
 
@@ -191,9 +202,9 @@ All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPay
 
 | Field | Value |
 |-------|-------|
-| **Consumers** | order-service (self-consume → auto-cancel saga), Notification Service |
-| **Trigger** | JOB-22 quét parent_orders ở `PENDING_PAYMENT` quá 10 phút |
-| **Status** | NEW — bổ sung 2026-05-10 (MVP MUST-HAVE, xem `MVP_ANALYSIS.md` §3.1) |
+| **Consumers** | order-service (self-consume â†’ auto-cancel saga), Notification Service |
+| **Trigger** | JOB-22 quÃ©t parent_orders á»Ÿ `PENDING_PAYMENT` quÃ¡ 10 phÃºt |
+| **Status** | NEW â€” bá»• sung 2026-05-10 (MVP MUST-HAVE, xem `MVP_ANALYSIS.md` Â§3.1) |
 | **Retention** | 30 days |
 | **Partition Key** | `parent_order_id` |
 
@@ -218,39 +229,19 @@ All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPay
 ```
 
 **Downstream effects:**
-- Order saga: ParentOrderPaymentTimeoutEvent → cancel sub-orders → emit `order.cancelled` cho mỗi sub-order.
-- Product service: nhận `order.cancelled` → release stock reservations.
-- Notification: thông báo buyer "Đơn hàng đã bị hủy do hết thời gian thanh toán".
+- Order saga: ParentOrderPaymentTimeoutEvent â†’ cancel sub-orders â†’ emit `order.cancelled` cho má»—i sub-order.
+- Product service: nháº­n `order.cancelled` â†’ release stock reservations.
+- Notification: thÃ´ng bÃ¡o buyer "ÄÆ¡n hÃ ng Ä‘Ã£ bá»‹ há»§y do háº¿t thá»i gian thanh toÃ¡n".
 
 ---
 
-### order.checkout_completed
-
-| Field | Value |
-|-------|-------|
-| **Trigger** | Checkout successful — parent order and all sub-orders created |
-| **Consumers** | Product Service (Cart — remove purchased items) |
-
-**Payload:**
-```json
-{
-  "parent_order_id": 1,
-  "customer_id": 42,
-  "orders": [{"order_id": 5, "seller_id": 99}],
-  "item_ids": ["uuid1", "uuid2"],
-  "timestamp": "2026-05-12T10:00:00Z"
-}
-```
-
 ---
 
-## Request-Reply (Order Service is Requester)
+## Request-Reply Topics Used by Order Domain
 
 | Request Topic | Response Topic | Responder | Purpose |
 |--------------|----------------|-----------|---------|
-| `order.stock_check.request` | `order.stock_check.response` | Product Service | Validate stock before checkout |
-| `order.cart_items.request` | `order.cart_items.response` | Product Service | Fetch cart items for checkout |
-| `order.address.request` | `order.address.response` | Identity Service | Validate shipping address |
+| `order.address.request` | `order.address.response` | Identity Service | Topic owned for product/flash-sale checkout address validation |
 | `order.payment_status.request` | `order.payment_status.response` | Payment Service | Query payment status |
 | `order.refunds.request` | `order.refunds.response` | Payment Service | Query refund history/detail |
 | `order.refund_presigned_url.request` | `order.refund_presigned_url.response` | Payment Service | Get presigned URL for evidence upload |

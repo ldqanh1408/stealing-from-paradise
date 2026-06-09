@@ -14,7 +14,6 @@ import com.flashsale.orderservice.domain.repository.OrderItemRepository;
 import com.flashsale.orderservice.domain.repository.OrderRepository;
 import com.flashsale.orderservice.domain.repository.ParentOrderRepository;
 import com.flashsale.orderservice.dto.request.CancelOrderRequest;
-import com.flashsale.orderservice.dto.request.CheckoutRequest;
 import com.flashsale.orderservice.dto.request.ReturnToSenderRequest;
 import com.flashsale.orderservice.dto.request.UpdateTrackingRequest;
 import com.flashsale.orderservice.dto.response.*;
@@ -51,14 +50,6 @@ public class OrderService {
     private static final int DEFAULT_SHIPPING_DAYS = 3;
 
     // ─── Checkout ──────────────────────────────────────────────────────────────
-
-    @Transactional
-    public CheckoutResponse checkout(Long userId, CheckoutRequest req) {
-        // Order Service chỉ nhận order.checkout_submitted event từ Product Service
-        // Endpoint này không còn dùng trực tiếp nữa
-        throw new UnsupportedOperationException(
-                "Vui lòng sử dụng Product Service endpoint POST /v1/checkout/submit để thực hiện checkout");
-    }
 
     /**
      * Tạo order từ event order.checkout_submitted.

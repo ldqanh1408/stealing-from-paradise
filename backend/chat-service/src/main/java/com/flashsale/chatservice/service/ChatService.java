@@ -55,7 +55,7 @@ public class ChatService {
 
     private static final int MAX_HISTORY_MESSAGES = 20;
 
-    private final RateLimiter rateLimiter = new RateLimiter();
+    private final RateLimiter rateLimiter;
 
     private final ChatModel chatModel;
     private final ChatMessageRepository messageRepo;
@@ -75,8 +75,9 @@ public class ChatService {
     // ────────────────────────────────────────────────────────────────────────
 
     public Flux<ServerSentEvent<String>> streamChat(String sessionId, String message, Long userId, String accessToken) {
-        return Flux.defer(() -> {
-            if (!rateLimiter.tryAcquireChat(userId)) {
+        return Flux.defer(() -> rateLimiter.tryAcquireChat(userId)
+                .flatMapMany(allowed -> {
+            if (!Boolean.TRUE.equals(allowed)) {
                 return Flux.just(errorEvent("Rate limit exceeded. Tối đa 20 tin nhắn mỗi phút."));
             }
 
@@ -93,7 +94,7 @@ public class ChatService {
                                 .flatMapMany(seqNo -> processConversation(sid, message, userId));
                     })
                     .doFinally(signal -> ToolContext.clear());
-        });
+        }));
     }
 
     // ────────────────────────────────────────────────────────────────────────

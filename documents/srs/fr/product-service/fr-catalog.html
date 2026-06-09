@@ -282,7 +282,7 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>FR-PRODUCT-001 through FR-PRODUCT-015: Catalog Functional Requirements</h1>
 <blockquote>
-<p><strong>Service</strong>: product-service (Port 8090)
+<p><strong>Service</strong>: product-service (Port 8084)
 <strong>Domain</strong>: Catalog
 <strong>Source</strong>: 02_API_product_service.md, product_service_ui_logic.md</p>
 </blockquote>
@@ -418,7 +418,7 @@
 </tr>
 <tr>
 <td><strong>Description</strong></td>
-<td>Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Product starts in <code>draft</code> status. No Kafka event emitted at creation — indexing is deferred until <code>product.activated</code>.</td>
+<td>Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Product starts in <code>draft</code> status. No Kafka event emitted at creation â€” indexing is deferred until <code>product.activated</code>.</td>
 </tr>
 <tr>
 <td><strong>Acceptance Criteria</strong></td>
@@ -801,7 +801,7 @@
 </tr>
 <tr>
 <td><strong>Endpoint</strong></td>
-<td>Internal (via <code>order.created</code> Kafka event or request-reply <code>order.stock_check</code>)</td>
+<td>Internal (Product Service checkout submit / stock reservation)</td>
 </tr>
 <tr>
 <td><strong>Description</strong></td>

@@ -407,7 +407,7 @@
 <td>Architecture docs must describe async creation, not direct HTTP creation.</td>
 </tr>
 <tr>
-<td>UC-REFUND-001 mentions direct <code>POST /refunds</code>; current implementation has no such refund-service controller endpoint.</td>
+<td>UC-REFUND-001 mentions direct <code>POST /refunds</code>; current architecture intentionally routes creation through order-service endpoints.</td>
 <td>Client-facing contract should point to order-service refund endpoints.</td>
 </tr>
 </tbody>

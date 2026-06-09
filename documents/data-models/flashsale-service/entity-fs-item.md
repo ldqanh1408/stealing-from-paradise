@@ -1,9 +1,9 @@
-# ENTITY-FLASHSALE-002: FS_ITEMS
+﻿# ENTITY-FLASHSALE-002: FS_ITEMS
 
 **Stable ID:** `ENTITY-FLASHSALE-002`
 **Schema:** `flash_sale`
 **Storage:** PostgreSQL
-**Service:** flashsale-service (port :8085)
+**Service:** flashsale-service (port :8086)
 
 ---
 

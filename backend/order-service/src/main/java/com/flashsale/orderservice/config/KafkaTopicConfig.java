@@ -13,8 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Tạo tất cả Kafka topics cần thiết lúc startup qua KafkaAdmin.
- * Hoạt động ngay cả khi KAFKA_AUTO_CREATE_TOPICS_ENABLE=false trên broker.
+ * Creates Kafka topics at startup through KafkaAdmin.
  */
 @Configuration
 @Profile("!test")
@@ -32,7 +31,7 @@ public class KafkaTopicConfig {
         return admin;
     }
 
-    // ─── Topics order-service consumes ────────────────────────────────────────
+    // Topics order-service consumes
     @Bean public NewTopic paymentSuccess()       { return topic(KafkaTopics.PAYMENT_SUCCESS); }
     @Bean public NewTopic paymentFailed()        { return topic(KafkaTopics.PAYMENT_FAILED); }
     @Bean public NewTopic refundAdminApproved()  { return topic(KafkaTopics.REFUND_ADMIN_APPROVED); }
@@ -41,16 +40,14 @@ public class KafkaTopicConfig {
     @Bean public NewTopic refundCreated()       { return topic(KafkaTopics.REFUND_CREATED); }
     @Bean public NewTopic orderCheckoutSubmitted() { return topic(KafkaTopics.ORDER_CHECKOUT_SUBMITTED); }
 
-    // ─── Reply topics (request-reply pattern) ─────────────────────────────────
-    @Bean public NewTopic orderCartItemsResponse()     { return topic(KafkaTopics.ORDER_CART_ITEMS_RESPONSE); }
+    // Reply topics
     @Bean public NewTopic orderAddressResponse()       { return topic(KafkaTopics.ORDER_ADDRESS_RESPONSE); }
     @Bean public NewTopic orderRefundsResponse()       { return topic(KafkaTopics.ORDER_REFUNDS_RESPONSE); }
     @Bean public NewTopic orderPaymentStatusResponse() { return topic(KafkaTopics.ORDER_PAYMENT_STATUS_RESPONSE); }
 
-    // ─── Topics order-service produces ────────────────────────────────────────
+    // Topics order-service produces
     @Bean public NewTopic orderCreated()           { return topic(KafkaTopics.ORDER_CREATED); }
     @Bean public NewTopic paymentRequested()       { return topic(KafkaTopics.PAYMENT_REQUESTED); }
-    @Bean public NewTopic orderCheckoutCompleted() { return topic(KafkaTopics.ORDER_CHECKOUT_COMPLETED); }
     @Bean public NewTopic orderCancelled()         { return topic(KafkaTopics.ORDER_CANCELLED); }
     @Bean public NewTopic orderAutoCancelled()    { return topic(KafkaTopics.ORDER_AUTO_CANCELLED); }
     @Bean public NewTopic sellerOrderCancelled()   { return topic(KafkaTopics.SELLER_ORDER_CANCELLED); }
@@ -62,13 +59,10 @@ public class KafkaTopicConfig {
     @Bean public NewTopic orderPaid()             { return topic(KafkaTopics.ORDER_PAID); }
     @Bean public NewTopic orderPaymentFailed()    { return topic(KafkaTopics.ORDER_PAYMENT_FAILED); }
 
-    // ─── Request topics (order-service sends, other services reply) ───────────
-    @Bean public NewTopic orderCartItemsRequest()     { return topic(KafkaTopics.ORDER_CART_ITEMS_REQUEST); }
+    // Request topics
     @Bean public NewTopic orderAddressRequest()       { return topic(KafkaTopics.ORDER_ADDRESS_REQUEST); }
     @Bean public NewTopic orderRefundsRequest()       { return topic(KafkaTopics.ORDER_REFUNDS_REQUEST); }
     @Bean public NewTopic orderPaymentStatusRequest() { return topic(KafkaTopics.ORDER_PAYMENT_STATUS_REQUEST); }
-    @Bean public NewTopic orderStockCheckRequest()    { return topic(KafkaTopics.ORDER_STOCK_CHECK_REQUEST); }
-    @Bean public NewTopic orderStockCheckResponse()   { return topic(KafkaTopics.ORDER_STOCK_CHECK_RESPONSE); }
 
     private NewTopic topic(String name) {
         return TopicBuilder.name(name).partitions(3).replicas(1).build();

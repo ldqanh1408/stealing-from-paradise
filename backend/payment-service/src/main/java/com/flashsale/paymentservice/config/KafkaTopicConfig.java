@@ -40,6 +40,7 @@ public class KafkaTopicConfig {
     // ─── Topics payment-service produces ──────────────────────────────────────
     @Bean public NewTopic paymentFailed()              { return topic(KafkaTopics.PAYMENT_FAILED); }
     @Bean public NewTopic stripeAccountSuspended()     { return topic(KafkaTopics.STRIPE_ACCOUNT_SUSPENDED); }
+    @Bean public NewTopic sellerStripeRequirement()    { return topic(KafkaTopics.SELLER_STRIPE_REQUIREMENT); }
     @Bean public NewTopic orderPaymentStatusResponse() { return topic(KafkaTopics.ORDER_PAYMENT_STATUS_RESPONSE); }
     @Bean public NewTopic stripeDisputeCreated()       { return topic(KafkaTopics.STRIPE_DISPUTE_CREATED); }
     @Bean public NewTopic stripeDisputeClosed()        { return topic(KafkaTopics.STRIPE_DISPUTE_CLOSED); }

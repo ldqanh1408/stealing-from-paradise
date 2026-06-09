@@ -1,26 +1,26 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Product Service - Seller Product Listing
   description: |
     Seller's own product listing endpoint.
     Base URL: `/api/v1`
-    Service: product-service (Port 8090)
+    Service: product-service (Port 8084)
   version: "5.4.0"
 
 servers:
   - url: https://api.marketplace.vn/api/v1
     description: Production
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 
 paths:
   /sellers/me/products:
     get:
       operationId: getMyProducts
-      summary: Lấy danh sách sản phẩm của người bán
+      summary: Láº¥y danh sÃ¡ch sáº£n pháº©m cá»§a ngÆ°á»i bÃ¡n
       description: |
-        Trả về danh sách sản phẩm phân trang của seller hiện tại.
-        Bao gồm tất cả trạng thái: active, inactive, out_of_stock, pending.
+        Tráº£ vá» danh sÃ¡ch sáº£n pháº©m phÃ¢n trang cá»§a seller hiá»‡n táº¡i.
+        Bao gá»“m táº¥t cáº£ tráº¡ng thÃ¡i: active, inactive, out_of_stock, pending.
       tags: [Products]
       security:
         - BearerAuth: []
@@ -32,7 +32,7 @@ paths:
             type: integer
             minimum: 0
             default: 0
-          description: Số trang (bắt đầu từ 0)
+          description: Sá»‘ trang (báº¯t Ä‘áº§u tá»« 0)
         - name: size
           in: query
           required: false
@@ -41,22 +41,22 @@ paths:
             minimum: 1
             maximum: 100
             default: 20
-          description: Số lượng sản phẩm mỗi trang
+          description: Sá»‘ lÆ°á»£ng sáº£n pháº©m má»—i trang
       responses:
         "200":
-          description: Danh sách sản phẩm của seller
+          description: Danh sÃ¡ch sáº£n pháº©m cá»§a seller
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SellerProductListResponse"
         "401":
-          description: Thiếu JWT hoặc JWT không hợp lệ
+          description: Thiáº¿u JWT hoáº·c JWT khÃ´ng há»£p lá»‡
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Không có quyền SELLER
+          description: KhÃ´ng cÃ³ quyá»n SELLER
           content:
             application/json:
               schema:
@@ -68,7 +68,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT từ Identity Service
+      description: JWT tá»« Identity Service
 
   schemas:
     SellerProductCard:
@@ -90,7 +90,7 @@ components:
         description:
           type: string
           maxLength: 10000
-          description: Rich text/HTML mô tả sản phẩm
+          description: Rich text/HTML mÃ´ táº£ sáº£n pháº©m
           example: "<p>Mo ta san pham...</p>"
         category_id:
           type: string
@@ -104,7 +104,7 @@ components:
         attributes:
           type: object
           additionalProperties: true
-          description: Thuộc tính dạng key-value
+          description: Thuá»™c tÃ­nh dáº¡ng key-value
           example:
             brand: "Nike"
             material: "100% Cotton"
@@ -113,10 +113,10 @@ components:
           items:
             type: string
             format: uri
-          description: Danh sách URL hình ảnh
+          description: Danh sÃ¡ch URL hÃ¬nh áº£nh
         is_flash:
           type: boolean
-          description: Sản phẩm có tham gia flash sale không
+          description: Sáº£n pháº©m cÃ³ tham gia flash sale khÃ´ng
           example: false
         status:
           type: string
@@ -125,19 +125,19 @@ components:
         reject_reason:
           type: string
           nullable: true
-          description: Lý do từ chối (nếu bị rejected)
+          description: LÃ½ do tá»« chá»‘i (náº¿u bá»‹ rejected)
         stock_available:
           type: integer
-          description: Tổng tồn kho khả dụng các variant
+          description: Tá»•ng tá»“n kho kháº£ dá»¥ng cÃ¡c variant
           example: 95
         price:
           type: integer
-          description: Giá thấp nhất các variant (VND)
+          description: GiÃ¡ tháº¥p nháº¥t cÃ¡c variant (VND)
           example: 150000
         original_price:
           type: integer
           nullable: true
-          description: Giá gốc cao nhất (VND)
+          description: GiÃ¡ gá»‘c cao nháº¥t (VND)
           example: 200000
         rating:
           type: number
@@ -192,7 +192,7 @@ components:
           type: string
         code:
           type: string
-          description: Mã lỗi machine-readable
+          description: MÃ£ lá»—i machine-readable
         message:
           type: string
-          description: Thông báo lỗi tiếng Việt
+          description: ThÃ´ng bÃ¡o lá»—i tiáº¿ng Viá»‡t

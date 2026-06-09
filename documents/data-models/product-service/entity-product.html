@@ -282,11 +282,11 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>ENTITY-PRODUCT-002: PRODUCT</h1>
 <blockquote>
-<p><strong>Service</strong>: product-service (Port 8090)
-<strong>Database</strong>: PostgreSQL (per <code>database-entities.md</code> §3 — catalog migrated to PostgreSQL; old MongoDB <code>mg_products</code> deprecated)
+<p><strong>Service</strong>: product-service (Port 8084)
+<strong>Database</strong>: PostgreSQL (per <code>database-entities.md</code> Â§3 â€” catalog migrated to PostgreSQL; old MongoDB <code>mg_products</code> deprecated)
 <strong>Table</strong>: products
 <strong>Source</strong>: database-entities.md Section 3, 03_database_tables.md Section 2
-<strong>Last Updated</strong>: 2026-05-10 (v3 — <strong>P3-11 APPROVED</strong>: status enum expanded to 7 values + 4 admin review columns added)</p>
+<strong>Last Updated</strong>: 2026-05-10 (v3 â€” <strong>P3-11 APPROVED</strong>: status enum expanded to 7 values + 4 admin review columns added)</p>
 </blockquote>
 <hr>
 <h2>ERD</h2>
@@ -335,7 +335,7 @@
 <td>2</td>
 <td><code>category_id</code></td>
 <td>UUID</td>
-<td>NOT NULL, FK → category.id</td>
+<td>NOT NULL, FK â†’ category.id</td>
 <td>Owning category (must be a leaf node per BR-PRODUCT-002)</td>
 </tr>
 <tr>
@@ -364,28 +364,28 @@
 <td><code>description</code></td>
 <td>TEXT</td>
 <td>NULLABLE</td>
-<td>Rich text/HTML description rendered in Product Detail "Mô tả" tab</td>
+<td>Rich text/HTML description rendered in Product Detail "MÃ´ táº£" tab</td>
 </tr>
 <tr>
 <td>7</td>
 <td><code>attributes</code></td>
 <td>JSONB</td>
 <td>NULLABLE</td>
-<td>Structured key-value attributes rendered in Product Detail "Chi tiết" tab</td>
+<td>Structured key-value attributes rendered in Product Detail "Chi tiáº¿t" tab</td>
 </tr>
 <tr>
 <td>8</td>
 <td><code>status</code></td>
 <td>VARCHAR(50)</td>
 <td>NOT NULL, DEFAULT 'draft', CHECK enum (7 values)</td>
-<td>Product lifecycle state — see "Status Values" below</td>
+<td>Product lifecycle state â€” see "Status Values" below</td>
 </tr>
 <tr>
 <td>9</td>
 <td><code>reject_reason</code></td>
 <td>TEXT</td>
 <td>NULLABLE</td>
-<td>Admin's reason when last rejected (≥10 chars when set; cleared on approve)</td>
+<td>Admin's reason when last rejected (â‰¥10 chars when set; cleared on approve)</td>
 </tr>
 <tr>
 <td>10</td>
@@ -398,7 +398,7 @@
 <td>11</td>
 <td><code>reviewed_by</code></td>
 <td>BIGINT</td>
-<td>NULLABLE, FK soft → users.id</td>
+<td>NULLABLE, FK soft â†’ users.id</td>
 <td>Admin user_id who reviewed</td>
 </tr>
 <tr>
@@ -431,7 +431,7 @@
 // Electronics
 {&quot;ram&quot;: &quot;8GB&quot;, &quot;storage&quot;: &quot;256GB&quot;, &quot;screen_size&quot;: &quot;6.7 inch&quot;, &quot;battery&quot;: &quot;5000mAh&quot;, &quot;os&quot;: &quot;Android 14&quot;}
 </code></pre>
-<h3><code>status</code> Values (P3-11 applied — 7-state lifecycle)</h3>
+<h3><code>status</code> Values (P3-11 applied â€” 7-state lifecycle)</h3>
 <table>
 <thead>
 <tr>
@@ -473,7 +473,7 @@
 </tr>
 <tr>
 <td><code>active</code></td>
-<td>On sale; ≥1 variant stock&gt;0</td>
+<td>On sale; â‰¥1 variant stock&gt;0</td>
 <td>Yes</td>
 <td>Yes</td>
 <td>Limited (price/stock OK)</td>
@@ -481,7 +481,7 @@
 <tr>
 <td><code>out_of_stock</code></td>
 <td>All variants stock=0 (auto-derived)</td>
-<td>Yes ("Hết hàng")</td>
+<td>Yes ("Háº¿t hÃ ng")</td>
 <td>No</td>
 <td>Yes (restock)</td>
 </tr>
@@ -629,7 +629,7 @@
 <tr>
 <td>state-product.md</td>
 <td>State Diagram</td>
-<td>7-state lifecycle (draft → pending → approved → active ↔ out_of_stock ↔ inactive)</td>
+<td>7-state lifecycle (draft â†’ pending â†’ approved â†’ active â†” out_of_stock â†” inactive)</td>
 </tr>
 <tr>
 <td>P3-11</td>

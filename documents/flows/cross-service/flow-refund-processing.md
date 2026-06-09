@@ -1,4 +1,4 @@
-# Business Flow: Refund Processing
+﻿# Business Flow: Refund Processing
 Scope: Cross-service (`order-service`, `refund-service`, `payment-service`, `notification-service`)
 
 ### Use Case Coverage
@@ -72,4 +72,4 @@ sequenceDiagram
 | Concern | Current behavior |
 |-----|--------|
 | Old flow text described a Feign call from order-service to refund-service. Current code uses Kafka. | Architecture docs must describe async creation, not direct HTTP creation. |
-| UC-REFUND-001 mentions direct `POST /refunds`; current implementation has no such refund-service controller endpoint. | Client-facing contract should point to order-service refund endpoints. |
+| UC-REFUND-001 mentions direct `POST /refunds`; current architecture intentionally routes creation through order-service endpoints. | Client-facing contract should point to order-service refund endpoints. |

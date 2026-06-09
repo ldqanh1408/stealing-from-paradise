@@ -281,7 +281,7 @@
         </section>
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Product Service Operations</h1>
-<p><strong>Service:</strong> product-service | <strong>Port:</strong> 8090 | <strong>Database:</strong> PostgreSQL (product_db)</p>
+<p><strong>Service:</strong> product-service | <strong>Port:</strong> 8084 | <strong>Database:</strong> PostgreSQL (product_db)</p>
 <h2>Overview</h2>
 <p>Product catalog, variant management, cart operations, and stock reservations. Images stored in MinIO. Kafka events emitted for search indexing on catalog changes.</p>
 <h2>Key Database Tables</h2>
@@ -359,13 +359,13 @@
 <tr>
 <td><code>DB_USER</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>â€”</td>
 <td>Database username</td>
 </tr>
 <tr>
 <td><code>DB_PASSWORD</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>â€”</td>
 <td>Database password</td>
 </tr>
 <tr>
@@ -383,13 +383,13 @@
 <tr>
 <td><code>MINIO_ACCESS_KEY</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>â€”</td>
 <td>MinIO access key</td>
 </tr>
 <tr>
 <td><code>MINIO_SECRET_KEY</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>â€”</td>
 <td>MinIO secret key</td>
 </tr>
 <tr>
@@ -431,9 +431,9 @@ mc ls local/product-images/ --limit 5
 </code></pre>
 <h2>Admin Endpoints (RBAC)</h2>
 <blockquote>
-<p><strong>Re-activated 2026-05-10 v3 — P3-11 APPROVED &amp; applied (status enum 7 values + reviewer columns + reject_count).</strong></p>
+<p><strong>Re-activated 2026-05-10 v3 â€” P3-11 APPROVED &amp; applied (status enum 7 values + reviewer columns + reject_count).</strong></p>
 </blockquote>
-<p>All <code>/admin/products/*</code> endpoints require <strong>role=ADMIN</strong> in JWT. Non-admin → <code>403 FORBIDDEN</code>.</p>
+<p>All <code>/admin/products/*</code> endpoints require <strong>role=ADMIN</strong> in JWT. Non-admin â†’ <code>403 FORBIDDEN</code>.</p>
 <table>
 <thead>
 <tr>
@@ -446,21 +446,21 @@ mc ls local/product-images/ --limit 5
 <tr>
 <td><code>/admin/products/pending</code></td>
 <td>GET</td>
-<td>UC-PRODUCT-013 — list products awaiting review</td>
+<td>UC-PRODUCT-013 â€” list products awaiting review</td>
 </tr>
 <tr>
 <td><code>/admin/products/{productId}/approve</code></td>
 <td>POST</td>
-<td>UC-PRODUCT-014 — approve product</td>
+<td>UC-PRODUCT-014 â€” approve product</td>
 </tr>
 <tr>
 <td><code>/admin/products/{productId}/reject</code></td>
 <td>POST</td>
-<td>UC-PRODUCT-015 — reject with reason ≥10 chars</td>
+<td>UC-PRODUCT-015 â€” reject with reason â‰¥10 chars</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Operational SLA:</strong> <code>pending</code> queue processed within 24h (BR-PRODUCT-009.11). Older items get an internal alert (post-MVP — tracked via dashboard).</p>
+<p><strong>Operational SLA:</strong> <code>pending</code> queue processed within 24h (BR-PRODUCT-009.11). Older items get an internal alert (post-MVP â€” tracked via dashboard).</p>
 <p><strong>Reviewer audit columns</strong> (P3-11 applied): <code>products.reject_reason</code>, <code>products.reviewed_at</code>, <code>products.reviewed_by</code>, <code>products.reject_count</code> are persisted on every approve/reject for compliance.</p>
 <h2>Troubleshooting</h2>
 <table>

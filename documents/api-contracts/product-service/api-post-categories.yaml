@@ -1,13 +1,13 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Product Service - Admin Category Management
   description: >
     Admin CRUD operations for product categories.
     All endpoints require JWT with ADMIN role.
-    Product Service (Port 8090).
+    Product Service (Port 8084).
   version: "5.4.0"
 servers:
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 paths:
   /admin/categories:

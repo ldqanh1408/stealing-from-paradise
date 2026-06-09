@@ -1,6 +1,6 @@
-# UC-SEARCH-003: Trigger Reindex
+﻿# UC-SEARCH-003: Trigger Reindex
 
-> **Service**: search-service (Port 8091)
+> **Service**: search-service (Port 8087)
 > **Use Case ID**: UC-SEARCH-003
 > **Priority**: LOW (operational)
 > **Source**: 02_API_search_service.md, 03_database_tables.md

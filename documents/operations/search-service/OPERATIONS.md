@@ -1,6 +1,6 @@
-# Search Service Operations
+﻿# Search Service Operations
 
-**Service:** search-service | **Port:** 8091 | **Database:** Elasticsearch (index: skus)
+**Service:** search-service | **Port:** 8087 | **Database:** Elasticsearch (index: skus)
 
 ## Overview
 
@@ -43,8 +43,8 @@ GET /actuator/health
 
 ### Reindex All Products
 ```bash
-curl -X POST "http://localhost:8091/api/v1/search/reindex"
-curl "http://localhost:8091/api/v1/search/reindex/status"
+curl -X POST "http://localhost:8087/api/v1/search/reindex"
+curl "http://localhost:8087/api/v1/search/reindex/status"
 ```
 
 ### Check Index Health

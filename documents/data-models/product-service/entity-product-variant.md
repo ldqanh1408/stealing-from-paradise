@@ -1,6 +1,6 @@
-# ENTITY-PRODUCT-003: PRODUCT_VARIANT
+﻿# ENTITY-PRODUCT-003: PRODUCT_VARIANT
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Database**: PostgreSQL
 > **Table**: product_variants
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 3
@@ -40,7 +40,7 @@ erDiagram
 | # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
 | 1 | `id` | UUID | PK | Unique variant (SKU) identifier |
-| 2 | `product_id` | UUID | NOT NULL, FK → product.id ON DELETE CASCADE | Parent product. |
+| 2 | `product_id` | UUID | NOT NULL, FK â†’ product.id ON DELETE CASCADE | Parent product. |
 | 3 | `variant_code` | VARCHAR(100) | UNIQUE | Internal seller SKU code (e.g., "NK-AIR-RED-XL"); 3-50 chars, alphanumeric+dash |
 | 4 | `variant_name` | VARCHAR(255) | NULLABLE | Group label for variant dimension (e.g., "Mau sac, Size") |
 | 5 | `variant_attributes` | JSONB | NULLABLE | Concrete variant values (e.g., `{"color":"Den","size":"M"}`) |

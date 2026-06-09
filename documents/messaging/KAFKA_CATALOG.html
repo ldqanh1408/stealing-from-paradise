@@ -315,7 +315,7 @@ Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved 
 <tbody>
 <tr>
 <td>Total Topics</td>
-<td>64 (48 event + 16 request-reply)</td>
+<td>See service docs; active request-reply pairs: 5</td>
 </tr>
 <tr>
 <td>Event Producers</td>
@@ -396,7 +396,7 @@ Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved 
 </tr>
 </tbody>
 </table>
-<h3>Kafka Request-Reply Pairs (8 pairs, 16 topics)</h3>
+<h3>Kafka Request-Reply Pairs (5 active pairs)</h3>
 <table>
 <thead>
 <tr>
@@ -408,33 +408,9 @@ Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved 
 </thead>
 <tbody>
 <tr>
-<td>cart.product_info.request</td>
-<td>cart.product_info.response</td>
-<td>Cart (Product)</td>
-<td>Product catalog</td>
-</tr>
-<tr>
-<td>order.stock_check.request</td>
-<td>order.stock_check.response</td>
-<td>Order</td>
-<td>Product</td>
-</tr>
-<tr>
-<td>order.payment_status.request</td>
-<td>order.payment_status.response</td>
-<td>Order</td>
-<td>Payment</td>
-</tr>
-<tr>
-<td>order.cart_items.request</td>
-<td>order.cart_items.response</td>
-<td>Order</td>
-<td>Product</td>
-</tr>
-<tr>
 <td>order.address.request</td>
 <td>order.address.response</td>
-<td>Order</td>
+<td>Product / Flash Sale</td>
 <td>Identity</td>
 </tr>
 <tr>
@@ -446,6 +422,12 @@ Generated: 2026-05-09 | Updated: 2026-06-07 (Search/Product indexing feed moved 
 <tr>
 <td>order.refund_presigned_url.request</td>
 <td>order.refund_presigned_url.response</td>
+<td>Order</td>
+<td>Refund</td>
+</tr>
+<tr>
+<td>order.payment_status.request</td>
+<td>order.payment_status.response</td>
 <td>Order</td>
 <td>Refund</td>
 </tr>

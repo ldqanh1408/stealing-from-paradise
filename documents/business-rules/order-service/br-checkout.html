@@ -282,11 +282,11 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>BR-ORDER-001 to BR-ORDER-009: Checkout Business Rules</h1>
 <p><strong>Stable IDs:</strong> BR-ORDER-001 through BR-ORDER-009
-<strong>Domain:</strong> Checkout (POST /orders/checkout)
-<strong>Last Updated:</strong> 2026-05-09</p>
+<strong>Domain:</strong> Checkout via Product Service (<code>POST /v1/cart/checkout/preview</code>, <code>POST /v1/cart/checkout/submit</code>)
+<strong>Last Updated:</strong> 2026-06-09</p>
 <hr>
-<h2>BR-ORDER-001: Cart Not Empty</h2>
-<p><strong>Rule:</strong> Checkout requires at least 1 item selected from the cart.</p>
+<h2>BR-ORDER-001: Cart Selection</h2>
+<p><strong>Rule:</strong> Checkout preview requires 1 to 50 selected cart item IDs.</p>
 <table>
 <thead>
 <tr>
@@ -297,44 +297,80 @@
 <tbody>
 <tr>
 <td>IF <code>item_ids</code> is empty</td>
-<td>THEN reject with 422 "No items selected"</td>
+<td>Reject with 400</td>
 </tr>
 <tr>
-<td>IF <code>item_ids</code> has items</td>
-<td>THEN proceed to stock validation</td>
+<td>IF <code>item_ids</code> has more than 50 items</td>
+<td>Reject with 400</td>
+</tr>
+<tr>
+<td>IF all selected cart items are valid</td>
+<td>Continue to preview validation</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Validation:</strong> <code>item_ids</code> array length must be 1-50.</p>
 <hr>
-<h2>BR-ORDER-002: Stock Availability Check</h2>
-<p><strong>Rule:</strong> All selected items must have sufficient stock at checkout time.</p>
+<h2>BR-ORDER-002: Preview Validation</h2>
+<p><strong>Rule:</strong> Product Service validates selected variants before issuing a <code>preview_token</code>.</p>
 <table>
 <thead>
 <tr>
-<th>Condition</th>
-<th>Outcome</th>
+<th>Check</th>
+<th>Required Outcome</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>IF any item has <code>stock_quantity &lt; requested_quantity</code></td>
-<td>THEN reject with 422 "Item [sku] out of stock"</td>
+<td>Variant exists and is active</td>
+<td>Must pass</td>
 </tr>
 <tr>
-<td>IF all items have sufficient stock</td>
-<td>THEN proceed to reservation</td>
+<td>Price snapshot matches current price</td>
+<td>Must pass</td>
+</tr>
+<tr>
+<td>Stock is sufficient</td>
+<td>Must pass</td>
+</tr>
+<tr>
+<td>Cart item belongs to buyer</td>
+<td>Must pass</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Mechanism:</strong> 
-1. Order Service sends <code>order.stock_check.request</code> to Product Service
-2. Product Service responds with <code>order.stock_check.response</code> ({allAvailable: bool, results[]})
-3. IF <code>allAvailable == false</code> THEN abort checkout</p>
-<p><strong>Atomicity:</strong> Stock is reserved atomically via <code>stock_reservation</code> table (status=pending, expires_at = NOW() + 15 min).</p>
+<p><strong>Token:</strong> <code>preview_token</code> is stored in Redis and expires after 10 minutes.</p>
 <hr>
 <h2>BR-ORDER-003: Address Validation</h2>
-<p><strong>Rule:</strong> The delivery address must exist and belong to the checkout user.</p>
+<p><strong>Rule:</strong> Product Service validates the buyer address with Identity Service before checkout submit continues.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Product Service sends <code>order.address.request</code> with <code>user_id</code> and <code>address_id</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Identity Service replies on <code>order.address.response</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>IF address is missing or does not belong to user, Product Service rejects with 409</td>
+</tr>
+<tr>
+<td>4</td>
+<td>IF valid, Product Service uses the Identity response to build <code>address_snapshot</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>BR-ORDER-004: Stock Reservation</h2>
+<p><strong>Rule:</strong> Checkout submit revalidates stock and creates pending reservations before order creation.</p>
 <table>
 <thead>
 <tr>
@@ -344,59 +380,97 @@
 </thead>
 <tbody>
 <tr>
-<td>IF <code>address_id</code> does not exist in <code>addresses</code> table</td>
-<td>THEN reject with 409 "Address not found"</td>
+<td>IF stock or price changed after preview</td>
+<td>Reject with 409</td>
 </tr>
 <tr>
-<td>IF <code>address.user_id != current_user.id</code></td>
-<td>THEN reject with 409 "Address does not belong to user"</td>
-</tr>
-<tr>
-<td>IF address is valid</td>
-<td>THEN snapshot into <code>orders.shipping_address</code> (JSONB)</td>
+<td>IF stock is available</td>
+<td>Create PENDING reservations with the checkout <code>session_id</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Mechanism:</strong>
-1. Order Service sends <code>order.address.request</code> (userId, addressId) to Identity Service
-2. Identity Service responds with <code>order.address.response</code> (full address details)
-3. Address snapshot stored in each sub-order</p>
+<p><strong>Reservation TTL:</strong> 15 minutes.</p>
 <hr>
-<h2>BR-ORDER-004: Multi-Vendor Split Logic</h2>
-<p><strong>Rule:</strong> Cart items are grouped by seller; one sub-order created per seller.</p>
+<h2>BR-ORDER-005: Checkout Submit Event</h2>
+<p><strong>Rule:</strong> Product Service emits <code>order.checkout_submitted</code> after address validation and stock reservation.</p>
 <table>
 <thead>
 <tr>
-<th>Condition</th>
-<th>Outcome</th>
+<th>Field</th>
+<th>Source</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>IF cart items from 1 seller</td>
-<td>THEN create 1 parent_order + 1 sub-order</td>
+<td><code>session_id</code></td>
+<td>Generated by Product Service</td>
 </tr>
 <tr>
-<td>IF cart items from N sellers</td>
-<td>THEN create 1 parent_order + N sub-orders</td>
+<td><code>customer_id</code></td>
+<td>Authenticated buyer</td>
+</tr>
+<tr>
+<td><code>address_id</code></td>
+<td>Submit request</td>
+</tr>
+<tr>
+<td><code>address_snapshot</code></td>
+<td>Identity Service response</td>
+</tr>
+<tr>
+<td><code>items[]</code></td>
+<td>Product/cart snapshots</td>
+</tr>
+<tr>
+<td><code>total_amount</code>, <code>total_items</code></td>
+<td>Calculated from selected items</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Algorithm:</strong></p>
-<pre><code>1. Fetch cart items via order.cart_items.request → Product Service
-2. Group items by seller_id
-3. For each seller group:
-   - Create one ORDERS row with status=PENDING
-   - Create ORDER_ITEMS rows for each item in the group
-   - Set sub_order.total_amt = SUM(item.price_snapshot * item.quantity)
-4. Create one PARENT_ORDERS row with:
-   - status = PENDING_PAYMENT
-   - total_amt = SUM(all sub_orders.total_amt)
-   - final_amt = total_amt (before any platform discounts)
-   - session_id = generated checkout session
-</code></pre>
 <hr>
-<h2>BR-ORDER-005: Parent-Order Financial Integrity</h2>
+<h2>BR-ORDER-006: Order Creation from Event</h2>
+<p><strong>Rule:</strong> Order Service creates the parent order and seller sub-orders only from <code>order.checkout_submitted</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Consume <code>order.checkout_submitted</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Group items by <code>seller_id</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Create one <code>PARENT_ORDERS</code> row</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Create one <code>ORDERS</code> row per seller</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Create <code>ORDER_ITEMS</code> snapshots</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Store <code>session_id</code> on the parent order</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Atomicity:</strong> Parent, orders, and order items are created in one database transaction.</p>
+<hr>
+<h2>BR-ORDER-007: Order Code Generation</h2>
+<p><strong>Rule:</strong> Each sub-order receives a unique human-readable <code>order_code</code>.</p>
+<p><strong>Format:</strong> <code>OR-YYYYMMDD-{orders.id}</code></p>
+<hr>
+<h2>BR-ORDER-008: Parent-Order Financial Integrity</h2>
 <p><strong>Rule:</strong> Parent order amounts must equal the sum of sub-orders.</p>
 <table>
 <thead>
@@ -408,130 +482,56 @@
 <tbody>
 <tr>
 <td>IF <code>parent_order.final_amt != SUM(orders.final_amt)</code></td>
-<td>THEN data integrity error; abort transaction</td>
+<td>Abort transaction</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Enforcement:</strong> Single database transaction for all INSERTs. Rollback on mismatch.</p>
 <hr>
-<h2>BR-ORDER-006: Order Code Generation</h2>
-<p><strong>Rule:</strong> Each sub-order receives a unique human-readable <code>order_code</code>.</p>
-<p><strong>Format:</strong> <code>OR-YYYYMMDD-{id}</code></p>
+<h2>BR-ORDER-009: Events After Order Creation</h2>
+<p><strong>Rule:</strong> Order Service publishes Axon events after creating orders.</p>
 <table>
 <thead>
 <tr>
-<th>Component</th>
-<th>Value</th>
+<th>Event</th>
+<th>Effect</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Prefix</td>
-<td><code>OR</code></td>
+<td><code>OrderCreatedEvent</code></td>
+<td>Starts per-order saga and publishes Kafka <code>order.created</code></td>
 </tr>
 <tr>
-<td>Date</td>
-<td><code>YYYYMMDD</code> (checkout date)</td>
-</tr>
-<tr>
-<td>Separator</td>
-<td><code>-</code></td>
-</tr>
-<tr>
-<td>ID</td>
-<td><code>orders.id</code> (BIGSERIAL)</td>
+<td><code>ParentOrderCheckoutCreatedEvent</code></td>
+<td>Starts parent payment saga and publishes Kafka <code>payment.requested</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Example:</strong> <code>OR-20260509-100</code></p>
-<hr>
-<h2>BR-ORDER-007: Shipping Deadline Calculation</h2>
-<p><strong>Rule:</strong> Seller must provide tracking within 3 days of order creation.</p>
-<table>
-<thead>
-<tr>
-<th>Condition</th>
-<th>Outcome</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>IF <code>orders.status</code> = PAID and <code>NOW() &gt; shipping_deadline</code></td>
-<td>THEN JOB-13 may auto-cancel</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Formula:</strong> <code>shipping_deadline = created_at + 3 days</code></p>
-<hr>
-<h2>BR-ORDER-008: Checkout Idempotency</h2>
-<p><strong>Rule:</strong> A checkout session cannot be processed twice.</p>
-<table>
-<thead>
-<tr>
-<th>Condition</th>
-<th>Outcome</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>IF <code>session_id</code> already exists in <code>parent_orders</code></td>
-<td>THEN reject with 409 "Checkout already processed"</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Enforcement:</strong> UNIQUE constraint on <code>parent_orders.session_id</code>.</p>
-<hr>
-<h2>BR-ORDER-009: Kafka Event on Checkout</h2>
-<p><strong>Rule:</strong> On successful checkout, produce <code>order.created</code> event.</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Topic</td>
-<td><code>order.created</code></td>
-</tr>
-<tr>
-<td>Payload</td>
-<td>parent_order_id, user_id, orders[], total_amount, timestamp</td>
-</tr>
-<tr>
-<td>Consumers</td>
-<td>Product Service (inventory lock), Search Service (sold count)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Also produced:</strong>
-- <code>order.checkout_created</code> → Product Service (remove items from cart)</p>
 <hr>
 <h2>Error Response Summary</h2>
 <table>
 <thead>
 <tr>
-<th>HTTP Status</th>
+<th>HTTP / Async Error</th>
 <th>Condition</th>
-<th>Rule</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>422</td>
-<td>Empty item_ids or items out of stock</td>
-<td>BR-ORDER-001, BR-ORDER-002</td>
+<td>400</td>
+<td>Invalid checkout preview/submit request</td>
 </tr>
 <tr>
 <td>409</td>
-<td>Address invalid or session duplicate</td>
-<td>BR-ORDER-003, BR-ORDER-008</td>
+<td>Preview token invalid, stock changed, or address invalid</td>
 </tr>
 <tr>
-<td>500</td>
-<td>Financial integrity mismatch</td>
-<td>BR-ORDER-005</td>
+<td>501</td>
+<td>Deprecated Order Service <code>POST /orders/checkout</code> called directly</td>
+</tr>
+<tr>
+<td>Internal retry/log</td>
+<td>Invalid <code>order.checkout_submitted</code> payload</td>
 </tr>
 </tbody>
 </table>
@@ -541,12 +541,11 @@
 <li><strong>ENTITY-ORDER-001:</strong> <a href="../../data-models/order-service/entity-parent-order.html">PARENT_ORDERS</a></li>
 <li><strong>ENTITY-ORDER-002:</strong> <a href="../../data-models/order-service/entity-order.html">ORDERS</a></li>
 <li><strong>ENTITY-ORDER-003:</strong> <a href="../../data-models/order-service/entity-order-item.html">ORDER_ITEMS</a></li>
-<li><strong>BR:</strong> <a href="br-order-lifecycle.html">br-order-lifecycle.md</a></li>
 <li><strong>UC:</strong> <a href="../../use-cases/order-service/uc-001-checkout.html">uc-001-checkout.md</a></li>
-<li><strong>API:</strong> <a href="../../api-contracts/order-service/api-post-orders-checkout.html">api-post-orders-checkout.yaml</a></li>
+<li><strong>Product API:</strong> <a href="../../api-contracts/product-service/api-post-checkout-preview.html">api-post-checkout-preview.yaml</a>, <a href="../../api-contracts/product-service/api-post-checkout-submit.html">api-post-checkout-submit.yaml</a></li>
+<li><strong>Deprecated Order API:</strong> <a href="../../api-contracts/order-service/api-post-orders-checkout.html">api-post-orders-checkout.yaml</a></li>
 <li><strong>FR:</strong> <a href="../../srs/fr/order-service/fr-order.html">fr-order.md</a></li>
 <li><strong>State:</strong> <a href="../../state-diagrams/order-service/state-order.html">state-order.md</a></li>
-<li><strong>Traceability:</strong> <a href="../../traceability/order-service/traceability-matrix.html">traceability-matrix.md</a></li>
 </ul></div></section>
       </main>
     </div>

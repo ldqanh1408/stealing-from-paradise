@@ -2,7 +2,7 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Service** | product-service (Port 8090) |
+| **Service** | product-service (Port 8084) |
 | **Domain** | Catalog -- Categories, Products, Variants, Images, Stock, Admin Review |
 | **Source** | 03_database_tables.md, product_service_ui_logic.md, 02_API_product_service.md |
 | **Last Updated** | 2026-05-25 (v5 -- pessimistic locking now guards ALL stock mutations: reserve, release, restore, restock; proactive optimistic version check added for seller inventory operations) |

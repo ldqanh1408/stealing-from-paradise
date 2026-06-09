@@ -1,6 +1,6 @@
-# ENTITY-PRODUCT-004: PRODUCT_IMAGE
+﻿# ENTITY-PRODUCT-004: PRODUCT_IMAGE
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Database**: PostgreSQL
 > **Table**: product_images
 > **Source**: database-entities.md Section 3, 03_database_tables.md Section 4
@@ -31,8 +31,8 @@ erDiagram
 | # | Field | Type | Constraints | Meaning |
 |---|--------|------|-------------|---------|
 | 1 | `id` | UUID | PK | Unique image identifier |
-| 2 | `product_id` | UUID | NOT NULL, FK → product.id ON DELETE CASCADE | Parent product. |
-| 3 | `variant_id` | UUID | NULLABLE, FK → product_variant.id ON DELETE SET NULL | NULL = common product image; non-NULL = variant-specific image |
+| 2 | `product_id` | UUID | NOT NULL, FK â†’ product.id ON DELETE CASCADE | Parent product. |
+| 3 | `variant_id` | UUID | NULLABLE, FK â†’ product_variant.id ON DELETE SET NULL | NULL = common product image; non-NULL = variant-specific image |
 | 4 | `url` | TEXT | NOT NULL | Full MinIO object URL (binary stored in MinIO, not DB) |
 | 5 | `sort_order` | INT | DEFAULT 0 | Display order; smallest value = primary/thumbnail image |
 | 6 | `created_at` | TIMESTAMP | Auto-set | Row creation timestamp |

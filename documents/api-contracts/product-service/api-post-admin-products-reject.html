@@ -289,11 +289,11 @@ Side effects:
 - Notification gui cho seller: NOTIF-PRODUCT-REJECTED (kem reason)
 
 Base URL: `/api/v1`
-Service: product-service (Port 8090)</p><ul class='doc-link-list' style='list-style:none'><li><span class='text-secondary'>Spec version</span><div class='fw-semibold'>5.5.0</div></li><li><span class='text-secondary'>Server(s)</span><div class='fw-semibold'>https://api.marketplace.vn/api/v1, http://localhost:8090/api/v1</div></li><li><span class='text-secondary'>Source</span><div class='fw-semibold'><code>api-contracts/product-service/api-post-admin-products-reject.yaml</code></div></li></ul><h2 class="h5 mt-4">Operations</h2><div class="table-responsive"><table class="table doc-table table-sm align-middle"><thead><tr><th>Method</th><th>Path</th><th>Summary</th></tr></thead><tbody><tr><td><span class='badge text-bg-primary'>POST</span></td><td><code>/admin/products/{productId}/reject</code></td><td>Tu choi san pham</td></tr></tbody></table></div><h2 class="h5 mt-4">OpenAPI Specification</h2><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"><style>.openapi-ui{background:#fff;border:1px solid rgba(15,23,42,.12);border-radius:.5rem;padding:.75rem;overflow:auto}.openapi-ui .swagger-ui{font-family:inherit}.openapi-ui .swagger-ui .topbar,.openapi-ui .swagger-ui .information-container.wrapper{display:none}.openapi-ui .swagger-ui .wrapper{padding:0;max-width:none}.openapi-ui .swagger-ui .scheme-container{box-shadow:none;margin:0 0 1rem;padding:0}</style><div id="openapi-ui-api-contracts-product-service-api-post-admin-products-reject-yaml" class="openapi-ui"></div><script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.addEventListener('load',function(){var el=document.getElementById('openapi-ui-api-contracts-product-service-api-post-admin-products-reject-yaml');if(!window.SwaggerUIBundle){el.innerHTML='<div class="alert alert-warning mb-0">Swagger UI could not load from CDN.</div>';return;}SwaggerUIBundle({dom_id:'#openapi-ui-api-contracts-product-service-api-post-admin-products-reject-yaml',spec:{
+Service: product-service (Port 8084)</p><ul class='doc-link-list' style='list-style:none'><li><span class='text-secondary'>Spec version</span><div class='fw-semibold'>5.5.0</div></li><li><span class='text-secondary'>Server(s)</span><div class='fw-semibold'>https://api.marketplace.vn/api/v1, http://localhost:8084/api/v1</div></li><li><span class='text-secondary'>Source</span><div class='fw-semibold'><code>api-contracts/product-service/api-post-admin-products-reject.yaml</code></div></li></ul><h2 class="h5 mt-4">Operations</h2><div class="table-responsive"><table class="table doc-table table-sm align-middle"><thead><tr><th>Method</th><th>Path</th><th>Summary</th></tr></thead><tbody><tr><td><span class='badge text-bg-primary'>POST</span></td><td><code>/admin/products/{productId}/reject</code></td><td>Tu choi san pham</td></tr></tbody></table></div><h2 class="h5 mt-4">OpenAPI Specification</h2><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"><style>.openapi-ui{background:#fff;border:1px solid rgba(15,23,42,.12);border-radius:.5rem;padding:.75rem;overflow:auto}.openapi-ui .swagger-ui{font-family:inherit}.openapi-ui .swagger-ui .topbar,.openapi-ui .swagger-ui .information-container.wrapper{display:none}.openapi-ui .swagger-ui .wrapper{padding:0;max-width:none}.openapi-ui .swagger-ui .scheme-container{box-shadow:none;margin:0 0 1rem;padding:0}</style><div id="openapi-ui-api-contracts-product-service-api-post-admin-products-reject-yaml" class="openapi-ui"></div><script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.addEventListener('load',function(){var el=document.getElementById('openapi-ui-api-contracts-product-service-api-post-admin-products-reject-yaml');if(!window.SwaggerUIBundle){el.innerHTML='<div class="alert alert-warning mb-0">Swagger UI could not load from CDN.</div>';return;}SwaggerUIBundle({dom_id:'#openapi-ui-api-contracts-product-service-api-post-admin-products-reject-yaml',spec:{
   "openapi": "3.0.3",
   "info": {
     "title": "Product Service - Admin Reject Product",
-    "description": "Admin tu choi san pham (`pending` -> `rejected`) voi ly do bat buoc >=10 chars.\nSeller co the chinh sua va resubmit (`rejected` -> `draft` -> `pending`).\n\nSide effects:\n- Update products: status='rejected', reject_reason=..., reviewed_at=NOW(), reviewed_by=admin_user_id\n- Emit Kafka event `product.rejected`\n- Notification gui cho seller: NOTIF-PRODUCT-REJECTED (kem reason)\n\nBase URL: `/api/v1`\nService: product-service (Port 8090)\n",
+    "description": "Admin tu choi san pham (`pending` -> `rejected`) voi ly do bat buoc >=10 chars.\nSeller co the chinh sua va resubmit (`rejected` -> `draft` -> `pending`).\n\nSide effects:\n- Update products: status='rejected', reject_reason=..., reviewed_at=NOW(), reviewed_by=admin_user_id\n- Emit Kafka event `product.rejected`\n- Notification gui cho seller: NOTIF-PRODUCT-REJECTED (kem reason)\n\nBase URL: `/api/v1`\nService: product-service (Port 8084)\n",
     "version": "5.5.0"
   },
   "servers": [
@@ -302,7 +302,7 @@ Service: product-service (Port 8090)</p><ul class='doc-link-list' style='list-st
       "description": "Production"
     },
     {
-      "url": "http://localhost:8090/api/v1",
+      "url": "http://localhost:8084/api/v1",
       "description": "Local development"
     }
   ],
@@ -427,7 +427,7 @@ Service: product-service (Port 8090)</p><ul class='doc-link-list' style='list-st
             "type": "string",
             "minLength": 10,
             "maxLength": 2000,
-            "description": "Ly do tu choi — bat buoc, toi thieu 10 ky tu (BR-PRODUCT-009)",
+            "description": "Ly do tu choi â€” bat buoc, toi thieu 10 ky tu (BR-PRODUCT-009)",
             "example": "Hinh anh khong ro rang, vui long chup lai"
           },
           "note": {

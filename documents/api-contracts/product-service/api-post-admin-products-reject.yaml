@@ -1,8 +1,8 @@
-# ============================================================
-# RE-ACTIVATED 2026-05-10 v3 — back in MVP scope.
-# P3-11 APPROVED 2026-05-10 — reject_reason / reviewed_at / reviewed_by / reject_count
-# applied to products table per database-entities.md §3 + DB_SCHEMA_CHANGE_PROPOSAL.md §P3-11.
-# Xem MVP_ANALYSIS.md §2.3 (đính chính v3) và BR-PRODUCT-009.
+﻿# ============================================================
+# RE-ACTIVATED 2026-05-10 v3 â€” back in MVP scope.
+# P3-11 APPROVED 2026-05-10 â€” reject_reason / reviewed_at / reviewed_by / reject_count
+# applied to products table per database-entities.md Â§3 + DB_SCHEMA_CHANGE_PROPOSAL.md Â§P3-11.
+# Xem MVP_ANALYSIS.md Â§2.3 (Ä‘Ã­nh chÃ­nh v3) vÃ  BR-PRODUCT-009.
 # ============================================================
 openapi: "3.0.3"
 info:
@@ -17,13 +17,13 @@ info:
     - Notification gui cho seller: NOTIF-PRODUCT-REJECTED (kem reason)
 
     Base URL: `/api/v1`
-    Service: product-service (Port 8090)
+    Service: product-service (Port 8084)
   version: "5.5.0"
 
 servers:
   - url: https://api.marketplace.vn/api/v1
     description: Production
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 
 paths:
@@ -107,7 +107,7 @@ components:
           type: string
           minLength: 10
           maxLength: 2000
-          description: Ly do tu choi — bat buoc, toi thieu 10 ky tu (BR-PRODUCT-009)
+          description: Ly do tu choi â€” bat buoc, toi thieu 10 ky tu (BR-PRODUCT-009)
           example: "Hinh anh khong ro rang, vui long chup lai"
         note:
           type: string

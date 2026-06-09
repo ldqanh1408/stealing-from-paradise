@@ -282,7 +282,7 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Kafka Events -- Flash Sale Service</h1>
 <blockquote>
-<p>Service: flashsale-service (Port 8085)
+<p>Service: flashsale-service (Port 8086)
 Source: <code>docs/services/flashsale-service/flashsale_service_flow.md</code>, <code>docs/services/flashsale-service/KAFKA_EVENTS.md</code>
 Generated: 2026-05-10</p>
 </blockquote>
@@ -420,11 +420,70 @@ Generated: 2026-05-10</p>
 }
 </code></pre>
 <hr>
-<h2>Events Consumed</h2>
-<p>Flash Sale Service does NOT consume events from Kafka. All triggers are from REST API or Redis ZSET worker.</p>
+<h3>flash_sale.item_approved / flash_sale.item_rejected</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Consumers</strong></td>
+<td>Notification Service</td>
+</tr>
+<tr>
+<td><strong>Trigger</strong></td>
+<td>Item is auto-approved during registration or admin approves/rejects an item</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Payload fields:</strong> <code>event_id</code>, <code>event_type</code>, <code>fs_item_id</code>, <code>session_id</code>, <code>sku_code</code>, <code>seller_id</code>, <code>flash_price</code>, <code>flash_stock</code>, <code>status</code>, <code>note</code> or <code>reject_reason</code>, <code>timestamp</code>.</p>
 <hr>
-<h2>Request-Reply (None)</h2>
-<p>Flash Sale Service does not participate in Kafka request-reply patterns.</p>
+<h3>order.checkout_submitted</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Consumers</strong></td>
+<td>Order Service</td>
+</tr>
+<tr>
+<td><strong>Trigger</strong></td>
+<td>Buyer purchases a flash-sale item</td>
+</tr>
+</tbody>
+</table>
+<p>Flash-sale purchases enter the same order pipeline as catalog checkout through <code>order.checkout_submitted</code>.</p>
+<hr>
+<h2>Events Consumed</h2>
+<p>Flash Sale Service consumes <code>order.address.response</code> for request-reply address lookup during flash-sale checkout.</p>
+<hr>
+<h2>Request-Reply</h2>
+<table>
+<thead>
+<tr>
+<th>Request Topic</th>
+<th>Response Topic</th>
+<th>Peer</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>order.address.request</code></td>
+<td><code>order.address.response</code></td>
+<td>identity-service</td>
+<td>Resolve buyer shipping address before publishing checkout</td>
+</tr>
+</tbody>
+</table>
 <hr>
 <h2>Related Topics (via Product Service)</h2>
 <h3>flash_sale.price_sync (Product Service -&gt; Search Service)</h3>
@@ -465,6 +524,7 @@ Generated: 2026-05-10</p>
 
 Seller registers product
   -&gt; flash_sale.item_registered [Notification Service]
+  -&gt; flash_sale.item_approved [Notification Service]
 
 Redis Worker at start_time
   -&gt; flash_sale.session_started [Product Service, Notification Service]
@@ -477,6 +537,8 @@ Redis Worker at end_time
       -&gt; flash_sale.price_sync (deactivate) [Search Service]
 
 Customer purchases via standard checkout flow (via Product Service)
+  -&gt; order.address.request / order.address.response
+  -&gt; order.checkout_submitted [Order Service]
 </code></pre>
 <hr>
 <h2>Redis Keys Used</h2>

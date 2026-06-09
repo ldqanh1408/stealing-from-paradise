@@ -1,6 +1,6 @@
-# FR-PRODUCT-001 through FR-PRODUCT-015: Catalog Functional Requirements
+﻿# FR-PRODUCT-001 through FR-PRODUCT-015: Catalog Functional Requirements
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Domain**: Catalog
 > **Source**: 02_API_product_service.md, product_service_ui_logic.md
 
@@ -52,7 +52,7 @@
 | **Priority** | HIGH |
 | **Actor** | Seller (JWT SELLER role) |
 | **Endpoint** | `POST /products` |
-| **Description** | Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Product starts in `draft` status. No Kafka event emitted at creation — indexing is deferred until `product.activated`. |
+| **Description** | Create a new product with name, description, category_id, attributes, and images. Category must be a leaf node. Product starts in `draft` status. No Kafka event emitted at creation â€” indexing is deferred until `product.activated`. |
 | **Acceptance Criteria** | AC1: Name 5-200 chars. AC2: Description max 10000 chars. AC3: category_id must be leaf. AC4: Images 1-10 URLs, JPEG/PNG/WebP. AC5: Returns 201 with product_id. |
 | **Related** | ENTITY-PRODUCT-002, UC-PRODUCT-003, BR-PRODUCT-002, BR-PRODUCT-006 |
 
@@ -193,7 +193,7 @@ Product listing, filtering, and search functionality has been moved to **Search 
 |-----------|-------|
 | **Priority** | CRITICAL |
 | **Actor** | System (triggered via Order Service) |
-| **Endpoint** | Internal (via `order.created` Kafka event or request-reply `order.stock_check`) |
+| **Endpoint** | Internal (Product Service checkout submit / stock reservation) |
 | **Description** | Create stock_reservation with status=pending, expires_at=NOW()+15min. Deduct stock in Redis (DECRBY) and DB (optimistic update). Uses session_id to link to checkout session. |
 | **Acceptance Criteria** | AC1: Atomic deduction across Redis+DB. AC2: Rollback on stock shortage. AC3: Reservation linked to checkout session_id. |
 | **Related** | ENTITY-PRODUCT-005, UC-PRODUCT-007, BR-PRODUCT-007, BR-PRODUCT-008 |

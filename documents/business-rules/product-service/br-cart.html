@@ -282,7 +282,7 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>BR-PRODUCT-010 through BR-PRODUCT-013: Cart Business Rules</h1>
 <blockquote>
-<p><strong>Service</strong>: product-service (Port 8090)
+<p><strong>Service</strong>: product-service (Port 8084)
 <strong>Domain</strong>: Cart -- Cart and Cart Items
 <strong>Source</strong>: 03_database_tables.md Sections 6-7, product_service_ui_logic.md Section 3, 02_API_product_service.md</p>
 </blockquote>
@@ -298,7 +298,7 @@
 <tbody>
 <tr>
 <td>Uniqueness</td>
-<td>PK = <code>customer_id</code> in <code>carts</code> table — exactly one cart per customer</td>
+<td>PK = <code>customer_id</code> in <code>carts</code> table â€” exactly one cart per customer</td>
 </tr>
 <tr>
 <td>Lazy creation</td>
@@ -453,15 +453,15 @@
 <tbody>
 <tr>
 <td>Customer removes item</td>
-<td><code>DELETE /cart/items/{variantId}</code> — hard delete by <code>(customer_id, variant_id)</code></td>
+<td><code>DELETE /cart/items/{variantId}</code> â€” hard delete by <code>(customer_id, variant_id)</code></td>
 </tr>
 <tr>
 <td>Customer clears cart</td>
-<td><code>DELETE /cart</code> — hard delete all items for customer</td>
+<td><code>DELETE /cart</code> â€” hard delete all items for customer</td>
 </tr>
 <tr>
 <td>Checkout succeeded</td>
-<td><code>order.paid</code> event → hard delete cart items by <code>(customer_id, variant_id)</code></td>
+<td><code>order.paid</code> event â†’ hard delete cart items by <code>(customer_id, variant_id)</code></td>
 </tr>
 </tbody>
 </table>

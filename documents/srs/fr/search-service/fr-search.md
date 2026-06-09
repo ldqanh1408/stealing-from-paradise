@@ -1,6 +1,6 @@
-# FR-SEARCH: Search Service Functional Requirements
+﻿# FR-SEARCH: Search Service Functional Requirements
 
-> **Service**: search-service (Port 8091)
+> **Service**: search-service (Port 8087)
 > **Database**: Elasticsearch
 > **Source**: 02_API_search_service.md
 > **Updated**: 2026-06-07 (Product Service indexing snapshots now use Kafka request-reply `search.index_data.*`; no Product REST/WebClient dependency)
@@ -22,7 +22,7 @@
 
 | # | Criterion |
 |---|-----------|
-| 1 | Supports unaccented queries (e.g., "ao thun" matches "áo thun") |
+| 1 | Supports unaccented queries (e.g., "ao thun" matches "Ã¡o thun") |
 | 2 | Supports fuzzy matching for misspellings (fuzziness: AUTO) |
 | 3 | `product_name` has 3x boost over other text fields |
 | 4 | Results collapsed by `product_id` (one card per product) |

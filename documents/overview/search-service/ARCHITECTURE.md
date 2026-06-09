@@ -1,6 +1,6 @@
-# Search Service — Architecture Overview
+﻿# Search Service â€” Architecture Overview
 
-> Service: search-service (SVC-008, Port 8091)
+> Service: search-service (SVC-008, Port 8087)
 > Database: Elasticsearch
 > Source: `documents` micro-docs
 > Generated: 2026-05-10 | Updated: 2026-06-07 (search-product indexing data now flows through Kafka request-reply; WebClient/Product REST dependency removed)
@@ -54,7 +54,7 @@ Full-text product search with Vietnamese language support. The service indexes p
 
 | Direction | Topic | Source | Action |
 |-----------|-------|--------|--------|
-| Consume | `product.activated` | Product Service | **Index product** (sole ES indexing trigger: `approved → active`) |
+| Consume | `product.activated` | Product Service | **Index product** (sole ES indexing trigger: `approved â†’ active`) |
 | Consume | `product.deactivated` | Product Service | Set `is_active = false` (hide from search) |
 | Consume | `product.updated` | Product Service | Update index (update_by_query by product_id) |
 | Consume | `product.deleted` | Product Service | Remove from index (delete by product_id) |

@@ -102,7 +102,7 @@ public class FlashSaleController {
             @PathVariable Long sessionId,
             @PathVariable Long itemId,
             @Valid @RequestBody RejectItemRequest request) {
-        return flashSaleService.rejectItem(itemId, request)
+        return flashSaleService.rejectItem(sessionId, itemId, request)
                 .map(ApiResponse::success);
     }
 

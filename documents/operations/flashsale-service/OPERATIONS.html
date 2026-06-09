@@ -281,7 +281,7 @@
         </section>
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Flashsale Service Operations</h1>
-<p><strong>Service:</strong> flashsale-service | <strong>Port:</strong> 8085 | <strong>Database:</strong> PostgreSQL (flashsale_db) + Redis</p>
+<p><strong>Service:</strong> flashsale-service | <strong>Port:</strong> 8086 | <strong>Database:</strong> PostgreSQL (flashsale_db) + Redis</p>
 <h2>Overview</h2>
 <p>Manages flash sale sessions, product registration, and price promotion. Uses Redis ZSET-based activation scheduling for near-zero-latency session start/end transitions. Persistent data in PostgreSQL.</p>
 <h2>Key Database Tables</h2>
@@ -361,13 +361,13 @@
 <tr>
 <td><code>DB_USER</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>â€”</td>
 <td>Database username</td>
 </tr>
 <tr>
 <td><code>DB_PASSWORD</code></td>
 <td>Yes</td>
-<td>—</td>
+<td>â€”</td>
 <td>Database password</td>
 </tr>
 <tr>
@@ -432,7 +432,7 @@ redis-cli ZREM fs:activations &quot;&lt;id&gt;&quot;               # remove stal
 <tr>
 <td>Session stuck in UPCOMING</td>
 <td>ZSET entry missing</td>
-<td><code>redis-cli ZSCORE fs:activations "&lt;id&gt;"</code> — if nil, re-insert</td>
+<td><code>redis-cli ZSCORE fs:activations "&lt;id&gt;"</code> â€” if nil, re-insert</td>
 </tr>
 </tbody>
 </table></div></section>

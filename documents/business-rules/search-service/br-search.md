@@ -1,6 +1,6 @@
-# BR-SEARCH-001: Search Service Business Rules
+﻿# BR-SEARCH-001: Search Service Business Rules
 
-> **Service**: search-service (Port 8091)
+> **Service**: search-service (Port 8087)
 > **Database**: Elasticsearch
 > **Architecture**: SKU-first, field collapsing by product_id
 > **Source**: 02_API_search_service.md, 03_database_tables.md, KAFKA_EVENTS.md
@@ -25,7 +25,7 @@
 | Condition | Action |
 |-----------|--------|
 | Query contains unaccented text ("ao thun") | Tokenize with `vietnamese_analyzer` (standard + lowercase + asciifolding) |
-| Query contains accented text ("áo thun") | Match accented and unaccented variants via `preserve_original: true` |
+| Query contains accented text ("Ã¡o thun") | Match accented and unaccented variants via `preserve_original: true` |
 | Query contains misspelling ("ao thunn") | Apply `fuzziness: AUTO` in multi_match |
 | Boost priorities | `product_name^3` > `product_description` > `product_attributes.*` |
 

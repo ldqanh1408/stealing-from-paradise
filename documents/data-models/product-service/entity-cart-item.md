@@ -1,6 +1,6 @@
-# ENTITY-PRODUCT-007: CART_ITEM
+﻿# ENTITY-PRODUCT-007: CART_ITEM
 
-> **Service**: product-service (Port 8090)
+> **Service**: product-service (Port 8084)
 > **Database**: PostgreSQL
 > **Table**: cart_items
 > **Source**: database-entities.md Section 4, 03_database_tables.md Section 7
@@ -34,7 +34,7 @@ erDiagram
 | # | Field | Type | Constraints | Meaning |
 |---|-------|------|-------------|---------|
 | 1 | `customer_id` | BIGINT | PK (composite), NOT NULL | Customer who owns this cart item |
-| 2 | `variant_id` | UUID | PK (composite), NOT NULL, FK → product_variant.id | The SKU in the cart |
+| 2 | `variant_id` | UUID | PK (composite), NOT NULL, FK â†’ product_variant.id | The SKU in the cart |
 | 3 | `quantity` | INT | NOT NULL, DEFAULT 1 | Desired quantity; > 0 and <= 1000 per API validation |
 | 4 | `price_snapshot` | DECIMAL(18,2) | NOT NULL | Price at time of adding to cart; used for change detection |
 | 5 | `variant_name_snapshot` | VARCHAR(500) | NOT NULL | Cached variant name for display even if variant is deleted |
@@ -43,12 +43,12 @@ erDiagram
 | 8 | `created_at` | TIMESTAMP | Auto-set | When item was added to cart |
 | 9 | `updated_at` | TIMESTAMP | Auto-set | Last quantity/price update |
 
-**COMPOSITE PK(customer_id, variant_id)** — each variant appears at most once per customer.
+**COMPOSITE PK(customer_id, variant_id)** â€” each variant appears at most once per customer.
 No soft-delete (`deleted_at`) column. Cart items are **hard-deleted** when:
 - Customer manually removes them via `DELETE /cart/items/{variantId}`
 - Customer clears cart via `DELETE /cart`
-- Checkout completed (payment succeeded) — `order.paid` event triggers hard delete
-- Checkout cancelled/failed (payment failed) — `order.payment_failed` event triggers hard delete
+- Checkout completed (payment succeeded) â€” `order.paid` event triggers hard delete
+- Checkout cancelled/failed (payment failed) â€” `order.payment_failed` event triggers hard delete
 
 ---
 

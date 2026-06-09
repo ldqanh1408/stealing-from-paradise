@@ -288,6 +288,34 @@ Generated: 2026-05-10</p>
 </blockquote>
 <hr>
 <h2>Events Consumed</h2>
+<h3>order.checkout_submitted (from Product Service)</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Consumer</strong></td>
+<td>order-service (<code>CheckoutSubmittedConsumer</code>)</td>
+</tr>
+<tr>
+<td><strong>GroupId</strong></td>
+<td>order-service-checkout-group</td>
+</tr>
+<tr>
+<td><strong>Topic</strong></td>
+<td><code>order.checkout_submitted</code></td>
+</tr>
+<tr>
+<td><strong>Action</strong></td>
+<td>Create parent order, seller sub-orders, order item snapshots, then publish Axon checkout events</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Payload includes:</strong> <code>session_id</code>, <code>customer_id</code>, <code>address_id</code>, <code>address_snapshot</code>, <code>items[]</code>, <code>total_amount</code>, <code>total_items</code>.</p>
 <h3>payment.success (from Payment Service)</h3>
 <table>
 <thead>
@@ -311,7 +339,7 @@ Generated: 2026-05-10</p>
 </tr>
 <tr>
 <td><strong>Action</strong></td>
-<td>Publish Axon <code>ParentOrderPaymentSucceededEvent</code> → Saga transitions sub-orders to PAID</td>
+<td>Publish Axon <code>ParentOrderPaymentSucceededEvent</code> â†’ Saga transitions sub-orders to PAID</td>
 </tr>
 </tbody>
 </table>
@@ -341,7 +369,7 @@ Generated: 2026-05-10</p>
 </tr>
 <tr>
 <td><strong>Action</strong></td>
-<td>Publish Axon <code>ParentOrderPaymentFailedEvent</code> → Saga cancels sub-orders, releases stock</td>
+<td>Publish Axon <code>ParentOrderPaymentFailedEvent</code> â†’ Saga cancels sub-orders, releases stock</td>
 </tr>
 </tbody>
 </table>
@@ -371,7 +399,7 @@ Generated: 2026-05-10</p>
 </tr>
 <tr>
 <td><strong>Action</strong></td>
-<td>PARTIAL refund → order.status = PARTIALLY_REFUNDED; FULL refund → order.status = REFUNDED</td>
+<td>PARTIAL refund â†’ order.status = PARTIALLY_REFUNDED; FULL refund â†’ order.status = REFUNDED</td>
 </tr>
 </tbody>
 </table>
@@ -434,7 +462,7 @@ Generated: 2026-05-10</p>
 </table>
 <hr>
 <h2>Events Produced</h2>
-<p>All order events are produced via Axon Saga (OrderProcessingSaga, ParentOrderPaymentSaga):</p>
+<p>Order events are produced through Axon sagas and Kafka bridge services:</p>
 <table>
 <thead>
 <tr>
@@ -490,8 +518,8 @@ Generated: 2026-05-10</p>
 <tr>
 <td>Parent Checkout Created</td>
 <td><code>ParentOrderCheckoutCreatedEvent</code></td>
-<td><code>order.checkout_created</code></td>
-<td>Payment (create intent)</td>
+<td><code>payment.requested</code></td>
+<td>Payment (create payment intent)</td>
 </tr>
 <tr>
 <td>Parent Payment Succeeded</td>
@@ -568,11 +596,11 @@ Generated: 2026-05-10</p>
 <tbody>
 <tr>
 <td><strong>Producer</strong></td>
-<td>order-service (Saga) — chỉ emit khi <code>cancelled_by = SELLER</code></td>
+<td>order-service (Saga) â€” chá»‰ emit khi <code>cancelled_by = SELLER</code></td>
 </tr>
 <tr>
 <td><strong>Consumers</strong></td>
-<td>payment-service (trigger full refund), notification-service (notify buyer + apology), product-service (release stock — nếu chưa nhận từ <code>order.cancelled</code>)</td>
+<td>payment-service (trigger full refund), notification-service (notify buyer + apology), product-service (release stock â€” náº¿u chÆ°a nháº­n tá»« <code>order.cancelled</code>)</td>
 </tr>
 <tr>
 <td><strong>Partition Key</strong></td>
@@ -584,11 +612,11 @@ Generated: 2026-05-10</p>
 </tr>
 <tr>
 <td><strong>Status</strong></td>
-<td>NEW — re-activated 2026-05-10 (xem <code>MVP_ANALYSIS.md</code> đính chính v3 và BR-ORDER-026)</td>
+<td>NEW â€” re-activated 2026-05-10 (xem <code>MVP_ANALYSIS.md</code> Ä‘Ã­nh chÃ­nh v3 vÃ  BR-ORDER-026)</td>
 </tr>
 <tr>
 <td><strong>Note</strong></td>
-<td>Phát SONG SONG với <code>order.cancelled</code> (không thay thế). Subscribers cần idempotent dedupe theo <code>event_id</code>.</td>
+<td>PhÃ¡t SONG SONG vá»›i <code>order.cancelled</code> (khÃ´ng thay tháº¿). Subscribers cáº§n idempotent dedupe theo <code>event_id</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -614,9 +642,9 @@ Generated: 2026-05-10</p>
 }
 </code></pre>
 <p><strong>Downstream effects:</strong>
-- Payment Service: tạo refund (type=FULL, reason=SELLER_CANCEL) tự động không cần admin duyệt. Khi Stripe refund thành công, Payment Service emit <code>refund.rts_completed</code> (hoặc tương đương) để Order Service cập nhật trạng thái.
-- Notification Service: gửi notification <code>NOTIF-ORDER-CANCELLED-BY-SELLER</code> cho buyer kèm reason + thông tin refund.
-- Product Service: idempotent — nếu đã release stock từ <code>order.cancelled</code> thì bỏ qua.</p>
+- Payment Service: táº¡o refund (type=FULL, reason=SELLER_CANCEL) tá»± Ä‘á»™ng khÃ´ng cáº§n admin duyá»‡t. Khi Stripe refund thÃ nh cÃ´ng, Payment Service emit <code>refund.rts_completed</code> (hoáº·c tÆ°Æ¡ng Ä‘Æ°Æ¡ng) Ä‘á»ƒ Order Service cáº­p nháº­t tráº¡ng thÃ¡i.
+- Notification Service: gá»­i notification <code>NOTIF-ORDER-CANCELLED-BY-SELLER</code> cho buyer kÃ¨m reason + thÃ´ng tin refund.
+- Product Service: idempotent â€” náº¿u Ä‘Ã£ release stock tá»« <code>order.cancelled</code> thÃ¬ bá» qua.</p>
 <h3>order.shipped</h3>
 <p><strong>Payload:</strong></p>
 <pre><code class="language-json">{
@@ -646,15 +674,15 @@ Generated: 2026-05-10</p>
 <tbody>
 <tr>
 <td><strong>Consumers</strong></td>
-<td>order-service (self-consume → auto-cancel saga), Notification Service</td>
+<td>order-service (self-consume â†’ auto-cancel saga), Notification Service</td>
 </tr>
 <tr>
 <td><strong>Trigger</strong></td>
-<td>JOB-22 quét parent_orders ở <code>PENDING_PAYMENT</code> quá 10 phút</td>
+<td>JOB-22 quÃ©t parent_orders á»Ÿ <code>PENDING_PAYMENT</code> quÃ¡ 10 phÃºt</td>
 </tr>
 <tr>
 <td><strong>Status</strong></td>
-<td>NEW — bổ sung 2026-05-10 (MVP MUST-HAVE, xem <code>MVP_ANALYSIS.md</code> §3.1)</td>
+<td>NEW â€” bá»• sung 2026-05-10 (MVP MUST-HAVE, xem <code>MVP_ANALYSIS.md</code> Â§3.1)</td>
 </tr>
 <tr>
 <td><strong>Retention</strong></td>
@@ -685,40 +713,12 @@ Generated: 2026-05-10</p>
 }
 </code></pre>
 <p><strong>Downstream effects:</strong>
-- Order saga: ParentOrderPaymentTimeoutEvent → cancel sub-orders → emit <code>order.cancelled</code> cho mỗi sub-order.
-- Product service: nhận <code>order.cancelled</code> → release stock reservations.
-- Notification: thông báo buyer "Đơn hàng đã bị hủy do hết thời gian thanh toán".</p>
+- Order saga: ParentOrderPaymentTimeoutEvent â†’ cancel sub-orders â†’ emit <code>order.cancelled</code> cho má»—i sub-order.
+- Product service: nháº­n <code>order.cancelled</code> â†’ release stock reservations.
+- Notification: thÃ´ng bÃ¡o buyer "ÄÆ¡n hÃ ng Ä‘Ã£ bá»‹ há»§y do háº¿t thá»i gian thanh toÃ¡n".</p>
 <hr>
-<h3>order.checkout_completed</h3>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Trigger</strong></td>
-<td>Checkout successful — parent order and all sub-orders created</td>
-</tr>
-<tr>
-<td><strong>Consumers</strong></td>
-<td>Product Service (Cart — remove purchased items)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Payload:</strong></p>
-<pre><code class="language-json">{
-  &quot;parent_order_id&quot;: 1,
-  &quot;customer_id&quot;: 42,
-  &quot;orders&quot;: [{&quot;order_id&quot;: 5, &quot;seller_id&quot;: 99}],
-  &quot;item_ids&quot;: [&quot;uuid1&quot;, &quot;uuid2&quot;],
-  &quot;timestamp&quot;: &quot;2026-05-12T10:00:00Z&quot;
-}
-</code></pre>
 <hr>
-<h2>Request-Reply (Order Service is Requester)</h2>
+<h2>Request-Reply Topics Used by Order Domain</h2>
 <table>
 <thead>
 <tr>
@@ -730,22 +730,10 @@ Generated: 2026-05-10</p>
 </thead>
 <tbody>
 <tr>
-<td><code>order.stock_check.request</code></td>
-<td><code>order.stock_check.response</code></td>
-<td>Product Service</td>
-<td>Validate stock before checkout</td>
-</tr>
-<tr>
-<td><code>order.cart_items.request</code></td>
-<td><code>order.cart_items.response</code></td>
-<td>Product Service</td>
-<td>Fetch cart items for checkout</td>
-</tr>
-<tr>
 <td><code>order.address.request</code></td>
 <td><code>order.address.response</code></td>
 <td>Identity Service</td>
-<td>Validate shipping address</td>
+<td>Topic owned for product/flash-sale checkout address validation</td>
 </tr>
 <tr>
 <td><code>order.payment_status.request</code></td>

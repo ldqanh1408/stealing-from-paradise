@@ -1,4 +1,4 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Product Service - Checkout Submit API
   description: |
@@ -7,13 +7,13 @@ info:
     to trigger order creation in Order Service.
 
     Two-step flow:
-    1. POST /v1/checkout/preview → get preview_token (TTL 10 min)
-    2. POST /v1/checkout/submit → reserve stock, trigger order creation
+    1. POST /v1/cart/checkout/preview â†’ get preview_token (TTL 10 min)
+    2. POST /v1/cart/checkout/submit â†’ reserve stock, trigger order creation
   version: "1.0"
   contact:
     name: Product Service Team
 servers:
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 tags:
   - name: Checkout
@@ -23,7 +23,7 @@ paths:
     post:
       tags:
         - Checkout
-      summary: Submit checkout — reserve stock and trigger order creation
+      summary: Submit checkout â€” reserve stock and trigger order creation
       description: |
         Receives a valid `preview_token` and address. Re-validates all items one final time.
         On success: reserves stock (PENDING), stores checkout session in Redis (TTL 15 min),
@@ -46,7 +46,7 @@ paths:
               fullAddress: "123 Nguyen Trai, Phuong 2, Q.3, TP.HCM"
       responses:
         "200":
-          description: Checkout submitted — order creation triggered
+          description: Checkout submitted â€” order creation triggered
           content:
             application/json:
               schema:
@@ -80,7 +80,7 @@ components:
       properties:
         previewToken:
           type: string
-          description: Token from POST /v1/checkout/preview
+          description: Token from POST /v1/cart/checkout/preview
           example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
         addressId:
           type: integer
@@ -135,7 +135,7 @@ components:
         message:
           type: string
           description: Status message
-          example: "Checkout đã được gửi. Đơn hàng đang trong quá trình xử lý."
+          example: "Checkout Ä‘Ã£ Ä‘Æ°á»£c gá»­i. ÄÆ¡n hÃ ng Ä‘ang trong quÃ¡ trÃ¬nh xá»­ lÃ½."
 
     CheckoutSubmitErrorResponse:
       type: object
@@ -148,8 +148,8 @@ components:
           type: string
           description: |
             JSON string containing detailed error info.
-            Example: {"error":"STOCK_CHANGED","message":"Tồn kho hoặc giá đã thay đổi...","details":[...]}
-          example: "{\"error\":\"STOCK_CHANGED\",\"message\":\"Tồn kho hoặc giá đã thay đổi. Vui lòng làm mới giỏ hàng.\",\"details\":[...]}"
+            Example: {"error":"STOCK_CHANGED","message":"Tá»“n kho hoáº·c giÃ¡ Ä‘Ã£ thay Ä‘á»•i...","details":[...]}
+          example: "{\"error\":\"STOCK_CHANGED\",\"message\":\"Tá»“n kho hoáº·c giÃ¡ Ä‘Ã£ thay Ä‘á»•i. Vui lÃ²ng lÃ m má»›i giá» hÃ ng.\",\"details\":[...]}"
 
     ErrorResponse:
       type: object

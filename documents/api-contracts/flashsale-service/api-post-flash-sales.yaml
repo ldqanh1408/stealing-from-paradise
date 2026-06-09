@@ -1,16 +1,16 @@
-openapi: "3.0.3"
+﻿openapi: "3.0.3"
 info:
   title: Flash Sale Session API
   description: |
     Flash Sale Session management endpoints.
-    Service: flashsale-service (port :8085)
+    Service: flashsale-service (port :8086)
     Base URL: /api/v1
   version: "1.0.0"
   contact:
     name: Stealing From Paradise Engineering
 
 servers:
-  - url: http://localhost:8085/api/v1
+  - url: http://localhost:8086/api/v1
     description: Local development
 
 paths:

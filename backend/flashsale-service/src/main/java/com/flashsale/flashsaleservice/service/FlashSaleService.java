@@ -127,6 +127,7 @@ public class FlashSaleService {
     public Mono<FlashSaleItemResponse> createFlashSaleItem(Long sessionId, Long sellerId, CreateFlashSaleItemRequest req) {
         FlashSaleItem item = FlashSaleItem.builder()
                 .sessionId(sessionId)
+                .sellerId(sellerId)
                 .skuCode(req.getSkuCode())
                 .flashPrice(req.getFlashPrice())
                 .flashStock(req.getFlashStock())
@@ -135,11 +136,15 @@ public class FlashSaleService {
                 .status("APPROVED")
                 .build();
         return itemRepo.save(item)
-                .doOnSuccess(saved -> publishItemRegisteredEvent(saved, sellerId))
+                .doOnSuccess(saved -> {
+                    publishItemRegisteredEvent(saved);
+                    publishFlashSaleItemEvent(KafkaTopics.FLASH_SALE_ITEM_APPROVED, saved,
+                            Map.of("note", "Auto-approved at registration"));
+                })
                 .map(this::toItemResponse);
     }
 
-    private void publishItemRegisteredEvent(FlashSaleItem item, Long sellerId) {
+    private void publishItemRegisteredEvent(FlashSaleItem item) {
         try {
             Map<String, Object> event = new LinkedHashMap<>();
             event.put("event_id", "evt_" + System.currentTimeMillis() + "_" + item.getId());
@@ -147,7 +152,7 @@ public class FlashSaleService {
             event.put("fs_item_id", item.getId());
             event.put("session_id", item.getSessionId());
             event.put("sku_code", item.getSkuCode());
-            event.put("seller_id", sellerId);
+            event.put("seller_id", item.getSellerId());
             event.put("flash_price", item.getFlashPrice());
             event.put("flash_stock", item.getFlashStock());
             event.put("status", item.getStatus());
@@ -155,9 +160,33 @@ public class FlashSaleService {
             kafkaTemplate.send(KafkaTopics.FLASH_SALE_ITEM_REGISTERED,
                     String.valueOf(item.getId()), toJson(event));
             log.info("Published flash_sale.item_registered: fsItemId={}, sessionId={}, sellerId={}",
-                    item.getId(), item.getSessionId(), sellerId);
+                    item.getId(), item.getSessionId(), item.getSellerId());
         } catch (Exception e) {
             log.error("Failed to publish flash_sale.item_registered: {}", e.getMessage(), e);
+        }
+    }
+
+    private void publishFlashSaleItemEvent(String topic, FlashSaleItem item, Map<String, Object> extraFields) {
+        try {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("event_id", "evt_" + System.currentTimeMillis() + "_" + item.getId());
+            event.put("event_type", topic);
+            event.put("fs_item_id", item.getId());
+            event.put("session_id", item.getSessionId());
+            event.put("sku_code", item.getSkuCode());
+            event.put("seller_id", item.getSellerId());
+            event.put("flash_price", item.getFlashPrice());
+            event.put("flash_stock", item.getFlashStock());
+            event.put("status", item.getStatus());
+            if (extraFields != null) {
+                event.putAll(extraFields);
+            }
+            event.put("timestamp", Instant.now().toString());
+            kafkaTemplate.send(topic, String.valueOf(item.getId()), toJson(event));
+            log.info("Published {}: fsItemId={}, sessionId={}, sellerId={}",
+                    topic, item.getId(), item.getSessionId(), item.getSellerId());
+        } catch (Exception e) {
+            log.error("Failed to publish {}: {}", topic, e.getMessage(), e);
         }
     }
 
@@ -244,19 +273,31 @@ public class FlashSaleService {
 
     public Mono<FlashSaleItemResponse> approveItem(Long sessionId, Long itemId, ApproveItemRequest req) {
         return itemRepo.findById(itemId)
+                .switchIfEmpty(Mono.error(new AppException(ErrorCode.NOT_FOUND, "Khong tim thay Flash Sale item")))
                 .flatMap(item -> {
+                    if (!sessionId.equals(item.getSessionId())) {
+                        return Mono.error(new AppException(ErrorCode.NOT_FOUND, "Flash Sale item khong thuoc session nay"));
+                    }
                     item.setStatus("APPROVED");
                     return itemRepo.save(item);
                 })
+                .doOnSuccess(saved -> publishFlashSaleItemEvent(KafkaTopics.FLASH_SALE_ITEM_APPROVED, saved,
+                        Map.of("note", req != null && req.getNote() != null ? req.getNote() : "")))
                 .map(this::toItemResponse);
     }
 
-    public Mono<FlashSaleItemResponse> rejectItem(Long itemId, RejectItemRequest req) {
+    public Mono<FlashSaleItemResponse> rejectItem(Long sessionId, Long itemId, RejectItemRequest req) {
         return itemRepo.findById(itemId)
+                .switchIfEmpty(Mono.error(new AppException(ErrorCode.NOT_FOUND, "Khong tim thay Flash Sale item")))
                 .flatMap(item -> {
+                    if (!sessionId.equals(item.getSessionId())) {
+                        return Mono.error(new AppException(ErrorCode.NOT_FOUND, "Flash Sale item khong thuoc session nay"));
+                    }
                     item.setStatus("REJECTED");
                     return itemRepo.save(item);
                 })
+                .doOnSuccess(saved -> publishFlashSaleItemEvent(KafkaTopics.FLASH_SALE_ITEM_REJECTED, saved,
+                        Map.of("reject_reason", req != null && req.getRejectReason() != null ? req.getRejectReason() : "")))
                 .map(this::toItemResponse);
     }
 
@@ -505,6 +546,7 @@ public class FlashSaleService {
         return FlashSaleItemResponse.builder()
                 .id(i.getId())
                 .sessionId(i.getSessionId())
+                .sellerId(i.getSellerId())
                 .skuCode(i.getSkuCode())
                 .flashPrice(i.getFlashPrice())
                 .flashStock(i.getFlashStock())

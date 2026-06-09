@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Product Service — Architecture Overview</title>
+  <title>Product Service â€” Architecture Overview</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
@@ -273,16 +273,16 @@
         <section class="doc-hero doc-section">
           <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
-              <h1 class="h2 mb-1">Product Service — Architecture Overview</h1>
+              <h1 class="h2 mb-1">Product Service â€” Architecture Overview</h1>
               <div class="doc-meta">DOC-OVERVIEW-PRODUCT-SERVICE-ARCHITECTURE | 2026-06-09</div>
             </div>
             <div class="d-flex flex-wrap gap-2"><span class="badge text-bg-info">architecture</span> <span class="badge text-bg-light">product-service</span></div>
           </div>
         </section>
 
-        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Product Service — Architecture Overview</h1>
+        <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>Product Service â€” Architecture Overview</h1>
 <blockquote>
-<p>Service: product-service (SVC-007, Port 8090)
+<p>Service: product-service (SVC-007, Port 8084)
 Database: PostgreSQL
 Source: <code>documents</code> micro-docs
 Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing feed moved to Kafka request-reply)</p>
@@ -348,8 +348,8 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing feed moved 
 </tbody>
 </table>
 <h2>Product Lifecycle</h2>
-<pre><code>draft → pending → approved → active ↔ out_of_stock
-                      ↓               ↓
+<pre><code>draft â†’ pending â†’ approved â†’ active â†” out_of_stock
+                      â†“               â†“
                   rejected      inactive
 </code></pre>
 <blockquote>
@@ -450,12 +450,12 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing feed moved 
 <tr>
 <td>Produce</td>
 <td><code>product.activated</code></td>
-<td>Index product in Search Service (sole indexing trigger: <code>approved → active</code>)</td>
+<td>Index product in Search Service (sole indexing trigger: <code>approved â†’ active</code>)</td>
 </tr>
 <tr>
 <td>Produce</td>
 <td><code>product.deactivated</code></td>
-<td>Remove/hide product from Search Service (<code>active/out_of_stock → inactive</code>)</td>
+<td>Remove/hide product from Search Service (<code>active/out_of_stock â†’ inactive</code>)</td>
 </tr>
 <tr>
 <td>Produce</td>
@@ -475,7 +475,7 @@ Generated: 2026-05-10 | Updated: 2026-06-07 (Search Service indexing feed moved 
 <tr>
 <td>Produce</td>
 <td><code>product.approved</code></td>
-<td>Notify seller — product approved</td>
+<td>Notify seller â€” product approved</td>
 </tr>
 <tr>
 <td>Produce</td>

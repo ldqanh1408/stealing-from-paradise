@@ -289,11 +289,11 @@ Side effects:
 - Notification gui cho seller: NOTIF-PRODUCT-APPROVED
 
 Base URL: `/api/v1`
-Service: product-service (Port 8090)</p><ul class='doc-link-list' style='list-style:none'><li><span class='text-secondary'>Spec version</span><div class='fw-semibold'>5.5.0</div></li><li><span class='text-secondary'>Server(s)</span><div class='fw-semibold'>https://api.marketplace.vn/api/v1, http://localhost:8090/api/v1</div></li><li><span class='text-secondary'>Source</span><div class='fw-semibold'><code>api-contracts/product-service/api-post-admin-products-approve.yaml</code></div></li></ul><h2 class="h5 mt-4">Operations</h2><div class="table-responsive"><table class="table doc-table table-sm align-middle"><thead><tr><th>Method</th><th>Path</th><th>Summary</th></tr></thead><tbody><tr><td><span class='badge text-bg-primary'>POST</span></td><td><code>/admin/products/{productId}/approve</code></td><td>Duyet san pham</td></tr></tbody></table></div><h2 class="h5 mt-4">OpenAPI Specification</h2><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"><style>.openapi-ui{background:#fff;border:1px solid rgba(15,23,42,.12);border-radius:.5rem;padding:.75rem;overflow:auto}.openapi-ui .swagger-ui{font-family:inherit}.openapi-ui .swagger-ui .topbar,.openapi-ui .swagger-ui .information-container.wrapper{display:none}.openapi-ui .swagger-ui .wrapper{padding:0;max-width:none}.openapi-ui .swagger-ui .scheme-container{box-shadow:none;margin:0 0 1rem;padding:0}</style><div id="openapi-ui-api-contracts-product-service-api-post-admin-products-approve-yaml" class="openapi-ui"></div><script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.addEventListener('load',function(){var el=document.getElementById('openapi-ui-api-contracts-product-service-api-post-admin-products-approve-yaml');if(!window.SwaggerUIBundle){el.innerHTML='<div class="alert alert-warning mb-0">Swagger UI could not load from CDN.</div>';return;}SwaggerUIBundle({dom_id:'#openapi-ui-api-contracts-product-service-api-post-admin-products-approve-yaml',spec:{
+Service: product-service (Port 8084)</p><ul class='doc-link-list' style='list-style:none'><li><span class='text-secondary'>Spec version</span><div class='fw-semibold'>5.5.0</div></li><li><span class='text-secondary'>Server(s)</span><div class='fw-semibold'>https://api.marketplace.vn/api/v1, http://localhost:8084/api/v1</div></li><li><span class='text-secondary'>Source</span><div class='fw-semibold'><code>api-contracts/product-service/api-post-admin-products-approve.yaml</code></div></li></ul><h2 class="h5 mt-4">Operations</h2><div class="table-responsive"><table class="table doc-table table-sm align-middle"><thead><tr><th>Method</th><th>Path</th><th>Summary</th></tr></thead><tbody><tr><td><span class='badge text-bg-primary'>POST</span></td><td><code>/admin/products/{productId}/approve</code></td><td>Duyet san pham</td></tr></tbody></table></div><h2 class="h5 mt-4">OpenAPI Specification</h2><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"><style>.openapi-ui{background:#fff;border:1px solid rgba(15,23,42,.12);border-radius:.5rem;padding:.75rem;overflow:auto}.openapi-ui .swagger-ui{font-family:inherit}.openapi-ui .swagger-ui .topbar,.openapi-ui .swagger-ui .information-container.wrapper{display:none}.openapi-ui .swagger-ui .wrapper{padding:0;max-width:none}.openapi-ui .swagger-ui .scheme-container{box-shadow:none;margin:0 0 1rem;padding:0}</style><div id="openapi-ui-api-contracts-product-service-api-post-admin-products-approve-yaml" class="openapi-ui"></div><script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.addEventListener('load',function(){var el=document.getElementById('openapi-ui-api-contracts-product-service-api-post-admin-products-approve-yaml');if(!window.SwaggerUIBundle){el.innerHTML='<div class="alert alert-warning mb-0">Swagger UI could not load from CDN.</div>';return;}SwaggerUIBundle({dom_id:'#openapi-ui-api-contracts-product-service-api-post-admin-products-approve-yaml',spec:{
   "openapi": "3.0.3",
   "info": {
     "title": "Product Service - Admin Approve Product",
-    "description": "Admin duyet san pham tu `pending` -> `approved`.\nSau khi duyet, seller co the publish (`approved` -> `active`).\n\nSide effects:\n- Update products: status='approved', reviewed_at=NOW(), reviewed_by=admin_user_id, reject_reason=NULL\n- Emit Kafka event `product.approved`\n- Notification gui cho seller: NOTIF-PRODUCT-APPROVED\n\nBase URL: `/api/v1`\nService: product-service (Port 8090)\n",
+    "description": "Admin duyet san pham tu `pending` -> `approved`.\nSau khi duyet, seller co the publish (`approved` -> `active`).\n\nSide effects:\n- Update products: status='approved', reviewed_at=NOW(), reviewed_by=admin_user_id, reject_reason=NULL\n- Emit Kafka event `product.approved`\n- Notification gui cho seller: NOTIF-PRODUCT-APPROVED\n\nBase URL: `/api/v1`\nService: product-service (Port 8084)\n",
     "version": "5.5.0"
   },
   "servers": [
@@ -302,7 +302,7 @@ Service: product-service (Port 8090)</p><ul class='doc-link-list' style='list-st
       "description": "Production"
     },
     {
-      "url": "http://localhost:8090/api/v1",
+      "url": "http://localhost:8084/api/v1",
       "description": "Local development"
     }
   ],
@@ -413,7 +413,7 @@ Service: product-service (Port 8090)</p><ul class='doc-link-list' style='list-st
           "note": {
             "type": "string",
             "maxLength": 1000,
-            "description": "Ghi chu cua admin khi duyet (tuỳ chon)",
+            "description": "Ghi chu cua admin khi duyet (tuá»³ chon)",
             "example": "San pham dat yeu cau, duyet"
           }
         }
@@ -519,14 +519,14 @@ Service: product-service (Port 8090)</p><ul class='doc-link-list' style='list-st
           "reject_reason": {
             "type": "string",
             "nullable": true,
-            "description": "Luon NULL sau approve (BR-PRODUCT-009.5 — reject_reason=NULL khi approve thanh cong; persisted vao products.reject_reason)",
+            "description": "Luon NULL sau approve (BR-PRODUCT-009.5 â€” reject_reason=NULL khi approve thanh cong; persisted vao products.reject_reason)",
             "example": null
           },
           "reject_count": {
             "type": "integer",
             "minimum": 0,
             "maximum": 3,
-            "description": "So lan bi tu choi truoc do (reset ve 0 sau khi approve thanh cong — BR-PRODUCT-009.8)",
+            "description": "So lan bi tu choi truoc do (reset ve 0 sau khi approve thanh cong â€” BR-PRODUCT-009.8)",
             "example": 0
           },
           "created_at": {

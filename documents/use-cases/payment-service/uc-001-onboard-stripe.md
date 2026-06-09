@@ -40,7 +40,7 @@
 |------|-----------|--------|
 | A1 | Seller already onboarded | Return 409 Conflict with message "Stripe account already verified" |
 | A2 | Onboarding URL expired | Seller calls POST `/stripe/onboarding/refresh-link` |
-| A3 | Stripe suspends account | Webhook sets `account_status = SUSPENDED`; publish `stripe.account_suspended` (post-MVP) |
+| A3 | Stripe suspends account | Webhook sets `account_status = SUSPENDED`; publish `stripe.account_suspended` |
 
 ---
 

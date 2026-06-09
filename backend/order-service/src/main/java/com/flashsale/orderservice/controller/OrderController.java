@@ -36,18 +36,20 @@ public class OrderController {
     // ─── POST /orders/checkout ────────────────────────────────────────────────
 
     /**
-     * Tạo đơn hàng từ giỏ hàng (multi-vendor).
-     * Yêu cầu: BUYER
+     * Deprecated direct checkout endpoint. Use product-service POST /v1/cart/checkout/submit.
      */
     @PostMapping("/orders/checkout")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ApiResponse<CheckoutResponse>> checkout(
+    public ResponseEntity<ApiResponse<Void>> checkout(
             @AuthenticationPrincipal UserDetailsImpl user,
-            @Valid @RequestBody CheckoutRequest req) {
+            @RequestBody(required = false) CheckoutRequest req) {
 
-        log.info("Checkout request: userId={}, itemCount={}", user.getId(), req.getItemIds().size());
-        CheckoutResponse response = orderService.checkout(user.getId(), req);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+        int itemCount = req == null || req.getItemIds() == null ? 0 : req.getItemIds().size();
+        log.warn("Deprecated direct checkout request rejected: userId={}, itemCount={}", user.getId(), itemCount);
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                .body(ApiResponse.error(
+                        "CHECKOUT_SUBMIT_REQUIRED",
+                        "Vui long su dung Product Service endpoint POST /v1/cart/checkout/submit de thuc hien checkout"));
     }
 
     // ─── GET /orders ──────────────────────────────────────────────────────────

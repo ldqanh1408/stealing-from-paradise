@@ -308,7 +308,7 @@
 </tr>
 <tr>
 <td>P3</td>
-<td>Buyer has a valid <code>preview_token</code> from <code>POST /v1/checkout/preview</code></td>
+<td>Buyer has a valid <code>preview_token</code> from <code>POST /v1/cart/checkout/preview</code></td>
 </tr>
 </tbody>
 </table>
@@ -331,12 +331,12 @@
 <tr>
 <td>2</td>
 <td>Buyer</td>
-<td>Calls <code>POST /v1/checkout/preview</code> (Product Service) with <code>item_ids[]</code></td>
+<td>Calls <code>POST /v1/cart/checkout/preview</code> (Product Service) with <code>item_ids[]</code></td>
 </tr>
 <tr>
 <td>3</td>
 <td>Product Service</td>
-<td>Validates ALL items (price, stock, variant status). If fail → 409, buyer refreshes cart</td>
+<td>Validates ALL items (price, stock, variant status). If fail â†’ 409, buyer refreshes cart</td>
 </tr>
 <tr>
 <td>4</td>
@@ -346,7 +346,7 @@
 <tr>
 <td>5</td>
 <td>Buyer</td>
-<td>Calls <code>POST /v1/checkout/submit</code> (Product Service) with <code>{preview_token, address_snapshot}</code></td>
+<td>Calls <code>POST /v1/cart/checkout/submit</code> (Product Service) with <code>{preview_token, address_snapshot}</code></td>
 </tr>
 <tr>
 <td>6</td>
@@ -401,7 +401,7 @@
 <tr>
 <td>16</td>
 <td>Order Service</td>
-<td>Emits Axon <code>OrderCreatedEvent</code> → starts Saga</td>
+<td>Emits Axon <code>OrderCreatedEvent</code> â†’ starts Saga</td>
 </tr>
 <tr>
 <td>17</td>
@@ -431,7 +431,7 @@
 </tr>
 <tr>
 <td>9</td>
-<td>Buyer must call <code>POST /v1/checkout/preview</code> again to get new token</td>
+<td>Buyer must call <code>POST /v1/cart/checkout/preview</code> again to get new token</td>
 </tr>
 </tbody>
 </table>
@@ -462,7 +462,7 @@
 </tr>
 <tr>
 <td>A2.5</td>
-<td>Stock reservation status → CONFIRMED</td>
+<td>Stock reservation status â†’ CONFIRMED</td>
 </tr>
 </tbody>
 </table>
@@ -493,7 +493,7 @@
 </tr>
 <tr>
 <td>A3.5</td>
-<td>Stock reservation status → RELEASED, stock restored</td>
+<td>Stock reservation status â†’ RELEASED, stock restored</td>
 </tr>
 </tbody>
 </table>
@@ -512,7 +512,7 @@
 </tr>
 <tr>
 <td>A4.2</td>
-<td>Product Service returns 409 "preview_token không tồn tại hoặc đã hết hạn"</td>
+<td>Product Service returns 409 "preview_token khÃ´ng tá»“n táº¡i hoáº·c Ä‘Ã£ háº¿t háº¡n"</td>
 </tr>
 </tbody>
 </table>

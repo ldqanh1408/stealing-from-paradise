@@ -1,6 +1,6 @@
-# Kafka Events -- Flash Sale Service
+﻿# Kafka Events -- Flash Sale Service
 
-> Service: flashsale-service (Port 8085)
+> Service: flashsale-service (Port 8086)
 > Source: `docs/services/flashsale-service/flashsale_service_flow.md`, `docs/services/flashsale-service/KAFKA_EVENTS.md`
 > Generated: 2026-05-10
 
@@ -102,15 +102,40 @@
 ```
 
 ---
-## Events Consumed
 
-Flash Sale Service does NOT consume events from Kafka. All triggers are from REST API or Redis ZSET worker.
+### flash_sale.item_approved / flash_sale.item_rejected
+
+| Field | Value |
+|-------|-------|
+| **Consumers** | Notification Service |
+| **Trigger** | Item is auto-approved during registration or admin approves/rejects an item |
+
+**Payload fields:** `event_id`, `event_type`, `fs_item_id`, `session_id`, `sku_code`, `seller_id`, `flash_price`, `flash_stock`, `status`, `note` or `reject_reason`, `timestamp`.
 
 ---
 
-## Request-Reply (None)
+### order.checkout_submitted
 
-Flash Sale Service does not participate in Kafka request-reply patterns.
+| Field | Value |
+|-------|-------|
+| **Consumers** | Order Service |
+| **Trigger** | Buyer purchases a flash-sale item |
+
+Flash-sale purchases enter the same order pipeline as catalog checkout through `order.checkout_submitted`.
+
+---
+
+## Events Consumed
+
+Flash Sale Service consumes `order.address.response` for request-reply address lookup during flash-sale checkout.
+
+---
+
+## Request-Reply
+
+| Request Topic | Response Topic | Peer | Purpose |
+|--------------|----------------|------|---------|
+| `order.address.request` | `order.address.response` | identity-service | Resolve buyer shipping address before publishing checkout |
 
 ---
 
@@ -163,6 +188,7 @@ Admin creates session
 
 Seller registers product
   -> flash_sale.item_registered [Notification Service]
+  -> flash_sale.item_approved [Notification Service]
 
 Redis Worker at start_time
   -> flash_sale.session_started [Product Service, Notification Service]
@@ -175,6 +201,8 @@ Redis Worker at end_time
       -> flash_sale.price_sync (deactivate) [Search Service]
 
 Customer purchases via standard checkout flow (via Product Service)
+  -> order.address.request / order.address.response
+  -> order.checkout_submitted [Order Service]
 ```
 
 ---

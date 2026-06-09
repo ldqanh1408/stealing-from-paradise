@@ -288,38 +288,39 @@
 <h2>FR-ORDER-001: Multi-Vendor Checkout</h2>
 <p><strong>Priority:</strong> P0 (Critical)
 <strong>Stable ID:</strong> FR-ORDER-001</p>
-<p><strong>Description:</strong> System shall split a single cart checkout into one parent order and N sub-orders, one per seller, in a single atomic database transaction.</p>
+<p><strong>Description:</strong> System shall consume Product Service checkout submissions and split them into one parent order and N sub-orders, one per seller, in a single atomic database transaction.</p>
 <p><strong>Acceptance Criteria:</strong>
-- [ ] POST /orders/checkout accepts address_id and item_ids[]
-- [ ] Items grouped by seller_id; one sub-order created per seller
-- [ ] One parent_order created linking all sub-orders
-- [ ] All INSERTs in a single transaction; rollback on any failure
-- [ ] Returns parent_order_id, orders[], shipping_address, total_amount</p>
+- [x] Consumes <code>order.checkout_submitted</code> from Product Service
+- [x] Items grouped by seller_id; one sub-order created per seller
+- [x] One parent_order created linking all sub-orders
+- [x] All INSERTs in a single transaction; rollback on any failure
+- [x] Stores shipping address snapshot from the checkout event
+- [x] Deprecated direct <code>POST /orders/checkout</code> returns 501</p>
 <p><strong>Related:</strong> BR-ORDER-001, BR-ORDER-002, BR-ORDER-003, BR-ORDER-004, BR-ORDER-005
 <strong>UC:</strong> UC-ORDER-001
-<strong>API:</strong> api-post-orders-checkout.yaml</p>
+<strong>API:</strong> product-service <code>api-post-checkout-submit.yaml</code>; order-service <code>api-post-orders-checkout.yaml</code> is deprecated</p>
 <hr>
-<h2>FR-ORDER-002: Stock Validation via Request-Reply</h2>
+<h2>FR-ORDER-002: Checkout Stock Reservation</h2>
 <p><strong>Priority:</strong> P0 (Critical)
 <strong>Stable ID:</strong> FR-ORDER-002</p>
-<p><strong>Description:</strong> Before creating orders, system shall validate stock availability for all items via Kafka request-reply with Product Service.</p>
+<p><strong>Description:</strong> Product Service shall validate and reserve stock before emitting the checkout submission consumed by Order Service.</p>
 <p><strong>Acceptance Criteria:</strong>
-- [ ] Sends <code>order.stock_check.request</code> to Product Service
-- [ ] Receives <code>order.stock_check.response</code> with {allAvailable, results[]}
-- [ ] If allAvailable=false, rejects checkout with 422 and item-level details
-- [ ] Creates stock_reservation entries for available items</p>
+- [x] <code>POST /v1/cart/checkout/preview</code> validates active variants, price, and stock
+- [x] <code>POST /v1/cart/checkout/submit</code> revalidates stock
+- [x] Product Service creates PENDING stock reservations with checkout <code>session_id</code>
+- [x] Product Service emits <code>order.checkout_submitted</code> only after reservation succeeds</p>
 <p><strong>Related:</strong> BR-ORDER-002
 <strong>UC:</strong> UC-ORDER-001</p>
 <hr>
-<h2>FR-ORDER-003: Address Validation via Request-Reply</h2>
+<h2>FR-ORDER-003: Checkout Address Validation</h2>
 <p><strong>Priority:</strong> P1 (High)
 <strong>Stable ID:</strong> FR-ORDER-003</p>
-<p><strong>Description:</strong> System shall validate the shipping address exists and belongs to the user via Kafka request-reply with Identity Service.</p>
+<p><strong>Description:</strong> Product Service shall validate the checkout address with Identity Service before publishing <code>order.checkout_submitted</code>.</p>
 <p><strong>Acceptance Criteria:</strong>
-- [ ] Sends <code>order.address.request</code> to Identity Service
-- [ ] Receives <code>order.address.response</code> with full address details
-- [ ] Rejects with 409 if address invalid or not owned by user
-- [ ] Snapshots address into orders.shipping_address (JSONB)</p>
+- [x] Sends <code>order.address.request</code> to Identity Service
+- [x] Receives <code>order.address.response</code> with full address details
+- [x] Rejects with 409 if address invalid or not owned by user
+- [x] Snapshots address into checkout event and orders.shipping_address (JSONB)</p>
 <p><strong>Related:</strong> BR-ORDER-003
 <strong>UC:</strong> UC-ORDER-001</p>
 <hr>
@@ -374,7 +375,7 @@
 <p><strong>Description:</strong> Buyer shall be able to cancel an order in PENDING or PAID status (PAID cancellation only before seller ships) with a reason.</p>
 <p><strong>Acceptance Criteria:</strong>
 - [ ] POST /orders/{id}/cancel accepts reason and optional note
-- [ ] Allowed when order.status IN (PENDING, PAID) — BUYER can cancel PENDING or PAID; SELLER can cancel PAID only (see BR-ORDER-011, FR-ORDER-019)
+- [ ] Allowed when order.status IN (PENDING, PAID) â€” BUYER can cancel PENDING or PAID; SELLER can cancel PAID only (see BR-ORDER-011, FR-ORDER-019)
 - [ ] Sets cancelled_by = BUYER, cancel_reason = provided reason
 - [ ] Returns 409 if order not in PENDING or PAID
 - [ ] Produces order.cancelled Kafka event
@@ -477,14 +478,14 @@
 <strong>Stable ID:</strong> FR-ORDER-016</p>
 <p><strong>Description:</strong> System shall produce Kafka events for all state transitions.</p>
 <p><strong>Acceptance Criteria:</strong>
-- [ ] <code>order.created</code> — on checkout
-- [ ] <code>order.paid</code> — on payment success consumed
-- [ ] <code>order.shipped</code> — on tracking update
-- [ ] <code>order.delivered</code> — on delivery confirmation
-- [ ] <code>order.cancelled</code> — on buyer/seller cancel
-- [ ] <code>order.returned</code> — on RTS
-- [x] <code>order.auto_cancelled</code> — on JOB-13/Axon timeout
-- [ ] <code>order.checkout_created</code> — on successful checkout</p>
+- [x] <code>order.created</code> - after order creation from checkout event
+- [x] <code>payment.requested</code> - after parent checkout saga starts
+- [ ] <code>order.paid</code> â€” on payment success consumed
+- [ ] <code>order.shipped</code> â€” on tracking update
+- [ ] <code>order.delivered</code> â€” on delivery confirmation
+- [ ] <code>order.cancelled</code> â€” on buyer/seller cancel
+- [ ] <code>order.returned</code> â€” on RTS
+- [x] <code>order.auto_cancelled</code> â€” on JOB-13/Axon timeout</p>
 <p><strong>Related:</strong> BR-ORDER-009, BR-ORDER-010, BR-ORDER-011, BR-ORDER-013, BR-ORDER-014, BR-ORDER-016</p>
 <hr>
 <h2>FR-ORDER-017: Kafka Event Consumption</h2>
@@ -492,11 +493,11 @@
 <strong>Stable ID:</strong> FR-ORDER-017</p>
 <p><strong>Description:</strong> System shall consume Kafka events to update order state.</p>
 <p><strong>Acceptance Criteria:</strong>
-- [ ] <code>payment.success</code> → mark orders as PAID
-- [ ] <code>payment.failed</code> → keep PENDING, unlock stock on exhaustion
-- [ ] <code>refund.stripe_auto</code> → mark as refunded (chargeback)
-- [ ] <code>refund.rts_completed</code> → update RTS completion status
-- [ ] <code>stripe.transfer.reversed</code> → log for reconciliation</p>
+- [ ] <code>payment.success</code> â†’ mark orders as PAID
+- [ ] <code>payment.failed</code> â†’ keep PENDING, unlock stock on exhaustion
+- [ ] <code>refund.stripe_auto</code> â†’ mark as refunded (chargeback)
+- [ ] <code>refund.rts_completed</code> â†’ update RTS completion status
+- [ ] <code>stripe.transfer.reversed</code> â†’ log for reconciliation</p>
 <hr>
 <h2>FR-ORDER-018: Saga Orchestration (Axon)</h2>
 <p><strong>Priority:</strong> P0 (Critical)
@@ -524,49 +525,49 @@
 <td>FR-ORDER-001</td>
 <td>BR-001..005</td>
 <td>UC-ORDER-001</td>
-<td>api-post-orders-checkout.yaml</td>
+<td>product-service api-post-checkout-submit.yaml</td>
 </tr>
 <tr>
 <td>FR-ORDER-002</td>
 <td>BR-ORDER-002</td>
 <td>UC-ORDER-001</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-003</td>
 <td>BR-ORDER-003</td>
 <td>UC-ORDER-001</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-004</td>
 <td>BR-ORDER-006</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-005</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-002</td>
 <td>api-get-orders.yaml</td>
 </tr>
 <tr>
 <td>FR-ORDER-006</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-002</td>
 <td>api-get-orders.yaml</td>
 </tr>
 <tr>
 <td>FR-ORDER-007</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-002</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-008</td>
 <td>BR-ORDER-011</td>
 <td>UC-ORDER-003</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-009</td>
@@ -578,13 +579,13 @@
 <td>FR-ORDER-010</td>
 <td>BR-ORDER-014</td>
 <td>UC-ORDER-005</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-011</td>
 <td>BR-ORDER-015</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-012</td>
@@ -596,37 +597,37 @@
 <td>FR-ORDER-013</td>
 <td>BR-017,018,019</td>
 <td>UC-ORDER-006</td>
-<td>—</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-014</td>
-<td>—</td>
+<td>â€”</td>
 <td>UC-ORDER-007</td>
 <td>api-get-orders.yaml</td>
 </tr>
 <tr>
 <td>FR-ORDER-015</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-016</td>
 <td>BR-009..016</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-017</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 <tr>
 <td>FR-ORDER-018</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
+<td>â€”</td>
+<td>â€”</td>
+<td>â€”</td>
 </tr>
 </tbody>
 </table>

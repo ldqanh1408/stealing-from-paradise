@@ -1,7 +1,7 @@
-# Traceability Matrix: Product Service
+﻿# Traceability Matrix: Product Service
 
-> **Service**: product-service (Port 8090)
-> **Last Updated**: 2026-05-10 (v3 — admin review workflow re-activated; P3-11 APPROVED & applied)
+> **Service**: product-service (Port 8084)
+> **Last Updated**: 2026-05-10 (v3 â€” admin review workflow re-activated; P3-11 APPROVED & applied)
 > **Schema**: catalog + cart + admin review
 
 ---
@@ -46,12 +46,12 @@
 | FR-PRODUCT-022 | Checkout submit | ENTITY-005, ENTITY-007, Redis |
 | FR-PRODUCT-023 | Cart cleanup on events | ENTITY-006, ENTITY-007 |
 | FR-PRODUCT-UI-001 | Product card (homepage/listing) | ENTITY-002, ENTITY-003, ENTITY-004 |
-| FR-PRODUCT-UI-002 | Product detail — image gallery | ENTITY-003, ENTITY-004 |
-| FR-PRODUCT-UI-003 | Product detail — price display | ENTITY-002, ENTITY-003 |
-| FR-PRODUCT-UI-004 | Product detail — variant selection matrix | ENTITY-003 |
-| FR-PRODUCT-UI-005 | Product detail — info tabs | ENTITY-002 |
-| FR-PRODUCT-UI-006 | Product detail — quantity selector | ENTITY-003 |
-| FR-PRODUCT-UI-007 | Cart page — item display | ENTITY-006, ENTITY-007 |
+| FR-PRODUCT-UI-002 | Product detail â€” image gallery | ENTITY-003, ENTITY-004 |
+| FR-PRODUCT-UI-003 | Product detail â€” price display | ENTITY-002, ENTITY-003 |
+| FR-PRODUCT-UI-004 | Product detail â€” variant selection matrix | ENTITY-003 |
+| FR-PRODUCT-UI-005 | Product detail â€” info tabs | ENTITY-002 |
+| FR-PRODUCT-UI-006 | Product detail â€” quantity selector | ENTITY-003 |
+| FR-PRODUCT-UI-007 | Cart page â€” item display | ENTITY-006, ENTITY-007 |
 | FR-PRODUCT-UI-008 | Checkout preview | ENTITY-005, ENTITY-006, ENTITY-007 |
 | FR-PRODUCT-UI-009 | Image display summary by context | ENTITY-004 |
 
@@ -118,12 +118,12 @@
 
 ---
 
-## UC ↔ API ↔ Kafka (admin review workflow — re-activated v3)
+## UC â†” API â†” Kafka (admin review workflow â€” re-activated v3)
 
 | UC ID | API Contract | Kafka Event | Notification Template |
 |-------|--------------|-------------|------------------------|
 | UC-PRODUCT-012 | `api-put-products-lifecycle.yaml` (`submitForReview`) | `product.pending_review` | NOTIF-PRODUCT-PENDING-REVIEW |
-| UC-PRODUCT-013 | `api-get-admin-products-pending.yaml` | — (read-only) | — |
+| UC-PRODUCT-013 | `api-get-admin-products-pending.yaml` | â€” (read-only) | â€” |
 | UC-PRODUCT-014 | `api-post-admin-products-approve.yaml` | `product.approved` | NOTIF-PRODUCT-APPROVED |
 | UC-PRODUCT-015 | `api-post-admin-products-reject.yaml` | `product.rejected` | NOTIF-PRODUCT-REJECTED |
 

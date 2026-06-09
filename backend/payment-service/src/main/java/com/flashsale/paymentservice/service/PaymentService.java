@@ -238,13 +238,25 @@ public class PaymentService {
             seller.setChargesEnabled(Boolean.TRUE.equals(account.getChargesEnabled()));
             seller.setPayoutsEnabled(Boolean.TRUE.equals(account.getPayoutsEnabled()));
 
-            if ("restricted".equals(account.getRequirements().getDisabledReason())) {
+            var requirements = account.getRequirements();
+            String disabledReason = requirements != null ? requirements.getDisabledReason() : null;
+            boolean hasDisabledReason = disabledReason != null && !disabledReason.isBlank();
+            boolean wasSuspended = "SUSPENDED".equals(seller.getAccountStatus());
+
+            if (hasDisabledReason) {
                 seller.setAccountStatus("SUSPENDED");
-                publish(KafkaTopics.STRIPE_ACCOUNT_SUSPENDED, account.getId(), Map.of(
-                        "seller_id",         seller.getSellerId(),
-                        "stripe_account_id", account.getId()
-                ));
-            } else if (Boolean.TRUE.equals(account.getDetailsSubmitted())) {
+                if (!wasSuspended) {
+                    publish(KafkaTopics.STRIPE_ACCOUNT_SUSPENDED, account.getId(), Map.of(
+                            "seller_id",         seller.getSellerId(),
+                            "stripe_account_id", account.getId(),
+                            "disabled_reason",   disabledReason,
+                            "charges_enabled",   Boolean.TRUE.equals(account.getChargesEnabled()),
+                            "payouts_enabled",   Boolean.TRUE.equals(account.getPayoutsEnabled()),
+                            "timestamp",         Instant.now().toString()
+                    ));
+                }
+            } else if (Boolean.TRUE.equals(account.getDetailsSubmitted())
+                    && Boolean.TRUE.equals(account.getChargesEnabled())) {
                 seller.setAccountStatus("ACTIVE");
                 seller.setOnboardingUrl(null);
                 seller.setOnboardingUrlExpiresAt(null);
@@ -252,8 +264,9 @@ public class PaymentService {
 
             // Check requirements: if seller needs to complete additional Stripe requirements,
             // create a fresh Account Link and notify them via Kafka.
-            var requirements = account.getRequirements();
-            if (requirements != null && !requirements.getCurrentlyDue().isEmpty()) {
+            if (requirements != null
+                    && requirements.getCurrentlyDue() != null
+                    && !requirements.getCurrentlyDue().isEmpty()) {
                 try {
                     AccountLink accountLink = AccountLink.create(AccountLinkCreateParams.builder()
                             .setAccount(account.getId())

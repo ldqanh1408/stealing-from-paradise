@@ -323,8 +323,8 @@
 <td>SVC-004</td>
 <td>payment-service</td>
 <td>8082</td>
-<td>PostgreSQL + Axon</td>
-<td>CQRS/ES</td>
+<td>PostgreSQL</td>
+<td>JPA + Kafka</td>
 <td>Stripe Connect, multi-vendor splits</td>
 </tr>
 <tr>
@@ -337,25 +337,25 @@
 </tr>
 <tr>
 <td>SVC-006</td>
-<td>flashsale-service</td>
-<td>8085</td>
-<td>PostgreSQL</td>
-<td>CQRS/ES</td>
-<td>Flash sale sessions, price promotion</td>
-</tr>
-<tr>
-<td>SVC-007</td>
 <td>product-service</td>
-<td>8090</td>
+<td>8084</td>
 <td>PostgreSQL</td>
 <td>Traditional</td>
 <td>Catalog, variants, cart, images (MinIO)</td>
 </tr>
 <tr>
+<td>SVC-007</td>
+<td>flashsale-service</td>
+<td>8086</td>
+<td>PostgreSQL + Redis</td>
+<td>Reactive + Kafka</td>
+<td>Flash sale sessions, price promotion</td>
+</tr>
+<tr>
 <td>SVC-008</td>
 <td>search-service</td>
-<td>8091</td>
-<td>Elasticsearch</td>
+<td>8087</td>
+<td>Elasticsearch + Redis</td>
 <td>Traditional</td>
 <td>Full-text search, VN text analysis</td>
 </tr>
@@ -411,8 +411,8 @@
 <tr>
 <td>Redis</td>
 <td>6379</td>
-<td>identity, api-gateway</td>
-<td>Session cache, JWT blocklist</td>
+<td>api-gateway, identity, product, flashsale, search, notification, ai-chat</td>
+<td>JWT blocklist, reservation/session state, rate limits, cache</td>
 </tr>
 <tr>
 <td>Elasticsearch</td>
@@ -435,8 +435,8 @@
 <tr>
 <td>Axon Server</td>
 <td>8024/8124</td>
-<td>payment, order, flashsale</td>
-<td>Event store + command bus</td>
+<td>order-service</td>
+<td>Event store + saga/event handling</td>
 </tr>
 </tbody>
 </table>
@@ -507,9 +507,9 @@
 <li>Full-text search with Elasticsearch (Vietnamese text analysis)</li>
 <li>Return To Sender (RTS) refund workflow</li>
 <li>AI Chat Support (multi-turn, tool calls, human-in-the-loop)</li>
-<li>15 scheduled cronjobs (1 implemented, 14 post-MVP)</li>
+<li>11 implemented scheduled backend jobs plus MongoDB TTL retention</li>
 <li>58 Kafka topics (44 event + 14 request-reply)</li>
-<li>Axon CQRS/ES for Order, Payment, Flashsale services</li>
+<li>Axon CQRS/Saga orchestration in order-service</li>
 </ul>
 <hr>
 <h2>AI Chat Service -- Technical Architecture</h2>

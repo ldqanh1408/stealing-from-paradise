@@ -1,6 +1,6 @@
-# Traceability Matrix: Flash Sale Service
+﻿# Traceability Matrix: Flash Sale Service
 
-**Service:** flashsale-service (port :8085)
+**Service:** flashsale-service (port :8086)
 **Date:** 2026-05-09
 **Stable ID Prefix:** `TRACE-FLASHSALE`
 

@@ -1,8 +1,8 @@
-# ============================================================
-# RE-ACTIVATED 2026-05-10 v3 — back in MVP scope.
-# P3-11 APPROVED 2026-05-10 — schema applied. Sorted FIFO by submitted_at via
+﻿# ============================================================
+# RE-ACTIVATED 2026-05-10 v3 â€” back in MVP scope.
+# P3-11 APPROVED 2026-05-10 â€” schema applied. Sorted FIFO by submitted_at via
 # partial index idx_products_status_pending(status, created_at) WHERE status='pending'.
-# Xem MVP_ANALYSIS.md §2.3 (đính chính v3) và BR-PRODUCT-009.
+# Xem MVP_ANALYSIS.md Â§2.3 (Ä‘Ã­nh chÃ­nh v3) vÃ  BR-PRODUCT-009.
 # ============================================================
 openapi: "3.0.3"
 info:
@@ -10,13 +10,13 @@ info:
   description: |
     Admin xem danh sach san pham dang cho duyet (status=pending).
     Base URL: `/api/v1`
-    Service: product-service (Port 8090)
+    Service: product-service (Port 8084)
   version: "5.5.0"
 
 servers:
   - url: https://api.marketplace.vn/api/v1
     description: Production
-  - url: http://localhost:8090/api/v1
+  - url: http://localhost:8084/api/v1
     description: Local development
 
 paths:
@@ -71,9 +71,9 @@ paths:
             default: submitted_at_asc
           description: |
             Thu tu sap xep:
-            - `submitted_at_asc` (default, FIFO theo BR-PRODUCT-009.11) — admin xu ly cu nhat truoc
-            - `submitted_at_desc` — moi nhat truoc
-            - `reject_count_desc` — uu tien resubmit-cao (admin can review ky)
+            - `submitted_at_asc` (default, FIFO theo BR-PRODUCT-009.11) â€” admin xu ly cu nhat truoc
+            - `submitted_at_desc` â€” moi nhat truoc
+            - `reject_count_desc` â€” uu tien resubmit-cao (admin can review ky)
       responses:
         "200":
           description: Danh sach san pham cho duyet
@@ -174,7 +174,7 @@ components:
         submitted_at:
           type: string
           format: date-time
-          description: Thoi diem seller submit (BR-PRODUCT-009.11 — phuc vu SLA 24h cua admin queue)
+          description: Thoi diem seller submit (BR-PRODUCT-009.11 â€” phuc vu SLA 24h cua admin queue)
           example: "2026-05-10T09:00:00Z"
         created_at:
           type: string

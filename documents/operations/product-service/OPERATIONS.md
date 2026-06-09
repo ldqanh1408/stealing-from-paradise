@@ -1,6 +1,6 @@
-# Product Service Operations
+﻿# Product Service Operations
 
-**Service:** product-service | **Port:** 8090 | **Database:** PostgreSQL (product_db)
+**Service:** product-service | **Port:** 8084 | **Database:** PostgreSQL (product_db)
 
 ## Overview
 
@@ -32,12 +32,12 @@ docker-compose up -d product-service
 | `DB_HOST` | Yes | `localhost` | PostgreSQL host |
 | `DB_PORT` | Yes | `5432` | PostgreSQL port |
 | `DB_NAME` | Yes | `product_db` | Database name |
-| `DB_USER` | Yes | — | Database username |
-| `DB_PASSWORD` | Yes | — | Database password |
+| `DB_USER` | Yes | â€” | Database username |
+| `DB_PASSWORD` | Yes | â€” | Database password |
 | `KAFKA_BOOTSTRAP_SERVERS` | Yes | `localhost:9092` | Kafka broker |
 | `MINIO_ENDPOINT` | Yes | `http://localhost:9000` | MinIO S3 endpoint |
-| `MINIO_ACCESS_KEY` | Yes | — | MinIO access key |
-| `MINIO_SECRET_KEY` | Yes | — | MinIO secret key |
+| `MINIO_ACCESS_KEY` | Yes | â€” | MinIO access key |
+| `MINIO_SECRET_KEY` | Yes | â€” | MinIO secret key |
 | `MINIO_BUCKET` | Yes | `product-images` | MinIO bucket name |
 
 ## Health Check
@@ -85,17 +85,17 @@ mc ls local/product-images/ --limit 5
 
 ## Admin Endpoints (RBAC)
 
-> **Re-activated 2026-05-10 v3 — P3-11 APPROVED & applied (status enum 7 values + reviewer columns + reject_count).**
+> **Re-activated 2026-05-10 v3 â€” P3-11 APPROVED & applied (status enum 7 values + reviewer columns + reject_count).**
 
-All `/admin/products/*` endpoints require **role=ADMIN** in JWT. Non-admin → `403 FORBIDDEN`.
+All `/admin/products/*` endpoints require **role=ADMIN** in JWT. Non-admin â†’ `403 FORBIDDEN`.
 
 | Endpoint | Method | Use Case |
 |----------|--------|----------|
-| `/admin/products/pending` | GET | UC-PRODUCT-013 — list products awaiting review |
-| `/admin/products/{productId}/approve` | POST | UC-PRODUCT-014 — approve product |
-| `/admin/products/{productId}/reject` | POST | UC-PRODUCT-015 — reject with reason ≥10 chars |
+| `/admin/products/pending` | GET | UC-PRODUCT-013 â€” list products awaiting review |
+| `/admin/products/{productId}/approve` | POST | UC-PRODUCT-014 â€” approve product |
+| `/admin/products/{productId}/reject` | POST | UC-PRODUCT-015 â€” reject with reason â‰¥10 chars |
 
-**Operational SLA:** `pending` queue processed within 24h (BR-PRODUCT-009.11). Older items get an internal alert (post-MVP — tracked via dashboard).
+**Operational SLA:** `pending` queue processed within 24h (BR-PRODUCT-009.11). Older items get an internal alert (post-MVP â€” tracked via dashboard).
 
 **Reviewer audit columns** (P3-11 applied): `products.reject_reason`, `products.reviewed_at`, `products.reviewed_by`, `products.reject_count` are persisted on every approve/reject for compliance.
 

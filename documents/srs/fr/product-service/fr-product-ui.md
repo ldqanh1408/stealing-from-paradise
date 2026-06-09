@@ -1,6 +1,6 @@
-# FR-PRODUCT-UI: Product Service UI Logic Rules
+﻿# FR-PRODUCT-UI: Product Service UI Logic Rules
 
-> Service: product-service (Port 8090)
+> Service: product-service (Port 8084)
 > Source: `docs/services/product-service/product_service_ui_logic.md`
 
 ---

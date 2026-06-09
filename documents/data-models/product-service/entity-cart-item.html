@@ -282,7 +282,7 @@
 
         <section class="doc-section"><div class="doc-panel p-3 p-md-4 doc-prose"><h1>ENTITY-PRODUCT-007: CART_ITEM</h1>
 <blockquote>
-<p><strong>Service</strong>: product-service (Port 8090)
+<p><strong>Service</strong>: product-service (Port 8084)
 <strong>Database</strong>: PostgreSQL
 <strong>Table</strong>: cart_items
 <strong>Source</strong>: database-entities.md Section 4, 03_database_tables.md Section 7</p>
@@ -328,7 +328,7 @@
 <td>2</td>
 <td><code>variant_id</code></td>
 <td>UUID</td>
-<td>PK (composite), NOT NULL, FK → product_variant.id</td>
+<td>PK (composite), NOT NULL, FK â†’ product_variant.id</td>
 <td>The SKU in the cart</td>
 </tr>
 <tr>
@@ -382,12 +382,12 @@
 </tr>
 </tbody>
 </table>
-<p><strong>COMPOSITE PK(customer_id, variant_id)</strong> — each variant appears at most once per customer.
+<p><strong>COMPOSITE PK(customer_id, variant_id)</strong> â€” each variant appears at most once per customer.
 No soft-delete (<code>deleted_at</code>) column. Cart items are <strong>hard-deleted</strong> when:
 - Customer manually removes them via <code>DELETE /cart/items/{variantId}</code>
 - Customer clears cart via <code>DELETE /cart</code>
-- Checkout completed (payment succeeded) — <code>order.paid</code> event triggers hard delete
-- Checkout cancelled/failed (payment failed) — <code>order.payment_failed</code> event triggers hard delete</p>
+- Checkout completed (payment succeeded) â€” <code>order.paid</code> event triggers hard delete
+- Checkout cancelled/failed (payment failed) â€” <code>order.payment_failed</code> event triggers hard delete</p>
 <hr>
 <h2>Indexes</h2>
 <table>

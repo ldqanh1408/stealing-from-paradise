@@ -37,7 +37,7 @@
 
 ---
 
-## Product Service (`product-service:8090`)
+## Product Service (`product-service:8084`)
 
 ### Public
 
@@ -97,7 +97,7 @@
 
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /orders/checkout | Create order (multi-vendor) |
+| POST | /orders/checkout | Deprecated; returns 501. Use product-service `/v1/cart/checkout/submit` |
 | GET | /orders | My orders |
 | GET | /orders/{orderId} | Order detail |
 | GET | /orders/parent/{parentOrderId} | Parent order detail |
@@ -171,7 +171,7 @@
 
 ---
 
-## Flash Sale Service (`flashsale-service:8085`)
+## Flash Sale Service (`flashsale-service:8086`)
 
 ### Public
 
@@ -203,7 +203,7 @@
 
 ---
 
-## Search Service (`search-service:8091`)
+## Search Service (`search-service:8087`)
 
 ### Public
 

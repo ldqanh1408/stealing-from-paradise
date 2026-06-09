@@ -37,7 +37,7 @@ documents/
 │   ├── search-service/                KAFKA_EVENTS.md
 │   └── ai-chat-service/               KAFKA_EVENTS.md
 ├── operations/
-│   ├── CRONJOBS.md                    16 cronjobs (1 implemented: JOB-23) (audited 2026-05-11)
+│   ├── CRONJOBS.md                    Implemented scheduler and TTL reference (updated 2026-06-09)
 │   ├── API_URLS.md                    Complete API URL reference
 │   ├── ENVIRONMENT_VARIABLES.md       Environment variables for all services
 │   ├── RUNNING_GUIDE.md              How to run the platform

@@ -1,6 +1,6 @@
-# Traceability Matrix: Search Service
+﻿# Traceability Matrix: Search Service
 
-> **Service**: search-service (Port 8091)
+> **Service**: search-service (Port 8087)
 > **Database**: Elasticsearch
 > **Architecture**: SKU-first, field collapsing
 > **Updated**: 2026-06-07 (Search/Product indexing data mapped to Kafka request-reply `search.index_data.*`)

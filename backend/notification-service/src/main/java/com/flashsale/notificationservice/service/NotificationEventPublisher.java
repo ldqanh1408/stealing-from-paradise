@@ -58,6 +58,17 @@ public class NotificationEventPublisher {
     }
 
     public void emitToUser(Long userId, String type, String title, String body, String metadata, String logContext) {
+        emitToUser(userId, type, title, body, metadata, logContext, "NORMAL");
+    }
+
+    public void emitToUser(
+            Long userId,
+            String type,
+            String title,
+            String body,
+            String metadata,
+            String logContext,
+            String priority) {
         Notification notification = Notification.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
@@ -66,6 +77,7 @@ public class NotificationEventPublisher {
                 .body(body)
                 .metadata(metadata)
                 .isRead(false)
+                .priority(priority != null && !priority.isBlank() ? priority : "NORMAL")
                 .createdAt(LocalDateTime.now())
                 .build();
 

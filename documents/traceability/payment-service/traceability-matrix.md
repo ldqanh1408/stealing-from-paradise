@@ -88,7 +88,7 @@
 |-------------|-----------------|-------------------|
 | `payment.success` | TRANSACTIONS | PARENT_ORDERS, SELLER_TRANSFERS (-> AWAITING_DELIVERY) |
 | `payment.failed` | TRANSACTIONS | PARENT_ORDERS (-> CANCELLED) |
-| `stripe.account_suspended` (post-MVP) | SELLER_STRIPE_ACCOUNTS | SELLERS, SELLER_TRANSFERS (future) |
+| `stripe.account_suspended` | SELLER_STRIPE_ACCOUNTS | notification-service |
 | `stripe.transfer.reversed` | SELLER_TRANSFERS | (order update) |
 | `stripe.payout.failed` | SELLER_TRANSFERS | (notification only) |
 | `payment.requested` (consumed) | -- | TRANSACTIONS, SELLER_TRANSFERS |

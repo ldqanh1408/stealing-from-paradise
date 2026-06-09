@@ -28,6 +28,9 @@ public class FlashSaleItem {
     @Column("session_id")
     private Long sessionId;
 
+    @Column("seller_id")
+    private Long sellerId;
+
     @Column("sku_code")
     private String skuCode;
 

@@ -1,92 +1,47 @@
-# UC-PRODUCT-007: Reserve Stock (System, During Checkout)
+# UC-PRODUCT-007: Reserve Stock During Checkout
 
 | Attribute | Value |
 |-----------|-------|
 | **ID** | UC-PRODUCT-007 |
-| **Actor** | System (triggered by Order Service via Kafka or request-reply) |
+| **Actor** | Product Service checkout submit |
 | **Priority** | CRITICAL |
-| **Precondition** | Customer has confirmed checkout; preview_token is valid |
-| **Postcondition** | Stock reserved with 15-min TTL; stock_quantity deducted |
+| **Precondition** | Buyer has a valid `preview_token` |
+| **Postcondition** | Stock reserved with 15-minute TTL and checkout event emitted |
 
 ---
 
 ## Main Flow
 
-### Phase 1: Stock Check (Request-Reply)
-```
-1. Order Service sends order.stock_check.request
-   Payload: { items: [{ variantId, quantity }] }
+### Phase 1: Checkout Preview
 
-2. Product Service (Inventory module) checks each variant:
-   - stock_quantity >= requested quantity
-   - status = 'active'
+1. Buyer calls `POST /v1/cart/checkout/preview` with `item_ids[]`.
+2. Product Service validates cart ownership, active variants, current price, and available stock.
+3. Product Service stores the preview in Redis and returns a one-time `preview_token` with 10-minute TTL.
 
-3. Product Service returns order.stock_check.response:
-   { allAvailable: true/false,
-     results: [{ variantId, available: bool, currentStock, reason? }] }
+### Phase 2: Checkout Submit and Reservation
 
-4. IF any unavailable: Order Service rejects checkout
-```
-
-### Phase 2: Reserve Stock (On order.checkout_submitted Event)
-```
-1. Order Service emits order.checkout_submitted event after creating order
-   Payload includes:
-   - session_id: unique checkout session ID
-   - customer_id: buyer's user ID
-   - items: [{ variantId, quantity, skuCode, priceSnapshot, sellerId, ... }]
-
-2. Product Service: DB Transaction with Pessimistic Lock for each variant:
-   a) SELECT ... FOR UPDATE on product_variant (acquires row lock)
-
-   b) IF stock_quantity < requested quantity:
-      ROLLBACK lock, return error "out of stock"
-
-   c) INSERT INTO stock_reservation (variant_id, session_id, quantity, status, expires_at)
-      VALUES (:vid, :sid, :qty, 'pending', NOW() + INTERVAL '15 minutes')
-
-   d) UPDATE product_variant
-      SET stock_quantity = stock_quantity - :qty,
-          status = CASE WHEN stock_quantity - :qty = 0 THEN 'out_of_stock' ELSE status END
-      WHERE id = :vid
-
-3. Product status recomputed in same transaction
-
-4. Returns success -> Order Service proceeds to payment
-```
+1. Buyer calls `POST /v1/cart/checkout/submit` with `preview_token` and `address_id`.
+2. Product Service validates the address via `order.address.request` / `order.address.response`.
+3. Product Service revalidates stock and price.
+4. Product Service reserves each variant with a shared `session_id`.
+5. Product Service stores a checkout session in Redis for 15 minutes.
+6. Product Service emits `order.checkout_submitted` with item snapshots, address snapshot, totals, and `session_id`.
+7. Order Service consumes the event and creates parent/sub-orders.
 
 ### Phase 3: Confirm or Release
 
 ```
-Payment Succeeds (order.paid event with session_id + customer_id):
-  UPDATE stock_reservation SET status = 'confirmed'
-  WHERE session_id = :sid
-  -- Stock already deducted, no further action
-  -- HARD DELETE cart_items WHERE (customer_id, variant_id) IN (...)
-     via: CartItemRepository.deleteAllByCustomerIdAndVariantIds(userId, variantIds)
+order.paid:
+  stock_reservation -> CONFIRMED
+  cart_items for the reserved variants are deleted
 
-Payment Fails (order.payment_failed event with session_id + customer_id):
-  UPDATE stock_reservation SET status = 'released'
-  WHERE session_id = :sid
-  -- DB: UPDATE product_variant SET stock_quantity += qty (pessimistic lock via SELECT FOR UPDATE)
+order.payment_failed / order.cancelled / order.auto_cancelled:
+  stock_reservation -> RELEASED
+  product_variant.stock_quantity is restored
 
-Cleanup Job (runs every 1-5 min):
-  SELECT * FROM stock_reservation
-  WHERE status = 'pending' AND expires_at < NOW()
-  -- For each: release (set released, restore DB stock via pessimistic lock)
+Reservation cleanup:
+  expired PENDING reservations are released by product-service scheduler
 ```
-
----
-
-## Cart Item Deletion Flow
-
-When `order.paid` or `order.payment_failed` is received:
-1. Extract `session_id` and `customer_id` (userId) from event payload
-2. Find all `stock_reservation` records matching `session_id`
-3. For each reservation: extract `variant_id`
-4. Hard-delete: `DELETE FROM cart_items WHERE customer_id = :cid AND variant_id IN (:variantIds)`
-
-No `cart_item_id` stored in `stock_reservation`. Composite key `(customer_id, variant_id)` used instead.
 
 ---
 
@@ -94,8 +49,10 @@ No `cart_item_id` stored in `stock_reservation`. Composite key `(customer_id, va
 
 | Scenario | Response |
 |----------|----------|
-| Insufficient stock | Pessimistic lock acquired, stock check fails -> 422 Insufficient stock |
-| Concurrent reservation | Pessimistic lock serializes requests (second request waits for first to complete) |
+| Invalid preview token | 400 / 409 depending on validation path |
+| Address missing or not owned by buyer | 409 |
+| Stock or price changed after preview | 409 with item-level details |
+| Concurrent reservation | Pessimistic lock serializes reservations |
 
 ---
 
