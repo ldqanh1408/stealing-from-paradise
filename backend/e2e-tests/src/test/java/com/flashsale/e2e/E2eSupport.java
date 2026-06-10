@@ -360,11 +360,14 @@ public abstract class E2eSupport {
                 });
     }
 
-    /** Deliver a forged-but-validly-signed Stripe webhook for the parent order. */
+    /** Deliver a forged-but-validly-signed Stripe webhook for the parent order (payment_intent.*). */
     protected static void sendStripeWebhook(String eventType, long parentOrderId) {
         String payload = StripeWebhookForge.paymentIntentEvent(eventType, parentOrderId);
-        String signature = StripeWebhookForge.signatureHeader(payload, WEBHOOK_SECRET);
+        sendStripeWebhook(payload, StripeWebhookForge.signatureHeader(payload, WEBHOOK_SECRET));
+    }
 
+    /** Deliver a forged-but-validly-signed Stripe webhook from a pre-built payload. */
+    protected static void sendStripeWebhook(String payload, String signature) {
         HttpRequest req = HttpRequest.newBuilder(URI.create(GATEWAY + "/api/v1/stripe/webhooks"))
                 .timeout(Duration.ofSeconds(30))
                 .header("Content-Type", "application/json")
@@ -375,6 +378,17 @@ public abstract class E2eSupport {
         if (resp.statusCode() != 200) {
             throw new AssertionError("Stripe webhook delivery failed (" + resp.statusCode() + "): " + resp.body());
         }
+    }
+
+    /** Post a signed webhook, accepting any 2xx status (some handlers return 200, others 201). */
+    protected static int sendStripeWebhookSoft(String payload, String signature) {
+        HttpRequest req = HttpRequest.newBuilder(URI.create(GATEWAY + "/api/v1/stripe/webhooks"))
+                .timeout(Duration.ofSeconds(30))
+                .header("Content-Type", "application/json")
+                .header("Stripe-Signature", signature)
+                .POST(HttpRequest.BodyPublishers.ofString(payload))
+                .build();
+        return send(req).statusCode();
     }
 
     // ─── misc ─────────────────────────────────────────────────────────────────

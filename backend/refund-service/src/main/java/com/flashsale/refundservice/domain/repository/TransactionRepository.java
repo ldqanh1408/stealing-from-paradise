@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     Optional<Transaction> findByParentOrderId(Long parentOrderId);
 
-    @Query("SELECT t FROM Transaction t WHERE t.rawResponse LIKE %:chargeId%")
+    // raw_response is jsonb in Postgres — use CAST for LIKE compatibility
+    @Query(value = "SELECT * FROM payment.transactions t WHERE CAST(t.raw_response AS text) LIKE CONCAT('%', :chargeId, '%')", nativeQuery = true)
     Optional<Transaction> findByRawResponseContaining(@Param("chargeId") String chargeId);
 }

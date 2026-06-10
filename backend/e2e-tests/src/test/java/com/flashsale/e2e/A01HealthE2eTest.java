@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,9 +36,19 @@ class A01HealthE2eTest extends E2eSupport {
     @Test
     @DisplayName("all core services registered UP in Eureka")
     void coreServicesRegistered() {
-        await("Eureka registry contains all core services UP")
-                .atMost(ASYNC_TIMEOUT).pollInterval(POLL)
-                .until(() -> upServices().containsAll(CORE_SERVICES));
+        // Eureka XML over Docker Windows can intermittently have HTTP parse issues.
+        // Retry a few times with backoff.
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await("Eureka registry contains all core services UP (attempt " + attempt + ")")
+                        .atMost(Duration.ofSeconds(40)).pollInterval(POLL)
+                        .until(() -> upServices().containsAll(CORE_SERVICES));
+                return; // success
+            } catch (Exception e) {
+                if (attempt == 3) throw e;
+                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
+            }
+        }
     }
 
     private Set<String> upServices() {

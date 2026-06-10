@@ -88,7 +88,7 @@ public class OrderCheckoutService {
             Order order = Order.builder()
                     .parentOrderId(parentOrder.getId())
                     .sellerId(sellerId)
-                    .orderCode("OR-PENDING")  // placeholder, cập nhật sau khi có ID
+                    .orderCode("OR-TEMP-" + System.nanoTime())  // unique placeholder, prevents unique-constraint collision
                     .customerId(userId)
                     .totalAmt(sellerTotal)
                     .finalAmt(sellerTotal)
