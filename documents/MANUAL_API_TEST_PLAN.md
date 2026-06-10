@@ -224,8 +224,10 @@ curl -s -X PUT "http://localhost:8080/api/v1/seller/variants/<variantId>" -H "Au
 curl -s -X DELETE "http://localhost:8080/api/v1/seller/variants/<variantId>" -H "Authorization: Bearer $SELLER"
 # Expect: 200
 
-# Upload image
-curl -s -X POST "http://localhost:8080/api/v1/products/$PROD_ID/images" -H "Authorization: Bearer $SELLER" -H 'Content-Type: application/json' -d '{"imageUrl":"https://picsum.photos/400/400","isPrimary":true}'
+# Register image (correct DTO: imageId + url + sortOrder)
+# Note: imageId is a UUID, NOT a URL. The old payload {"imageUrl":…,"isPrimary":…} is wrong.
+IMAGE_ID=$(python3 -c "import uuid;print(uuid.uuid4())")
+curl -s -X POST "http://localhost:8080/api/v1/products/$PROD_ID/images" -H "Authorization: Bearer $SELLER" -H 'Content-Type: application/json' -d "{\"imageId\":\"$IMAGE_ID\",\"url\":\"https://picsum.photos/seed/$PROD_ID/400/400\",\"sortOrder\":0}"
 # Expect: 200/201
 
 # Delete image
@@ -563,8 +565,8 @@ curl -s "http://localhost:8080/api/v1/admin/refunds?page=0&size=10" -H "Authoriz
 curl -s "http://localhost:8080/api/v1/admin/refunds/<refundId>" -H "Authorization: Bearer $ADMIN"
 # Expect: 200
 
-# Admin: approve refund
-curl -s -X POST "http://localhost:8080/api/v1/admin/refunds/<refundId>/approve" -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -d '{}'
+# Admin: approve refund (body MUST include adminNote field)
+curl -s -X POST "http://localhost:8080/api/v1/admin/refunds/<refundId>/approve" -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -d '{"adminNote":"Approved after verification"}'
 # Expect: 200
 
 # Admin: reject refund
@@ -672,16 +674,55 @@ curl -s -X DELETE "http://localhost:8080/api/ai/sessions/$SESSION_ID" -H "Author
 
 > **Mục đích:** kiểm thử trực tiếp các use case / business flow trên stack Docker `docker-compose.dev.yml` đang chạy. Mỗi UC nối nhiều endpoint thành 1 luồng thực tế, phản ánh đúng những gì JUnit E2E suite (`backend/e2e-tests`) thực thi — bạn có thể chạy tay qua bash để debug nhanh, rồi `mvn -pl e2e-tests test -Pe2e` để regression.
 
+### Pre-flight: Windows Docker Desktop Port-Proxy Workaround
+
+> [!WARNING]
+> **Windows Docker Desktop (WSL2 backend)** has a known port-proxy issue where
+> `curl http://localhost:8080` from the Windows host receives `Empty reply from
+> server` even though the container is healthy. The TCP connect succeeds but the
+> Docker proxy closes the connection without sending an HTTP response.
+>
+> **Workaround:** Run all manual test commands from a **sidecar container**
+> attached to the `flashsale-net` Docker network, talking to `api-gateway:8080`
+> (the Docker service name) instead of `localhost:8080`.
+
+**One-time sidecar setup:**
+```bash
+# Launch a lightweight Alpine container attached to the service network
+docker run -d --name e2e-runner --network flashsale-net \
+  -v "$(pwd)/backend/e2e-tests/scripts:/scripts" \
+  alpine sh -c "apk add --no-cache curl jq python3 && tail -f /dev/null"
+
+# Enter the sidecar
+docker exec -it e2e-runner sh
+```
+
+Once inside the sidecar, all `curl` commands below work by replacing
+`http://localhost:8080` with `http://api-gateway:8080`.
+
+The Python Stripe forge helper is available at `/scripts/forge.py` inside the
+sidecar (mounted from `backend/e2e-tests/scripts/forge.py`).
+
+> [!TIP]
+> On **macOS / Linux**, the port-proxy usually works fine and you can run
+> commands directly from the host using `http://localhost:8080`.
+
+---
+
 ### Pre-flight (chạy 1 lần / shell)
 ```bash
-GATEWAY="http://localhost:8080"
+# If running from sidecar:
+GATEWAY="http://api-gateway:8080"
+# If running from host (macOS/Linux only):
+# GATEWAY="http://localhost:8080"
+
 # whsec_… phải khớp STRIPE_WEBHOOK_SECRET trong .env (dev default)
 WEBHOOK_SECRET="whsec_9036236865171c8dd43b2c376f96d9847980b59fc9eef44c16ccb2ca0feb7268"
 
 login() {
   curl -s -X POST $GATEWAY/api/v1/auth/login -H 'Content-Type: application/json' \
     -d "{\"credential\":\"$1\",\"password\":\"dev123\"}" \
-    | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])"
+    | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['accessToken'])"
 }
 BUYER=$(login minhhoa);  SELLER=$(login techworld);  ADMIN=$(login admin)
 
@@ -697,6 +738,9 @@ poll_status() {  # $1=url $2=token $3=python-expr  $4=expected
 }
 
 # Ký HMAC-SHA256 + POST tới gateway, dùng đúng format Stripe-Signature
+# IMPORTANT: Forged events MUST include full envelope fields:
+#   id, object="event", api_version="2024-06-20", created, livemode, pending_webhooks, type
+# Metadata keys use snake_case: parent_order_id (NOT parentOrderId)
 send_stripe_webhook() {  # $1=payload-json
   PAYLOAD="$1";  TS=$(date +%s)
   SIG=$(python3 -c "import hmac,hashlib,os;print(hmac.new(os.environ['WEBHOOK_SECRET'].encode(),f\"{os.environ['TS']}.{os.environ['PAYLOAD']}\".encode(),hashlib.sha256).hexdigest())" \
@@ -706,6 +750,9 @@ send_stripe_webhook() {  # $1=payload-json
        -H "Stripe-Signature: t=$TS,v1=$SIG" \
        --data-binary "$PAYLOAD"
 }
+
+# Alternative: use the Python forge helper (handles signing automatically)
+# python3 /scripts/forge.py pi payment_intent.succeeded 170
 ```
 
 > **Async note:** mọi UC có dấu ✓ (Async) chạy qua Kafka + Axon saga — sau khi trigger phải `poll_status` cho đến khi đạt trạng thái mong đợi (đừng assert ngay).
@@ -750,13 +797,15 @@ echo "parentOrderId=$PARENT_ID"
 poll_status "$GATEWAY/api/v1/payments/parent-order/$PARENT_ID" "$BUYER" "print(d['data']['status'])" "PENDING"
 
 # Forge payment_intent.succeeded
-PAYLOAD="{\"id\":\"evt_uc111_$(date +%s)\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_uc111\",\"metadata\":{\"parentOrderId\":\"$PARENT_ID\"},\"amount\":99000,\"currency\":\"vnd\"}}}"
+# Full Stripe event envelope (api_version must match stripe-java 26.1.0 = 2024-06-20)
+PAYLOAD="{\"id\":\"evt_uc111_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_uc111\",\"object\":\"payment_intent\",\"metadata\":{\"parent_order_id\":\"$PARENT_ID\"},\"amount\":99000,\"currency\":\"vnd\",\"status\":\"succeeded\",\"latest_charge\":\"ch_uc111\"}}}"
 send_stripe_webhook "$PAYLOAD"
 
 # Verify cuối: transaction SUCCESS + tất cả sub-orders PAID
 poll_status "$GATEWAY/api/v1/payments/parent-order/$PARENT_ID" "$BUYER" "print(d['data']['status'])" "SUCCESS"
+# Note: response uses d['data']['orders'] (not 'subOrders')
 poll_status "$GATEWAY/api/v1/orders/parent/$PARENT_ID" "$BUYER" \
-  "print('PASS' if all(s['status']=='PAID' for s in d['data']['subOrders']) else 'WAIT')" "PASS"
+  "print('PASS' if all(s['status']=='PAID' for s in d['data']['orders']) else 'WAIT')" "PASS"
 ```
 **Pass criteria:** parentOrder mới được tạo · tất cả sub-orders PENDING → PAID · transaction PENDING → SUCCESS · gọi lại `/payments/parent-order/$PARENT_ID` 2 lần liên tiếp trả về cùng `transactionId` (idempotent).
 
@@ -765,12 +814,12 @@ poll_status "$GATEWAY/api/v1/orders/parent/$PARENT_ID" "$BUYER" \
 ### UC-11.2 — Payment FAILED → Sub-orders CANCELLED  (E2E-A04 failure path)
 ```bash
 # Chạy UC-11.1 tới PENDING (đừng forge succeeded). Sau đó:
-PAYLOAD="{\"id\":\"evt_uc112_$(date +%s)\",\"type\":\"payment_intent.payment_failed\",\"data\":{\"object\":{\"id\":\"pi_uc112\",\"metadata\":{\"parentOrderId\":\"$PARENT_ID\"},\"last_payment_error\":{\"message\":\"card_declined\"}}}}"
+PAYLOAD="{\"id\":\"evt_uc112_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"payment_intent.payment_failed\",\"data\":{\"object\":{\"id\":\"pi_uc112\",\"object\":\"payment_intent\",\"metadata\":{\"parent_order_id\":\"$PARENT_ID\"},\"status\":\"requires_payment_method\",\"last_payment_error\":{\"message\":\"card_declined\"}}}}"
 send_stripe_webhook "$PAYLOAD"
 
 poll_status "$GATEWAY/api/v1/payments/parent-order/$PARENT_ID" "$BUYER" "print(d['data']['status'])" "FAILED"
 poll_status "$GATEWAY/api/v1/orders/parent/$PARENT_ID" "$BUYER" \
-  "print('PASS' if all(s['status']=='CANCELLED' for s in d['data']['subOrders']) else 'WAIT')" "PASS"
+  "print('PASS' if all(s['status']=='CANCELLED' for s in d['data']['orders']) else 'WAIT')" "PASS"
 ```
 **Pass criteria:** Axon saga compensates → mọi sub-order CANCELLED · transaction FAILED.
 
@@ -780,7 +829,7 @@ poll_status "$GATEWAY/api/v1/orders/parent/$PARENT_ID" "$BUYER" \
 ```bash
 # Sau UC-11.1 → PENDING:
 for OID in $(curl -s $GATEWAY/api/v1/orders/parent/$PARENT_ID -H "Authorization: Bearer $BUYER" \
-              | python3 -c "import sys,json;print(' '.join(str(s['orderId']) for s in json.load(sys.stdin)['data']['subOrders']))"); do
+              | python3 -c "import sys,json;print(' '.join(str(s['orderId']) for s in json.load(sys.stdin)['data']['orders']))"); do
   curl -s -X POST $GATEWAY/api/v1/orders/$OID/cancel -H "Authorization: Bearer $BUYER" \
        -H 'Content-Type: application/json' -d '{"reason":"Đổi ý"}' >/dev/null
 done
@@ -796,7 +845,7 @@ poll_status "$GATEWAY/api/v1/payments/parent-order/$PARENT_ID" "$BUYER" "print(d
 ```bash
 # Pre-req: UC-11.1 đã PAID
 SUB=$(curl -s $GATEWAY/api/v1/orders/parent/$PARENT_ID -H "Authorization: Bearer $BUYER" \
-      | python3 -c "import sys,json;s=json.load(sys.stdin)['data']['subOrders'][0];print(s['orderId'],s['sellerId'])")
+      | python3 -c "import sys,json;s=json.load(sys.stdin)['data']['orders'][0];print(s['orderId'],s['sellerId'])")
 ORDER_ID=$(echo $SUB|cut -d' ' -f1);  SID=$(echo $SUB|cut -d' ' -f2)
 # Map sellerId 1=techworld, 2=fashionhub, 3=gadgetpro, 4=homeliving, 5=sportoutdoor
 case $SID in 1) SELLER=$(login techworld);; 2) SELLER=$(login fashionhub);; 3) SELLER=$(login gadgetpro);;
@@ -812,13 +861,18 @@ poll_status "$GATEWAY/api/v1/orders/$ORDER_ID" "$BUYER" "print(d['data']['status
 
 ITEM_ID=$(curl -s $GATEWAY/api/v1/orders/$ORDER_ID -H "Authorization: Bearer $BUYER" \
           | python3 -c "import sys,json;i=json.load(sys.stdin)['data']['items'][0];print(i.get('orderItemId') or i['id'])")
-REFUND_ID=$(curl -s -X POST $GATEWAY/api/v1/orders/$ORDER_ID/refunds -H "Authorization: Bearer $BUYER" \
+# Note: POST refund response may not include refundId directly — use GET to retrieve it
+curl -s -X POST $GATEWAY/api/v1/orders/$ORDER_ID/refunds -H "Authorization: Bearer $BUYER" \
      -H 'Content-Type: application/json' \
-     -d "{\"reason\":\"Hàng lỗi\",\"items\":[{\"orderItemId\":$ITEM_ID,\"quantity\":1,\"itemReason\":\"damaged\"}],\"evidenceImages\":[]}" \
-     | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data'].get('refundId') or d['data'].get('id'))")
+     -d "{\"reason\":\"Hàng lỗi\",\"items\":[{\"orderItemId\":$ITEM_ID,\"quantity\":1,\"itemReason\":\"damaged\"}],\"evidenceImages\":[]}" >/dev/null
 
+# Retrieve refundId from the list endpoint
+REFUND_ID=$(curl -s $GATEWAY/api/v1/orders/$ORDER_ID/refunds -H "Authorization: Bearer $BUYER" \
+     | python3 -c "import sys,json;rs=json.load(sys.stdin)['data'];print(rs[-1].get('refundId') or rs[-1].get('id'))")
+
+# Admin approve requires adminNote field in the body
 curl -s -X POST $GATEWAY/api/v1/admin/refunds/$REFUND_ID/approve -H "Authorization: Bearer $ADMIN" \
-     -H 'Content-Type: application/json' -d '{}' >/dev/null
+     -H 'Content-Type: application/json' -d '{"adminNote":"Approved after manual verification"}' >/dev/null
 poll_status "$GATEWAY/api/v1/orders/$ORDER_ID/refunds/$REFUND_ID" "$BUYER" "print(d['data']['status'])" "APPROVED"
 ```
 **Pass criteria:** order chuyển PAID → SHIPPING → DELIVERED · refund record xuất hiện qua Kafka request-reply · admin approve → status APPROVED.
@@ -827,7 +881,10 @@ poll_status "$GATEWAY/api/v1/orders/$ORDER_ID/refunds/$REFUND_ID" "$BUYER" "prin
 
 ### UC-11.5 — Flash Sale Lifecycle  (E2E-A06, UC-FLASHSALE-001/002/003/005/006)
 ```bash
-START=$(date -u -d "-1 hour" +"%Y-%m-%dT%H:%M:%S");  END=$(date -u -d "+1 hour" +"%Y-%m-%dT%H:%M:%S")
+# IMPORTANT: flashsale-service parses naive ISO timestamps as Vietnam local time (UTC+7),
+# NOT UTC. Use TZ=Asia/Ho_Chi_Minh to generate correct local timestamps.
+START=$(TZ=Asia/Ho_Chi_Minh date -d "-1 hour" +"%Y-%m-%dT%H:%M:%S")
+END=$(TZ=Asia/Ho_Chi_Minh date -d "+1 hour" +"%Y-%m-%dT%H:%M:%S")
 
 SES_ID=$(curl -s -X POST $GATEWAY/api/v1/flash-sales -H "Authorization: Bearer $ADMIN" \
   -H 'Content-Type: application/json' \
@@ -876,16 +933,218 @@ curl -s -X POST $GATEWAY/api/v1/stripe/onboarding/refresh-link -H "Authorization
 # Forge account.updated để mô phỏng seller hoàn tất onboarding
 ACCT=$(curl -s $GATEWAY/api/v1/stripe/onboarding/status -H "Authorization: Bearer $NS" \
        | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['stripeAccountId'])")
-PAYLOAD="{\"id\":\"evt_acct_$(date +%s)\",\"type\":\"account.updated\",\"data\":{\"object\":{\"id\":\"$ACCT\",\"charges_enabled\":true,\"payouts_enabled\":true,\"details_submitted\":true}}}"
+PAYLOAD="{\"id\":\"evt_acct_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"account.updated\",\"data\":{\"object\":{\"id\":\"$ACCT\",\"object\":\"account\",\"charges_enabled\":true,\"payouts_enabled\":true,\"details_submitted\":true,\"requirements\":{}}}}"
 send_stripe_webhook "$PAYLOAD"
 
 poll_status "$GATEWAY/api/v1/stripe/onboarding/status" "$NS" "print(d['data']['chargesEnabled'])" "True"
 ```
 **Pass criteria:** SELLER_STRIPE_ACCOUNTS có record mới · sau webhook, chargesEnabled=true & onboardingStatus=COMPLETE.
 
+> **Mock note:** Dev mode dùng `acct_mock_*` — account auto-complete ngay khi tạo. Refresh-link bị reject vì "đã hoàn tất KYC".
+> Các nhánh có `acct_mock_*` prefix trong account ID bị rút gọn; test đầy đủ nhánh edge case cần real Stripe (UC-11.6.9).
+
 ---
 
-### UC-11.7 — Payment Idempotency  (E2E-A13)
+### UC-11.6.2 — Buyer cố start onboarding → 403 FORBIDDEN
+
+```bash
+# Login as buyer (minhhoa) — role=BUYER
+BUYER=$(login minhhoa)
+
+# Thử gọi onboarding start với role BUYER
+curl -s -o /dev/null -w "buyer-start http=%{http_code}\n" \
+  -X POST $GATEWAY/api/v1/stripe/onboarding/start \
+  -H "Authorization: Bearer $BUYER" \
+  -H 'Content-Type: application/json' -d '{}'
+# Expect: 403 (FORBIDDEN) — @PreAuthorize("hasRole('SELLER')") blocks buyer
+
+# Buyer cũng không được gọi status endpoint
+curl -s -o /dev/null -w "buyer-status http=%{http_code}\n" \
+  $GATEWAY/api/v1/stripe/onboarding/status \
+  -H "Authorization: Bearer $BUYER"
+# Expect: 403
+```
+**Pass criteria:** Cả hai endpoint trả về 403 khi caller có role BUYER · body chứa "Access Denied" hoặc empty.
+
+---
+
+### UC-11.6.3 — Seller đã COMPLETE gọi `/start` lại → ALREADY_EXISTS
+
+```bash
+# Seller techworld (sellerId=1) đã có account COMPLETE trong seed data
+SELLER_TW=$(login techworld)
+
+# Gọi /start cho seller đã hoàn tất
+curl -s -w "\nhttp=%{http_code}\n" \
+  -X POST $GATEWAY/api/v1/stripe/onboarding/start \
+  -H "Authorization: Bearer $SELLER_TW" \
+  -H 'Content-Type: application/json' -d '{}'
+# Expect: 409 (ALREADY_EXISTS) hoặc 200 idempotent (trả về cùng accountId)
+```
+**Pass criteria:** Status code 409 với errorCode=RES_002 (ALREADY_EXISTS) hoặc 200 với cùng stripeAccountId.
+
+---
+
+### UC-11.6.4 — Seller chưa COMPLETE publish product → không bị chặn (current behavior)
+
+```bash
+# Register seller mới, start onboarding nhưng KHÔNG forge account.updated
+RAND=$(date +%s);  NEW="ucseller$RAND"
+NS=$(curl -s -X POST $GATEWAY/api/v1/auth/register/seller -H 'Content-Type: application/json' \
+     -d "{\"username\":\"$NEW\",\"email\":\"$NEW@test.com\",\"password\":\"dev123\",\"fullName\":\"UC Gate Test\"}" \
+     | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
+
+curl -s -X POST $GATEWAY/api/v1/stripe/onboarding/start -H "Authorization: Bearer $NS" \
+     -H 'Content-Type: application/json' -d '{}' >/dev/null
+# Verify status: PENDING (chưa complete)
+curl -s $GATEWAY/api/v1/stripe/onboarding/status -H "Authorization: Bearer $NS" \
+  | python3 -c "import sys,json;d=json.load(sys.stdin)['data'];print('status=',d.get('onboardingStatus'),'charges=',d.get('chargesEnabled'))"
+
+# Tạo product + variant → submit → publish
+CAT=$(curl -s $GATEWAY/api/v1/categories | python3 -c \
+  "import sys,json;d=json.load(sys.stdin)['data'];leaves=[c for c in d if not c.get('children')];print(leaves[0]['id'])")
+PID=$(curl -s -X POST $GATEWAY/api/v1/products -H "Authorization: Bearer $NS" \
+       -H 'Content-Type: application/json' \
+       -d "{\"name\":\"Onboarding Gate Test $RAND\",\"description\":\"Test\",\"categoryId\":\"$CAT\"}" \
+       | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['id'])")
+curl -s -X POST $GATEWAY/api/v1/seller/products/$PID/variants -H "Authorization: Bearer $NS" \
+     -H 'Content-Type: application/json' \
+     -d '{"variantCode":"GATE-TEST-001","variantName":"v1","price":50000,"stockQuantity":5}' >/dev/null
+curl -s -X POST $GATEWAY/api/v1/seller/products/$PID/submit -H "Authorization: Bearer $NS" \
+     -d '{}' -H 'Content-Type: application/json' >/dev/null
+# Admin approve
+ADMIN=$(login admin)
+curl -s -X POST $GATEWAY/api/v1/admin/products/$PID/approve -H "Authorization: Bearer $ADMIN" \
+     -d '{}' -H 'Content-Type: application/json' >/dev/null
+# Publish khi chưa onboard complete
+curl -s -w "\nhttp=%{http_code}\n" -X POST $GATEWAY/api/v1/seller/products/$PID/publish \
+     -H "Authorization: Bearer $NS" \
+     -d '{}' -H 'Content-Type: application/json'
+# Current behavior: 200 (KHÔNG bị chặn) — publish gate chưa được implement
+```
+**Pass criteria (current):** Publish thành công 200 dù seller chưa hoàn tất onboarding.
+**Expected future:** 4xx với message "Seller chưa hoàn tất Stripe onboarding".
+
+---
+
+### UC-11.6.5 — Seller chưa COMPLETE nhận tiền → transfer bị SKIPPED
+
+```bash
+# Pre-req: UC-11.1 chạy với seller chưa onboard (dùng NS từ UC-11.6.4)
+# product của seller chưa onboard được buyer mua → payment SUCCESS
+
+# Sau khi payment success, kiểm tra SellerTransfer status:
+curl -s "$GATEWAY/api/v1/seller/payments/transfers?page=0&size=10" \
+  -H "Authorization: Bearer $NS"
+# Expect: status=SKIPPED (do sellerAccount == null hoặc chargesEnabled == false)
+# Logic: createSellerTransfers() sets SKIPPED khi seller không có Stripe account active
+```
+**Pass criteria:** SellerTransfer row có status=SKIPPED · không có stripeTransferId · log "Seller X has no active Stripe account".
+
+---
+
+### UC-11.6.6 — Webhook `account.updated` với `charges_enabled=false` (KYC bị từ chối)
+
+```bash
+# Register seller mới đã có account (từ UC-11.6.4), forge webhook charges_enabled=false
+RAND=$(date +%s);  NEW2="ucseller$RAND"
+NS2=$(curl -s -X POST $GATEWAY/api/v1/auth/register/seller -H 'Content-Type: application/json' \
+      -d "{\"username\":\"$NEW2\",\"email\":\"$NEW2@test.com\",\"password\":\"dev123\",\"fullName\":\"UC Reject\"}" \
+      | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
+curl -s -X POST $GATEWAY/api/v1/stripe/onboarding/start -H "Authorization: Bearer $NS2" \
+     -H 'Content-Type: application/json' -d '{}' >/dev/null
+
+# Trong dev mode, account mock auto-complete trên status check.
+# Để test nhánh này, forge trực tiếp account.updated với charges_enabled=false
+# KHÔNG gọi GET /status trước (tránh auto-complete)
+ACCT=$(curl -s $GATEWAY/api/v1/stripe/onboarding/status -H "Authorization: Bearer $NS2" \
+       | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['stripeAccountId'])")
+
+# Forge: charges_enabled=false, payouts_enabled=false, details_submitted=true
+PAYLOAD="{\"id\":\"evt_reject_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"account.updated\",\"data\":{\"object\":{\"id\":\"$ACCT\",\"object\":\"account\",\"charges_enabled\":false,\"payouts_enabled\":false,\"details_submitted\":true,\"requirements\":{}}}}"
+send_stripe_webhook "$PAYLOAD"
+
+# Verify: chargesEnabled=false (AccountEventHandler đã sync)
+# Lưu ý: mock account sẽ auto-complete nếu gọi GET /status (do dòng 84-95 trong StripeOnboardingService)
+# Nên gọi status TRƯỚC KHI forge để có real state, hoặc không gọi status
+curl -s $GATEWAY/api/v1/stripe/onboarding/status -H "Authorization: Bearer $NS2" \
+  | python3 -c "import sys,json;d=json.load(sys.stdin)['data'];print('charges=',d.get('chargesEnabled'),'status=',d.get('onboardingStatus'))"
+```
+**Pass criteria (real Stripe):** chargesEnabled=false · onboardingStatus != COMPLETE.
+**Mock limitation:** GET /status auto-completes mock accounts, ghi đè webhook. Test này chỉ meaningful với real Stripe (UC-11.6.9).
+
+---
+
+### UC-11.6.7 — Webhook với `requirements.currently_due` non-empty
+
+```bash
+# Forge account.updated với requirements.currently_due = ["business_url"]
+# (dùng NS2 từ UC-11.6.6, đã mock-complete)
+ACCT=$(curl -s $GATEWAY/api/v1/stripe/onboarding/status -H "Authorization: Bearer $NS2" \
+       | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['stripeAccountId'])")
+
+PAYLOAD="{\"id\":\"evt_req_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"account.updated\",\"data\":{\"object\":{\"id\":\"$ACCT\",\"object\":\"account\",\"charges_enabled\":false,\"payouts_enabled\":false,\"details_submitted\":true,\"requirements\":{\"currently_due\":[\"business_url\"],\"disabled_reason\":\"requirements.past_due\"}}}}"
+send_stripe_webhook "$PAYLOAD"
+
+# Check logs: AccountEventHandler đã publish Kafka event seller.stripe_requirement
+# với requirementReason="business_url" và accountLinkUrl mới
+# (Không thể verify trực tiếp qua API vì mock account auto-complete)
+```
+**Pass criteria:** Kafka event `SELLER_STRIPE_REQUIREMENT` được publish · accountLinkUrl có trong payload · log "Stripe requirements detected for seller".
+
+---
+
+### UC-11.6.8 — 2 sellers parallel call `/start` → 2 distinct accountIds
+
+```bash
+R1=$(date +%s);  R2=$((R1+1))
+A1=$(curl -s -X POST $GATEWAY/api/v1/auth/register/seller -H 'Content-Type: application/json' \
+     -d "{\"username\":\"parseller$R1\",\"email\":\"parseller$R1@test.com\",\"password\":\"dev123\",\"fullName\":\"Parallel 1\"}" \
+     | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
+A2=$(curl -s -X POST $GATEWAY/api/v1/auth/register/seller -H 'Content-Type: application/json' \
+     -d "{\"username\":\"parseller$R2\",\"email\":\"parseller$R2@test.com\",\"password\":\"dev123\",\"fullName\":\"Parallel 2\"}" \
+     | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
+
+# Gọi /start song song (background + foreground capture)
+curl -s -X POST $GATEWAY/api/v1/stripe/onboarding/start -H "Authorization: Bearer $A1" \
+     -H 'Content-Type: application/json' -d '{}' >/tmp/acct1.json &
+curl -s -X POST $GATEWAY/api/v1/stripe/onboarding/start -H "Authorization: Bearer $A2" \
+     -H 'Content-Type: application/json' -d '{}' >/tmp/acct2.json &
+wait
+
+ACCT1=$(python3 -c "import json;print(json.load(open('/tmp/acct1.json'))['data']['stripeAccountId'])")
+ACCT2=$(python3 -c "import json;print(json.load(open('/tmp/acct2.json'))['data']['stripeAccountId'])")
+[ "$ACCT1" != "$ACCT2" ] && echo "PASS distinct: $ACCT1 != $ACCT2" || echo "FAIL collision: $ACCT1"
+```
+**Pass criteria:** 2 response 200 · 2 stripeAccountId khác nhau · không có race condition exception.
+
+---
+
+### UC-11.6.9 — Real Stripe TEST account (non-mock) — THỦ CÔNG
+
+> **Prerequisite:** Cần `STRIPE_API_KEY=sk_test_...` thật trong `.env` file của payment-service.
+> Dev mode fallback sang `acct_mock_*` khi Stripe API không khả dụng — đây là behavior đúng.
+
+```bash
+# Bước 1: Cấu hình STRIPE_API_KEY thật
+# Sửa file backend/.env:
+#   STRIPE_API_KEY=<your-stripe-test-secret-key>
+#   STRIPE_WEBHOOK_SECRET=<your-stripe-webhook-secret>
+
+# Bước 2: Restart payment-service
+docker compose -f docker-compose.yml -f docker-compose.dev.yml restart payment-service
+
+# Bước 3: Chạy lại UC-11.6 với real key
+# Register → /start (tạo real Express account) → mở onboardingUrl trong browser
+# → hoàn thành KYC trên Stripe test dashboard → Stripe gửi account.updated thật
+# → GET /status → COMPLETE
+
+# Bước 4: Repeat UC-11.6.6 với real account (charges_enabled=false)
+# → Forge webhook với charges_enabled=false trong payload
+```
+**Pass criteria:** Account tạo qua real Stripe API (không có prefix `acct_mock_`) · onboardingUrl dẫn đến connect.stripe.com thật · status tự động sync từ Stripe qua GET /status.
+
+---
 ```bash
 # Pre-req: UC-11.1 đã đạt PENDING (hoặc SUCCESS), $PARENT_ID set sẵn
 TX1=$(curl -s $GATEWAY/api/v1/payments/parent-order/$PARENT_ID -H "Authorization: Bearer $BUYER" \
@@ -915,7 +1174,7 @@ PREVIEW_TOKEN=$(curl -s -X POST $GATEWAY/api/v1/cart/checkout/preview -H "Author
 # submit như UC-11.1, lấy $PARENT_ID …
 
 curl -s $GATEWAY/api/v1/orders/parent/$PARENT_ID -H "Authorization: Bearer $BUYER" \
-  | python3 -c "import sys,json;d=json.load(sys.stdin)['data'];print('subOrders=',len(d['subOrders']),'sellers=',{s['sellerId'] for s in d['subOrders']})"
+  | python3 -c "import sys,json;d=json.load(sys.stdin)['data'];print('orders=',len(d['orders']),'sellers=',{s['sellerId'] for s in d['orders']})"
 curl -s $GATEWAY/api/v1/payments/parent-order/$PARENT_ID -H "Authorization: Bearer $BUYER" \
   | python3 -c "import sys,json;d=json.load(sys.stdin)['data'];print('tx=',d['transactionId'],'amount=',d.get('amount') or d.get('totalAmount'))"
 ```
@@ -926,7 +1185,7 @@ curl -s $GATEWAY/api/v1/payments/parent-order/$PARENT_ID -H "Authorization: Bear
 ### UC-11.9 — charge.refunded Webhook  (E2E-A13)
 ```bash
 # Pre-req: UC-11.1 đã SUCCESS
-PAYLOAD="{\"id\":\"evt_ref_$(date +%s)\",\"type\":\"charge.refunded\",\"data\":{\"object\":{\"id\":\"ch_uc119\",\"metadata\":{\"parentOrderId\":\"$PARENT_ID\"},\"amount_refunded\":50000}}}"
+PAYLOAD="{\"id\":\"evt_ref_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"charge.refunded\",\"data\":{\"object\":{\"id\":\"ch_uc119\",\"object\":\"charge\",\"amount\":100000,\"amount_refunded\":50000,\"currency\":\"vnd\",\"status\":\"succeeded\",\"metadata\":{\"parent_order_id\":\"$PARENT_ID\"}}}}"
 send_stripe_webhook "$PAYLOAD"     # expect 200; Kafka refund.charge_refunded published
 ```
 
@@ -935,13 +1194,13 @@ send_stripe_webhook "$PAYLOAD"     # expect 200; Kafka refund.charge_refunded pu
 ### UC-11.10 — Seller Transfer Webhooks  (E2E-A14)
 ```bash
 TR="tr_uc1110_$(date +%s)"
-PAYLOAD="{\"id\":\"evt_tr_$(date +%s)\",\"type\":\"transfer.created\",\"data\":{\"object\":{\"id\":\"$TR\",\"destination\":\"acct_techworld\",\"amount\":85000,\"metadata\":{\"orderId\":\"$ORDER_ID\"}}}}"
+PAYLOAD="{\"id\":\"evt_tr_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"transfer.created\",\"data\":{\"object\":{\"id\":\"$TR\",\"object\":\"transfer\",\"destination\":\"acct_techworld\",\"amount\":85000,\"currency\":\"vnd\",\"status\":\"paid\",\"metadata\":{\"order_id\":\"$ORDER_ID\"}}}}"
 send_stripe_webhook "$PAYLOAD"
 
 curl -s "$GATEWAY/api/v1/seller/payments/transfers?page=0&size=10" -H "Authorization: Bearer $SELLER"
 # Expect: row mới với id=$TR, status=PENDING/CREATED
 
-PAYLOAD2="{\"id\":\"evt_tr2_$(date +%s)\",\"type\":\"transfer.reversed\",\"data\":{\"object\":{\"id\":\"$TR\",\"reversed\":true}}}"
+PAYLOAD2="{\"id\":\"evt_tr2_$(date +%s)\",\"object\":\"event\",\"api_version\":\"2024-06-20\",\"created\":$(date +%s),\"livemode\":false,\"pending_webhooks\":1,\"type\":\"transfer.reversed\",\"data\":{\"object\":{\"id\":\"$TR\",\"object\":\"transfer\",\"amount\":85000,\"amount_reversed\":85000,\"currency\":\"vnd\",\"status\":\"reversed\",\"metadata\":{\"order_id\":\"$ORDER_ID\"}}}}"
 send_stripe_webhook "$PAYLOAD2"
 # Re-query → status REVERSED
 ```
@@ -1018,6 +1277,14 @@ timeout 15 curl -s -N $GATEWAY/api/v1/notifications/stream -H "Authorization: Be
 | 11.4 | Paid → Ship → Deliver → Refund → Admin approve | order, refund (Kafka request-reply) | ✓ | ⬜ |
 | 11.5 | Flash sale: admin create → seller item → approve → buy | flashsale (Redis Lua), order | ✓ | ⬜ |
 | 11.6 | Stripe Connect onboarding + account.updated | payment | — | ⬜ |
+| 11.6.2 | Buyer cố gọi onboarding /start → 403 | identity + payment | — | ⬜ |
+| 11.6.3 | Seller COMPLETE gọi /start lại → ALREADY_EXISTS | payment | — | ⬜ |
+| 11.6.4 | Seller chưa COMPLETE publish → no gate (current) | product | — | ⬜ |
+| 11.6.5 | Seller chưa COMPLETE → transfer SKIPPED | payment | ✓ | ⬜ |
+| 11.6.6 | Webhook charges_enabled=false | payment | — | ⬜ |
+| 11.6.7 | Webhook requirements.currently_due | payment | — | ⬜ |
+| 11.6.8 | 2 sellers parallel /start → 2 accountIds | payment | — | ⬜ |
+| 11.6.9 | Real Stripe TEST (non-mock) — manual | payment | — | ⬜ |
 | 11.7 | Payment idempotency (no duplicate tx) | payment | — | ⬜ |
 | 11.8 | Multi-seller cart → 1 parent / N sub / 1 tx | order, payment | ✓ | ⬜ |
 | 11.9 | charge.refunded webhook accepted | payment | — | ⬜ |
@@ -1033,6 +1300,7 @@ timeout 15 curl -s -N $GATEWAY/api/v1/notifications/stream -H "Authorization: Be
 | 11.4 | `A05RefundFlowE2eTest.fulfillmentAndPartialRefund` |
 | 11.5 | `A06FlashSaleE2eTest.flashSaleLifecycle` |
 | 11.6 | `A16StripeOnboardingE2eTest.fullOnboardingFlow` |
+| 11.6.2–11.6.9 | (manual-only — onboarding edge cases, không có JUnit tương đương) |
 | 11.7 / 11.8 / 11.9 | `A13PaymentCoreE2eTest` |
 | 11.10 | `A14SellerTransferE2eTest` |
 | 11.11 | `A15WebhookHandlersE2eTest` |

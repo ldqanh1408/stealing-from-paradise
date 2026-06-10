@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.flashsale.commonlib.dto.ApiResponse;
@@ -34,6 +35,14 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.<Map<String,String>>builder()
                 .success(false).errorCode(ErrorCode.VALIDATION_FAILED.getCode())
                 .message("Dữ liệu không hợp lệ").data(errors).build());
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingHeader(MissingRequestHeaderException ex) {
+        log.warn("[VAL_001] Thiếu header bắt buộc: {}", ex.getHeaderName());
+        return ResponseEntity.badRequest()
+            .body(ApiResponse.error(ErrorCode.VALIDATION_FAILED.getCode(),
+                "Thiếu header bắt buộc: " + ex.getHeaderName()));
     }
 
     @ExceptionHandler(NullPointerException.class)

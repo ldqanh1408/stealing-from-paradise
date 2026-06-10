@@ -65,6 +65,7 @@ public class SellerTransferService {
 
             SellerTransfer st = SellerTransfer.builder()
                     .orderId(orderId)
+                    .parentOrderId(parentOrderId)
                     .sellerId(sellerId)
                     .transferAmount(amount)
                     .status("PENDING")

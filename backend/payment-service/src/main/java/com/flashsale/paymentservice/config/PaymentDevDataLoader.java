@@ -114,6 +114,7 @@ public class PaymentDevDataLoader implements CommandLineRunner {
             if (transferAmount != null) {
                 SellerTransfer transfer = SellerTransfer.builder()
                         .orderId(PARENT_ORDER_IDS[i])
+                        .parentOrderId(PARENT_ORDER_IDS[i])
                         .sellerId(sellerIds[i])
                         .transferAmount(amount)
                         .stripeTransferId("tr_test_" + UUID.randomUUID().toString().substring(0, 16).toUpperCase())

@@ -24,6 +24,9 @@ public class SellerTransfer {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    @Column(name = "parent_order_id")
+    private Long parentOrderId;
+
     @Column(name = "seller_id", nullable = false)
     private Long sellerId;
 

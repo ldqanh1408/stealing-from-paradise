@@ -14,7 +14,7 @@ import java.util.Optional;
 @Repository
 public interface SellerTransferRepository extends JpaRepository<SellerTransfer, Long> {
     Optional<SellerTransfer> findByOrderId(Long orderId);
-    @Query("SELECT t FROM SellerTransfer t WHERE t.orderId = :parentOrderId")
+    @Query("SELECT t FROM SellerTransfer t WHERE t.parentOrderId = :parentOrderId")
     List<SellerTransfer> findAllByParentOrderId(@Param("parentOrderId") Long parentOrderId);
     List<SellerTransfer> findAllByOrderId(Long orderId);
 
