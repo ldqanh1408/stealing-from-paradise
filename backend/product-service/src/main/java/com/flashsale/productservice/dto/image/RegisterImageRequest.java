@@ -2,6 +2,7 @@ package com.flashsale.productservice.dto.image;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,7 +16,7 @@ import java.util.UUID;
 @Builder
 public class RegisterImageRequest {
 
-    @NotBlank(message = "Image ID is required")
+    @NotNull(message = "Image ID is required")
     private UUID imageId;
 
     @NotBlank(message = "URL is required")

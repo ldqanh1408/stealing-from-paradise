@@ -37,6 +37,11 @@ public class NotificationEventPublisher {
     public Map<String, Object> readEvent(String message) throws JsonProcessingException {
         @SuppressWarnings("unchecked")
         Map<String, Object> event = objectMapper.readValue(message, Map.class);
+        if (event != null && event.containsKey("schema") && event.containsKey("payload") && event.get("payload") instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> unwrapped = (Map<String, Object>) event.get("payload");
+            return unwrapped;
+        }
         return event;
     }
 

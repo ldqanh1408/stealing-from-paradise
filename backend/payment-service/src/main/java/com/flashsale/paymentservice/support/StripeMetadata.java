@@ -20,4 +20,15 @@ public class StripeMetadata {
             return null;
         }
     }
+
+
+    public static Long extractUserId(Map<String, String> metadata) {
+        if (metadata == null) return null;
+        try {
+            return Long.parseLong(metadata.get("user_id"));
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
+

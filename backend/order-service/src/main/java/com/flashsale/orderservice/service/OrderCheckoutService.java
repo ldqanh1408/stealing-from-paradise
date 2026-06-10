@@ -88,7 +88,7 @@ public class OrderCheckoutService {
             Order order = Order.builder()
                     .parentOrderId(parentOrder.getId())
                     .sellerId(sellerId)
-                    .orderCode("OR-TEMP-" + System.nanoTime())  // unique placeholder, prevents unique-constraint collision
+                    .orderCode("OR-TEMP-" + java.util.UUID.randomUUID())  // unique placeholder, prevents unique-constraint collision
                     .customerId(userId)
                     .totalAmt(sellerTotal)
                     .finalAmt(sellerTotal)
@@ -97,8 +97,12 @@ public class OrderCheckoutService {
                     .shippingAddress(shippingAddressJson)
                     .build();
             order = orderRepository.save(order);
+            java.time.LocalDateTime createdAt = order.getCreatedAt();
+            if (createdAt == null) {
+                createdAt = java.time.LocalDateTime.now();
+            }
             String orderCode = "OR-"
-                    + order.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                    + createdAt.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                     + "-" + order.getId();
             order.setOrderCode(orderCode);
             order = orderRepository.save(order);

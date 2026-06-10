@@ -76,4 +76,105 @@ class A04OrderPaymentE2eTest extends E2eSupport {
         awaitAllSubOrders(buyer, parentOrderId, "CANCELLED");
         awaitTransactionStatus(buyer, parentOrderId, "CANCELLED");
     }
+
+    @Test
+    @DisplayName("multi-seller checkout → payment succeeded → all sub-orders PAID")
+    void multiSellerPaymentSucceededPath() {
+        String buyer = login(BUYER);
+
+        // Find 2 variants from different products
+        String variant1 = orderableVariantId(buyer);
+        delete("/api/v1/cart", buyer);
+
+        String variant2 = null;
+        HttpResponse<String> list = get("/api/v1/products?page=0&size=20", null);
+        JsonNode content = find(json(list), "content");
+        if (content != null && content.isArray()) {
+            for (JsonNode product : content) {
+                JsonNode variants = find(product, "variants");
+                if (variants != null && variants.isArray() && !variants.isEmpty()) {
+                    JsonNode v = variants.get(0);
+                    JsonNode vid = v.has("variantId") ? v.get("variantId") : v.get("id");
+                    if (vid != null && vid.isTextual() && !vid.asText().equals(variant1)) {
+                        HttpResponse<String> added = post("/api/v1/cart/items", buyer,
+                                Map.of("variantId", vid.asText(), "quantity", 1));
+                        if (added.statusCode() == 200) {
+                            variant2 = vid.asText();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        delete("/api/v1/cart", buyer);
+
+        if (variant2 == null) {
+            variant2 = variant1;
+        }
+
+        HttpResponse<String> add1 = post("/api/v1/cart/items", buyer,
+                Map.of("variantId", variant1, "quantity", 1));
+        assertEquals(200, add1.statusCode(), add1.body());
+
+        HttpResponse<String> add2 = post("/api/v1/cart/items", buyer,
+                Map.of("variantId", variant2, "quantity", 1));
+        assertEquals(200, add2.statusCode(), add2.body());
+
+        JsonNode cart = json(get("/api/v1/cart", buyer));
+        Long customerId = longValue(cart, "customerId");
+        JsonNode items = find(cart, "items");
+        java.util.List<String> itemIds = new java.util.ArrayList<>();
+        items.forEach(i -> itemIds.add(customerId + ":" + i.get("variantId").asText()));
+
+        HttpResponse<String> preview = post("/api/v1/cart/checkout/preview", buyer,
+                Map.of("itemIds", itemIds));
+        assertEquals(200, preview.statusCode(), preview.body());
+        String previewToken = text(json(preview), "previewToken");
+
+        JsonNode addresses = find(json(get("/api/v1/users/me/addresses", buyer)), "data");
+        long addressId = addresses.get(0).get("address_id").asLong();
+
+        long maxBefore = 0;
+        HttpResponse<String> beforeOrders = get("/api/v1/orders?page=0&size=100", buyer);
+        if (beforeOrders.statusCode() == 200) {
+            JsonNode bc = find(json(beforeOrders), "content");
+            if (bc != null && bc.isArray()) {
+                for (JsonNode o : bc) {
+                    Long pid = longValue(o, "parentOrderId");
+                    if (pid != null && pid > maxBefore) maxBefore = pid;
+                }
+            }
+        }
+
+        HttpResponse<String> submit = post("/api/v1/cart/checkout/submit", buyer, Map.of(
+                "previewToken", previewToken, "addressId", addressId));
+        assertEquals(200, submit.statusCode(), submit.body());
+
+        final long fm = maxBefore;
+        long[] pidHolder = new long[1];
+        org.awaitility.Awaitility.await("new parent order created (multi-seller)")
+                .atMost(ASYNC_TIMEOUT).pollInterval(POLL).ignoreExceptions()
+                .until(() -> {
+                    HttpResponse<String> r = get("/api/v1/orders?page=0&size=100", buyer);
+                    if (r.statusCode() != 200) return false;
+                    JsonNode cn = find(json(r), "content");
+                    if (cn != null && cn.isArray()) {
+                        for (JsonNode o : cn) {
+                            Long pid = longValue(o, "parentOrderId");
+                            if (pid != null && pid > fm) { pidHolder[0] = pid; return true; }
+                        }
+                    }
+                    return false;
+                });
+
+        long parentOrderId = pidHolder[0];
+        awaitAllSubOrders(buyer, parentOrderId, "PENDING");
+        awaitTransactionStatus(buyer, parentOrderId, "PENDING");
+
+        sendStripeWebhook("payment_intent.succeeded", parentOrderId);
+
+        awaitAllSubOrders(buyer, parentOrderId, "PAID");
+        awaitTransactionStatus(buyer, parentOrderId, "SUCCESS");
+    }
 }

@@ -43,4 +43,34 @@ class A09NotificationE2eTest extends E2eSupport {
         JsonNode countDataAfter = json(countRespAfter);
         assertEquals(0, find(countDataAfter, "unread_count").asInt());
     }
+
+    @Test
+    @DisplayName("buyer makes successful payment → receives notification → unread count increases")
+    void paymentTriggersNotification() {
+        String buyer = login(BUYER);
+
+        // 1. Get initial unread count
+        HttpResponse<String> countRespBefore = get("/api/v1/notifications/unread-count", buyer);
+        assertEquals(200, countRespBefore.statusCode(), countRespBefore.body());
+        int countBefore = find(json(countRespBefore), "unread_count").asInt();
+
+        // 2. Perform a successful checkout + payment
+        long parentOrderId = checkout(buyer);
+        awaitAllSubOrders(buyer, parentOrderId, "PENDING");
+        awaitTransactionStatus(buyer, parentOrderId, "PENDING");
+
+        sendStripeWebhook("payment_intent.succeeded", parentOrderId);
+        awaitAllSubOrders(buyer, parentOrderId, "PAID");
+        awaitTransactionStatus(buyer, parentOrderId, "SUCCESS");
+
+        // 3. Await for unread count to increase
+        org.awaitility.Awaitility.await("notification count increased")
+                .atMost(ASYNC_TIMEOUT).pollInterval(POLL).ignoreExceptions()
+                .until(() -> {
+                    HttpResponse<String> countRespAfter = get("/api/v1/notifications/unread-count", buyer);
+                    if (countRespAfter.statusCode() != 200) return false;
+                    int countAfter = find(json(countRespAfter), "unread_count").asInt();
+                    return countAfter > countBefore;
+                });
+    }
 }

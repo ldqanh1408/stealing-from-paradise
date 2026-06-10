@@ -54,12 +54,17 @@ public class PaymentIntentEventHandler implements StripeEventHandler {
             tx.setPayAt(LocalDateTime.now());
             transactionRepository.save(tx);
 
-            kafkaPublisher.publish(KafkaTopics.PAYMENT_SUCCESS, String.valueOf(tx.getParentOrderId()), Map.of(
-                    "parent_order_id", tx.getParentOrderId(),
-                    "transaction_id",  tx.getId(),
-                    "stripe_pi_id",    pi.getId(),
-                    "amount",          tx.getAmount()
-            ));
+            Long userId = StripeMetadata.extractUserId(pi.getMetadata());
+            java.util.Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("parent_order_id", tx.getParentOrderId());
+            payload.put("transaction_id", tx.getId());
+            payload.put("stripe_pi_id", pi.getId());
+            payload.put("amount", tx.getAmount());
+            if (userId != null) {
+                payload.put("customer_id", userId);
+            }
+
+            kafkaPublisher.publish(KafkaTopics.PAYMENT_SUCCESS, String.valueOf(tx.getParentOrderId()), payload);
             log.info("Payment succeeded: parentOrderId={}, piId={}", tx.getParentOrderId(), pi.getId());
 
             // Create Stripe Connect transfers to each seller

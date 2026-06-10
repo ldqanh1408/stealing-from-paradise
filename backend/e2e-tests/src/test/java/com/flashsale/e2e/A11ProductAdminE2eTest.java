@@ -75,14 +75,11 @@ class A11ProductAdminE2eTest extends E2eSupport {
         // Create image first (use a public placeholder URL). Image upload may fail
         // with 500 if MinIO connectivity is degraded — skip on failure.
         HttpResponse<String> createImageResp = post("/api/v1/products/" + productId + "/images", sellerToken, Map.of(
-                "imageUrl", "https://picsum.photos/seed/e2e-" + productId.toString().substring(0, 8) + "/400/400",
-                "isPrimary", true
+                "imageId", UUID.randomUUID().toString(),
+                "url", "https://picsum.photos/seed/e2e-" + productId.toString().substring(0, 8) + "/400/400",
+                "sortOrder", 0
         ));
-        boolean imageOk = createImageResp.statusCode() == 200 || createImageResp.statusCode() == 201;
-        // If image upload failed (MinIO connectivity), skip submit/review flow
-        if (!imageOk) {
-            return;
-        }
+        assertEquals(201, createImageResp.statusCode(), createImageResp.body());
 
         // 3. Seller submits product for review
         HttpResponse<String> submitResp = post("/api/v1/seller/products/" + productId + "/submit", sellerToken, Map.of());

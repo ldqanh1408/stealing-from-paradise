@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.flashsale"})
 @EnableDiscoveryClient
 @EnableConfigurationProperties(DevDataProperties.class)
 public class NotificationServiceApplication {

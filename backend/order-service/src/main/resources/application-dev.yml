@@ -19,6 +19,8 @@ spring:
 logging:
   level:
     com.flashsale: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
 
 dev-data:
   enabled: true
