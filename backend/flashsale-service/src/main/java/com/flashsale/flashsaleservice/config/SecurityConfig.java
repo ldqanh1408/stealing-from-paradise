@@ -13,6 +13,12 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
  * - Disables CSRF (stateless JWT)
  * - Security headers enabled (X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy)
  * - Permits all exchanges (authorization via @PreAuthorize)
+ *
+ * @EnableReactiveMethodSecurity is required so the controller's
+ * @PreAuthorize annotations resolve against ReactiveSecurityContextHolder
+ * (populated by JwtTokenDecoderWebFilter from the gateway X-User-* headers).
+ * Without it @PreAuthorize falls back to the servlet SecurityContextHolder,
+ * which is always empty in WebFlux and raises AuthenticationCredentialsNotFoundException.
  */
 @Configuration
 @EnableWebFluxSecurity

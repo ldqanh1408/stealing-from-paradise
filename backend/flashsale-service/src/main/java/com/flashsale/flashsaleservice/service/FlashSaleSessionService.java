@@ -140,6 +140,7 @@ public class FlashSaleSessionService {
                     if (req.getName() != null) session.setName(req.getName());
                     if (req.getStartTime() != null) session.setStartTime(req.getStartTime());
                     if (req.getEndTime() != null) session.setEndTime(req.getEndTime());
+                    if (req.getStatus() != null) session.setStatus(req.getStatus());
                     return sessionRepo.save(session);
                 })
                 .map(this::toSessionResponse);

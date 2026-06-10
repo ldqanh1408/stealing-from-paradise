@@ -1,5 +1,9 @@
+-- Axon JPA tables (TokenStore / SagaStore).
+-- IF NOT EXISTS: on dev machines Hibernate ddl-auto may have created these
+-- tables before this migration was introduced — the migration must tolerate that.
+
 -- 1. Bảng token_entry: Lưu vết tiến độ của Processor
-CREATE TABLE token_entry (
+CREATE TABLE IF NOT EXISTS token_entry (
     processor_name VARCHAR(255) NOT NULL,
     segment INT NOT NULL,
     owner VARCHAR(255),
@@ -9,10 +13,10 @@ CREATE TABLE token_entry (
     PRIMARY KEY (processor_name, segment)
 );
 
-CREATE INDEX idx_token_owner ON token_entry (owner);
+CREATE INDEX IF NOT EXISTS idx_token_owner ON token_entry (owner);
 
 -- 2. Bảng saga_entry: Lưu trạng thái của Saga
-CREATE TABLE saga_entry (
+CREATE TABLE IF NOT EXISTS saga_entry (
     saga_id VARCHAR(255) NOT NULL,
     revision VARCHAR(255),
     saga_type VARCHAR(255),
@@ -21,7 +25,7 @@ CREATE TABLE saga_entry (
 );
 
 -- 3. Bảng association_value_entry: Lưu ánh xạ giữa Saga và các định danh
-CREATE TABLE association_value_entry (
+CREATE TABLE IF NOT EXISTS association_value_entry (
     id BIGSERIAL PRIMARY KEY,
     association_key VARCHAR(255) NOT NULL,
     association_value VARCHAR(255),
@@ -29,5 +33,5 @@ CREATE TABLE association_value_entry (
     saga_type VARCHAR(255)
 );
 
-CREATE INDEX idx_saga_association ON association_value_entry (association_key, association_value);
-CREATE INDEX idx_saga_id_type ON association_value_entry (saga_id, saga_type);
+CREATE INDEX IF NOT EXISTS idx_saga_association ON association_value_entry (association_key, association_value);
+CREATE INDEX IF NOT EXISTS idx_saga_id_type ON association_value_entry (saga_id, saga_type);

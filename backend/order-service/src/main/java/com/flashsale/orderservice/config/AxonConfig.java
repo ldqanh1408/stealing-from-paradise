@@ -2,6 +2,8 @@ package com.flashsale.orderservice.config;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.axonframework.deadline.DeadlineManager;
+import org.axonframework.deadline.SimpleDeadlineManager;
 import org.axonframework.eventhandling.tokenstore.TokenStore;
 import org.axonframework.eventhandling.tokenstore.jpa.JpaTokenStore;
 import org.axonframework.modelling.saga.repository.SagaStore;
@@ -10,6 +12,7 @@ import org.axonframework.serialization.Serializer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /**
@@ -70,6 +73,20 @@ public class AxonConfig {
         return JpaSagaStore.builder()
                 .entityManagerProvider(new SpringEntityManagerProvider())
                 .serializer(xStreamSerializer)
+                .build();
+    }
+
+    /**
+     * DeadlineManager bean required by OrderProcessingSaga to schedule
+     * payment and shipping timeouts. Uses SimpleDeadlineManager (no Axon
+     * Server dependency) with prototype scope so each saga instance gets
+     * its own manager tied to its scope.
+     */
+    @Bean
+    @Scope("prototype")
+    public DeadlineManager deadlineManager(org.axonframework.config.Configuration axonConfiguration) {
+        return SimpleDeadlineManager.builder()
+                .scopeAwareProvider(axonConfiguration.scopeAwareProvider())
                 .build();
     }
 

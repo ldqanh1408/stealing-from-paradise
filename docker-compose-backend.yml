@@ -199,6 +199,9 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_FLASHSALE}
+      # Direct in-network URL to product-service. Default in FlashSalePurchaseService
+      # is http://localhost:8084 (the flashsale container itself) — that fails.
+      - PRODUCT_SERVICE_URL=http://product-service:8084
     depends_on:
       postgres: { condition: service_started }
       redis: { condition: service_started }

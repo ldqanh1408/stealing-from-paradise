@@ -15,4 +15,5 @@ public class UpdateSessionRequest {
     private String name;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private String status;
 }

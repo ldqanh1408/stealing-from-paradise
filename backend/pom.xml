@@ -26,6 +26,7 @@
         <module>order-service</module>
         <module>payment-service</module>
         <module>dev-data-runner</module>
+        <module>e2e-tests</module>
     </modules>
 
     <properties>

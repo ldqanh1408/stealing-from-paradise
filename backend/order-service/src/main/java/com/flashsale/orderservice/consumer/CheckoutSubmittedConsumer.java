@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +30,9 @@ public class CheckoutSubmittedConsumer {
             groupId = "order-service-checkout-group"
     )
     @Transactional
-    public void onCheckoutSubmitted(ConsumerRecord<String, String> record, Acknowledgment ack) {
+    public void onCheckoutSubmitted(ConsumerRecord<String, String> record) {
+        // AckMode is BATCH (KafkaConfig) — listener container commits the offset
+        // automatically after the method returns successfully.
         try {
             Map<String, Object> payload = objectMapper.readValue(record.value(),
                     new TypeReference<Map<String, Object>>() {});
@@ -52,7 +53,6 @@ public class CheckoutSubmittedConsumer {
 
             if (customerId == null) {
                 log.error("Missing customer_id in order.checkout_submitted event");
-                ack.acknowledge();
                 return;
             }
 
@@ -68,11 +68,9 @@ public class CheckoutSubmittedConsumer {
 
             log.info("Order created from event: parentOrderId={}, sessionId={}",
                     response.getParentOrderId(), sessionId);
-
-            ack.acknowledge();
         } catch (Exception e) {
             log.error("Error processing order.checkout_submitted event: {}", record.value(), e);
-            ack.acknowledge();
+            // Swallow: BATCH ack commits anyway, prevents DLT spiral on bad payloads
         }
     }
 

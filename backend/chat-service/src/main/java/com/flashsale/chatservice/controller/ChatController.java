@@ -31,7 +31,7 @@ public class ChatController {
     //  POST /api/ai/chat — SSE streaming chat (main endpoint)
     // ────────────────────────────────────────────────────────────────────────
 
-    @PostMapping(value = "/api/ai/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/ai/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> chat(
             ServerWebExchange exchange,
             @RequestBody ChatRequest request) {
@@ -57,7 +57,7 @@ public class ChatController {
     //  GET /api/ai/chat/history — cursor-paginated message history
     // ────────────────────────────────────────────────────────────────────────
 
-    @GetMapping("/api/ai/chat/history")
+    @GetMapping("/ai/chat/history")
     public Mono<ResponseEntity<ApiResponse<List<ChatMessage>>>> history(
             ServerWebExchange exchange,
             @RequestParam(required = false) String sessionId,
@@ -86,7 +86,7 @@ public class ChatController {
     //  POST /api/ai/sessions — create new session
     // ────────────────────────────────────────────────────────────────────────
 
-    @PostMapping("/api/ai/sessions")
+    @PostMapping("/ai/sessions")
     public Mono<ResponseEntity<ApiResponse<ChatSession>>> createSession(ServerWebExchange exchange) {
         Long userId = extractUserId(exchange);
         if (userId == null) {
@@ -99,7 +99,7 @@ public class ChatController {
                         .body(ApiResponse.success(session, "Session created")));
     }
 
-    @GetMapping("/api/ai/sessions")
+    @GetMapping("/ai/sessions")
     public Mono<ResponseEntity<ApiResponse<List<ChatSession>>>> listSessions(ServerWebExchange exchange) {
         Long userId = extractUserId(exchange);
         if (userId == null) {
@@ -116,7 +116,7 @@ public class ChatController {
     //  DELETE /api/ai/sessions/{sessionId} — close session
     // ────────────────────────────────────────────────────────────────────────
 
-    @DeleteMapping("/api/ai/sessions/{sessionId}")
+    @DeleteMapping("/ai/sessions/{sessionId}")
     public Mono<ResponseEntity<ApiResponse<Void>>> closeSession(
             ServerWebExchange exchange,
             @PathVariable String sessionId) {
@@ -143,7 +143,7 @@ public class ChatController {
     //  POST /api/ai/confirm — confirm/reject Level-3 action
     // ────────────────────────────────────────────────────────────────────────
 
-    @PostMapping("/api/ai/confirm")
+    @PostMapping("/ai/confirm")
     public Mono<ResponseEntity<ApiResponse<ChatMessage>>> confirm(
             ServerWebExchange exchange,
             @RequestBody ConfirmRequest request) {
@@ -170,7 +170,7 @@ public class ChatController {
     //  GET /api/ai/suggest — context-aware suggestions
     // ────────────────────────────────────────────────────────────────────────
 
-    @GetMapping("/api/ai/suggest")
+    @GetMapping("/ai/suggest")
     public Mono<ResponseEntity<ApiResponse<List<String>>>> suggest(ServerWebExchange exchange) {
         // Public endpoint (optional JWT) — userId used for personalization if available
         return chatService.getSuggestions()
