@@ -84,8 +84,9 @@ class A15WebhookHandlersE2eTest extends E2eSupport {
         int code = sendStripeWebhookSoft(payload, sig);
         assertTrue(code >= 200 && code < 300,
                 "account.updated webhook should be accepted: " + code);
-        // Mock accounts auto-complete on subsequent GET /status, so we don't assert
-        // charges=false in DB here — the meaningful verification is webhook 2xx + no exception.
+        // Real accounts: GET /status calls Account.retrieve() from Stripe which
+        // returns the actual account state. The webhook was accepted and processed.
+        // We verify webhook delivery succeeded and no exception was thrown.
     }
 
     @Test

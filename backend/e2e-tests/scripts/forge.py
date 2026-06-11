@@ -136,14 +136,25 @@ def transfer_event(event_type, order_id, transfer_id):
 
 
 def account_updated_event(account_id, details_submitted=True,
-                          charges_enabled=True, payouts_enabled=True):
+                          charges_enabled=True, payouts_enabled=True,
+                          currently_due=None, disabled_reason=None):
+    """Build account.updated event.
+
+    currently_due: list of requirement strings (e.g. ["business_url", "external_account"])
+    disabled_reason: e.g. "requirements.past_due" or "rejected.fraud"
+    """
+    req = {}
+    if currently_due:
+        req["currently_due"] = currently_due
+    if disabled_reason:
+        req["disabled_reason"] = disabled_reason
     a = {
         "id": account_id,
         "object": "account",
         "details_submitted": details_submitted,
         "charges_enabled": charges_enabled,
         "payouts_enabled": payouts_enabled,
-        "requirements": {},
+        "requirements": req,
     }
     e = _base("account.updated")
     e["data"] = {"object": a}
@@ -212,7 +223,16 @@ def main():
             transfer_event(sys.argv[2], int(sys.argv[3]), sys.argv[4])
         )
     elif cmd == "account":
-        code, body = sign_and_send(account_updated_event(sys.argv[2]))
+        # python3 forge.py account acct_xxx [details_submitted] [charges_enabled] [payouts_enabled] [currently_due_csv] [disabled_reason]
+        aid = sys.argv[2]
+        det = sys.argv[3].lower() not in ("false", "0", "no", "f") if len(sys.argv) > 3 else True
+        ch  = sys.argv[4].lower() not in ("false", "0", "no", "f") if len(sys.argv) > 4 else True
+        po  = sys.argv[5].lower() not in ("false", "0", "no", "f") if len(sys.argv) > 5 else True
+        due = sys.argv[6].split(",") if len(sys.argv) > 6 and sys.argv[6] else None
+        dis = sys.argv[7] if len(sys.argv) > 7 and sys.argv[7] else None
+        code, body = sign_and_send(
+            account_updated_event(aid, det, ch, po, due, dis)
+        )
     elif cmd == "dispute":
         code, body = sign_and_send(
             dispute_event(sys.argv[2], sys.argv[3], int(sys.argv[4]))
