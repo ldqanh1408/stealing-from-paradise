@@ -7,10 +7,13 @@ import com.flashsale.paymentservice.domain.model.SellerStripeAccount;
 import com.flashsale.paymentservice.domain.repository.SellerStripeAccountRepository;
 import com.flashsale.paymentservice.dto.response.StripeOnboardingResponse;
 import com.flashsale.paymentservice.dto.response.StripeOnboardingStatusResponse;
+import com.flashsale.paymentservice.dto.response.AdminSellerStripeAccountsResponse;
+import com.flashsale.paymentservice.dto.response.AdminSellerStripeAccountItem;
+import com.flashsale.paymentservice.dto.response.AdminSellerStripeSummary;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Account;
 import com.stripe.model.AccountLink;
-import com.stripe.model.LoginLink;
+
 import com.stripe.param.AccountCreateParams;
 import com.stripe.param.AccountLinkCreateParams;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,56 @@ public class StripeOnboardingService {
 
     private final SellerStripeAccountRepository sellerStripeAccountRepository;
     private final StripeConfig stripeConfig;
+
+    @Transactional(readOnly = true)
+    public AdminSellerStripeAccountsResponse getAllSellersOnboardingStatus() {
+        List<SellerStripeAccount> accounts = sellerStripeAccountRepository.findAll();
+        
+        long total = accounts.size();
+        long complete = 0;
+        long pending = 0;
+        long inProgress = 0;
+        long suspended = 0;
+
+        List<AdminSellerStripeAccountItem> items = new ArrayList<>();
+        for (SellerStripeAccount acc : accounts) {
+            String status = acc.getOnboardingStatus();
+            if ("COMPLETE".equals(status)) {
+                complete++;
+            } else if ("IN_PROGRESS".equals(status)) {
+                inProgress++;
+            } else if ("SUSPENDED".equals(status)) {
+                suspended++;
+            } else {
+                pending++;
+            }
+
+            items.add(AdminSellerStripeAccountItem.builder()
+                    .sellerId(acc.getSellerId())
+                    .stripeAccountId(acc.getStripeAccountId())
+                    .accountStatus(acc.getAccountStatus())
+                    .detailsSubmitted(acc.getDetailsSubmitted())
+                    .chargesEnabled(acc.getChargesEnabled())
+                    .payoutsEnabled(acc.getPayoutsEnabled())
+                    .onboardingStatus(status)
+                    .createdAt(acc.getCreatedAt())
+                    .updatedAt(acc.getUpdatedAt())
+                    .build());
+        }
+
+        AdminSellerStripeSummary summary = AdminSellerStripeSummary.builder()
+                .totalSellers(total)
+                .completedSellers(complete)
+                .pendingSellers(pending)
+                .inProgressSellers(inProgress)
+                .suspendedSellers(suspended)
+                .build();
+
+        return AdminSellerStripeAccountsResponse.builder()
+                .summary(summary)
+                .accounts(items)
+                .build();
+    }
 
     @Transactional
     public StripeOnboardingResponse startOnboarding(Long sellerId) {
@@ -40,22 +95,25 @@ public class StripeOnboardingService {
 
         try {
             SellerStripeAccount account = sellerStripeAccountRepository.findBySellerId(sellerId)
-                    .orElseGet(() -> createStripeExpressAccount(sellerId));
+                    .orElseGet(() -> {
+                        try {
+                            return createStripeExpressAccount(sellerId);
+                        } catch (StripeException e) {
+                            log.warn("Failed to create Stripe Express account for seller {}: {}. Falling back to manual onboarding.", sellerId, e.getMessage());
+                            return createManualSellerStripeAccount(sellerId);
+                        }
+                    });
 
             String onboardingUrl;
             Instant expiresAt = Instant.now().plusSeconds(86400); // 24h
 
-            if (account.getStripeAccountId().startsWith("acct_mock_")) {
-                onboardingUrl = stripeConfig.getOnboardingReturnUrl();
-                log.info("Using mock onboarding URL for seller {}: {}", sellerId, onboardingUrl);
+            if (account.getStripeAccountId().startsWith("acct_manual_")) {
+                onboardingUrl = stripeConfig.getManualOnboardingFormUrl() + "?sellerId=" + sellerId + "&stripeAccountId=" + account.getStripeAccountId();
+                expiresAt = Instant.now().plusSeconds(86400 * 365); // 1 year for manual
+                log.info("Using manual onboarding URL for seller {}: {}", sellerId, onboardingUrl);
             } else {
-                try {
-                    AccountLink accountLink = createAccountLink(account.getStripeAccountId());
-                    onboardingUrl = accountLink.getUrl();
-                } catch (StripeException e) {
-                    log.warn("Failed to create Stripe AccountLink for seller {}: {}. Falling back to mock URL.", sellerId, e.getMessage());
-                    onboardingUrl = stripeConfig.getOnboardingReturnUrl();
-                }
+                AccountLink accountLink = createAccountLink(account.getStripeAccountId());
+                onboardingUrl = accountLink.getUrl();
             }
 
             account.setOnboardingUrl(onboardingUrl);
@@ -81,27 +139,16 @@ public class StripeOnboardingService {
         SellerStripeAccount account = sellerStripeAccountRepository.findBySellerId(sellerId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Seller chưa bắt đầu onboarding Stripe"));
 
-        if (account.getStripeAccountId().startsWith("acct_mock_")) {
-            // Auto-complete the mock onboarding if it is not completed yet
-            if (!Boolean.TRUE.equals(account.getDetailsSubmitted())) {
-                account.setDetailsSubmitted(true);
-                account.setChargesEnabled(true);
-                account.setPayoutsEnabled(true);
-                account.setAccountStatus("ACTIVE");
-                account.setOnboardingUrl(null);
-                account.setOnboardingUrlExpiresAt(null);
-                sellerStripeAccountRepository.save(account);
-                log.info("Mock Stripe onboarding completed for seller {}", sellerId);
-            }
+        if (account.getStripeAccountId().startsWith("acct_manual_")) {
             return StripeOnboardingStatusResponse.builder()
                     .stripeAccountId(account.getStripeAccountId())
                     .accountStatus(account.getAccountStatus())
                     .detailsSubmitted(account.getDetailsSubmitted())
                     .chargesEnabled(account.getChargesEnabled())
                     .payoutsEnabled(account.getPayoutsEnabled())
-                    .onboardingStatus("COMPLETE")
-                    .onboardingUrl(null)
-                    .expressDashboardUrl("https://connect.stripe.com/express/" + account.getStripeAccountId())
+                    .onboardingStatus(account.getOnboardingStatus() != null ? account.getOnboardingStatus() : "PENDING")
+                    .onboardingUrl(account.getOnboardingUrl())
+                    .expressDashboardUrl(null)
                     .build();
         }
 
@@ -202,15 +249,16 @@ public class StripeOnboardingService {
             String onboardingUrl;
             Instant expiresAt = Instant.now().plusSeconds(86400);
 
-            if (account.getStripeAccountId().startsWith("acct_mock_")) {
-                onboardingUrl = stripeConfig.getOnboardingReturnUrl();
-                log.info("Using mock refresh onboarding URL for seller {}", sellerId);
+            if (account.getStripeAccountId().startsWith("acct_manual_")) {
+                onboardingUrl = stripeConfig.getManualOnboardingFormUrl() + "?sellerId=" + sellerId + "&stripeAccountId=" + account.getStripeAccountId();
+                expiresAt = Instant.now().plusSeconds(86400 * 365); // 1 year for manual
+                log.info("Using manual refresh onboarding URL for seller {}", sellerId);
             } else {
                 try {
                     AccountLink accountLink = createAccountLink(account.getStripeAccountId());
                     onboardingUrl = accountLink.getUrl();
                 } catch (StripeException e) {
-                    log.warn("Failed to refresh Stripe AccountLink for seller {}: {}. Falling back to mock URL.", sellerId, e.getMessage());
+                    log.warn("Failed to refresh Stripe AccountLink for seller {}: {}. Using return URL.", sellerId, e.getMessage());
                     onboardingUrl = stripeConfig.getOnboardingReturnUrl();
                 }
             }
@@ -233,56 +281,58 @@ public class StripeOnboardingService {
         }
     }
 
-    private SellerStripeAccount createStripeExpressAccount(Long sellerId) {
-        try {
-            AccountCreateParams params = AccountCreateParams.builder()
-            .setType(AccountCreateParams.Type.EXPRESS)
-            // Set quốc gia (Nên set US để dễ test Onboarding nhất)
-            .setCountry("US") 
-            // Yêu cầu các quyền (Capabilities) ngay lúc tạo
-            .setCapabilities(
-                AccountCreateParams.Capabilities.builder()
-                    .setCardPayments(
-                        AccountCreateParams.Capabilities.CardPayments.builder()
-                            .setRequested(true)
-                            .build()
-                    )
-                    .setTransfers(
-                        AccountCreateParams.Capabilities.Transfers.builder()
-                            .setRequested(true)
-                            .build()
-                    )
-                    .build()
-            )
-            .build();
+    private SellerStripeAccount createStripeExpressAccount(Long sellerId) throws StripeException {
+        AccountCreateParams params = AccountCreateParams.builder()
+                .setType(AccountCreateParams.Type.EXPRESS)
+                // Set quốc gia (Nên set US để dễ test Onboarding nhất)
+                .setCountry("US") 
+                // Yêu cầu các quyền (Capabilities) ngay lúc tạo
+                .setCapabilities(
+                    AccountCreateParams.Capabilities.builder()
+                        .setCardPayments(
+                            AccountCreateParams.Capabilities.CardPayments.builder()
+                                .setRequested(true)
+                                .build()
+                        )
+                        .setTransfers(
+                            AccountCreateParams.Capabilities.Transfers.builder()
+                                .setRequested(true)
+                                .build()
+                        )
+                        .build()
+                )
+                .build();
 
-            Account stripeAccount = Account.create(params);
+        Account stripeAccount = Account.create(params);
 
-            SellerStripeAccount entity = SellerStripeAccount.builder()
-                    .sellerId(sellerId)
-                    .stripeAccountId(stripeAccount.getId())
-                    .accountStatus("PENDING")
-                    .chargesEnabled(false)
-                    .payoutsEnabled(false)
-                    .detailsSubmitted(false)
-                    .build();
+        SellerStripeAccount entity = SellerStripeAccount.builder()
+                .sellerId(sellerId)
+                .stripeAccountId(stripeAccount.getId())
+                .accountStatus("PENDING")
+                .chargesEnabled(false)
+                .payoutsEnabled(false)
+                .detailsSubmitted(false)
+                .build();
 
-            return sellerStripeAccountRepository.save(entity);
+        return sellerStripeAccountRepository.save(entity);
+    }
 
-        } catch (StripeException e) {
-            log.warn("Failed to create Stripe Express account for seller {} via Stripe API: {}. Falling back to MOCK mode.", sellerId, e.getMessage());
-            
-            SellerStripeAccount entity = SellerStripeAccount.builder()
-                    .sellerId(sellerId)
-                    .stripeAccountId("acct_mock_" + sellerId + "_" + java.util.UUID.randomUUID().toString().substring(0, 8))
-                    .accountStatus("PENDING")
-                    .chargesEnabled(false)
-                    .payoutsEnabled(false)
-                    .detailsSubmitted(false)
-                    .build();
+    private SellerStripeAccount createManualSellerStripeAccount(Long sellerId) {
+        String stripeAccountId = "acct_manual_" + sellerId + "_" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        String formUrl = stripeConfig.getManualOnboardingFormUrl() + "?sellerId=" + sellerId + "&stripeAccountId=" + stripeAccountId;
 
-            return sellerStripeAccountRepository.save(entity);
-        }
+        SellerStripeAccount entity = SellerStripeAccount.builder()
+                .sellerId(sellerId)
+                .stripeAccountId(stripeAccountId)
+                .accountStatus("PENDING")
+                .chargesEnabled(false)
+                .payoutsEnabled(false)
+                .detailsSubmitted(false)
+                .onboardingUrl(formUrl)
+                .onboardingUrlExpiresAt(LocalDateTime.ofInstant(Instant.now().plusSeconds(86400 * 365), ZoneOffset.UTC)) // 1 year for manual
+                .build();
+
+        return sellerStripeAccountRepository.save(entity);
     }
 
     private AccountLink createAccountLink(String stripeAccountId) throws StripeException {

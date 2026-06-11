@@ -82,6 +82,7 @@ stripe:
   default-country: ${STRIPE_DEFAULT_COUNTRY:US}
   onboarding-return-url: ${STRIPE_RETURN_URL:http://localhost:3001/stripe/return}
   onboarding-refresh-url: ${STRIPE_REFRESH_URL:http://localhost:3001/stripe/refresh}
+  manual-onboarding-form-url: ${STRIPE_MANUAL_ONBOARDING_FORM_URL:https://forms.gle/StripeConnectManualRequest}
 
 axon:
   axonserver:

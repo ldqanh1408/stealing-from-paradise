@@ -10,6 +10,7 @@ const CategoryManagementPage = lazy(() => import('@/pages/CategoryManagementPage
 const ProductModerationPage = lazy(() => import('@/pages/ProductModerationPage'));
 const RefundsPage           = lazy(() => import('@/pages/RefundsPage'));
 const FlashSaleConfigPage   = lazy(() => import('@/pages/FlashSaleConfigPage'));
+const SellerStripePage       = lazy(() => import('@/pages/SellerStripePage'));
 
 const ADMIN_LINKS = [
   { label: 'Dashboard', to: '/dashboard' },
@@ -18,6 +19,7 @@ const ADMIN_LINKS = [
   { label: 'Duyệt sản phẩm', to: '/product-moderation' },
   { label: 'Hoàn tiền', to: '/refunds' },
   { label: 'Flash Sale', to: '/flash-sale-config' },
+  { label: 'Sellers (Stripe)', to: '/sellers-stripe' },
 ];
 
 export default function App() {
@@ -39,6 +41,7 @@ export default function App() {
                 <Route path="/product-moderation" element={<PrivateRoute role="ADMIN"><ProductModerationPage /></PrivateRoute>} />
                 <Route path="/refunds"            element={<PrivateRoute role="ADMIN"><RefundsPage /></PrivateRoute>} />
                 <Route path="/flash-sale-config"  element={<PrivateRoute role="ADMIN"><FlashSaleConfigPage /></PrivateRoute>} />
+                <Route path="/sellers-stripe"     element={<PrivateRoute role="ADMIN"><SellerStripePage /></PrivateRoute>} />
 
                 <Route path="/"  element={<Navigate to="/dashboard" replace />} />
                 <Route path="*"  element={<Navigate to="/" replace />} />

@@ -28,6 +28,9 @@ public class StripeConfig {
     @Value("${stripe.default-country:US}")
     private String defaultCountry;
 
+    @Value("${stripe.manual-onboarding-form-url:https://forms.gle/StripeConnectManualRequest}")
+    private String manualOnboardingFormUrl;
+
     @PostConstruct
     public void init() {
         Stripe.apiKey = secretKey;
@@ -52,5 +55,9 @@ public class StripeConfig {
 
     public String getDefaultCountry() {
         return defaultCountry;
+    }
+
+    public String getManualOnboardingFormUrl() {
+        return manualOnboardingFormUrl;
     }
 }

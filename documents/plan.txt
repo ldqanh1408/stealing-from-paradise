@@ -1,0 +1,183 @@
+# Plan kiểm thử Payment Service — Business Flows (Docker dev + Stripe CLI + Dashboard)
+
+## Context
+
+`payment-service` là cấu phần xử lý thanh toán Stripe của hệ thống. Đã có:
+- **5 lớp JUnit E2E** ở `backend/e2e-tests/`: `A04OrderPaymentE2eTest`, `A13PaymentCoreE2eTest`, `A14SellerTransferE2eTest`, `A15WebhookHandlersE2eTest`, `A16StripeOnboardingE2eTest`, dùng `StripeWebhookForge` HMAC-sign webhook giả lập.
+- **MANUAL_API_TEST_PLAN.md** với 21 UC ở section 11 — **toàn bộ checkbox vẫn ⬜ (chưa được tick)**.
+- **Docker dev stack** đang chạy (`docker-compose.dev.yml`) với `stripe-listener` (Stripe CLI) forward webhook tới `fs-payment:8082/api/v1/stripe/webhooks`.
+- **Stripe Dashboard TEST** (admin platform account): https://dashboard.stripe.com/acct_1T9nfQCma465d2uk/test — dùng để xem PaymentIntent, Transfer, Connect accounts (seller onboarding) trực quan.
+
+**Mục tiêu:** chứng minh tất cả business flow của payment-service đi qua bằng kiểm thử thật trên docker dev, đối chiếu với Stripe Dashboard, và **lấp 8 UC chưa có JUnit tương đương** bằng E2E mới + manual runbook có evidence.
+
+**Coverage gap đã xác định:**
+| UC | Tên | Có JUnit? | Hành động |
+|----|-----|-----------|-----------|
+| 11.6.2 | Buyer gọi /start → 403 | ❌ | Bổ sung vào `A16` |
+| 11.6.3 | Seller COMPLETE gọi /start → ALREADY_EXISTS | ❌ | Bổ sung vào `A16` |
+| 11.6.4 | Seller chưa onboard publish — no gate (current) | ❌ | Manual + log known issue |
+| 11.6.5 | Seller chưa COMPLETE → transfer SKIPPED | ❌ | Bổ sung E2E (A14 hoặc mới) |
+| 11.6.6 | Webhook `charges_enabled=false` | ❌ | Bổ sung vào `A15` |
+| 11.6.7 | Webhook `requirements.currently_due` | ❌ | Bổ sung vào `A15` |
+| 11.6.8 | 2 sellers parallel /start → 2 distinct accountIds | ❌ | Bổ sung vào `A16` |
+| 11.6.9 | Real Stripe TEST (non-mock) | ❌ | Manual qua MCP browser + Dashboard |
+| — | PayoutScheduler (7-day window → READY_FOR_PAYOUT → PAID_OUT) | ❌ | Bổ sung vào `A14` |
+| — | Live Stripe CLI forward thật (không forge) | ❌ | Manual smoke trên dev docker |
+
+---
+
+## Phạm vi
+
+3 kênh thanh toán chính, mỗi UC verify đồng thời ở 3 nơi: **API/DB**, **JUnit E2E**, **Stripe Dashboard**.
+
+- **Channel 1 — Checkout → PaymentIntent → Webhook:** UC-11.1 / 11.2 / 11.3 / 11.7 / 11.8.
+- **Channel 2 — Refund:** UC-11.4 (partial), UC-11.9 (charge.refunded).
+- **Channel 3 — Connect (Onboarding + Transfer + Payout):** UC-11.6.* + UC-11.10 + payout scheduler.
+- **Channel 4 — Bảo mật webhook:** UC-11.11.
+
+Out of scope: identity/catalog/notification flows (đã có UC riêng), chỉ chạm khi cần seed dữ liệu.
+
+---
+
+## Phase A — Run hết Manual UC Payment trên Docker dev (smoke + tick checkbox)
+
+Chạy theo đúng thứ tự trong [documents/MANUAL_API_TEST_PLAN.md](documents/MANUAL_API_TEST_PLAN.md). Mỗi UC verify 2 chiều: API/DB **và** Stripe Dashboard ở từng bước.
+
+**Pre-flight (Windows host):**
+- Dùng sidecar container đã document ở section 11 pre-flight (`docker run -d --name e2e-runner --network flashsale-net ...`) vì Windows Docker Desktop có port-proxy issue. Gateway URL trong sidecar là `http://api-gateway:8080`.
+- Lấy `WEBHOOK_SECRET` từ `backend/.env` (`STRIPE_WEBHOOK_SECRET`).
+
+**UC cần chạy (theo thứ tự dependency):**
+1. UC-11.1 happy path (chạy lại 2 lần liên tiếp để verify idempotency = UC-11.7 luôn).
+2. UC-11.2 failed path (chạy mới, không reuse $PARENT_ID của 11.1).
+3. UC-11.3 buyer cancel PENDING.
+4. UC-11.8 multi-seller cart.
+5. UC-11.9 charge.refunded.
+6. UC-11.10 transfer.created + transfer.reversed.
+7. UC-11.11 webhook signature negative (unsigned + wrong secret).
+8. UC-11.4 fulfillment + partial refund (chạy sau 11.1 đã PAID).
+9. UC-11.6 onboarding happy path (tạo seller mới `ucseller$(date +%s)`).
+
+**Pass criteria:** đúng theo block "Pass criteria" của mỗi UC. Tick checkbox trong table section 12 của MANUAL_API_TEST_PLAN.md, kèm:
+- Header `Verified-at: 2026-06-11` ngay trên table.
+- Cột "Evidence" mới ghi `parentOrderId=XXX, tx=YYY, dashboard-link` (link tới PaymentIntent cụ thể trên dashboard).
+
+**Đối chiếu Dashboard (Channel 1):** sau mỗi UC, mở https://dashboard.stripe.com/acct_1T9nfQCma465d2uk/test/payments — confirm có PaymentIntent với metadata `parent_order_id=$PARENT_ID`, amount, status khớp với DB. **Dùng Chrome MCP** (`mcp__claude-in-chrome__*`) khi chạy trong session để screenshot làm evidence; nếu Chrome extension chưa connect, prompt user install thay vì fallback computer-use (browser tier "read"-only block click).
+
+---
+
+## Phase B — Bổ sung E2E suite (JUnit) cho 8 UC chưa cover
+
+Thêm test methods vào lớp tương ứng. Tái sử dụng `E2eSupport`, `StripeWebhookForge`. Test framework: JUnit 5 + Awaitility, dùng pattern poll như các test hiện có.
+
+### B1. `A16StripeOnboardingE2eTest` — thêm 3 method
+File: [A16StripeOnboardingE2eTest.java](backend/e2e-tests/src/test/java/com/flashsale/e2e/A16StripeOnboardingE2eTest.java)
+- `buyerStartOnboardingReturns403()` (UC-11.6.2) — login BUYER, POST `/stripe/onboarding/start` → assert 403.
+- `completedSellerStartReturnsAlreadyExists()` (UC-11.6.3) — login `techworld` (đã COMPLETE trong seed), POST `/start` → assert 409 hoặc 200 cùng stripeAccountId.
+- `parallelStartProducesDistinctAccountIds()` (UC-11.6.8) — register 2 seller mới, parallel POST `/start` qua `CompletableFuture`, assert 2 distinct `stripeAccountId`.
+
+### B2. `A15WebhookHandlersE2eTest` — thêm 2 method
+File: [A15WebhookHandlersE2eTest.java](backend/e2e-tests/src/test/java/com/flashsale/e2e/A15WebhookHandlersE2eTest.java)
+- `accountUpdatedChargesDisabled()` (UC-11.6.6) — forge `account.updated` với `charges_enabled=false`, assert webhook 2xx + GET `/stripe/onboarding/status` trả về `chargesEnabled=false`.
+- `accountUpdatedRequirementsDue()` (UC-11.6.7) — forge `account.updated` với `requirements.currently_due=["business_url"]`, assert 2xx + (tùy logic) Kafka event hoặc field `requirements` xuất hiện trong status.
+
+### B3. `A14SellerTransferE2eTest` — thêm 2 method
+File: [A14SellerTransferE2eTest.java](backend/e2e-tests/src/test/java/com/flashsale/e2e/A14SellerTransferE2eTest.java)
+- `unonboardedSellerGetsSkippedTransfer()` (UC-11.6.5) — register seller mới (KHÔNG forge account.updated), buyer mua product của seller đó, payment success → assert GET `/api/v1/seller/payments/transfers` có row `status=SKIPPED`, `stripeTransferId=null`.
+- `payoutSchedulerProcessesEligibleTransfer()` — sau ship + deliver, simulate 7-day window bằng SQL update (`UPDATE seller_transfers SET payout_eligible_at = NOW() - INTERVAL '1 minute' WHERE order_id = $1`) qua JDBC helper, đợi `PayoutScheduler` tick (every 5 min — chấp nhận manual trigger qua actuator hoặc adjust `payout.schedule.cron` trong test profile).
+
+### B4. `StripeWebhookForge` — bổ sung helper
+File: [StripeWebhookForge.java](backend/e2e-tests/src/test/java/com/flashsale/e2e/StripeWebhookForge.java)
+- `accountUpdatedEvent(String accountId, boolean charges, boolean payouts, boolean detailsSubmitted, List<String> currentlyDue, String disabledReason)` — overload mới hỗ trợ `requirements.currently_due` và `disabled_reason`.
+
+**Run:** `mvn -pl e2e-tests test -Pe2e -Dtest=A14*,A15*,A16*` từ root.
+**Pass criteria:** 19 method tổng (cũ + mới) pass, console log `BUILD SUCCESS`.
+
+---
+
+## Phase C — UC-11.6.9 Real Stripe TEST account qua Dashboard (manual)
+
+Mục đích: validate non-mock branch — `StripeOnboardingService` gọi Stripe API thật, không fallback `acct_mock_*`. Đã có `STRIPE_API_KEY=sk_test_...` trong `.env` (user xác nhận).
+
+**Bước 1 — Kiểm `.env`:** xác nhận `STRIPE_API_KEY` bắt đầu bằng `sk_test_` (không phải `sk_test_FAKE` placeholder). Nếu cần restart: `docker compose -f docker-compose.yml -f docker-compose.dev.yml restart payment-service`.
+
+**Bước 2 — Register + onboarding:**
+- Register seller mới `realseller$(date +%s)` qua `POST /api/v1/auth/register/seller`.
+- POST `/api/v1/stripe/onboarding/start` → response phải có `stripeAccountId` KHÔNG bắt đầu bằng `acct_mock_`, và `onboardingUrl` trỏ tới `connect.stripe.com/setup/...`.
+
+**Bước 3 — Hoàn tất KYC trên onboarding URL (qua Chrome MCP, hiển thị ở màn hình Arzopa):**
+- Dùng `mcp__claude-in-chrome__navigate` mở `onboardingUrl`. Stripe test mode auto-fill được với data fake (test SSN `000-00-0000`, routing `110000000`, account `000123456789`, business URL `https://example.com`).
+- Sau khi submit, Stripe gửi `account.updated` webhook thật qua `stripe-listener` container → `payment-service` cập nhật DB.
+
+**Bước 4 — Đối chiếu Dashboard admin:**
+- Mở https://dashboard.stripe.com/acct_1T9nfQCma465d2uk/test/connect/accounts qua Chrome MCP.
+- Confirm account `stripeAccountId` từ bước 2 hiện trong danh sách Connected accounts với badge "Complete".
+- GET `/api/v1/stripe/onboarding/status` → assert `chargesEnabled=true`, `payoutsEnabled=true`, `onboardingStatus=COMPLETE`.
+
+**Bước 5 — End-to-end real PaymentIntent:**
+- Buyer `minhhoa` mua product của seller mới → checkout → `awaitTransactionStatus PENDING`.
+- Lấy `clientSecret` từ PaymentIntent (qua DB trực tiếp hoặc `GET /payments/parent-order/{id}` nếu DTO có expose), confirm bằng Stripe test card `4242 4242 4242 4242` qua Stripe Hosted Page (mở URL trong Chrome MCP).
+- `stripe-listener` forward `payment_intent.succeeded` thật (không forge HMAC) → assert sub-orders PAID.
+- Verify trên Dashboard: PaymentIntent succeeded, Transfer to seller account xuất hiện trong tab Transfers của Connect account đó.
+
+**Pass criteria:** stripeAccountId không có prefix `acct_mock_`, KYC complete trên Dashboard, PaymentIntent thật succeeded với transfer xuất hiện ở seller Connect account.
+
+---
+
+## Phase D — Smoke "Stripe CLI forward thật" (live integration, không forge)
+
+Khác Phase C: ở đây không qua Stripe Hosted Page, chỉ verify rằng container `stripe-listener` đang forward đúng và `payment-service` chấp nhận signature do Stripe CLI ký (≠ signature do `StripeWebhookForge` ký).
+
+```bash
+docker logs stripe-listener --tail 20
+# Phải thấy: "Ready! You are using Stripe API Version [2024-06-20]"
+# Webhook signing secret in env STRIPE_WEBHOOK_SECRET phải khớp với log dòng "Your webhook signing secret is whsec_..."
+
+# Trigger event thủ công từ host (Stripe CLI cài local hoặc exec vào container):
+docker exec -it stripe-listener stripe trigger payment_intent.succeeded
+# → stripe-listener forward tới fs-payment:8082, payment-service log "Received Stripe webhook event"
+```
+
+**Pass criteria:** `payment-service` log "Received Stripe webhook event" + 200 response, không có "Invalid signature" exception.
+
+---
+
+## Phase E — Sync MANUAL_API_TEST_PLAN.md (cập nhật evidence)
+
+File duy nhất sửa: [documents/MANUAL_API_TEST_PLAN.md](documents/MANUAL_API_TEST_PLAN.md).
+
+- Trong table section 12 ("Business-Flow Checklist"): đổi cột `Pass?` từ ⬜ → ✅ cho các UC đã chạy ở Phase A + Phase C + Phase D, thêm cột "Evidence" với 1 dòng (parentOrderId / stripeAccountId / dashboard URL).
+- Trong table section "Cross-reference với JUnit E2E": cập nhật UC-11.6.2/11.6.3/11.6.5/11.6.6/11.6.7/11.6.8 từ "manual-only" sang tên test method mới ở Phase B.
+- Thêm note ở UC-11.6.9 ghi rõ ngày verify + stripeAccountId real đã tạo.
+
+---
+
+## File tóm tắt sẽ chạm
+
+| File | Phase | Loại sửa |
+|------|-------|----------|
+| `backend/e2e-tests/src/test/java/com/flashsale/e2e/A16StripeOnboardingE2eTest.java` | B1 | Add 3 methods |
+| `backend/e2e-tests/src/test/java/com/flashsale/e2e/A15WebhookHandlersE2eTest.java` | B2 | Add 2 methods |
+| `backend/e2e-tests/src/test/java/com/flashsale/e2e/A14SellerTransferE2eTest.java` | B3 | Add 2 methods |
+| `backend/e2e-tests/src/test/java/com/flashsale/e2e/StripeWebhookForge.java` | B4 | Add overload |
+| `documents/MANUAL_API_TEST_PLAN.md` | E | Update checkboxes + evidence column |
+
+Không sửa code production (`payment-service`, `order-service`, `refund-service`) — chỉ test + tài liệu.
+
+---
+
+## Verification end-to-end
+
+Sau khi 5 phase xong:
+
+1. **JUnit:** `make payment` (start payment + deps) → `mvn -pl e2e-tests test -Pe2e -Dtest=A04*,A05*,A13*,A14*,A15*,A16*` → BUILD SUCCESS, ≥30 method green.
+2. **Manual checklist:** section 12 của `MANUAL_API_TEST_PLAN.md` có ≥17/21 UC payment-related ✅ (loại trừ 11.5/11.12/11.13 không thuộc payment).
+3. **Dashboard:** screenshot 4 ảnh evidence trong `documents/evidence/2026-06-11/` (PaymentIntent succeeded, Refund, Transfer, Connect account complete) — tham chiếu vào checklist.
+4. **Stripe CLI forward live:** `docker logs stripe-listener` cho dòng "200 POST /api/v1/stripe/webhooks" sau khi `stripe trigger`.
+
+---
+
+## Câu hỏi mở (xử lý trong khi execute, không cần answer trước)
+
+- **UC-11.6.4 (publish gate):** plan ghi là "current behavior = 200, expected future = 4xx". Không fix trong scope plan này, chỉ log thêm vào `MANUAL_API_TEST_PLAN.md` như known issue.
+- **PayoutScheduler test (B3):** nếu scheduler cron không chạy được trong test profile, fallback gọi method `processEligiblePayouts()` trực tiếp qua `@TestConfiguration` Bean injection — quyết định lúc viết test, không block plan.

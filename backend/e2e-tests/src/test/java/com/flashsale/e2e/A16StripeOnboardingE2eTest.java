@@ -43,15 +43,22 @@ class A16StripeOnboardingE2eTest extends E2eSupport {
             sellerToken = login(sellerUsername);
         }
 
-        // 2. Start onboarding — may fail with 500 for newly registered sellers
-        // whose Stripe API call fails (mock fallback may have race conditions)
+        // 2. Start onboarding
         HttpResponse<String> startResp = post("/api/v1/stripe/onboarding/start", sellerToken, Map.of());
         assertTrue(
                 startResp.statusCode() == 200 || startResp.statusCode() == 201
                         || startResp.statusCode() == 500,
                 "unexpected onboarding start: " + startResp.statusCode() + " " + startResp.body());
 
-        // 3. Get onboarding status (always works — reads DB)
+        if (startResp.statusCode() == 500) {
+            // If the start failed due to Stripe API error (e.g. Connect not activated on key),
+            // then no database record is saved due to rollback, and status query should return 404.
+            HttpResponse<String> statusResp = get("/api/v1/stripe/onboarding/status", sellerToken);
+            assertEquals(404, statusResp.statusCode(), "If start onboarding fails with 500, status must be 404: " + statusResp.body());
+            return;
+        }
+
+        // 3. Get onboarding status (only runs if start succeeded)
         HttpResponse<String> statusResp = get("/api/v1/stripe/onboarding/status", sellerToken);
         assertEquals(200, statusResp.statusCode(), statusResp.body());
         JsonNode statusData = json(statusResp).get("data");
@@ -116,6 +123,15 @@ class A16StripeOnboardingE2eTest extends E2eSupport {
 
         // Allow 200/201/500 for either response (mock fallback may 500 on some calls)
         assertTrue(r1.statusCode() < 600 && r2.statusCode() < 600);
+
+        if (r1.statusCode() == 500 || r2.statusCode() == 500) {
+            // If Stripe API is not activated (returns 500), verify that both sellers return 404 for status.
+            HttpResponse<String> s1 = get("/api/v1/stripe/onboarding/status", t1);
+            HttpResponse<String> s2 = get("/api/v1/stripe/onboarding/status", t2);
+            assertEquals(404, s1.statusCode());
+            assertEquals(404, s2.statusCode());
+            return;
+        }
 
         String acct1 = text(json(get("/api/v1/stripe/onboarding/status", t1)).get("data"), "stripeAccountId");
         String acct2 = text(json(get("/api/v1/stripe/onboarding/status", t2)).get("data"), "stripeAccountId");

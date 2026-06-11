@@ -92,7 +92,7 @@ export default function StripeOnboardingPage() {
     onSuccess: (res) => {
       const url = res.data.data?.onboardingUrl;
       if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        window.location.href = url;
         queryClient.invalidateQueries({ queryKey: ['stripe-onboarding-status'] });
       }
     },
@@ -105,7 +105,9 @@ export default function StripeOnboardingPage() {
     mutationFn: () => sellerApi.refreshStripeLink(),
     onSuccess: (res) => {
       const url = res.data.data?.onboardingUrl;
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      if (url) {
+        window.location.href = url;
+      }
     },
     onError: (err: any) => {
       setError(parseStripeError(err));
@@ -125,10 +127,11 @@ export default function StripeOnboardingPage() {
   }, [requestRefresh]);
 
   const currentStatus: OnboardingStatus = normalizeStatus(status?.onboardingStatus);
+  const isManual = !!status?.stripeAccountId?.startsWith('acct_manual_');
   const isComplete = currentStatus === 'COMPLETE';
   const isSuspended = currentStatus === 'SUSPENDED';
-  const isInProgress = currentStatus === 'IN_PROGRESS';
-  const isPending = currentStatus === 'PENDING';
+  const isInProgress = currentStatus === 'IN_PROGRESS' && !isManual;
+  const isPending = currentStatus === 'PENDING' && !isManual;
   const hasOnboardingUrl = !!status?.onboardingUrl;
   const hasExpressDashboard = !!status?.expressDashboardUrl;
 
@@ -145,7 +148,9 @@ export default function StripeOnboardingPage() {
           ? 'bg-green-50 border-green-200'
           : isSuspended
             ? 'bg-red-50 border-red-200'
-            : 'bg-indigo-50 border-indigo-100'
+            : isManual
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-indigo-50 border-indigo-100'
       }`}>
         {isComplete ? (
           <>
@@ -162,6 +167,16 @@ export default function StripeOnboardingPage() {
               <p className="font-semibold text-red-900">Tài khoản Stripe bị tạm ngưng</p>
               <p className="text-sm text-red-700">
                 Stripe đã hạn chế tài khoản của bạn. Vui lòng kiểm tra Stripe Dashboard để biết lý do và cách khắc phục.
+              </p>
+            </div>
+          </>
+        ) : isManual ? (
+          <>
+            <span className="text-2xl">📝</span>
+            <div>
+              <p className="font-semibold text-amber-900">Kết nối thủ công (Platform Admin)</p>
+              <p className="text-sm text-amber-700">
+                Vui lòng điền form yêu cầu kết nối thủ công để Platform Admin kích hoạt tài khoản nhận thanh toán của bạn.
               </p>
             </div>
           </>
@@ -233,14 +248,35 @@ export default function StripeOnboardingPage() {
         </div>
       )}
 
-      {/* Verification checklist (IN_PROGRESS) */}
-      {isInProgress && status && (
+      {/* Verification checklist (IN_PROGRESS / isManual) */}
+      {(isInProgress || isManual) && status && (
         <div className="mb-6 bg-white rounded-2xl border border-indigo-200 p-5">
           <h3 className="font-bold text-gray-900 mb-1">Tiến trình xác minh</h3>
           <p className="text-sm text-gray-500 mb-1">
-            Trạng thái các bước xác minh với Stripe:
+            {isManual ? 'Trạng thái kết nối thủ công:' : 'Trạng thái các bước xác minh với Stripe:'}
           </p>
-          <VerificationChecklist status={status} />
+          {isManual ? (
+            <div className="space-y-2 mt-3">
+              {[
+                { done: true, label: 'Đã nộp form yêu cầu kết nối thủ công' },
+                { done: !!status.detailsSubmitted, label: 'Xác minh thông tin đối tác' },
+                { done: !!status.chargesEnabled, label: 'Kích hoạt nhận thanh toán (Charges)' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-2 text-sm">
+                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                    item.done ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {item.done ? '✓' : '—'}
+                  </span>
+                  <span className={item.done ? 'text-green-800' : 'text-gray-500'}>
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <VerificationChecklist status={status} />
+          )}
         </div>
       )}
 
@@ -318,12 +354,14 @@ export default function StripeOnboardingPage() {
         ) : (
           <>
             <h3 className="font-bold text-gray-900 mb-2">
-              {isInProgress ? 'Tiếp tục xác minh với Stripe' : 'Sẵn sàng kết nối?'}
+              {isManual ? 'Gửi yêu cầu kết nối thủ công' : isInProgress ? 'Tiếp tục xác minh với Stripe' : 'Sẵn sàng kết nối?'}
             </h3>
             <p className="text-sm text-gray-500 mb-5">
-              {isInProgress
-                ? 'Bạn đã bắt đầu onboarding nhưng chưa hoàn tất. Chọn một cách để tiếp tục:'
-                : 'Nhấn nút bên dưới để bắt đầu quá trình onboarding với Stripe. Thường mất 5–10 phút để hoàn thành.'
+              {isManual
+                ? 'Vui lòng hoàn thành form thông tin để Platform Admin tiến hành liên kết và kích hoạt tài khoản thanh toán của bạn.'
+                : isInProgress
+                  ? 'Bạn đã bắt đầu onboarding nhưng chưa hoàn tất. Chọn một cách để tiếp tục:'
+                  : 'Nhấn nút bên dưới để bắt đầu quá trình onboarding với Stripe. Thường mất 5–10 phút để hoàn thành.'
               }
             </p>
 
@@ -350,21 +388,27 @@ export default function StripeOnboardingPage() {
                 disabled={startMut.isPending || refreshMut.isPending}
                 className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold rounded-xl shadow-sm transition-all text-sm"
               >
-                {startMut.isPending ? '⏳ Đang khởi tạo...' : isInProgress ? 'Mở lại form đăng ký Stripe →' : 'Bắt đầu với Stripe →'}
+                {startMut.isPending
+                  ? '⏳ Đang khởi tạo...'
+                  : isManual
+                    ? 'Điền form kết nối thủ công →'
+                    : isInProgress
+                      ? 'Mở lại form đăng ký Stripe →'
+                      : 'Bắt đầu với Stripe →'}
               </button>
-              {(isSuspended || isInProgress) && (
+              {(isSuspended || isInProgress || isManual) && (
                 <button
                   onClick={() => refreshMut.mutate()}
                   disabled={startMut.isPending || refreshMut.isPending}
                   className="text-sm text-indigo-600 hover:text-indigo-700 underline disabled:opacity-40"
                 >
-                  {refreshMut.isPending ? 'Đang tạo liên kết…' : 'Làm mới liên kết đã hết hạn'}
+                  {refreshMut.isPending ? 'Đang tạo liên kết…' : isManual ? 'Lấy lại link form kết nối' : 'Làm mới liên kết đã hết hạn'}
                 </button>
               )}
             </div>
             <p className="text-xs text-gray-400 mt-3">
               Miễn phí kết nối · Phí giao dịch 2.9% + 30₫
-              {hasOnboardingUrl && !isInProgress && (
+              {hasOnboardingUrl && !isInProgress && !isManual && (
                 <span className="block text-amber-500 mt-0.5">Liên kết có hiệu lực trong 24 giờ</span>
               )}
             </p>

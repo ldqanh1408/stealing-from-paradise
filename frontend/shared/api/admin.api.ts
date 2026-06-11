@@ -75,4 +75,33 @@ export const adminApi = {
   /** Delete flash sale session */
   deleteFlashSaleSession: (sessionId: number) =>
     apiClient.delete<ApiResponse<void>>(`/flash-sales/${sessionId}`),
+
+  /** Get all sellers' Stripe onboarding accounts & status */
+  getSellerStripeAccounts: () =>
+    apiClient.get<ApiResponse<AdminSellerStripeAccountsResponse>>('/stripe/onboarding/admin/sellers'),
 };
+
+export interface AdminSellerStripeSummary {
+  totalSellers: number;
+  completedSellers: number;
+  pendingSellers: number;
+  inProgressSellers: number;
+  suspendedSellers: number;
+}
+
+export interface AdminSellerStripeAccountItem {
+  sellerId: number;
+  stripeAccountId: string;
+  accountStatus: string;
+  detailsSubmitted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  onboardingStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSellerStripeAccountsResponse {
+  summary: AdminSellerStripeSummary;
+  accounts: AdminSellerStripeAccountItem[];
+}

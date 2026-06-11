@@ -4,6 +4,7 @@ import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.paymentservice.dto.response.StripeOnboardingResponse;
 import com.flashsale.paymentservice.dto.response.StripeOnboardingStatusResponse;
+import com.flashsale.paymentservice.dto.response.AdminSellerStripeAccountsResponse;
 import com.flashsale.paymentservice.service.StripeOnboardingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,5 +65,17 @@ public class StripeOnboardingController {
         log.info("Stripe onboarding refresh-link requested by seller: {}", user.getId());
         StripeOnboardingResponse response = stripeOnboardingService.refreshOnboardingLink(user.getId());
         return ResponseEntity.ok(ApiResponse.success(response, "Onboarding link refreshed"));
+    }
+
+    /**
+     * GET /api/v1/stripe/onboarding/admin/sellers
+     * Xem danh sách tất cả các seller onboard vào platform (chỉ dành cho ADMIN)
+     */
+    @GetMapping("/admin/sellers")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AdminSellerStripeAccountsResponse>> getAllSellersOnboardingStatus() {
+        log.info("Admin requested Stripe onboarding status for all sellers");
+        AdminSellerStripeAccountsResponse response = stripeOnboardingService.getAllSellersOnboardingStatus();
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
