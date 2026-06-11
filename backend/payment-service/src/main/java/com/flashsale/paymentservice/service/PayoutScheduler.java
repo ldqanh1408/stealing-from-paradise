@@ -57,7 +57,7 @@ public class PayoutScheduler {
      * Payout eligibility: status = RETURN_WINDOW AND payout_eligible_at <= NOW()
      * Batch size: 100 per cycle to bound execution time.
      */
-    @Scheduled(cron = "0 */5 * * * *")
+    @Scheduled(cron = "${payout.schedule.cron:0 */5 * * * *}")
     @SchedulerLock(name = "payment-process-eligible-payouts", lockAtMostFor = "PT4M", lockAtLeastFor = "PT10S")
     @Transactional
     public void processEligiblePayouts() {

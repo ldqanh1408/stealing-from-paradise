@@ -66,7 +66,8 @@ services:
   #   It signs every forwarded request so payment-service can verify
   #   the signature using STRIPE_WEBHOOK_SECRET.
   #
-  #   DEV:  Stripe CLI → forwards events → fs-payment:8082
+  #   DEV:  Stripe CLI → forwards events → fs-gateway:8080 → payment-service
+  #         (must go through gateway so /api prefix is stripped, matching prod)
   #   PROD: Stripe Dashboard → sends directly → your-server/api/v1/stripe/webhooks
   #
   # REQUIREMENTS:
@@ -81,9 +82,11 @@ services:
     command: >
       listen
       --api-key ${STRIPE_SECRET_KEY}
-      --forward-to fs-payment:8082/api/v1/stripe/webhooks
+      --forward-to fs-gateway:8080/api/v1/stripe/webhooks
       --log-level debug
     depends_on:
+      api-gateway:
+        condition: service_healthy
       payment-service:
         condition: service_healthy
     networks: [flashsale-net]

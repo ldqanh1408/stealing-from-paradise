@@ -142,14 +142,24 @@ final class StripeWebhookForge {
 
     static String accountUpdatedEvent(String accountId, boolean detailsSubmitted,
                                        boolean chargesEnabled, boolean payoutsEnabled) {
+        return accountUpdatedEvent(accountId, detailsSubmitted, chargesEnabled, payoutsEnabled,
+                java.util.List.of(), null);
+    }
+
+    /** account.updated with optional requirements.currently_due and disabled_reason (KYC edge cases). */
+    static String accountUpdatedEvent(String accountId, boolean detailsSubmitted,
+                                       boolean chargesEnabled, boolean payoutsEnabled,
+                                       java.util.List<String> currentlyDue, String disabledReason) {
         ObjectNode acct = JSON.createObjectNode();
         acct.put("id", accountId);
         acct.put("object", "account");
         acct.put("details_submitted", detailsSubmitted);
         acct.put("charges_enabled", chargesEnabled);
         acct.put("payouts_enabled", payoutsEnabled);
-        // Empty requirements → no pending verification needed
-        acct.putObject("requirements");
+        ObjectNode req = acct.putObject("requirements");
+        com.fasterxml.jackson.databind.node.ArrayNode due = req.putArray("currently_due");
+        for (String item : currentlyDue) due.add(item);
+        if (disabledReason != null) req.put("disabled_reason", disabledReason);
 
         ObjectNode event = baseEvent("evt_e2e_" + suffix(), "account.updated", Stripe.API_VERSION);
         event.putObject("data").set("object", acct);

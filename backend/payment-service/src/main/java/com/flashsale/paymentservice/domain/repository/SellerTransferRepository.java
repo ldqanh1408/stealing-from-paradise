@@ -24,9 +24,9 @@ public interface SellerTransferRepository extends JpaRepository<SellerTransfer, 
     @Query("""
         SELECT t FROM SellerTransfer t
         WHERE t.sellerId = :sellerId
-          AND (:status IS NULL OR t.status = :status)
-          AND (:fromDate IS NULL OR t.createdAt >= :fromDate)
-          AND (:toDate IS NULL OR t.createdAt <= :toDate)
+          AND (CAST(:status AS string) IS NULL OR t.status = :status)
+          AND (CAST(:fromDate AS timestamp) IS NULL OR t.createdAt >= :fromDate)
+          AND (CAST(:toDate AS timestamp) IS NULL OR t.createdAt <= :toDate)
         ORDER BY t.createdAt DESC
         """)
     Page<SellerTransfer> findAllBySellerIdWithFilters(

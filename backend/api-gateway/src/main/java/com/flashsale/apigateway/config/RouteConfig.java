@@ -44,16 +44,26 @@ public class RouteConfig {
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://identity-service"))
 
+            // ===== Payment Service /seller/payments — must come BEFORE product /seller/** =====
+            .route("seller-payments-pre", r -> r
+                .path("/api/v1/seller/payments/**")
+                .filters(f -> f.stripPrefix(1))
+                .uri("lb://payment-service"))
+
             // ===== Product Service =====
             .route("product-read", r -> r
-                .path("/api/v1/products/**", "/api/v1/categories/**", "/api/v1/seller/**", "/api/v1/inventory/**",
+                .path("/api/v1/products/**", "/api/v1/categories/**",
+                      "/api/v1/seller/products/**", "/api/v1/seller/variants/**", "/api/v1/seller/inventory/**",
+                      "/api/v1/inventory/**",
                       "/api/v1/admin/products/**", "/api/v1/admin/categories/**")
                 .and().method(HttpMethod.GET)
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://product-service"))
 
             .route("product-write", r -> r
-                .path("/api/v1/products/**", "/api/v1/categories/**", "/api/v1/seller/**", "/api/v1/inventory/**",
+                .path("/api/v1/products/**", "/api/v1/categories/**",
+                      "/api/v1/seller/products/**", "/api/v1/seller/variants/**", "/api/v1/seller/inventory/**",
+                      "/api/v1/inventory/**",
                       "/api/v1/admin/products/**", "/api/v1/admin/categories/**")
                 .and().method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE)
                 .filters(f -> f.stripPrefix(1))

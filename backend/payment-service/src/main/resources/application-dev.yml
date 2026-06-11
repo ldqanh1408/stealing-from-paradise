@@ -38,3 +38,7 @@ management:
       enabled: true
     axonserver:
       enabled: true
+
+payout:
+  schedule:
+    cron: "*/5 * * * * *"

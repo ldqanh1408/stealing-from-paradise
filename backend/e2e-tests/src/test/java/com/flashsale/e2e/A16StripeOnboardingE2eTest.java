@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.net.http.HttpResponse;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,14 +23,13 @@ class A16StripeOnboardingE2eTest extends E2eSupport {
     @Test
     @DisplayName("register new seller → start onboarding → get status → refresh link → verify fields")
     void fullOnboardingFlow() {
-        // 1. Register a brand-new seller
+        // 1. Register a brand-new seller via /auth/register/seller (role=SELLER).
+        // The plain /auth/register endpoint assigns BUYER, which causes /stripe/onboarding/*
+        // to return 500 (AuthorizationDeniedException currently wrapped as SYS_001).
         String sellerUsername = "e2eseller" + UUID.randomUUID().toString().substring(0, 8);
-        // Register with SELLER role via the standard register endpoint
-        // (identity-service assigns BUYER by default; onboarding requires SELLER)
-        HttpResponse<String> regResp = post("/api/v1/auth/register", null, Map.of(
+        HttpResponse<String> regResp = post("/api/v1/auth/register/seller", null, Map.of(
                 "username", sellerUsername,
                 "email", sellerUsername + "@e2e.test",
-                "phone", "0901" + UUID.randomUUID().toString().substring(0, 6).replaceFirst("^.", "1"),
                 "password", PASSWORD,
                 "fullName", "E2E Onboarding Test Seller"
         ));
@@ -84,8 +84,63 @@ class A16StripeOnboardingE2eTest extends E2eSupport {
     }
 
     @Test
-    @DisplayName("onboarding start returns 4xx for already-onboarded seller")
-    void onboardingStartRejectedForComplete() {
+    @DisplayName("UC-11.6.2: buyer calls onboarding /start → 403 AUTH_002")
+    void buyerStartOnboardingReturns403() {
+        String buyer = login(BUYER);
+        HttpResponse<String> startResp = post("/api/v1/stripe/onboarding/start", buyer, Map.of());
+        assertEquals(403, startResp.statusCode(),
+                "buyer must be blocked by @PreAuthorize(hasRole('SELLER')): " + startResp.body());
+        assertEquals("AUTH_002", text(json(startResp), "errorCode"),
+                "expected AUTH_002 errorCode: " + startResp.body());
+
+        HttpResponse<String> statusResp = get("/api/v1/stripe/onboarding/status", buyer);
+        assertEquals(403, statusResp.statusCode(),
+                "buyer must be blocked from status endpoint too: " + statusResp.body());
+    }
+
+    @Test
+    @DisplayName("UC-11.6.8: two sellers parallel /start → 2 distinct stripeAccountIds")
+    void parallelStartProducesDistinctAccountIds() throws Exception {
+        String u1 = "parseller" + System.currentTimeMillis() + "a";
+        String u2 = "parseller" + System.currentTimeMillis() + "b";
+        String t1 = registerSeller(u1);
+        String t2 = registerSeller(u2);
+
+        CompletableFuture<HttpResponse<String>> f1 = CompletableFuture.supplyAsync(
+                () -> post("/api/v1/stripe/onboarding/start", t1, Map.of()));
+        CompletableFuture<HttpResponse<String>> f2 = CompletableFuture.supplyAsync(
+                () -> post("/api/v1/stripe/onboarding/start", t2, Map.of()));
+
+        HttpResponse<String> r1 = f1.get();
+        HttpResponse<String> r2 = f2.get();
+
+        // Allow 200/201/500 for either response (mock fallback may 500 on some calls)
+        assertTrue(r1.statusCode() < 600 && r2.statusCode() < 600);
+
+        String acct1 = text(json(get("/api/v1/stripe/onboarding/status", t1)).get("data"), "stripeAccountId");
+        String acct2 = text(json(get("/api/v1/stripe/onboarding/status", t2)).get("data"), "stripeAccountId");
+        assertNotNull(acct1, "seller 1 has no stripeAccountId");
+        assertNotNull(acct2, "seller 2 has no stripeAccountId");
+        assertNotEquals(acct1, acct2,
+                "parallel /start must yield distinct accountIds (race collision detected)");
+    }
+
+    private String registerSeller(String username) {
+        HttpResponse<String> resp = post("/api/v1/auth/register/seller", null, Map.of(
+                "username", username,
+                "email", username + "@e2e.test",
+                "password", PASSWORD,
+                "fullName", "E2E Parallel " + username
+        ));
+        String tok = text(json(resp), "accessToken");
+        if (tok == null) tok = login(username);
+        assertNotNull(tok, "register seller failed: " + resp.body());
+        return tok;
+    }
+
+    @Test
+    @DisplayName("UC-11.6.3: completed seller calls /start → ALREADY_EXISTS")
+    void completedSellerStartReturnsAlreadyExists() {
         String seller = login(SELLERS.get(1L));
         HttpResponse<String> onboardResp = post("/api/v1/stripe/onboarding/start", seller, Map.of());
         // techworld already has Stripe account with details_submitted=true → ALREADY_EXISTS

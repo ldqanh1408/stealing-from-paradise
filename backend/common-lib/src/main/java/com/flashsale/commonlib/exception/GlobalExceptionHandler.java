@@ -3,6 +3,8 @@ package com.flashsale.commonlib.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -56,6 +58,13 @@ public class GlobalExceptionHandler {
         log.error("Unhandled NullPointerException", ex);
         return ResponseEntity.internalServerError()
             .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR.getCode(), "Lỗi nội bộ"));
+    }
+
+    @ExceptionHandler({AuthorizationDeniedException.class, AccessDeniedException.class})
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(RuntimeException ex) {
+        log.warn("[{}] Access denied: {}", ErrorCode.FORBIDDEN.getCode(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.error(ErrorCode.FORBIDDEN.getCode(), ErrorCode.FORBIDDEN.getDefaultMessage()));
     }
 
     @ExceptionHandler(Exception.class)

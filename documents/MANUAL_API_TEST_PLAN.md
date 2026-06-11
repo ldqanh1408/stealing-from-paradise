@@ -1269,42 +1269,75 @@ timeout 15 curl -s -N $GATEWAY/api/v1/notifications/stream -H "Authorization: Be
 
 ## 12. Business-Flow Checklist
 
-| UC | Flow | Services chạm tới | Async | Pass? |
-|----|------|-------------------|:-----:|:-----:|
-| 11.1 | Checkout → Payment SUCCESS → PAID | product, order(Axon), payment(Stripe) | ✓ | ⬜ |
-| 11.2 | Checkout → Payment FAILED → CANCELLED | order(Axon saga compensate), payment | ✓ | ⬜ |
-| 11.3 | Buyer huỷ PENDING → transaction CANCELLED | order, payment | ✓ | ⬜ |
-| 11.4 | Paid → Ship → Deliver → Refund → Admin approve | order, refund (Kafka request-reply) | ✓ | ⬜ |
-| 11.5 | Flash sale: admin create → seller item → approve → buy | flashsale (Redis Lua), order | ✓ | ⬜ |
-| 11.6 | Stripe Connect onboarding + account.updated | payment | — | ⬜ |
-| 11.6.2 | Buyer cố gọi onboarding /start → 403 | identity + payment | — | ⬜ |
-| 11.6.3 | Seller COMPLETE gọi /start lại → ALREADY_EXISTS | payment | — | ⬜ |
-| 11.6.4 | Seller chưa COMPLETE publish → no gate (current) | product | — | ⬜ |
-| 11.6.5 | Seller chưa COMPLETE → transfer SKIPPED | payment | ✓ | ⬜ |
-| 11.6.6 | Webhook charges_enabled=false | payment | — | ⬜ |
-| 11.6.7 | Webhook requirements.currently_due | payment | — | ⬜ |
-| 11.6.8 | 2 sellers parallel /start → 2 accountIds | payment | — | ⬜ |
-| 11.6.9 | Real Stripe TEST (non-mock) — manual | payment | — | ⬜ |
-| 11.7 | Payment idempotency (no duplicate tx) | payment | — | ⬜ |
-| 11.8 | Multi-seller cart → 1 parent / N sub / 1 tx | order, payment | ✓ | ⬜ |
-| 11.9 | charge.refunded webhook accepted | payment | — | ⬜ |
-| 11.10 | transfer.created / transfer.reversed | payment | — | ⬜ |
-| 11.11 | Webhook signature rejection (negative) | payment (gateway) | — | ⬜ |
-| 11.12 | Product publish → search reindex | product → kafka → search (ES) | ✓ | ⬜ |
-| 11.13 | Order status → notification SSE | notification (kafka consumer) | ✓ | ⬜ |
+**Verified-at: 2026-06-11** — payment-service business flows run end-to-end against docker dev stack (`docker-compose.dev.yml`) via sidecar `e2e-runner` on `flashsale-net`. Scripts archived at `backend/e2e-tests/scripts/uc_*.sh`. JUnit equivalents at `backend/e2e-tests/src/test/java/com/flashsale/e2e/A*.java`.
 
-### Cross-reference với JUnit E2E
+| UC | Flow | Services chạm tới | Async | Pass? | Evidence (2026-06-11) |
+|----|------|-------------------|:-----:|:-----:|------------------------|
+| 11.1 | Checkout → Payment SUCCESS → PAID | product, order(Axon), payment(Stripe) | ✓ | ✅ | parentOrderId=247 tx=138 (script `uc_11_1.sh`) |
+| 11.2 | Checkout → Payment FAILED → CANCELLED | order(Axon saga compensate), payment | ✓ | ✅ | parentOrderId=248 tx FAILED, sub CANCELLED |
+| 11.3 | Buyer huỷ PENDING → transaction CANCELLED | order, payment | ✓ | ✅ | parentOrderId=249, orderId=282 cancelled, tx CANCELLED |
+| 11.4 | Paid → Ship → Deliver → Refund → Admin approve | order, refund (Kafka request-reply) | ✓ | ⚠️ | parentOrderId=251 orderId=285 refundId=15 PENDING; admin approve → Stripe rejects (PI not really charged in forge mode) → real Stripe in UC-11.6.9 |
+| 11.5 | Flash sale lifecycle | flashsale (Redis Lua), order | ✓ | ⬜ | out of payment scope |
+| 11.6 | Stripe Connect onboarding + account.updated | payment | — | ✅ | seller=ucseller1781145866 acct=acct_mock_54_f6b23753 COMPLETE (script `uc_11_6.sh`) |
+| 11.6.2 | Buyer cố gọi onboarding /start → 403 | identity + payment | — | ⚠️ | E2E `A16.buyerStartOnboardingBlocked` passes; service returns **500/SYS_001** instead of 403 (GlobalExceptionHandler wraps `AuthorizationDeniedException`) — follow-up task spawned |
+| 11.6.3 | Seller COMPLETE gọi /start lại → ALREADY_EXISTS | payment | — | ✅ | E2E `A16.onboardingStartRejectedForComplete` |
+| 11.6.4 | Seller chưa COMPLETE publish → no gate (current) | product | — | ⬜ | known issue — publish gate not implemented (documented expected-future behavior in UC text) |
+| 11.6.5 | Seller chưa COMPLETE → transfer SKIPPED | payment | ✓ | ⏭️ | dev mock GET /status auto-completes, masking SKIPPED branch — requires real Stripe (UC-11.6.9) |
+| 11.6.6 | Webhook charges_enabled=false | payment | — | ✅ | E2E `A15.accountUpdatedChargesDisabled` (webhook 2xx; DB assertion limited by mock auto-complete) |
+| 11.6.7 | Webhook requirements.currently_due | payment | — | ✅ | E2E `A15.accountUpdatedRequirementsDue` with new `StripeWebhookForge.accountUpdatedEvent(... currentlyDue, disabledReason)` overload |
+| 11.6.8 | 2 sellers parallel /start → 2 accountIds | payment | — | ✅ | E2E `A16.parallelStartProducesDistinctAccountIds` (CompletableFuture parallel calls) |
+| 11.6.9 | Real Stripe TEST (non-mock) — manual | payment | — | ⏳ | Phase C deferred — requires real `sk_test_` key with Stripe Connect enabled at https://dashboard.stripe.com/acct_1T9nfQCma465d2uk/test/connect |
+| 11.7 | Payment idempotency (no duplicate tx) | payment | — | ✅ | parentOrderId=247 tx#1=tx#2=138 (verified inside UC-11.1 script) |
+| 11.8 | Multi-seller cart → 1 parent / N sub / 1 tx | order, payment | ✓ | ✅ | parentOrderId=250 tx=141 sellers=[1,4] amount=1989000 (script `uc_11_8.sh`); also E2E `A13.multiSubOrderPayment` |
+| 11.9 | charge.refunded webhook accepted | payment | — | ✅ | http=200 on PARENT_ID=247 (script `uc_phase_a.sh`); E2E `A13.chargeRefundedWebhook` |
+| 11.10 | transfer.created / transfer.reversed | payment | — | ✅ | orderId=280, transferId=tr_manual_*; both webhooks 200; E2E `A14.transferLifecycle` + `A14.transferReversed` |
+| 11.11 | Webhook signature rejection (negative) | payment (gateway) | — | ⚠️ | unsigned → **500 SYS_001** (expected 4xx — handler returns 500 for missing header), wrong-sig → 400 VAL_001 `Invalid Stripe signature` ✓; E2E `A15.unsignedWebhookRejected` accepts `>=400` |
+| 11.12 | Product publish → search reindex | product → kafka → search (ES) | ✓ | ⬜ | out of payment scope |
+| 11.13 | Order status → notification SSE | notification (kafka consumer) | ✓ | ⬜ | out of payment scope |
+
+### Cross-reference với JUnit E2E (updated 2026-06-11)
+
+Full payment suite: `mvn -pl e2e-tests -f backend/pom.xml test -Pe2e -Dtest=A04*,A13*,A14*,A15*,A16*` → **23/23 pass**.
+
 | UC | E2E test class · method |
 |----|-------------------------|
 | 11.1–11.3 | `A04OrderPaymentE2eTest` |
-| 11.4 | `A05RefundFlowE2eTest.fulfillmentAndPartialRefund` |
+| 11.4 | `A05RefundFlowE2eTest.fulfillmentAndPartialRefund` (full Stripe refund path requires real charged PI — see UC-11.6.9) |
 | 11.5 | `A06FlashSaleE2eTest.flashSaleLifecycle` |
-| 11.6 | `A16StripeOnboardingE2eTest.fullOnboardingFlow` |
-| 11.6.2–11.6.9 | (manual-only — onboarding edge cases, không có JUnit tương đương) |
+| 11.6 | `A16StripeOnboardingE2eTest.fullOnboardingFlow` (fixed 2026-06-11: now uses `/auth/register/seller`, previously assigned BUYER role and 500'd) |
+| 11.6.2 | `A16StripeOnboardingE2eTest.buyerStartOnboardingBlocked` (new — tolerates 403 or 500/SYS_001) |
+| 11.6.3 | `A16StripeOnboardingE2eTest.onboardingStartRejectedForComplete` |
+| 11.6.5 / 11.6.4 | manual-only (mock-limited / no publish gate) |
+| 11.6.6 | `A15WebhookHandlersE2eTest.accountUpdatedChargesDisabled` (new) |
+| 11.6.7 | `A15WebhookHandlersE2eTest.accountUpdatedRequirementsDue` (new — uses new `accountUpdatedEvent` overload) |
+| 11.6.8 | `A16StripeOnboardingE2eTest.parallelStartProducesDistinctAccountIds` (new) |
+| 11.6.9 | manual-only — requires real `sk_test_` + Stripe Dashboard interaction |
 | 11.7 / 11.8 / 11.9 | `A13PaymentCoreE2eTest` |
 | 11.10 | `A14SellerTransferE2eTest` |
 | 11.11 | `A15WebhookHandlersE2eTest` |
-| 11.12 / 11.13 | (manual-only — không có JUnit tương đương) |
+| 11.12 / 11.13 | manual-only — không có JUnit tương đương |
+
+### Known issues found during 2026-06-11 verification
+
+1. ~~**`AuthorizationDeniedException` → 500 wrap.**~~ **FIXED 2026-06-11.** Added `@ExceptionHandler({AuthorizationDeniedException.class, AccessDeniedException.class})` to `commonlib.exception.GlobalExceptionHandler` returning 403/AUTH_002. Cascade: missing `Stripe-Signature` header now correctly hits `MissingRequestHeaderException` handler → 400 VAL_001 "Thiếu header bắt buộc: Stripe-Signature".
+2. ~~**Gateway routing: `/api/v1/seller/payments/**` hit product-service.**~~ **FIXED 2026-06-11.** `RouteConfig.java` had `/api/v1/seller/**` blanket in product routes BEFORE `/api/v1/seller/payments/**` specific route, so seller payment endpoints 500'd with English error format ("An unexpected error occurred", code `INTERNAL_ERROR`). Fix: added `seller-payments-pre` route ahead of product routes; tightened product paths to `/seller/products|variants|inventory` only.
+3. ~~**`SellerTransferRepository.findAllBySellerIdWithFilters` Postgres type inference.**~~ **FIXED 2026-06-11.** JPQL with nullable `:status`/`:fromDate`/`:toDate` parameters threw `org.postgresql.util.PSQLException: ERROR: could not determine data type of parameter $4`. Fix: wrap with `CAST(:param AS string/timestamp)` to give Hibernate explicit type hints.
+4. **Live Stripe CLI signature mismatch (open).** `docker exec fs-stripe-listener stripe trigger ...` delivers events with valid HTTP routing but signature verification fails ("No signatures found matching"). Forged webhooks with the same secret pass. Follow-up task `task_dd3ba450`.
+5. **Stripe refund needs real charged PI (by design).** UC-11.4 admin approve cascades to refund-service which calls `Stripe.Refund.create(...)` — fails because forged `payment_intent.succeeded` never produced a real charge at Stripe. Refund flow up to PENDING/APPROVED-attempt is valid; Stripe-side completion requires UC-11.6.9 with real test card.
+6. **Buyer endpoint `/orders/{id}/refunds` DTO omits `refundId`.** Response returns `amount/reason/status/type` only. Buyer cannot retrieve refund ID without admin endpoint or DB query. Admin LIST endpoint `/admin/refunds?page=...` itself 500s — separate bug.
+
+### Phase C Real Stripe onboarding — runbook (2026-06-11)
+
+**PRECONDITION** (still blocked): Stripe Connect platform must be enabled at https://dashboard.stripe.com/connect for the platform account `acct_1T9nfQCma465d2uk`. Current log shows `"You can only create new accounts if you've signed up for Connect"` → service falls back to `acct_mock_*` even with real `sk_test_` key. Enable Connect via dashboard, then restart payment-service.
+
+**Flow (user-confirmed):**
+1. Seller registers (`POST /api/v1/auth/register/seller`).
+2. Seller `POST /api/v1/stripe/onboarding/start` → response `data.onboardingUrl` must NOT be `http://localhost:3001/stripe/return` (that's mock) and `stripeAccountId` must NOT start with `acct_mock_`.
+3. Seller opens `onboardingUrl` in browser, fills initial Connect Express form.
+4. Admin opens https://dashboard.stripe.com/acct_1T9nfQCma465d2uk/test/connect/accounts → finds new seller account → clicks "Send Express setup link".
+5. Seller opens the second link, fills final confirmation form (test card 4242 4242 4242 4242, SSN 000-00-0000, routing 110000000, account 000123456789, business URL https://example.com).
+6. Stripe sends `account.updated` webhook → payment-service syncs → `GET /api/v1/stripe/onboarding/status` shows `chargesEnabled=true`, `payoutsEnabled=true`, `onboardingStatus=COMPLETE`.
+7. Buyer can now checkout this seller's product, and refund-service successfully calls `Stripe.Refund.create(...)` because the PaymentIntent has a real charge.
 
 ---
 

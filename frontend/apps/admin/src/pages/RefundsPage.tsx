@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminRefundApi, type RefundResponse } from '@shared/api/refund.api';
+import { fmtVnd, fmtDate } from '@shared/utils/format';
+import ApproveRefundModal from '@/components/Refunds/ApproveRefundModal';
+import RejectRefundModal from '@/components/Refunds/RejectRefundModal';
+import RefundDetailDrawer from '@/components/Refunds/RefundDetailDrawer';
 
-const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
+const fmt = (n: number) => fmtVnd(n);
 
 type RefundStatus = 'ALL' | 'PENDING' | 'SUCCESS' | 'FAILED' | 'REJECTED';
 type RefundType = 'ALL' | 'FULL' | 'PARTIAL';
@@ -28,281 +32,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   REJECTED: { bg: 'bg-gray-100',   color: 'text-gray-600',  label: 'Từ chối' },
 };
 
-function formatDate(iso?: string) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-// ─── Approve Modal ─────────────────────────────────────────────────────────────
-function ApproveModal({ refund, onClose, onSuccess }: { refund: RefundResponse; onClose: () => void; onSuccess: () => void }) {
-  const [adminNote, setAdminNote] = useState('');
-  const [adjustAmount, setAdjustAmount] = useState('');
-  const [causedBy, setCausedBy] = useState<'SELLER' | 'BUYER'>('BUYER');
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-
-  const mut = useMutation({
-    mutationFn: () => adminRefundApi.approve(refund.refundId, {
-      adminNote: adminNote,
-      adjustAmount: adjustAmount ? parseFloat(adjustAmount) : undefined,
-      causedBy: causedBy,
-      trackingNumber: trackingNumber || undefined,
-    }),
-    onSuccess: () => { setDone(true); setTimeout(() => { onSuccess(); onClose(); }, 1500); },
-    onError: (err: any) => { setError(err?.response?.data?.message || 'Duyệt hoàn tiền thất bại'); },
-  });
-
-  if (done) {
-    return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">✅</div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Duyệt hoàn tiền thành công!</h3>
-          <p className="text-sm text-gray-500">Stripe refund đã được tạo. Khách hàng sẽ nhận được tiền trong 3-5 ngày.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full my-4">
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Duyệt hoàn tiền</h3>
-        <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1 text-sm">
-          <p><span className="text-gray-500">Mã hoàn:</span> <span className="font-mono font-medium">#{refund.refundId}</span></p>
-          <p><span className="text-gray-500">Loại:</span> <span className="font-medium">{refund.type === 'FULL' ? 'Hoàn toàn bộ' : 'Hoàn một phần'}</span></p>
-          <p><span className="text-gray-500">Số tiền:</span> <span className="font-bold text-red-600">{fmt(refund.amount)}</span></p>
-          <p><span className="text-gray-500">Lý do:</span> <span className="font-medium">{refund.reason}</span></p>
-          <p><span className="text-gray-500">Người yêu cầu:</span> <span className="font-medium">{refund.initiatedBy === 'BUYER' ? 'Khách hàng' : 'Người bán'}</span></p>
-        </div>
-        {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Ghi chú Admin *</label>
-            <textarea
-              value={adminNote}
-              onChange={e => setAdminNote(e.target.value)}
-              placeholder="Lý do duyệt hoàn tiền..."
-              rows={2}
-              className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Điều chỉnh số tiền (VND)</label>
-              <input
-                type="number"
-                value={adjustAmount}
-                onChange={e => setAdjustAmount(e.target.value)}
-                placeholder={`Mặc định: ${refund.amount}`}
-                className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nguyên nhân</label>
-              <select
-                value={causedBy}
-                onChange={e => setCausedBy(e.target.value as 'SELLER' | 'BUYER')}
-                className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="BUYER">Lỗi khách hàng</option>
-                <option value="SELLER">Lỗi người bán</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mã vận đơn hoàn (v5.3)</label>
-            <input
-              type="text"
-              value={trackingNumber}
-              onChange={e => setTrackingNumber(e.target.value)}
-              placeholder="Mã vận đơn hàng hoàn về (nếu có)"
-              className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-gray-400 mt-1">Ghi nhận mã vận đơn để truy vết hàng hoàn về.</p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
-          <button
-            onClick={() => mut.mutate()}
-            disabled={!adminNote.trim() || mut.isPending}
-            className="flex-1 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-          >
-            {mut.isPending ? 'Đang xử lý...' : 'Duyệt hoàn tiền'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Reject Modal ──────────────────────────────────────────────────────────────
-function RejectModal({ refund, onClose, onSuccess }: { refund: RefundResponse; onClose: () => void; onSuccess: () => void }) {
-  const [reason, setReason] = useState('');
-  const [fraudEvidence, setFraudEvidence] = useState(false);
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-
-  const mut = useMutation({
-    mutationFn: () => adminRefundApi.reject(refund.refundId, {
-      rejectReason: reason,
-      fraudEvidence: fraudEvidence,
-    }),
-    onSuccess: () => { setDone(true); setTimeout(() => { onSuccess(); onClose(); }, 1500); },
-    onError: (err: any) => { setError(err?.response?.data?.message || 'Từ chối thất bại'); },
-  });
-
-  if (done) {
-    return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">✅</div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Đã từ chối yêu cầu hoàn tiền</h3>
-          <p className="text-sm text-gray-500">Khách hàng sẽ nhận được thông báo từ chối.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Từ chối hoàn tiền</h3>
-        <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1 text-sm">
-          <p><span className="text-gray-500">Mã hoàn:</span> <span className="font-mono font-medium">#{refund.refundId}</span></p>
-          <p><span className="text-gray-500">Số tiền:</span> <span className="font-bold text-red-600">{fmt(refund.amount)}</span></p>
-          <p><span className="text-gray-500">Lý do khách:</span> <span className="font-medium">{refund.reason}</span></p>
-        </div>
-        {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Lý do từ chối *</label>
-            <select
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Chọn lý do</option>
-              <option value="Yêu cầu không hợp lệ">Yêu cầu không hợp lệ</option>
-              <option value="Không có bằng chứng đầy đủ">Không có bằng chứng đầy đủ</option>
-              <option value="Đã quá thời hạn hoàn tiền">Đã quá thời hạn hoàn tiền</option>
-              <option value="Hàng đã sử dụng / hư hỏng">Hàng đã sử dụng / hư hỏng</option>
-              <option value="Trùng lặp yêu cầu hoàn">Trùng lặp yêu cầu hoàn</option>
-              <option value="Khác">Khác</option>
-            </select>
-          </div>
-          <label className="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-gray-50">
-            <input
-              type="checkbox"
-              checked={fraudEvidence}
-              onChange={e => setFraudEvidence(e.target.checked)}
-              className="w-4 h-4 accent-red-600"
-            />
-            <div>
-              <p className="text-sm font-medium text-gray-900">Cảnh báo gian lận</p>
-              <p className="text-xs text-gray-500">Đánh dấu nếu phát hiện hành vi lạm dụng hoàn tiền. Điểm tin cậy của khách sẽ bị trừ.</p>
-            </div>
-          </label>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
-          <button
-            onClick={() => mut.mutate()}
-            disabled={!reason || mut.isPending}
-            className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-          >
-            {mut.isPending ? 'Đang xử lý...' : 'Từ chối'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Detail Drawer ─────────────────────────────────────────────────────────────
-function DetailDrawer({ refund, onClose }: { refund: RefundResponse; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={onClose}>
-      <div className="bg-white w-full max-w-md h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="sticky top-0 bg-white border-b p-5 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900">Chi tiết hoàn tiền</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
-        </div>
-        <div className="p-5 space-y-5">
-          <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Mã hoàn</span>
-              <span className="font-mono font-medium">#{refund.refundId}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Mã đơn</span>
-              <span className="font-mono font-medium">#{refund.orderId}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Loại</span>
-              <span className="font-medium">{refund.type === 'FULL' ? 'Hoàn toàn bộ' : 'Hoàn một phần'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Trạng thái</span>
-              <span className={`font-medium ${STATUS_STYLE[refund.status]?.color}`}>
-                {STATUS_STYLE[refund.status]?.label ?? refund.status}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Số tiền</span>
-              <span className="font-bold text-red-600">{fmt(refund.amount)}</span>
-            </div>
-            {refund.adjustAmount && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Đã điều chỉnh</span>
-                <span className="font-medium text-blue-600">{fmt(refund.adjustAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Người yêu cầu</span>
-              <span className="font-medium">{refund.initiatedBy === 'BUYER' ? 'Khách hàng' : 'Người bán'}</span>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Lý do</h4>
-            <p className="text-sm text-gray-700 bg-gray-50 rounded-xl p-3">{refund.reason}</p>
-          </div>
-
-          {refund.adminNote && (
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Ghi chú Admin</h4>
-              <p className="text-sm text-gray-700 bg-blue-50 rounded-xl p-3">{refund.adminNote}</p>
-            </div>
-          )}
-
-          {refund.rejectReason && (
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Lý do từ chối</h4>
-              <p className="text-sm text-red-700 bg-red-50 rounded-xl p-3">{refund.rejectReason}</p>
-            </div>
-          )}
-
-          {refund.stripeRefundId && (
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Stripe Refund ID</h4>
-              <p className="text-xs font-mono text-gray-600 bg-gray-100 rounded-xl p-3 break-all">{refund.stripeRefundId}</p>
-            </div>
-          )}
-
-          <div className="space-y-2 text-xs text-gray-400">
-            <p>Tạo: {formatDate(refund.createdAt)}</p>
-            {refund.reviewedAt && <p>Duyệt lúc: {formatDate(refund.reviewedAt)}</p>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+function formatDate(iso?: string) { return fmtDate(iso, true); }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function RefundsPage() {
@@ -508,21 +238,21 @@ export default function RefundsPage() {
 
       {/* Modals */}
       {approveRefund && (
-        <ApproveModal
+        <ApproveRefundModal
           refund={approveRefund}
           onClose={() => setApproveRefund(null)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-refunds'] })}
         />
       )}
       {rejectRefund && (
-        <RejectModal
+        <RejectRefundModal
           refund={rejectRefund}
           onClose={() => setRejectRefund(null)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-refunds'] })}
         />
       )}
       {detailRefund && (
-        <DetailDrawer
+        <RefundDetailDrawer
           refund={detailRefund}
           onClose={() => setDetailRefund(null)}
         />
