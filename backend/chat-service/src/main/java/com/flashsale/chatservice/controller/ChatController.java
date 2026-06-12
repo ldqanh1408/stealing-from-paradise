@@ -38,6 +38,8 @@ public class ChatController {
 
         Long userId = extractUserId(exchange);
         String accessToken = extractAccessToken(exchange);
+        String userEmail = extractHeader(exchange, "X-User-Email");
+        String userRole = extractHeader(exchange, "X-User-Role");
 
         if (userId == null) {
             return Flux.just(errorEvent("Missing X-User-Id header"));
@@ -50,7 +52,7 @@ public class ChatController {
                 userId, request.getSessionId(), request.getMessage().substring(0,
                         Math.min(50, request.getMessage().length())));
 
-        return chatService.streamChat(request.getSessionId(), request.getMessage(), userId, accessToken);
+        return chatService.streamChat(request.getSessionId(), request.getMessage(), userId, userEmail, userRole, accessToken);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -65,6 +67,9 @@ public class ChatController {
             @RequestParam(required = false) String before) {
 
         Long userId = extractUserId(exchange);
+        String accessToken = extractAccessToken(exchange);
+        String userEmail = extractHeader(exchange, "X-User-Email");
+        String userRole = extractHeader(exchange, "X-User-Role");
         if (userId == null) {
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
@@ -149,6 +154,10 @@ public class ChatController {
             @RequestBody ConfirmRequest request) {
 
         Long userId = extractUserId(exchange);
+        String accessToken = extractAccessToken(exchange);
+        String userEmail = extractHeader(exchange, "X-User-Email");
+        String userRole = extractHeader(exchange, "X-User-Role");
+
         if (userId == null) {
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
@@ -161,7 +170,7 @@ public class ChatController {
         log.info("[ChatController] Confirm action: confirmId={}, confirmed={}, userId={}",
                 request.getConfirmId(), request.isConfirmed(), userId);
 
-        return chatService.confirmAction(request.getConfirmId(), request.isConfirmed(), userId)
+        return chatService.confirmAction(request.getConfirmId(), request.isConfirmed(), userId, userEmail, userRole, accessToken)
                 .map(msg -> ResponseEntity.ok(ApiResponse.success(msg,
                         request.isConfirmed() ? "Action confirmed" : "Action rejected")));
     }
@@ -195,6 +204,10 @@ public class ChatController {
 
     private String extractAccessToken(ServerWebExchange exchange) {
         return exchange.getRequest().getHeaders().getFirst("X-Access-Token");
+    }
+
+    private String extractHeader(ServerWebExchange exchange, String headerName) {
+        return exchange.getRequest().getHeaders().getFirst(headerName);
     }
 
     private ServerSentEvent<String> errorEvent(String message) {

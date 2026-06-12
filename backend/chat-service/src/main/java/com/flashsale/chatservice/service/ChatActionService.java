@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -48,7 +49,7 @@ public class ChatActionService {
     private final ObjectMapper objectMapper;
     private final WebClient.Builder webClientBuilder;
 
-    public Mono<ChatMessage> confirmAction(String confirmId, boolean confirmed, Long userId) {
+    public Mono<ChatMessage> confirmAction(String confirmId, boolean confirmed, Long userId, String userEmail, String userRole, String accessToken) {
         return confirmationRepo.findByIdAndUserId(confirmId, userId)
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Confirmation not found or expired")))
@@ -59,23 +60,26 @@ public class ChatActionService {
                     }
 
                     if (confirmed) {
-                        return executeConfirmedAction(confirmation);
+                        return executeConfirmedAction(confirmation, userEmail, userRole, accessToken);
                     } else {
                         return rejectAction(confirmation);
                     }
                 });
     }
 
-    private Mono<ChatMessage> executeConfirmedAction(PendingConfirmation confirmation) {
+    private Mono<ChatMessage> executeConfirmedAction(PendingConfirmation confirmation, String userEmail, String userRole, String accessToken) {
         String actionType = extractActionType(confirmation.getToolArguments());
         String orderId = extractOrderId(confirmation.getToolArguments());
         String confirmId = confirmation.getId();
 
-        log.info("[ChatActionService] Executing confirmed action: type={}, orderId={}", actionType, orderId);
+        // Normalize orderId using OrderIdNormalizer
+        String normalizedOrderId = OrderIdNormalizer.normalize(orderId);
+
+        log.info("[ChatActionService] Executing confirmed action: type={}, orderId={} (normalized: {})", actionType, orderId, normalizedOrderId);
 
         String actionUrl = switch (actionType) {
-            case "CANCEL_ORDER" -> "/v1/orders/" + orderId + "/cancel";
-            case "REQUEST_REFUND" -> "/v1/orders/parent/" + orderId + "/refund";
+            case "CANCEL_ORDER" -> "/v1/orders/" + normalizedOrderId + "/cancel";
+            case "REQUEST_REFUND" -> "/v1/orders/parent/" + normalizedOrderId + "/refund";
             default -> null;
         };
 
@@ -83,12 +87,16 @@ public class ChatActionService {
             return rejectWithError(confirmation, "Unknown action type: " + actionType).then(Mono.empty());
         }
 
-        String accessToken = ToolContext.getAccessToken();
+        String reason = extractReason(confirmation.getToolArguments());
 
         return webClientBuilder.build()
                 .post()
                 .uri("http://order-service" + actionUrl)
                 .header("X-Access-Token", accessToken != null ? accessToken : "")
+                .header("X-User-Id", String.valueOf(confirmation.getUserId()))
+                .header("X-User-Role", userRole != null ? userRole : "")
+                .header("X-User-Email", userEmail != null ? userEmail : "")
+                .bodyValue(Map.of("reason", reason))
                 .retrieve()
                 .bodyToMono(String.class)
                 .onErrorReturn("{\"error\": \"Action execution failed\"}")
@@ -138,21 +146,29 @@ public class ChatActionService {
 
         ChatClient chatClient = ChatClient.create(chatModel);
 
-        try {
-            ChatResponse response = chatClient.prompt()
-                    .system(SYSTEM_PROMPT)
-                    .user(prompt)
-                    .call()
-                    .chatResponse();
+        return Mono.fromCallable(() -> {
+            try {
+                ChatResponse response = chatClient.prompt()
+                        .system(SYSTEM_PROMPT)
+                        .user(prompt)
+                        .call()
+                        .chatResponse();
 
-            String content = response.getResult().getOutput().getText();
-
-            return messageService.saveAssistantMessage(sessionId, content);
-        } catch (Exception e) {
-            log.error("[ChatActionService] Failed to generate confirmation response", e);
-            return messageService.saveFallbackAssistantMessage(sessionId,
-                    "Thao tác " + actionLabel + " #" + orderId + " " + statusText + ".");
-        }
+                return response.getResult().getOutput().getText();
+            } catch (Exception e) {
+                log.error("[ChatActionService] Failed to generate confirmation response", e);
+                return null;
+            }
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .flatMap(content -> {
+            if (content != null) {
+                return messageService.saveAssistantMessage(sessionId, content);
+            } else {
+                return messageService.saveFallbackAssistantMessage(sessionId,
+                        "Thao tác " + actionLabel + " #" + orderId + " " + statusText + ".");
+            }
+        });
     }
 
     private Mono<Void> rejectWithError(PendingConfirmation confirmation, String error) {
@@ -177,6 +193,24 @@ public class ChatActionService {
         }
     }
 
+    private String extractReason(String toolArguments) {
+        try {
+            var root = objectMapper.readTree(toolArguments);
+            var node = root.get("reason");
+            if (node != null && !node.asText().isBlank()) {
+                return node.asText();
+            }
+            var actionTypeNode = root.get("actionType");
+            String actionType = actionTypeNode != null ? actionTypeNode.asText() : "";
+            if ("REQUEST_REFUND".equals(actionType)) {
+                return "Yêu cầu hoàn tiền qua Chatbot";
+            }
+            return "Hủy đơn hàng qua Chatbot";
+        } catch (Exception e) {
+            return "Hủy đơn hàng qua Chatbot";
+        }
+    }
+
     private Mono<Void> publishConfirmationResolved(String sessionId, Long userId, String confirmId, String status) {
         try {
             String payload = objectMapper.writeValueAsString(Map.of(
@@ -198,11 +232,11 @@ public class ChatActionService {
                     "status", status,
                     "timestamp", System.currentTimeMillis()
             ));
-            return Mono.fromRunnable(() ->
+            return Mono.<Void>fromRunnable(() ->
             {
                 kafkaTemplate.send(KafkaTopics.AI_CHAT_CONFIRMATION_RESOLVED, payload);
                 kafkaTemplate.send(decisionTopic, decisionPayload);
-            });
+            }).subscribeOn(Schedulers.boundedElastic());
         } catch (JsonProcessingException e) {
             log.warn("[ChatActionService] Failed to serialize Kafka payload", e);
             return Mono.empty();

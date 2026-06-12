@@ -11,6 +11,7 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
@@ -76,7 +77,7 @@ public class SystemActionTool {
                 .build();
 
         try {
-            pendingConfirmationRepository.save(confirmation).block();
+            pendingConfirmationRepository.save(confirmation).block(Duration.ofSeconds(5));
             log.info("[SystemActionTool] PendingConfirmation created: id={}", confirmId);
         } catch (Exception e) {
             log.error("[SystemActionTool] Failed to save PendingConfirmation", e);

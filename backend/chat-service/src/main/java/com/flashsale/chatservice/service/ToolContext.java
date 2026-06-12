@@ -20,6 +20,8 @@ public final class ToolContext {
 
     private static final ThreadLocal<String> sessionIdHolder = new ThreadLocal<>();
     private static final ThreadLocal<Long> userIdHolder = new ThreadLocal<>();
+    private static final ThreadLocal<String> userEmailHolder = new ThreadLocal<>();
+    private static final ThreadLocal<String> userRoleHolder = new ThreadLocal<>();
     private static final ThreadLocal<String> accessTokenHolder = new ThreadLocal<>();
     private static final ThreadLocal<List<ToolEvent>> eventsHolder = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<Boolean> level3PendingHolder = ThreadLocal.withInitial(() -> false);
@@ -44,6 +46,22 @@ public final class ToolContext {
 
     public static Long getUserId() {
         return userIdHolder.get();
+    }
+
+    public static void setUserEmail(String email) {
+        userEmailHolder.set(email);
+    }
+
+    public static String getUserEmail() {
+        return userEmailHolder.get();
+    }
+
+    public static void setUserRole(String role) {
+        userRoleHolder.set(role);
+    }
+
+    public static String getUserRole() {
+        return userRoleHolder.get();
     }
 
     // ── Access Token ─────────────────────────────────────────────
@@ -81,6 +99,8 @@ public final class ToolContext {
     public static void clear() {
         sessionIdHolder.remove();
         userIdHolder.remove();
+        userEmailHolder.remove();
+        userRoleHolder.remove();
         accessTokenHolder.remove();
         eventsHolder.remove();
         level3PendingHolder.remove();

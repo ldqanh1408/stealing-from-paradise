@@ -1,0 +1,72 @@
+Mình sẽ trace từ chat-service trước, vì log cho thấy AI đang kẹt ở action mức 3 CANCEL_ORDER. Theo rule dự án mình thử tìm lại graph/sequential tools trước; nếu môi trường vẫn không expose chúng, mình sẽ ghi rõ và trace thủ công bằng call graph + logs + DB.
+
+
+
+
+Graph tool và sequential thinking tool không được expose trong phiên này (tool discovery không thấy code-review-graph/sequential_thinking). Mình vẫn giữ protocol: trace blast radius thủ công trước khi sửa, và nếu đụng cross-service payment/order mức HIGH mình sẽ dừng xin xác nhận.
+
+
+
+
+Mình không dùng subagent vì tool delegate hiện yêu cầu user phải explicitly yêu cầu subagent; mình sẽ tự trace local. Bước đầu là đọc toàn bộ SystemActionTool và các dependency trực tiếp quanh pending confirmation/cancel order.
+
+
+
+
+Ran 3 commands
+
+
+Blast radius thủ công hiện tại: SystemActionTool.performSystemAction chỉ là tool tạo PendingConfirmation + SSE event; downstream confirm mới gọi order/refund thật. Rủi ro sửa ở đây là MEDIUM trong chat-service, chưa đụng order/payment execution path. Log dừng đúng sau “Level-3 action requested”, trước “PendingConfirmation created”, nên nghi phạm mạnh nhất là .block() trên reactive Mongo đang chạy trong Netty event loop.
+
+
+
+
+Ran 10 commands
+
+
+Ba giả thuyết đã kiểm tra nhanh: 1) Mongo pending-confirm save không chạy tới log tạo confirmation; 2) Kafka send chưa phải điểm dừng vì code chưa tới đó; 3) các tool đang .block() trong reactive/WebFlux thread. Hướng fix ít xâm lấn nhất là offload toàn bộ LLM + tool invocation sang boundedElastic, để các .block() hiện có không treo Netty event loop và ToolContext vẫn được set đúng trên thread chạy tool.
+
+
+
+
+Edited a file
+
+
+Mình thêm timeout cho các điểm .block() trong tool nữa. Như vậy kể cả Mongo/order/search service chậm, AI sẽ trả lỗi có kiểm soát thay vì treo stream vô hạn.
+
+
+
+
+Edited 3 files, ran 3 commands
+
+
+Ngoài lỗi treo, mình cũng kiểm tra sẵn bước sau confirm: ChatActionService gọi order-service qua service discovery nên không cần port, nhưng nó chỉ forward X-Access-Token; order-service lại lấy user từ security context X-User-*. Mình đọc controller để xem có cần vá luôn phần này hay chưa.
+
+
+
+
+Ran 3 commands
+
+
+Mình phát hiện thêm một lỗi nối tiếp: nếu confirmation hiện ra rồi bấm xác nhận, chat-service gọi thẳng order-service nhưng không forward X-User-*, nên order-service không có principal cho @PreAuthorize. Mình sẽ sửa trong chat-service để forward đúng X-User-Id/X-User-Role/X-User-Email và gửi body cancel reason, vẫn không đổi logic order-service.
+
+
+
+
+Ran 3 commands
+
+
+Có thêm một góc rất cụ thể với input của bạn: FE-ORD-PAID-900102 là mã hiển thị, còn order-service endpoint đang nhận Long orderId. Mình sẽ normalize mã dạng này về 900102 khi query/cancel, để AI không bắn /orders/FE-ORD-PAID-900102/cancel rồi lỗi 400.
+
+
+
+
+Created a file
+
+
+Worked for 4m 46s
+
+
+
+
+Mình thêm helper normalize riêng trong chat-service, rồi wiring qua query/action. Tiếp theo là propagate headers user từ gateway qua tools và confirm execution.

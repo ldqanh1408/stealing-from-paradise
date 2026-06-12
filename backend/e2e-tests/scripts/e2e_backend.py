@@ -15,7 +15,7 @@ Groups: auth, admin, catalog, inventory, cart, checkout, order, orderlifecycle, 
         search, notification, chat, webhook, e2e, all
 """
 
-import sys, os, json, time, uuid, hmac, hashlib, threading, traceback, argparse, urllib.request, urllib.error
+import sys, os, json, time, uuid, hmac, hashlib, threading, traceback, argparse, urllib.request, urllib.error, re
 
 # ── Config ──────────────────────────────────────────────────────────────────
 GW   = os.environ.get("GATEWAY", "http://localhost:8080")
@@ -921,6 +921,95 @@ def t_chat_sessions():
     else:
         info(f"Create session: {s} (AI service may be down)")
 
+def t_e2e_ai_cancel_order():
+    """UC-11.3 + AI: Cancel order via AI Chatbot and verify confirmation flow"""
+    # 1. Login as buyer
+    t = login("minhhoa")
+    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    xuid = {"X-User-Id": "6", "X-User-Role": "BUYER", "X-User-Email": "minhhoa@gmail.com"}
+
+    # 2. Create a fresh order via checkout
+    api("DELETE", "/api/v1/cart", t)
+    api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
+    s, r = api("POST", "/api/v1/cart/checkout/preview", t, body={"itemIds": [f"6:{vid}"]})
+    check_status(s, 200)
+    pt = get_field(r, "previewToken")
+    check_not_none(pt)
+    sa, ra = api("GET", "/api/v1/users/me/addresses", t)
+    check_status(sa, 200)
+    addrs = get_field(ra, "data")
+    aid = (addrs[0].get("address_id") if isinstance(addrs, list) else get_field(addrs, "address_id")) if addrs else None
+    check_not_none(aid)
+
+    # Snapshot max orderId
+    so, ro = api("GET", "/api/v1/orders?page=0&size=100", t)
+    pre_max = 0
+    if so == 200:
+        c = get_field(ro, "content")
+        if c and isinstance(c, list):
+            pre_max = max((o.get("parentOrderId") or 0 for o in c), default=0)
+
+    # Submit checkout
+    s, r = api("POST", "/api/v1/cart/checkout/submit", t, body={"previewToken": pt, "addressId": aid})
+    check_status(s, 200)
+
+    # Find the new order ID
+    def find_new():
+        ss, rr = api("GET", "/api/v1/orders?page=0&size=100", t)
+        if ss != 200: return None
+        cc = get_field(rr, "content")
+        if not cc or not isinstance(cc, list): return None
+        for o in cc:
+            if (o.get("parentOrderId") or 0) > pre_max: return o.get("orderId") or o.get("id")
+        return None
+    oid = poll("new order ID for AI cancel", find_new, timeout=60)
+    check_not_none(oid)
+    ok(f"Created order {oid} for AI cancel test")
+
+    # 3. Create an AI chat session
+    s, r = api("POST", "/api/ai/sessions", t, body={}, extra_headers=xuid)
+    check_status(s, (200, 201))
+    sid = get_field(r, "id") or get_field(get_field(r, "data"), "id")
+    check_not_none(sid)
+    ok(f"Chat session: {sid}")
+
+    # 4. Chat with AI to request cancellation
+    message = f"Hủy giúp tôi đơn hàng FE-ORD-PAID-{oid}"
+    info(f"Sending message: {message}")
+    chat_headers = xuid.copy()
+    chat_headers["Accept"] = "text/event-stream"
+    s, r = api("POST", "/api/ai/chat", t, body={"sessionId": sid, "message": message}, extra_headers=chat_headers)
+    check_status(s, 200)
+    
+    # The response should be SSE text. Let's find confirmId in it.
+    raw_sse = str(r)
+    # Search for "confirmId":"..." in the SSE data
+    confirm_match = re.search(r'"confirmId"\s*:\s*"([^"]+)"', raw_sse)
+    if not confirm_match:
+        raise RuntimeError(f"Could not find confirmId in SSE response: {raw_sse}")
+    
+    confirm_id = confirm_match.group(1)
+    ok(f"Found confirmId: {confirm_id}")
+
+    # 5. Call /api/ai/confirm to execute the action
+    info(f"Confirming action: {confirm_id}")
+    s_conf, r_conf = api("POST", "/api/ai/confirm", t, body={"confirmId": confirm_id, "confirmed": True}, extra_headers=xuid)
+    check_status(s_conf, 200)
+    ok("AI confirm request completed successfully")
+
+    # 6. Verify that the order status is indeed CANCELLED
+    def check_order_cancelled():
+        ss, rr = api("GET", f"/api/v1/orders/{oid}", t)
+        if ss != 200: return False
+        status = get_field(rr, "status") or get_field(get_field(rr, "data"), "status")
+        return status == "CANCELLED"
+    
+    poll("order CANCELLED via AI", check_order_cancelled, timeout=30)
+    ok("Order cancelled status verified")
+
+    # Clean up session
+    api("DELETE", f"/api/ai/sessions/{sid}", t, extra_headers=xuid)
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION: WEBHOOK SECURITY
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1723,6 +1812,7 @@ GROUPS = {
         ("checkout_payment_success", t_e2e_checkout_payment_success),
         ("payment_failed_cancelled", t_e2e_payment_failed),
         ("buyer_cancel_order", t_e2e_buyer_cancel_order),
+        ("ai_cancel_order", t_e2e_ai_cancel_order),
         ("stripe_onboarding_flow", t_e2e_stripe_onboarding_flow),
         ("parallel_onboarding", t_e2e_parallel_onboarding),
         ("transfer_webhook", t_e2e_transfer_webhook),
