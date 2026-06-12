@@ -513,19 +513,15 @@ export default function OrderReviewPage() {
         addr?.fullAddress,
       );
       if (data.data) {
-        sessionStorage.setItem('pending_checkout', JSON.stringify({
-          parentOrderId: data.data.parentOrderId,
-          totalAmount: data.data.totalAmount,
-          totalItems: data.data.totalItems,
-          _paymentMethod: paymentMethod,
-        }));
+        const orderData = data.data;
+        sessionStorage.setItem('pending_checkout', JSON.stringify(orderData));
         if (paymentMethod === 'cod') {
           navigate('/checkout/result?status=success', {
-            state: { parentOrderId: data.data.parentOrderId, method: 'COD' },
+            state: { parentOrderId: orderData.parentOrderId, method: 'COD' },
           });
         } else {
           navigate('/checkout/payment', {
-            state: { parentOrderId: data.data.parentOrderId },
+            state: { orderData, parentOrderId: orderData.parentOrderId },
           });
         }
       }
