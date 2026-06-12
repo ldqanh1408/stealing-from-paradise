@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '@shared/store/cartStore';
+import type { CartItem } from '@shared/api/cart.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -17,20 +18,54 @@ export default function CartPage() {
     fetchCart();
   }, [fetchCart]);
 
+  const [quantityError, setQuantityError] = useState<number | null>(null);
+
+  const getMaxQty = (item: CartItem) => {
+    if (item.maxQuantityPerUser) {
+      return Math.min(item.maxQuantityPerUser, item.stockAvailable);
+    }
+    return item.stockAvailable;
+  };
+
+  const handleIncrease = (item: CartItem) => {
+    const max = getMaxQty(item);
+    if (item.quantity >= max) {
+      setQuantityError(item.cartItemId);
+      setTimeout(() => setQuantityError(null), 2000);
+      return;
+    }
+    updateQuantity(item.cartItemId, item.quantity + 1);
+  };
+
   const getTotal = () => {
     if (!selectedItems.size || !cart?.sellers) return 0;
     let total = 0;
     cart.sellers.forEach(seller => {
       seller.items.forEach(item => {
         if (selectedItems.has(item.cartItemId)) {
-          total += item.unitPrice * item.quantity;
+          const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
+          total += price * item.quantity;
         }
       });
     });
     return total;
   };
 
-  const getSelectedCount = () => selectedItems.size;
+  const getSelectedSellerTotals = () => {
+    if (!selectedItems.size || !cart?.sellers) return [];
+    return cart.sellers
+      .map(seller => {
+        const sellerTotal = seller.items.reduce((sum, item) => {
+          if (selectedItems.has(item.cartItemId)) {
+            const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
+            return sum + price * item.quantity;
+          }
+          return sum;
+        }, 0);
+        return { sellerName: seller.sellerName, total: sellerTotal };
+      })
+      .filter(s => s.total > 0);
+  };
 
   const toggleItemSelection = (itemId: number) => {
     const newSelected = new Set(selectedItems);
@@ -177,25 +212,26 @@ export default function CartPage() {
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
-                            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
-                          >
-                            −
-                          </button>
-                          <span className={`w-8 text-center text-sm font-medium ${overLimit || overStock ? 'text-red-600' : 'text-gray-900'}`}>{item.quantity}</span>
-                          <button
-                            onClick={() => {
-                              const max = item.maxQuantityPerUser
-                                ? Math.min(item.maxQuantityPerUser, item.stockAvailable)
-                                : item.stockAvailable;
-                              updateQuantity(item.cartItemId, item.quantity + 1 > max ? item.quantity : item.quantity + 1);
-                            }}
-                            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
-                          >
-                            +
-                          </button>
+                        <div className="flex flex-col items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
+                              disabled={item.quantity <= 1}
+                              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600 font-bold"
+                            >
+                              −
+                            </button>
+                            <span className={`w-8 text-center text-sm font-medium ${overLimit || overStock ? 'text-red-600' : 'text-gray-900'}`}>{item.quantity}</span>
+                            <button
+                              onClick={() => handleIncrease(item)}
+                              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 font-bold"
+                            >
+                              +
+                            </button>
+                          </div>
+                          {quantityError === item.cartItemId && (
+                            <p className="text-xs text-red-500 whitespace-nowrap">Đã đạt số lượng tối đa</p>
+                          )}
                         </div>
                         <button
                           onClick={() => removeFromCart(item.cartItemId)}
@@ -217,6 +253,13 @@ export default function CartPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-6 h-fit sticky top-24">
           <h3 className="font-bold text-gray-900 mb-4">Tóm tắt đơn hàng</h3>
           <div className="space-y-3 text-sm mb-6">
+            {getSelectedSellerTotals().map(s => (
+              <div key={s.sellerName} className="flex justify-between text-gray-600">
+                <span className="truncate mr-2">{s.sellerName}</span>
+                <span className="font-semibold shrink-0">{fmt(s.total)}</span>
+              </div>
+            ))}
+            <div className="h-px bg-gray-100" />
             <div className="flex justify-between text-gray-600">
               <span>Tạm tính</span>
               <span className="font-semibold">{fmt(getTotal())}</span>
