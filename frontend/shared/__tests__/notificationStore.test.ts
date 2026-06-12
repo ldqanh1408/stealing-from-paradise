@@ -66,13 +66,13 @@ describe('notificationStore — read state', () => {
 
 describe('notificationStore — fetch', () => {
   it('fetchUnreadCount stores unread_count', async () => {
-    (notificationApi.getUnreadCount as any).mockResolvedValue({ data: { user_id: 1, unread_count: 5 } });
+    (notificationApi.getUnreadCount as any).mockResolvedValue(5);
     await useNotificationStore.getState().fetchUnreadCount();
     expect(useNotificationStore.getState().unreadCount).toBe(5);
   });
 
   it('fetchNotifications stores list', async () => {
-    (notificationApi.getNotifications as any).mockResolvedValue({ data: [notif('a'), notif('b')] });
+    (notificationApi.getNotifications as any).mockResolvedValue([notif('a'), notif('b')]);
     await useNotificationStore.getState().fetchNotifications({ page: 0, size: 20 });
     expect(useNotificationStore.getState().notifications).toHaveLength(2);
   });
