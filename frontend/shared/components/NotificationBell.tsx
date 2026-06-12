@@ -3,7 +3,6 @@ import Cookies from 'js-cookie';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { isMockMode } from '../api/mock';
-import { handleAuthFailure } from '../lib/axios';
 
 export default function NotificationBell() {
   const { user } = useAuthStore();
@@ -20,7 +19,6 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -31,21 +29,19 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Sync notifications and SSE stream
   useEffect(() => {
-    if (!user) return;
+    if (!user?.userId) return;
 
     fetchUnreadCount();
     fetchNotifications({ page: 0, size: 20 });
 
     if (isMockMode()) {
-      // Periodic mock notifications
       const interval = setInterval(() => {
         if (Math.random() < 0.3) {
           const id = 'mock_notif_' + Date.now();
           const newNotif = {
             id,
-            userId: user.id,
+            userId: user.userId,
             type: 'INFO',
             title: 'Cập nhật hệ thống',
             message: `Hệ thống ghi nhận hoạt động mới trên tài khoản của bạn (${new Date().toLocaleTimeString()}).`,
@@ -62,26 +58,22 @@ export default function NotificationBell() {
     let abortController = new AbortController();
 
     const connectSSE = async () => {
-      const token = Cookies.get('accessToken');
-      if (!token) return;
-
       const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
       const streamUrl = `${baseUrl}/notifications/stream`;
 
       try {
         const response = await fetch(streamUrl, {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${Cookies.get('accessToken') ?? ''}`,
+            'X-User-Id': String(user.userId),
             'Accept': 'text/event-stream',
           },
           signal: abortController.signal,
         });
 
         if (!response.ok) {
-          if (response.status === 401) {
-            handleAuthFailure();
-          }
-          throw new Error(`SSE connection failed with status: ${response.status}`);
+          console.warn('Notification SSE connection failed:', response.status);
+          return;
         }
 
         const reader = response.body?.getReader();
@@ -104,20 +96,21 @@ export default function NotificationBell() {
               try {
                 const dataStr = cleaned.slice(5).trim();
                 if (dataStr) {
-                  const notification = JSON.parse(dataStr);
-                  addNotification(notification);
+                  const notification = JSON.parse(dataStr) as { id: string };
+                  if (notification.id) {
+                    addNotification(notification as any);
+                  }
                 }
-              } catch (e) {
-                console.error('Failed to parse notification payload:', e);
+              } catch {
+                // skip malformed SSE lines
               }
             }
           }
         }
       } catch (err: any) {
-        if (err.name === 'AbortError') return;
-        console.warn('Notification SSE disconnected, retrying in 5 seconds...', err);
-        if (active) {
-          setTimeout(connectSSE, 5000);
+        if (err.name !== 'AbortError') {
+          console.warn('Notification SSE disconnected, retrying in 5s...');
+          if (active) setTimeout(connectSSE, 5000);
         }
       }
     };
@@ -128,7 +121,7 @@ export default function NotificationBell() {
       active = false;
       abortController.abort();
     };
-  }, [user, addNotification, fetchNotifications, fetchUnreadCount]);
+  }, [user?.userId, addNotification, fetchNotifications, fetchUnreadCount]);
 
   const handleToggle = () => {
     setIsOpen(!isOpen);

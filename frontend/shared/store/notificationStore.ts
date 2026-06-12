@@ -1,5 +1,5 @@
-import { create } from 'zustand';
 import { notificationApi, type Notification } from '../api/notification.api';
+import { userApi } from '../api/user.api';
 
 interface NotificationState {
   notifications: Notification[];
@@ -8,6 +8,7 @@ interface NotificationState {
   error: string | null;
 
   fetchNotifications: (params?: { page?: number; size?: number }) => Promise<void>;
+  fetchNotificationsPage: (params?: { page?: number; size?: number }) => Promise<Notification[]>;
   markAsRead: (notifId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
@@ -15,7 +16,7 @@ interface NotificationState {
   setUnreadCount: (count: number) => void;
 }
 
-export const useNotificationStore = create<NotificationState>((set) => ({
+export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   unreadCount: 0,
   isLoading: false,
@@ -24,13 +25,22 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   fetchNotifications: async (params) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await notificationApi.getNotifications(params);
-      set({ notifications: data || [], isLoading: false });
+      const notifications = await notificationApi.getNotifications(params);
+      set({ notifications: notifications || [], isLoading: false });
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Failed to fetch notifications',
         isLoading: false,
       });
+    }
+  },
+
+  fetchNotificationsPage: async (params) => {
+    try {
+      const notifications = await notificationApi.getNotifications(params);
+      return notifications || [];
+    } catch {
+      return [];
     }
   },
 
@@ -65,8 +75,8 @@ export const useNotificationStore = create<NotificationState>((set) => ({
 
   fetchUnreadCount: async () => {
     try {
-      const { data } = await notificationApi.getUnreadCount();
-      set({ unreadCount: data.unread_count || 0 });
+      const count = await notificationApi.getUnreadCount();
+      set({ unreadCount: count ?? 0 });
     } catch (err: any) {
       console.error('Failed to fetch unread count:', err);
     }

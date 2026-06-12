@@ -1,5 +1,6 @@
 package com.flashsale.paymentservice.service;
 
+import com.flashsale.paymentservice.dto.response.ClientSecretResponse;
 import com.flashsale.paymentservice.dto.response.TransactionDetailResponse;
 import com.flashsale.paymentservice.stripe.webhook.StripeWebhookDispatcher;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,10 @@ public class PaymentService {
 
     public TransactionDetailResponse getTransactionByParentOrder(Long parentOrderId) {
         return paymentQueryService.getTransactionByParentOrder(parentOrderId);
+    }
+
+    public ClientSecretResponse getClientSecret(Long parentOrderId) {
+        return paymentQueryService.getClientSecret(parentOrderId);
     }
 
     public void handleStripeWebhook(String payload, String sigHeader) {

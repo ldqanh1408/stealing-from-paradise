@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,6 +14,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 @Entity
 @Table(name = "users", indexes = {
@@ -44,6 +48,19 @@ public class User implements UserDetails {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    /** JSONB: { "email_order": true, "email_promo": false, ... } */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "notification_preferences", columnDefinition = "jsonb")
+    private Map<String, Boolean> notificationPreferences;
+
+    /** URL to avatar stored in S3/CDN */
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    /** Last successful login timestamp */
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     @PrePersist
     protected void onCreate() {

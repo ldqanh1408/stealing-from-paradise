@@ -16,8 +16,20 @@ export interface PaymentDetail {
   remainingSeconds: number | null;
 }
 
+export interface ClientSecretResponse {
+  clientSecret: string;
+  parentOrderId: number;
+  transactionId: number;
+  amount: number;
+  currency: string;
+}
+
 export const paymentApi = {
   /** Get payment/transaction details for a parent order */
   getPayment: (parentOrderId: number) =>
     apiClient.get<ApiResponse<PaymentDetail>>(`/payments/parent-order/${parentOrderId}`),
+
+  /** Get Stripe client secret for PaymentElement (backend fetches from existing PI) */
+  getClientSecret: (parentOrderId: number) =>
+    apiClient.get<ApiResponse<ClientSecretResponse>>(`/payments/client-secret/${parentOrderId}`),
 };

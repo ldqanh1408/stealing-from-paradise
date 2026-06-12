@@ -9,7 +9,9 @@ import com.flashsale.identityservice.domain.repository.UserRepository;
 import com.flashsale.identityservice.dto.request.ChangePasswordRequest;
 import com.flashsale.identityservice.dto.request.AddressCreateRequest;
 import com.flashsale.identityservice.dto.request.AddressUpdateRequest;
+import com.flashsale.identityservice.dto.request.NotificationPreferencesUpdateRequest;
 import com.flashsale.identityservice.dto.request.UserProfileUpdateRequest;
+import com.flashsale.identityservice.dto.response.NotificationPreferencesResponse;
 import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.identityservice.dto.response.AddressResponse;
@@ -66,6 +68,8 @@ public class UserService {
                 .status(user.getStatus())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
+                .avatarUrl(user.getAvatarUrl())
+                .notificationPreferences(user.getNotificationPreferences())
                 .build();
     }
 
@@ -289,6 +293,49 @@ public class UserService {
         userRepository.save(user);
 
         log.info("Password changed for user {}", userId);
+    }
+
+    @Transactional
+    public void updateAvatarUrl(Long userId, String avatarUrl) {
+        User user = getUserById(userId);
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
+        log.info("Avatar updated for user {}", userId);
+    }
+
+    @Transactional
+    public NotificationPreferencesResponse getNotificationPreferences(Long userId) {
+        User user = getUserById(userId);
+        Map<String, Boolean> prefs = user.getNotificationPreferences();
+        return NotificationPreferencesResponse.builder()
+                .preferences(prefs != null ? prefs : Map.of())
+                .build();
+    }
+
+    @Transactional
+    public NotificationPreferencesResponse updateNotificationPreferences(
+            Long userId,
+            NotificationPreferencesUpdateRequest request) {
+        User user = getUserById(userId);
+        Map<String, Boolean> merged = new java.util.HashMap<>();
+        // Start with defaults, then apply saved + new
+        merged.put("email_order", false);
+        merged.put("email_promo", false);
+        merged.put("email_flashsale", false);
+        merged.put("push_order", false);
+        merged.put("push_promo", false);
+        if (user.getNotificationPreferences() != null) {
+            merged.putAll(user.getNotificationPreferences());
+        }
+        if (request.getPreferences() != null) {
+            merged.putAll(request.getPreferences());
+        }
+        user.setNotificationPreferences(merged);
+        userRepository.save(user);
+        log.info("Notification preferences updated for user {}", userId);
+        return NotificationPreferencesResponse.builder()
+                .preferences(merged)
+                .build();
     }
 
     private AddressResponse toAddressResponse(Address address) {

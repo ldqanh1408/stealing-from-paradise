@@ -113,6 +113,15 @@ export const userApi = {
   registerAsSeller: () =>
     apiClient.post<ApiResponse<void>>('/users/me/roles/seller'),
 
+  getNotificationPreferences: () =>
+    apiClient.get<ApiResponse<{ preferences: Record<string, boolean> }>>('/users/me/notification-preferences'),
+
+  updateNotificationPreferences: (preferences: Record<string, boolean>) =>
+    apiClient.put<ApiResponse<{ preferences: Record<string, boolean> }>>('/users/me/notification-preferences', { preferences }),
+
+  updateAvatar: (avatarUrl: string) =>
+    apiClient.put<ApiResponse<void>>('/users/me/avatar', { avatarUrl }),
+
 };
 
 export const adminUserApi = {

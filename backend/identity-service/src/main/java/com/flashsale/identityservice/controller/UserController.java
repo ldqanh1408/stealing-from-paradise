@@ -5,8 +5,10 @@ import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.identityservice.dto.request.AddressCreateRequest;
 import com.flashsale.identityservice.dto.request.AddressUpdateRequest;
 import com.flashsale.identityservice.dto.request.ChangePasswordRequest;
+import com.flashsale.identityservice.dto.request.NotificationPreferencesUpdateRequest;
 import com.flashsale.identityservice.dto.request.UserProfileUpdateRequest;
 import com.flashsale.identityservice.dto.response.AddressResponse;
+import com.flashsale.identityservice.dto.response.NotificationPreferencesResponse;
 import com.flashsale.identityservice.dto.response.PresignedUrlResponse;
 import com.flashsale.identityservice.dto.response.UserProfileResponse;
 import com.flashsale.identityservice.service.UserService;
@@ -102,6 +104,29 @@ public class UserController {
             userService.registerAsSeller(user.getId());
             return ResponseEntity.ok(ApiResponse.success(null, "Registered as seller"));
         }
+
+    @GetMapping("/me/notification-preferences")
+    public ResponseEntity<ApiResponse<NotificationPreferencesResponse>> getNotificationPreferences(
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.getNotificationPreferences(user.getId())));
+    }
+
+    @PutMapping("/me/notification-preferences")
+    public ResponseEntity<ApiResponse<NotificationPreferencesResponse>> updateNotificationPreferences(
+            @AuthenticationPrincipal UserDetailsImpl user,
+            @RequestBody NotificationPreferencesUpdateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.updateNotificationPreferences(user.getId(), request), "Preferences updated"));
+    }
+
+    @PutMapping("/me/avatar")
+    public ResponseEntity<ApiResponse<Void>> updateAvatar(
+            @AuthenticationPrincipal UserDetailsImpl user,
+            @RequestBody java.util.Map<String, String> body) {
+        userService.updateAvatarUrl(user.getId(), body.get("avatarUrl"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Avatar updated"));
+    }
 
     private String getExtension(String contentType) {
         return switch (contentType) {
