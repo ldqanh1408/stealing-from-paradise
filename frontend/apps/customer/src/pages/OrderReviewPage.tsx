@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
-import { orderApi, type CheckoutResponse } from '@shared/api/order.api';
+import { cartApi, type CartChangeDetail, type CheckoutPreviewResponse } from '@shared/api/cart.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
-// ─── Address Form Modal (create / edit) ───────────────────────────────────────
+const REASON_LABELS: Record<string, string> = {
+  PRICE_CHANGED: 'Giá đã thay đổi',
+  OUT_OF_STOCK: 'Hết hàng',
+  INSUFFICIENT_STOCK: 'Số lượng vượt quá tồn kho',
+  VARIANT_UNAVAILABLE: 'Sản phẩm không còn khả dụng',
+  VARIANT_INACTIVE: 'Sản phẩm đã ngừng bán',
+};
+
+// ─── Address Form Modal ────────────────────────────────────────────────────────
 function AddressFormModal({
   address,
   onClose,
@@ -240,14 +248,131 @@ function DeleteAddressModal({
   );
 }
 
+// ─── Cart Change Banner ─────────────────────────────────────────────────────────
+function CartChangeBanner({
+  details,
+  onRefresh,
+  isLoading,
+}: {
+  details: CartChangeDetail[];
+  onRefresh: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6">
+      <div className="flex items-start gap-3">
+        <div className="text-2xl shrink-0">⚠️</div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-orange-800 mb-1">Dữ liệu giỏ hàng đã thay đổi</h3>
+          <p className="text-sm text-orange-700 mb-3">
+            Một số sản phẩm trong giỏ hàng có thông tin đã thay đổi. Vui lòng kiểm tra trước khi thanh toán.
+          </p>
+          <div className="space-y-2">
+            {details.map((d, i) => (
+              <div key={i} className="bg-white/70 rounded-xl p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate">
+                      {d.productName || d.skuCode || d.variantId}
+                    </p>
+                    <p className="text-orange-600 font-medium mt-0.5">
+                      {REASON_LABELS[d.reason] ?? d.reason}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-gray-500 line-through text-xs">{d.expectedValue}</p>
+                    <p className="text-red-600 font-bold">{d.currentValue}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="mt-3 flex items-center gap-2 px-4 py-2 bg-orange-200 hover:bg-orange-300 text-orange-800 font-semibold text-sm rounded-xl transition-colors disabled:opacity-50"
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Đang làm mới...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Làm mới giỏ hàng
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Cart Change Error (inline for preview failures) ───────────────────────────
+function CartChangeErrorAlert({
+  message,
+  details,
+  onRefresh,
+  isLoading,
+}: {
+  message: string;
+  details: CartChangeDetail[];
+  onRefresh: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4">
+      <div className="flex items-start gap-3">
+        <div className="text-2xl shrink-0">⚠️</div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-bold text-red-800">{message}</h4>
+          {details.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {details.map((d, i) => (
+                <p key={i} className="text-sm text-red-700">
+                  <span className="font-medium">
+                    {d.productName || d.skuCode || d.variantId}
+                  </span>
+                  {' — '}
+                  <span className="text-red-600 font-medium">
+                    {REASON_LABELS[d.reason] ?? d.reason}
+                  </span>
+                  {d.expectedValue && d.currentValue && (
+                    <span className="ml-1">
+                      ({d.expectedValue} → <span className="font-bold">{d.currentValue}</span>)
+                    </span>
+                  )}
+                </p>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="mt-3 flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-sm rounded-xl transition-colors disabled:opacity-50"
+          >
+            {isLoading ? 'Đang làm mới...' : 'Làm mới giỏ hàng'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function OrderReviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
-  const { cart } = useCartStore();
+  const { cart, fetchCart, isLoading: cartLoading } = useCartStore();
 
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
-  const [orderData, setOrderData] = useState<CheckoutResponse | null>(null);
   const [step, setStep] = useState<'address' | 'review' | 'payment'>('address');
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'cod'>('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -257,7 +382,38 @@ export default function OrderReviewPage() {
   const [showNoDefaultDialog, setShowNoDefaultDialog] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Checkout flow state
+  const [previewData, setPreviewData] = useState<CheckoutPreviewResponse | null>(null);
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
+  const [cartChanges, setCartChanges] = useState<CartChangeDetail[]>([]);
+  const [refreshLoading, setRefreshLoading] = useState(false);
+
   const selectedItemIds = (location.state?.selectedItemIds || []) as number[];
+
+  // Check for price changes on cart load
+  useEffect(() => {
+    if (cart?.hasPriceChanges) {
+      const changedItems: CartChangeDetail[] = [];
+      cart.sellers.forEach(seller => {
+        seller.items.forEach(item => {
+          changedItems.push({
+            variantId: String(item.cartItemId),
+            skuCode: item.skuCode,
+            productName: item.productName,
+            reason: 'PRICE_CHANGED',
+            currentValue: fmt(item.unitPrice),
+            expectedValue: fmt(item.unitPrice),
+          });
+        });
+      });
+      setCartChanges(prev => [...prev, ...changedItems]);
+    }
+  }, [cart]);
+
+  const getItemPrice = (item: any) => {
+    if (item.isFlash && item.flashPrice) return item.flashPrice;
+    return item.unitPrice;
+  };
 
   const getSelectedItemsData = () => {
     if (!cart || selectedItemIds.length === 0) return [];
@@ -265,7 +421,7 @@ export default function OrderReviewPage() {
     cart.sellers.forEach(seller => {
       seller.items.forEach(item => {
         if (selectedItemIds.includes(item.cartItemId)) {
-          items.push({ ...item, sellerName: seller.sellerName });
+          items.push({ ...item, sellerName: seller.sellerName, price: getItemPrice(item) });
         }
       });
     });
@@ -273,9 +429,9 @@ export default function OrderReviewPage() {
   };
 
   const selectedItems = getSelectedItemsData();
-  const subtotal = selectedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const subtotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const { data: addresses = [], isLoading: addrsLoading, refetch: refetchAddresses } = useQuery({
+  const { data: addresses = [], isLoading: addrsLoading } = useQuery({
     queryKey: ['addresses'],
     queryFn: () => addressApi.list().then(r => r.data.data ?? []),
     retry: 1,
@@ -299,6 +455,18 @@ export default function OrderReviewPage() {
     setSelectedAddressId(newAddr.addressId);
   };
 
+  const handleRefreshCart = async () => {
+    setRefreshLoading(true);
+    setCartChanges([]);
+    setApiError(null);
+    try {
+      await fetchCart();
+    } finally {
+      setRefreshLoading(false);
+    }
+  };
+
+  // Step 1: Preview → validate cart + get preview token
   const handleCreateOrder = async () => {
     if (!selectedAddressId || selectedItemIds.length === 0) return;
     if (addresses.length === 0) {
@@ -307,44 +475,70 @@ export default function OrderReviewPage() {
     }
     setIsProcessing(true);
     setApiError(null);
+    setCartChanges([]);
     try {
-      const { data } = await orderApi.checkout({
-        addressId: selectedAddressId,
-        itemIds: selectedItemIds.map(String),
-      });
+      const { data } = await cartApi.checkoutPreview(selectedItemIds.map(String));
       if (data.data) {
-        setOrderData(data.data);
+        setPreviewData(data.data);
+        setPreviewToken(data.data.previewToken);
         setStep('review');
       }
     } catch (err: any) {
-      setApiError(err?.response?.data?.message || 'Lỗi tạo đơn hàng');
+      const errData = err?.response?.data as any;
+      if (errData?.error === 'CART_ITEMS_CHANGED' && errData?.details) {
+        setCartChanges(errData.details as CartChangeDetail[]);
+      }
+      setApiError(
+        errData?.message ||
+        err?.response?.data?.message ||
+        'Lỗi xác thực giỏ hàng'
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Step 2: Submit → create order via preview token
   const handleProceedToPayment = async () => {
-    if (!orderData) return;
+    if (!previewToken || !selectedAddressId) return;
+    const addr = addresses.find(a => a.addressId === selectedAddressId);
     setIsProcessing(true);
     setApiError(null);
     try {
-      // Persist checkout data to sessionStorage so CheckoutPage can recover
-      sessionStorage.setItem('pending_checkout', JSON.stringify({
-        ...orderData,
-        _paymentMethod: paymentMethod,
-      }));
-
-      if (paymentMethod === 'cod') {
-        navigate('/checkout/result?status=success', {
-          state: { parentOrderId: orderData.parentOrderId, method: 'COD' },
-        });
-      } else {
-        navigate('/checkout/payment', {
-          state: { orderData, parentOrderId: orderData.parentOrderId },
-        });
+      const { data } = await cartApi.checkoutSubmit(
+        previewToken,
+        selectedAddressId,
+        addr?.provinceId,
+        addr?.districtId,
+        addr?.fullAddress,
+      );
+      if (data.data) {
+        sessionStorage.setItem('pending_checkout', JSON.stringify({
+          parentOrderId: data.data.parentOrderId,
+          totalAmount: data.data.totalAmount,
+          totalItems: data.data.totalItems,
+          _paymentMethod: paymentMethod,
+        }));
+        if (paymentMethod === 'cod') {
+          navigate('/checkout/result?status=success', {
+            state: { parentOrderId: data.data.parentOrderId, method: 'COD' },
+          });
+        } else {
+          navigate('/checkout/payment', {
+            state: { parentOrderId: data.data.parentOrderId },
+          });
+        }
       }
-    } catch {
-      setApiError('Lỗi xử lý thanh toán');
+    } catch (err: any) {
+      const errData = err?.response?.data as any;
+      if (errData?.error === 'STOCK_CHANGED' && errData?.details) {
+        setCartChanges(errData.details as CartChangeDetail[]);
+      }
+      setApiError(
+        errData?.message ||
+        err?.response?.data?.message ||
+        'Lỗi tạo đơn hàng'
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -355,10 +549,23 @@ export default function OrderReviewPage() {
   return (
     <div className="bg-gray-50 min-h-screen py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        {/* Cart change warning banner (shown on page load if cart has changes) */}
+        {cartChanges.length > 0 && step === 'address' && (
+          <CartChangeBanner
+            details={cartChanges}
+            onRefresh={handleRefreshCart}
+            isLoading={refreshLoading}
+          />
+        )}
+
+        {/* Inline error (shown after preview/submit failures) */}
         {apiError && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
-            {apiError}
-          </div>
+          <CartChangeErrorAlert
+            message={apiError}
+            details={cartChanges}
+            onRefresh={handleRefreshCart}
+            isLoading={refreshLoading}
+          />
         )}
 
         {/* Step indicator */}
@@ -483,7 +690,19 @@ export default function OrderReviewPage() {
             {/* Order items summary */}
             {selectedItems.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
-                <h3 className="font-bold text-gray-900 mb-4">Sản phẩm cần giao ({selectedItems.length} sản phẩm)</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-900">Sản phẩm cần giao ({selectedItems.length} sản phẩm)</h3>
+                  <button
+                    onClick={handleRefreshCart}
+                    disabled={refreshLoading || cartLoading}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <svg className={`w-3.5 h-3.5 ${refreshLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Làm mới
+                  </button>
+                </div>
                 <div className="space-y-3">
                   {selectedItems.map(item => (
                     <div key={item.cartItemId} className="flex items-center justify-between pb-3 border-b last:border-b-0 last:pb-0">
@@ -492,7 +711,7 @@ export default function OrderReviewPage() {
                         <p className="text-xs text-gray-500">{item.variantName} × {item.quantity}</p>
                         <p className="text-xs text-gray-500">{item.sellerName}</p>
                       </div>
-                      <p className="font-semibold text-gray-900 ml-4">{fmt(item.unitPrice * item.quantity)}</p>
+                      <p className="font-semibold text-gray-900 ml-4">{fmt(item.price * item.quantity)}</p>
                     </div>
                   ))}
                 </div>
@@ -527,7 +746,7 @@ export default function OrderReviewPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Đang xử lý...
+                  Đang kiểm tra giỏ hàng...
                 </>
               ) : (
                 'Tiếp tục'
@@ -536,8 +755,18 @@ export default function OrderReviewPage() {
           </div>
         )}
 
-        {step === 'review' && orderData && (
+        {step === 'review' && previewData && (
           <div className="max-w-3xl">
+            {/* Cart change warnings on review step */}
+            {cartChanges.length > 0 && (
+              <CartChangeErrorAlert
+                message="Một số sản phẩm đã thay đổi. Vui lòng quay lại để làm mới."
+                details={cartChanges}
+                onRefresh={handleRefreshCart}
+                isLoading={refreshLoading}
+              />
+            )}
+
             <div className="flex items-center gap-3 mb-6">
               <button
                 onClick={() => setStep('address')}
@@ -562,18 +791,30 @@ export default function OrderReviewPage() {
             )}
 
             <div className="space-y-6 mb-6">
-              {orderData.orders.map(order => (
-                <div key={order.orderId} className="bg-white rounded-2xl border border-gray-100 p-6">
+              {previewData.sellers.map((sellerGroup) => (
+                <div key={sellerGroup.sellerId} className="bg-white rounded-2xl border border-gray-100 p-6">
                   <div className="flex items-center justify-between mb-4 pb-4 border-b">
                     <div>
-                      <p className="font-bold text-gray-900">{order.sellerName}</p>
-                      <p className="text-xs text-gray-500 font-mono">{order.orderCode}</p>
+                      <p className="font-bold text-gray-900">
+                        {sellerGroup.sellerName || `Seller #${sellerGroup.sellerId}`}
+                      </p>
                     </div>
-                    <p className="font-bold text-lg">{fmt(order.finalAmt)}</p>
+                    <p className="font-bold text-lg">{fmt(sellerGroup.subtotal)}</p>
                   </div>
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold text-yellow-600">Chờ xác nhận</span> · {order.itemCount} sản phẩm
-                  </p>
+                  <div className="space-y-3">
+                    {sellerGroup.items.map((item) => (
+                      <div key={item.variantId} className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-xl shrink-0">
+                          🛍️
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
+                          <p className="text-xs text-gray-500">{item.variantName} × {item.quantity}</p>
+                        </div>
+                        <p className="font-semibold text-gray-900 shrink-0">{fmt(item.subtotal)}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -582,7 +823,7 @@ export default function OrderReviewPage() {
               <div className="space-y-3 text-sm mb-4">
                 <div className="flex justify-between text-gray-600">
                   <span>Tạm tính</span>
-                  <span>{fmt(orderData.totalAmount)}</span>
+                  <span>{fmt(previewData.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Phí vận chuyển</span>
@@ -591,7 +832,7 @@ export default function OrderReviewPage() {
                 <div className="h-px bg-gray-100" />
                 <div className="flex justify-between font-bold text-base">
                   <span>Tổng thanh toán</span>
-                  <span className="text-red-600 text-lg">{fmt(orderData.finalAmount)}</span>
+                  <span className="text-red-600 text-lg">{fmt(previewData.totalAmount)}</span>
                 </div>
               </div>
             </div>
@@ -629,7 +870,7 @@ export default function OrderReviewPage() {
 
             <button
               onClick={handleProceedToPayment}
-              disabled={isProcessing}
+              disabled={isProcessing || cartChanges.length > 0}
               className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
             >
               {isProcessing ? (
@@ -643,7 +884,7 @@ export default function OrderReviewPage() {
               ) : (
                 paymentMethod === 'cod'
                   ? `Xác nhận đặt hàng (COD)`
-                  : `Thanh toán ${fmt(orderData.finalAmount)}`
+                  : `Thanh toán ${fmt(previewData.totalAmount)}`
               )}
             </button>
           </div>
@@ -693,7 +934,6 @@ export default function OrderReviewPage() {
           address={deletingAddress}
           onClose={() => setDeletingAddress(null)}
           onSuccess={() => {
-            // If we deleted the selected address, clear selection
             if (deletingAddress.addressId === selectedAddressId) {
               setSelectedAddressId(null);
             }
