@@ -173,7 +173,7 @@ export default function FlashSalePage() {
     setBuyingSku(item.skuCode);
     setSuccessMsg(null);
     try {
-      await addToCart(item.skuCode, 1, item.id);
+      await addToCart(item.skuCode, 1);
       setSuccessMsg('Đã thêm vào giỏ hàng!');
       setTimeout(() => navigate('/cart'), 1000);
     } catch (err: any) {

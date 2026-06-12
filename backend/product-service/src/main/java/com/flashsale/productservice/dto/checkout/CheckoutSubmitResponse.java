@@ -17,7 +17,7 @@ public class CheckoutSubmitResponse {
     private String sessionId;
     private Long parentOrderId;
     private Instant createdAt;
-    private int totalItems;
+    private Integer totalItems;
     private BigDecimal totalAmount;
     private String message;
 }

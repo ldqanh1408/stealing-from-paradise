@@ -74,7 +74,7 @@ export default function ProductListPage() {
     if (!product.variants?.length) return;
     try {
       const sku = product.variants[0].skuCode;
-      await addToCart(sku, 1, undefined);
+      await addToCart(sku, 1);
       navigate('/cart');
     } catch (err: any) {
       console.error('Add to cart failed:', err);

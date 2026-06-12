@@ -42,6 +42,10 @@ public class ProductMapper {
                     .orElse(null);
         }
 
+        String sellerName = product.getSellerId() != null
+                ? "Seller " + product.getSellerId()
+                : null;
+
         return ProductResponse.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -50,10 +54,11 @@ public class ProductMapper {
                 .categoryId(product.getCategoryId())
                 .categoryName(categoryName)
                 .sellerId(product.getSellerId())
+                .sellerName(sellerName)
                 .status(product.getStatus().name())
                 .attributes(deserializeAttributes(product.getAttributes()))
                 .variants(variants.stream().map(this::toVariantResponse).collect(Collectors.toList()))
-                .images(images.stream().map(this::toImageResponse).collect(Collectors.toList()))
+                .images(images.stream().map(img -> img.getUrl()).collect(Collectors.toList()))
                 .rejectReason(product.getRejectReason())
                 .rejectCount(product.getRejectCount())
                 .createdAt(product.getCreatedAt())
@@ -63,15 +68,19 @@ public class ProductMapper {
     }
 
     public VariantResponse toVariantResponse(ProductVariant variant) {
+        boolean isFlash = variant.getOriginalPrice() != null
+                && variant.getPrice().compareTo(variant.getOriginalPrice()) < 0;
+
         return VariantResponse.builder()
                 .id(variant.getId())
                 .productId(variant.getProductId())
-                .variantCode(variant.getVariantCode())
+                .skuCode(variant.getVariantCode())
                 .variantName(variant.getVariantName())
                 .variantAttributes(deserializeAttributes(variant.getVariantAttributes()))
                 .price(variant.getPrice())
                 .originalPrice(variant.getOriginalPrice())
                 .stockQuantity(variant.getStockQuantity())
+                .isFlash(isFlash)
                 .status(variant.getStatus().name())
                 .imageUrl(variant.getImageUrl())
                 .version(variant.getVersion())

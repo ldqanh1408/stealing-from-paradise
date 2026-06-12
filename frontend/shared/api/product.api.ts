@@ -2,9 +2,13 @@ import apiClient from '../lib/axios';
 import type { ApiResponse } from '../types/api';
 
 export interface ProductVariant {
+  id: string;
   skuCode: string;
   variantName: string;
-  stock: number;
+  stockQuantity: number;
+  isFlash: boolean;
+  price?: number;
+  originalPrice?: number;
 }
 
 /** Matches backend ProductResponse: GET /products/{productId} */
@@ -14,22 +18,82 @@ export interface ProductDetail {
   sellerName?: string;
   name: string;
   description?: string;
-  price?: number;
-  originalPrice?: number;
   categoryId?: string;
   categoryName?: string;
   categorySlug?: string;
   attributes?: Record<string, unknown>;
   images?: string[];
-  isFlash?: boolean;
   status?: string;
   rejectReason?: string;
-  stockAvailable: number;
   variants?: ProductVariant[];
   rating?: number;
   reviewsCount?: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** Backend VariantResponse shape */
+interface BackendVariant {
+  id: string;
+  productId: string;
+  skuCode: string;
+  variantName: string;
+  price: number;
+  originalPrice?: number;
+  stockQuantity: number;
+  isFlash: boolean;
+  status: string;
+  imageUrl?: string;
+  variantAttributes?: Record<string, unknown>;
+}
+
+/** Backend ProductResponse shape */
+interface BackendProductResponse {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  categoryId?: string;
+  categoryName?: string;
+  sellerId: number;
+  sellerName?: string;
+  status: string;
+  attributes?: Record<string, unknown>;
+  variants: BackendVariant[];
+  images: string[];
+  rejectReason?: string;
+  rejectCount?: number;
+  createdAt: string;
+  updatedAt?: string;
+  publishedAt?: string;
+}
+
+function mapBackendProduct(raw: BackendProductResponse): ProductDetail {
+  return {
+    productId: raw.id,
+    sellerId: raw.sellerId,
+    sellerName: raw.sellerName,
+    name: raw.name,
+    slug: raw.slug,
+    description: raw.description,
+    categoryId: raw.categoryId,
+    categoryName: raw.categoryName,
+    status: raw.status,
+    attributes: raw.attributes,
+    images: raw.images ?? [],
+    rejectReason: raw.rejectReason,
+    variants: (raw.variants ?? []).map(v => ({
+      id: v.id,
+      skuCode: v.skuCode,
+      variantName: v.variantName,
+      stockQuantity: v.stockQuantity ?? 0,
+      isFlash: v.isFlash ?? false,
+      price: v.price,
+      originalPrice: v.originalPrice,
+    })),
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
 }
 
 /** Matches backend ProductCard (used in product grids from search service) */
@@ -125,7 +189,14 @@ export const productApi = {
 
   /** Get product by ID — returns full ProductDetail from product service */
   getProductById: (productId: string) =>
-    apiClient.get<ApiResponse<ProductDetail>>(`/products/${productId}`),
+    apiClient.get<ApiResponse<BackendProductResponse>>(`/products/${productId}`)
+      .then(res => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: mapBackendProduct(res.data.data),
+        },
+      })),
 
   /** Search products (delegates to search service) */
   searchProducts: (query: string, params?: {

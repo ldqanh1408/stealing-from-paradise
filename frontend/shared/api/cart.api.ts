@@ -17,6 +17,7 @@ export interface CartItem {
   maxQuantityPerUser?: number | null;
   subtotal?: number;
   addedAt?: string;
+  variantId?: string;
 }
 
 export interface CartSeller {
@@ -33,6 +34,79 @@ export interface Cart {
   totalItems: number;
   subtotal: number;
   hasPriceChanges?: boolean;
+}
+
+// ─── Backend cart response (flat) ───────────────────────────────────────────────
+
+interface BackendCartItem {
+  variantId: string;
+  variantCode: string;
+  variantName: string;
+  productName?: string;
+  priceSnapshot: number;
+  currentPrice?: number;
+  priceChanged?: boolean;
+  quantity: number;
+  stockAvailable: number;
+  variantImageSnapshot?: string;
+  subtotal: number;
+  outOfStock?: boolean;
+  unavailable?: boolean;
+  insufficientStock?: boolean;
+  sellerId: number;
+}
+
+interface BackendCartResponse {
+  customerId: number;
+  items: BackendCartItem[];
+  totalItems: number;
+  subtotal: number;
+  hasPriceChanges: boolean;
+  groupedBySeller: Record<string, BackendCartItem[]>;
+}
+
+function mapBackendCart(raw: BackendCartResponse): Cart {
+  const sellerGroups = Object.entries(raw.groupedBySeller ?? {});
+  const sellers: CartSeller[] = sellerGroups.map(([sellerIdStr, items]) => {
+    const sellerId = Number(sellerIdStr);
+    const cartItems: CartItem[] = items.map((item) => ({
+      cartItemId: generateCartItemId(sellerId, item.variantId),
+      skuCode: item.variantCode ?? '',
+      variantId: item.variantId,
+      productName: item.productName ?? '',
+      variantName: item.variantName ?? '',
+      unitPrice: item.priceSnapshot,
+      quantity: item.quantity,
+      stockAvailable: item.stockAvailable ?? 0,
+      isFlash: false,
+      subtotal: item.subtotal,
+      priceChanged: item.priceChanged,
+      outOfStock: item.outOfStock,
+      insufficientStock: item.insufficientStock,
+      unavailable: item.unavailable,
+    }));
+    return {
+      sellerId,
+      sellerName: `Seller ${sellerId}`,
+      items: cartItems,
+      sellerSubtotal: cartItems.reduce((sum, item) => sum + (item.subtotal ?? 0), 0),
+    };
+  });
+
+  return {
+    sellers,
+    totalItems: raw.totalItems ?? 0,
+    subtotal: raw.subtotal ?? 0,
+    hasPriceChanges: raw.hasPriceChanges ?? false,
+  };
+}
+
+function generateCartItemId(sellerId: number, variantId: string): number {
+  let hash = sellerId;
+  for (let i = 0; i < variantId.length; i++) {
+    hash = ((hash << 5) - hash + variantId.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }
 
 // ─── Checkout Preview / Submit ──────────────────────────────────────────────────
@@ -92,44 +166,33 @@ export interface CheckoutSubmitResponse {
 }
 
 export const cartApi = {
-  // Get current cart
   getCart: () =>
-    apiClient.get<ApiResponse<Cart>>('/cart'),
+    apiClient.get<ApiResponse<BackendCartResponse>('/cart').then(res => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: mapBackendCart(res.data.data),
+      },
+    })),
 
-  // Add item to cart
-  addItem: (skuCode: string, quantity: number, fsItemId?: number) =>
-    apiClient.post<ApiResponse<CartItem>>('/cart/items', {
-      skuCode,
-      quantity,
-      fsItemId,
-    }),
+  addItem: (skuCode: string, quantity: number) =>
+    apiClient.post<ApiResponse<CartItem>('/cart/items', { skuCode, quantity }),
 
-  // Update item quantity
-  updateItemQuantity: (itemId: number, quantity: number) =>
-    apiClient.put<ApiResponse<CartItem>>(`/cart/items/${itemId}`, {
-      quantity,
-    }),
+  updateItemQuantity: (variantId: string, quantity: number) =>
+    apiClient.put<ApiResponse<CartItem>(`/cart/items/${variantId}`, { quantity }),
 
-  // Remove item from cart
-  removeItem: (itemId: number) =>
-    apiClient.delete<ApiResponse<void>>(`/cart/items/${itemId}`),
+  removeItem: (variantId: string) =>
+    apiClient.delete<ApiResponse<void>(`/cart/items/${variantId}`),
 
-  // Clear entire cart
   clearCart: () =>
-    apiClient.delete<ApiResponse<void>>('/cart'),
+    apiClient.delete<ApiResponse<void>('/cart'),
 
-  // Checkout preview — validates stock/price, returns preview token or error details
   checkoutPreview: (itemIds: string[]) =>
-    apiClient.post<ApiResponse<CheckoutPreviewResponse>>('/cart/checkout/preview', { itemIds }),
+    apiClient.post<ApiResponse<CheckoutPreviewResponse>('/cart/checkout/preview', { itemIds }),
 
-  // Checkout submit — uses preview token, creates order
-  checkoutSubmit: (previewToken: string, addressId: number, provinceId?: number, districtId?: number, fullAddress?: string) =>
-    apiClient.post<ApiResponse<CheckoutSubmitResponse>>('/cart/checkout/submit', {
+  checkoutSubmit: (previewToken: string, addressId: number) =>
+    apiClient.post<ApiResponse<CheckoutSubmitResponse>('/cart/checkout/submit', {
       previewToken,
       addressId,
-      provinceId,
-      districtId,
-      fullAddress,
     }),
 };
-

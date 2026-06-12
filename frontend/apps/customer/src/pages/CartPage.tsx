@@ -12,29 +12,27 @@ function isFlashExpired(iso?: string | null) {
 
 export default function CartPage() {
   const { cart, isLoading, fetchCart, updateQuantity, removeFromCart } = useCartStore();
-  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
 
-  const [quantityError, setQuantityError] = useState<number | null>(null);
+  const [quantityError, setQuantityError] = useState<string | null>(null);
 
   const getMaxQty = (item: CartItem) => {
-    if (item.maxQuantityPerUser) {
-      return Math.min(item.maxQuantityPerUser, item.stockAvailable);
-    }
     return item.stockAvailable;
   };
 
   const handleIncrease = (item: CartItem) => {
+    const vid = item.variantId ?? String(item.cartItemId);
     const max = getMaxQty(item);
     if (item.quantity >= max) {
-      setQuantityError(item.cartItemId);
+      setQuantityError(vid);
       setTimeout(() => setQuantityError(null), 2000);
       return;
     }
-    updateQuantity(item.cartItemId, item.quantity + 1);
+    updateQuantity(vid, item.quantity + 1);
   };
 
   const getTotal = () => {
@@ -42,7 +40,8 @@ export default function CartPage() {
     let total = 0;
     cart.sellers.forEach(seller => {
       seller.items.forEach(item => {
-        if (selectedItems.has(item.cartItemId)) {
+        const key = item.variantId ?? String(item.cartItemId);
+        if (selectedItems.has(key)) {
           const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
           total += price * item.quantity;
         }
@@ -56,7 +55,8 @@ export default function CartPage() {
     return cart.sellers
       .map(seller => {
         const sellerTotal = seller.items.reduce((sum, item) => {
-          if (selectedItems.has(item.cartItemId)) {
+          const key = item.variantId ?? String(item.cartItemId);
+          if (selectedItems.has(key)) {
             const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
             return sum + price * item.quantity;
           }
@@ -67,12 +67,12 @@ export default function CartPage() {
       .filter(s => s.total > 0);
   };
 
-  const toggleItemSelection = (itemId: number) => {
+  const toggleItemSelection = (itemKey: string) => {
     const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
+    if (newSelected.has(itemKey)) {
+      newSelected.delete(itemKey);
     } else {
-      newSelected.add(itemId);
+      newSelected.add(itemKey);
     }
     setSelectedItems(newSelected);
   };
@@ -82,10 +82,10 @@ export default function CartPage() {
     if (selectedItems.size === getItemCount()) {
       setSelectedItems(new Set());
     } else {
-      const all = new Set<number>();
+      const all = new Set<string>();
       cart.sellers.forEach(seller => {
         seller.items.forEach(item => {
-          all.add(item.cartItemId);
+          all.add(item.variantId ?? String(item.cartItemId));
         });
       });
       setSelectedItems(all);
@@ -160,13 +160,13 @@ export default function CartPage() {
                     const overStock = item.quantity > item.stockAvailable;
 
                     return (
-                      <div key={item.cartItemId} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
+                      <div key={item.variantId ?? String(item.cartItemId)} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
                         isExpired ? 'border-red-200 bg-red-50/30' : item.isFlash ? 'border-orange-200 bg-orange-50/20' : 'border-gray-100'
                       }`}>
                         <input
                           type="checkbox"
-                          checked={selectedItems.has(item.cartItemId)}
-                          onChange={() => toggleItemSelection(item.cartItemId)}
+                          checked={selectedItems.has(item.variantId ?? String(item.cartItemId))}
+                          onChange={() => toggleItemSelection(item.variantId ?? String(item.cartItemId))}
                           className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
                         />
                         <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0 overflow-hidden">
@@ -215,7 +215,7 @@ export default function CartPage() {
                         <div className="flex flex-col items-center gap-1 shrink-0">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
+                              onClick={() => updateQuantity(item.variantId ?? String(item.cartItemId), Math.max(1, item.quantity - 1))}
                               disabled={item.quantity <= 1}
                               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600 font-bold"
                             >
@@ -229,12 +229,12 @@ export default function CartPage() {
                               +
                             </button>
                           </div>
-                          {quantityError === item.cartItemId && (
+                          {quantityError === (item.variantId ?? String(item.cartItemId)) && (
                             <p className="text-xs text-red-500 whitespace-nowrap">Đã đạt số lượng tối đa</p>
                           )}
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.cartItemId)}
+                          onClick={() => removeFromCart(item.variantId ?? String(item.cartItemId))}
                           className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

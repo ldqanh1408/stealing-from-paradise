@@ -1,262 +1,261 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { getStripe } from '@/lib/stripe';
-import { paymentApi } from '@shared/api/payment.api';
+import { cartApi } from '@shared/api/cart.api';
 import { orderApi } from '@shared/api/order.api';
-import type { CheckoutResponse } from '@shared/api/order.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
-function PaymentForm({
-  orderData,
-  onSuccess,
-}: {
-  orderData: CheckoutResponse;
-  onSuccess: (piId: string) => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [stripeError, setStripeError] = useState<string | null>(null);
+interface PreviewItem {
+  variantId: string;
+  skuCode: string;
+  productName: string;
+  variantName: string;
+  priceSnapshot: number;
+  quantity: number;
+  imageUrl?: string;
+  subtotal: number;
+  sellerId: number;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setIsProcessing(true);
-    setStripeError(null);
+interface PreviewSellerGroup {
+  sellerId: number;
+  sellerName?: string;
+  items: PreviewItem[];
+  subtotal: number;
+}
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/checkout/result`,
-      },
-      redirect: 'if_required',
-    });
-
-    if (error) {
-      setStripeError(error.message ?? 'Thanh toán thất bại');
-      setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      onSuccess(paymentIntent.id);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-100 p-6">
-        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">
-            💳
-          </span>
-          Thông tin thẻ tín dụng
-        </h2>
-        <div className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
-          <PaymentElement
-            options={{
-              layout: 'tabs',
-              paymentMethodOrder: ['card'],
-            }}
-          />
-        </div>
-        <p className="text-xs text-gray-400 mb-4">
-          Thử nghiệm: Dùng thẻ test Stripe (4242 4242 4242 4242), bất kỳ exp/CVC nào, zip 42424
-        </p>
-        {stripeError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-            <p className="text-red-700 text-sm">{stripeError}</p>
-          </div>
-        )}
-        <button
-          type="submit"
-          disabled={!stripe || isProcessing}
-          className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
-        >
-          {isProcessing ? (
-            <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Đang xử lý thanh toán...
-            </>
-          ) : (
-            `Thanh toán ${fmt(orderData.finalAmount)}`
-          )}
-        </button>
-      </div>
-    </form>
-  );
+interface PreviewData {
+  previewToken: string;
+  expiresAt: string;
+  customerId: number;
+  sellers: PreviewSellerGroup[];
+  totalItems: number;
+  totalAmount: number;
+  allValid: boolean;
 }
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [orderData, setOrderData] = useState<CheckoutResponse | null>(
-    (location.state?.orderData as CheckoutResponse) || null
-  );
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasAddress, setHasAddress] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
 
-  // Recover from sessionStorage if no location state (e.g., navigated here directly)
+  const selectedItemIds: string[] = location.state?.selectedItemIds ?? [];
+
+  // Fetch addresses
+  const { data: addresses = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: async () => {
+      const { addressApi } = await import('@shared/api/address.api');
+      const res = await addressApi.list();
+      return res.data.data ?? [];
+    },
+    retry: 1,
+  });
+
+  // Auto-select default address
   useEffect(() => {
-    if (!orderData) {
-      try {
-        const stored = sessionStorage.getItem('pending_checkout');
-        if (stored) {
-          const parsed: CheckoutResponse = JSON.parse(stored);
-          setOrderData(parsed);
-          return;
-        }
-      } catch (_) {}
-      navigate('/cart');
+    const def = addresses.find((a: any) => a.isDefault);
+    if (def) {
+      setSelectedAddressId(def.addressId);
+      setHasAddress(true);
+    } else if (addresses.length > 0) {
+      setSelectedAddressId(addresses[0].addressId);
+      setHasAddress(true);
     }
-  }, [orderData, navigate]);
+  }, [addresses]);
 
-  const parentOrderId = orderData?.parentOrderId;
-
-  // Fetch parent order to get shipping address
-  const { data: parentOrder } = useQuery({
-    queryKey: ['parent-order', parentOrderId],
-    queryFn: () => orderApi.getParentOrder(parentOrderId!).then(r => r.data.data),
-    enabled: !!parentOrderId,
+  // Call checkout preview
+  const { data: previewData, isLoading: isPreviewLoading, error: previewError } = useQuery({
+    queryKey: ['checkout-preview', selectedItemIds.join(',')],
+    queryFn: () => cartApi.checkoutPreview(selectedItemIds).then(r => r.data.data),
+    enabled: selectedItemIds.length > 0,
     retry: 1,
   });
 
-  const { data: clientSecretData, isLoading: secretLoading } = useQuery({
-    queryKey: ['client-secret', parentOrderId],
-    queryFn: () =>
-      paymentApi.getClientSecret(parentOrderId!).then(r => r.data.data),
-    enabled: !!parentOrderId && !!orderData,
-    retry: 1,
-  });
-
-  useEffect(() => {
-    if (!orderData?.timeoutAt) return;
-    const target = new Date(orderData.timeoutAt).getTime();
-    const tick = () => {
-      const remaining = Math.max(0, Math.floor((target - Date.now()) / 1000));
-      setCountdown(remaining);
-      if (remaining === 0) {
-        navigate('/checkout/result?status=failed', { state: { error: 'Hết thời gian thanh toán', parentOrderId: orderData.parentOrderId } });
+  const handlePlaceOrder = async () => {
+    if (!previewData || !selectedAddressId) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const { data: submitRes } = await cartApi.checkoutSubmit(
+        previewData.previewToken,
+        selectedAddressId
+      );
+      if (submitRes?.data) {
+        sessionStorage.setItem('pending_checkout', JSON.stringify(submitRes.data));
+        navigate('/checkout/payment', {
+          state: { orderData: submitRes.data },
+        });
       }
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [orderData?.timeoutAt, navigate]);
-
-  const handleStripeSuccess = (paymentIntentId: string) => {
-    navigate('/checkout/result?status=success', {
-      state: { parentOrderId, paymentIntentId },
-    });
+    } catch (err: any) {
+      setSubmitError(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Đặt hàng thất bại. Vui lòng thử lại.'
+      );
+      setIsSubmitting(false);
+    }
   };
 
-  if (!orderData) {
+  if (selectedItemIds.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <p className="text-gray-500">Đang chuyển hướng...</p>
+        <p className="text-red-500 mb-4">Không có sản phẩm nào được chọn.</p>
+        <button onClick={() => navigate('/cart')} className="text-blue-600 hover:underline">
+          ← Quay lại giỏ hàng
+        </button>
       </div>
     );
   }
 
-  const minutes = countdown !== null ? Math.floor(countdown / 60) : null;
-  const seconds = countdown !== null ? countdown % 60 : null;
+  if (isPreviewLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+        <p className="text-gray-500">Đang kiểm tra thông tin sản phẩm...</p>
+      </div>
+    );
+  }
+
+  if (previewError || !previewData) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+        <p className="text-red-500 mb-4">Không thể xem thông tin đơn hàng. Vui lòng quay lại giỏ hàng.</p>
+        <button onClick={() => navigate('/cart')} className="text-blue-600 hover:underline">
+          ← Quay lại giỏ hàng
+        </button>
+      </div>
+    );
+  }
+
+  const totalAmount = previewData.totalAmount;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận thanh toán</h1>
-      <p className="text-sm text-gray-500 mb-6">Mã đơn: <span className="font-mono font-medium">{orderData.orderCode}</span></p>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Xác nhận đơn hàng</h1>
 
-      {countdown !== null && countdown > 0 && (
-        <div className="mb-6 flex items-center gap-2">
-          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-sm text-gray-500">Thanh toán trong:</span>
-          <span className={`text-sm font-bold ${countdown < 60 ? 'text-red-600 animate-pulse' : 'text-gray-900'}`}>
-            {minutes}:{seconds!.toString().padStart(2, '0')}
-          </span>
+      {/* Error */}
+      {submitError && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          {submitError}
         </div>
       )}
 
-      {/* Shipping address */}
-      {(parentOrder?.shippingAddress || orderData.orders[0]?.shippingAddress) && (
-        <div className="mb-6 bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                <span>📍</span> Địa chỉ giao hàng
-              </h2>
-              <p className="text-sm text-gray-700 mt-1">
-                {(parentOrder?.shippingAddress ?? orderData.orders[0]?.shippingAddress)?.fullAddress}
+      {/* Items preview */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <h2 className="font-bold text-gray-900 mb-4">📦 Sản phẩm ({previewData.totalItems})</h2>
+        <div className="space-y-3">
+          {previewData.sellers.map((seller: PreviewSellerGroup) => (
+            <div key={seller.sellerId}>
+              <p className="text-sm font-semibold text-gray-700 mb-2">
+                {seller.sellerName ?? `Seller ${seller.sellerId}`}
               </p>
-            </div>
-            <button
-              onClick={() => navigate('/checkout')}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              Thay đổi
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-3">
-          {secretLoading && (
-            <div className="space-y-4 animate-pulse">
-              <div className="h-48 bg-gray-100 rounded-2xl" />
-            </div>
-          )}
-          {!secretLoading && clientSecretData?.clientSecret && (
-            <Elements stripe={getStripe()} options={{ clientSecret: clientSecretData.clientSecret }}>
-              <PaymentForm
-                orderData={orderData}
-                onSuccess={handleStripeSuccess}
-              />
-            </Elements>
-          )}
-          {!secretLoading && !clientSecretData?.clientSecret && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-              <p className="text-gray-500">Không thể kết nối với cổng thanh toán. Vui lòng thử lại.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 sticky top-24">
-            <h2 className="font-bold text-gray-900 mb-4">📋 Đơn hàng</h2>
-            <div className="space-y-3 mb-4 pb-4 border-b border-gray-100">
-              {orderData.orders.map(order => (
-                <div key={order.orderId} className="text-sm">
-                  <p className="font-medium text-gray-900">{order.sellerName}</p>
-                  <p className="text-xs text-gray-500 font-mono">{order.orderCode}</p>
-                  <p className="font-bold text-red-600 mt-1">{fmt(order.finalAmt)}</p>
+              {seller.items.map((item: PreviewItem) => (
+                <div key={item.variantId} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                  <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-2xl shrink-0">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover rounded" />
+                    ) : '🛍️'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-500">{item.variantName}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-red-600">{fmt(item.subtotal)}</p>
+                    <p className="text-xs text-gray-400">x{item.quantity}</p>
+                  </div>
                 </div>
               ))}
             </div>
-            <div className="space-y-2 text-sm mb-5">
-              <div className="flex justify-between text-gray-600">
-                <span>Tạm tính</span>
-                <span>{fmt(orderData.totalAmount)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Phí ship</span>
-                <span className="text-green-600">Miễn phí</span>
-              </div>
-              <div className="h-px bg-gray-100" />
-              <div className="flex justify-between font-bold text-gray-900 text-base">
-                <span>Tổng</span>
-                <span className="text-red-600">{fmt(orderData.finalAmount)}</span>
-              </div>
-            </div>
-            <div className="p-3 bg-blue-50 rounded-xl text-xs text-blue-700">
-              Thanh toán an toàn qua Stripe. Dữ liệu thẻ của bạn được mã hoá.
-            </div>
-          </div>
+          ))}
         </div>
       </div>
+
+      {/* Address selection */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <h2 className="font-bold text-gray-900 mb-4">📍 Địa chỉ giao hàng</h2>
+        {addresses.length === 0 ? (
+          <div className="text-center py-4">
+              <p className="text-sm text-gray-500">Bạn chưa có địa chỉ giao hàng.</p>
+            <button
+              onClick={() => navigate('/profile/addresses')}
+              className="text-blue-600 hover:underline text-sm"
+            >
+              + Thêm địa chỉ mới
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {addresses.map((addr: any) => (
+              <label
+                key={addr.addressId}
+                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                  selectedAddressId === addr.addressId
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="address"
+                  value={addr.addressId}
+                  checked={selectedAddressId === addr.addressId}
+                  onChange={() => setSelectedAddressId(addr.addressId)}
+                  className="accent-blue-600"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {addr.recipientName} · {addr.phone}
+                  </p>
+                  <p className="text-xs text-gray-500">{addr.fullAddress}</p>
+                </div>
+                {addr.isDefault && (
+                <p className="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Mặc định</p>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Summary */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <div className="space-y-2 text-sm mb-4">
+          <div className="flex justify-between text-gray-600">
+              <p>Tạm tính</p>
+              <p>{fmt(totalAmount)}</p>
+          </div>
+          <div className="flex justify-between text-gray-600">
+              <p>Phí ship</p>
+              <p className="text-green-600">Miễn phí</p>
+          </div>
+          <div className="h-px bg-gray-100" />
+          <div className="flex justify-between font-bold text-gray-900 text-base">
+              <p>Tổng cộng</p>
+              <p className="text-red-600">{fmt(totalAmount)}</p>
+          </div>
+        </div>
+
+        <button
+          onClick={handlePlaceOrder}
+          disabled={isSubmitting || !hasAddress || !selectedAddressId}
+          className={`w-full py-4 font-bold text-lg rounded-xl transition-all ${
+            isSubmitting || !hasAddress || !selectedAddressId
+              ? 'bg-gray-400 text-white cursor-not-allowed'
+              : 'bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white'
+          }`}
+        >
+          {isSubmitting ? '⏳ Đang xử lý...' : `Đặt hàng · ${fmt(totalAmount)}`}
+        </button>
+      </div>
+
+      <button onClick={() => navigate('/cart')} className="text-gray-500 hover:text-gray-700 text-sm">
+        ← Quay lại giỏ hàng
+      </button>
     </div>
   );
 }

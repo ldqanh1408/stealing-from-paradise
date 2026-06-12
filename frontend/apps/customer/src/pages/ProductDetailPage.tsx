@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
-import { orderApi } from '@shared/api/order.api';
-import { addressApi } from '@shared/api/address.api';
 import { cartApi } from '@shared/api/cart.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -12,9 +10,8 @@ const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { addToCart } = useCartStore();
-  const [selectedVariant, setSelectedVariant] = useState(0);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [isBuyNow, setIsBuyNow] = useState(false);
@@ -30,24 +27,27 @@ export default function ProductDetailPage() {
     retry: 1,
   });
 
-  const { data: addresses = [] } = useQuery({
-    queryKey: ['addresses'],
-    queryFn: () => addressApi.list().then(r => r.data.data ?? []),
-    retry: 1,
-  });
-
-  const disc = product && product.price && product.originalPrice
-    ? Math.round((1 - product.price / product.originalPrice) * 100)
+  const selectedVariant = selectedVariantIndex !== null ? product?.variants?.[selectedVariantIndex] : null;
+  const hasVariants = product?.variants && product.variants.length > 0;
+  const isFlash = selectedVariant?.isFlash ?? false;
+  const price = selectedVariant?.price ?? 0;
+  const originalPrice = selectedVariant?.originalPrice ?? price;
+  const disc = price && originalPrice && originalPrice > price
+    ? Math.round((1 - price / originalPrice) * 100)
     : null;
+  const maxQty = selectedVariant?.stockQuantity ?? 0;
+  const isOutOfStock = !selectedVariant || maxQty <= 0;
 
   const handleAddToCart = async () => {
-    if (!product || !product.variants?.length) return;
+    if (!product || !selectedVariant) {
+      setAddError('Vui lòng chọn phân loại sản phẩm trước khi thêm vào giỏ hàng.');
+      return;
+    }
     setIsAdding(true);
     setAddError(null);
     setSuccessMsg(null);
     try {
-      const variant = product.variants[selectedVariant];
-      await addToCart(variant.skuCode, quantity, (product as any).fsItemId);
+      await addToCart(selectedVariant.skuCode, quantity);
       setSuccessMsg('Đã thêm vào giỏ hàng!');
       navTimerRef.current = setTimeout(() => navigate('/cart'), 1200);
     } catch (err: any) {
@@ -58,62 +58,19 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = async () => {
-    if (!product || !product.variants?.length) return;
+    if (!product || !selectedVariant) {
+      setAddError('Vui lòng chọn phân loại sản phẩm trước khi mua ngay.');
+      return;
+    }
     setIsBuyNow(true);
     setAddError(null);
     setSuccessMsg(null);
     try {
-      const addr = addresses.find((a: any) => a.isDefault) ?? addresses[0];
-      if (!addr) {
-        setAddError('Vui lòng thêm địa chỉ giao hàng trước khi mua hàng.');
-        setIsBuyNow(false);
-        return;
-      }
-
-      const variant = product.variants[selectedVariant];
-      if (variant.stock <= 0) {
-        setAddError('Sản phẩm đã hết hàng.');
-        setIsBuyNow(false);
-        return;
-      }
-
-      const fsItemId = (product as any).fsItemId;
-
-      // Add item to cart and immediately fetch updated cart
-      await cartApi.addItem(variant.skuCode, quantity, fsItemId);
-      const { data: cartRes } = await cartApi.getCart();
-      const cartData = cartRes?.data;
-
-      // Find the item we just added by matching sku and most recent addedAt
-      const sellers = cartData?.sellers ?? [];
-      const newestItem = sellers
-        .flatMap((s: any) => s?.items ?? [])
-        .filter((item: any) => item?.skuCode === variant.skuCode)
-        .sort((a: any, b: any) => {
-          const ta = a?.addedAt ? new Date(a.addedAt).getTime() : 0;
-          const tb = b?.addedAt ? new Date(b.addedAt).getTime() : 0;
-          return tb - ta;
-        })[0];
-
-      if (!newestItem?.cartItemId) {
-        throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
-      }
-
-      // Checkout
-      const { data: checkoutRes } = await orderApi.checkout({
-        addressId: addr.addressId,
-        itemIds: [String(newestItem.cartItemId)],
-      });
-
-      if (checkoutRes?.data) {
-        const orderData = checkoutRes.data;
-        navigate('/checkout/payment', {
-          state: { orderData, parentOrderId: orderData.parentOrderId },
-        });
-      }
+      await addToCart(selectedVariant.skuCode, quantity);
+      await cartApi.getCart();
+      navigate('/cart');
     } catch (err: any) {
-      setAddError(err?.response?.data?.message || err?.response?.data?.error || err.message || 'Mua ngay thất bại.');
-    } finally {
+      setAddError(err?.response?.data?.message || err?.response?.data?.error || 'Mua ngay thất bại.');
       setIsBuyNow(false);
     }
   };
@@ -155,11 +112,6 @@ export default function ProductDetailPage() {
     );
   }
 
-  const price = product.price ?? 0;
-  const original = product.originalPrice ?? price;
-  const selectedVariantData = product.variants?.[selectedVariant];
-  const maxQty = selectedVariantData?.stock ?? 0;
-
   return (
     <div className="bg-gray-50 min-h-screen py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
@@ -190,7 +142,10 @@ export default function ProductDetailPage() {
               {product.images && product.images.length > 1 && (
                 <div className="grid grid-cols-4 gap-3 mt-4">
                   {product.images.map((img, i) => (
-                    <button key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all">
+                    <button
+                      key={i}
+                      className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+                    >
                       <img src={img} alt="" className="w-full h-full object-cover" />
                     </button>
                   ))}
@@ -203,7 +158,7 @@ export default function ProductDetailPage() {
           <div>
             {/* Header */}
             <div className="mb-6">
-              {product.isFlash && (
+              {isFlash && (
                 <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full mb-3">
                   ⚡ FLASH SALE
                 </span>
@@ -222,7 +177,7 @@ export default function ProductDetailPage() {
                 <span className="text-4xl font-bold text-red-600">{fmt(price)}</span>
                 {disc && (
                   <>
-                    <span className="text-xl text-gray-400 line-through">{fmt(original)}</span>
+                    <span className="text-xl text-gray-400 line-through">{fmt(originalPrice)}</span>
                     <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-lg">
                       -{disc}%
                     </span>
@@ -230,33 +185,44 @@ export default function ProductDetailPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="text-green-600 font-semibold">✓ Còn hàng</span>
-                <span className="text-gray-300">·</span>
-                <span>{product.stockAvailable} sản phẩm</span>
+                {isOutOfStock ? (
+                  <>
+                    <span className="text-red-500 font-semibold">✗ Hết hàng</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-green-600 font-semibold">✓ Còn hàng</span>
+                    <span className="text-gray-300">·</span>
+                    <span>{maxQty} sản phẩm</span>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Variants */}
-            {product.variants && product.variants.length > 0 && (
+            {hasVariants && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Phân loại</h3>
                 <div className="flex flex-wrap gap-2">
-                  {product.variants.map((v, i) => (
+                  {product.variants!.map((v, i) => (
                     <button
                       key={v.skuCode}
-                      onClick={() => setSelectedVariant(i)}
+                      onClick={() => {
+                        setSelectedVariantIndex(i);
+                        setQuantity(1);
+                      }}
                       className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                        selectedVariant === i
+                        selectedVariantIndex === i
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
                           : 'border-gray-200 text-gray-700 hover:border-blue-300'
-                      } ${v.stock <= 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
-                      disabled={v.stock <= 0}
+                      } ${v.stockQuantity <= 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      disabled={v.stockQuantity <= 0}
                     >
                       {v.variantName}
-                      {v.stock <= 5 && v.stock > 0 && (
-                        <span className="ml-1 text-xs text-orange-500">(còn {v.stock})</span>
+                      {v.stockQuantity <= 5 && v.stockQuantity > 0 && (
+                        <span className="ml-1 text-xs text-orange-500">(còn {v.stockQuantity})</span>
                       )}
-                      {v.stock <= 0 && <span className="ml-1 text-xs text-gray-400">(hết)</span>}
+                      {v.stockQuantity <= 0 && <span className="ml-1 text-xs text-gray-400">(hết)</span>}
                     </button>
                   ))}
                 </div>
@@ -277,7 +243,8 @@ export default function ProductDetailPage() {
                   <span className="w-14 text-center font-semibold text-lg">{quantity}</span>
                   <button
                     onClick={() => setQuantity(q => Math.min(maxQty, q + 1))}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 font-bold text-lg"
+                    disabled={maxQty <= 0}
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 font-bold text-lg disabled:opacity-30"
                   >
                     +
                   </button>
@@ -287,18 +254,32 @@ export default function ProductDetailPage() {
                 </span>
               </div>
 
+              {!selectedVariant && hasVariants && (
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 text-center">
+                  Vui lòng chọn phân loại sản phẩm
+                </div>
+              )}
+
               <button
                 onClick={handleAddToCart}
-                disabled={isAdding || isBuyNow || maxQty <= 0}
-                className="flex-1 py-4 bg-white border-2 border-blue-600 hover:bg-blue-50 disabled:from-gray-400 disabled:to-gray-400 disabled:border-gray-300 text-blue-600 font-bold text-lg rounded-xl transition-all"
+                disabled={isAdding || isBuyNow || isOutOfStock || (hasVariants && !selectedVariant)}
+                className={`w-full py-4 border-2 font-bold text-lg rounded-xl transition-all mb-3 ${
+                  isOutOfStock || (hasVariants && !selectedVariant)
+                    ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                    : 'border-blue-600 text-blue-600 hover:bg-blue-50'
+                }`}
               >
                 {isAdding ? '⏳ Đang thêm...' : '🛒 Thêm vào giỏ hàng'}
               </button>
 
               <button
                 onClick={handleBuyNow}
-                disabled={isAdding || isBuyNow || maxQty <= 0}
-                className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold text-lg rounded-xl transition-all"
+                disabled={isAdding || isBuyNow || isOutOfStock || (hasVariants && !selectedVariant)}
+                className={`w-full py-4 font-bold text-lg rounded-xl transition-all ${
+                  isOutOfStock || (hasVariants && !selectedVariant)
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white'
+                }`}
               >
                 {isBuyNow ? '⏳ Đang xử lý...' : '⚡ Mua ngay'}
               </button>
@@ -326,7 +307,7 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-2">
                 <span>✓</span> Hỗ trợ 24/7
               </div>
-              {product.isFlash && (
+              {isFlash && (
                 <div className="flex items-center gap-2">
                   <span>⚡</span> Sản phẩm flash sale — giá đặc biệt
                 </div>

@@ -50,16 +50,16 @@ public class CartService {
         cartRepository.findByCustomerId(user.getId())
                 .orElseGet(() -> cartRepository.save(Cart.builder().customerId(user.getId()).build()));
 
-        ProductVariant variant = variantRepository.findById(request.getVariantId())
+        ProductVariant variant = variantRepository.findByVariantCode(request.getSkuCode())
                 .filter(v -> v.getDeletedAt() == null)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found with SKU: " + request.getSkuCode()));
 
         if (variant.getStatus() != VariantStatus.ACTIVE) {
             throw new AppException(ErrorCode.BAD_REQUEST, "Variant is not available for purchase");
         }
 
         Optional<CartItem> existingOpt = cartItemRepository.findByCustomerIdAndVariantId(
-                user.getId(), request.getVariantId());
+                user.getId(), variant.getId());
 
         if (existingOpt.isPresent()) {
             CartItem item = existingOpt.get();
@@ -184,10 +184,18 @@ public class CartService {
                 .filter(v -> v.getDeletedAt() == null)
                 .orElse(null);
 
+        Product product = null;
+        if (variant != null) {
+            product = productRepository.findById(variant.getProductId())
+                    .filter(p -> p.getDeletedAt() == null)
+                    .orElse(null);
+        }
+
         boolean priceChanged = variant != null && variant.getPrice().compareTo(item.getPriceSnapshot()) != 0;
         boolean outOfStock = variant == null || variant.getStatus() == VariantStatus.OUT_OF_STOCK;
         boolean unavailable = variant == null;
         boolean insufficientStock = variant != null && variant.getStockQuantity() < item.getQuantity();
+        int stockAvailable = variant != null ? variant.getStockQuantity() : 0;
 
         BigDecimal subtotal = item.getPriceSnapshot().multiply(BigDecimal.valueOf(item.getQuantity()));
 
@@ -195,10 +203,12 @@ public class CartService {
                 .variantId(item.getVariantId())
                 .variantCode(variant != null ? variant.getVariantCode() : null)
                 .variantName(variant != null ? variant.getVariantName() : item.getVariantNameSnapshot())
+                .productName(product != null ? product.getName() : null)
                 .priceSnapshot(item.getPriceSnapshot())
                 .currentPrice(variant != null ? variant.getPrice() : null)
                 .priceChanged(priceChanged)
                 .quantity(item.getQuantity())
+                .stockAvailable(stockAvailable)
                 .variantImageSnapshot(item.getVariantImageSnapshot())
                 .subtotal(subtotal)
                 .outOfStock(outOfStock)
