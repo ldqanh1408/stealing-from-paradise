@@ -6,6 +6,10 @@ import RejectProductModal from '@/components/ProductModeration/RejectProductModa
 
 const fmt = (n: number) => fmtVnd(n);
 
+const getErrMsg = (err: unknown) =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+  ?? 'Có lỗi xảy ra, vui lòng thử lại.';
+
 const TAB_STATUS = [
   { value: 'PENDING', label: 'Chờ duyệt' },
   { value: 'APPROVED', label: 'Đã duyệt' },
@@ -24,11 +28,12 @@ export default function ProductModerationPage() {
   const [page, setPage] = useState(0);
   const [rejectProduct, setRejectProduct] = useState<PendingProduct | null>(null);
   const [approveProduct, setApproveProduct] = useState<PendingProduct | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-pending-products', tab, page],
     queryFn: () =>
-      adminApi.getPendingProducts({ page, size: 20 }).then(r => r.data.data),
+      adminApi.getPendingProducts({ page, size: 20, status: tab }).then(r => r.data.data),
     retry: 1,
   });
 
@@ -36,14 +41,13 @@ export default function ProductModerationPage() {
     mutationFn: (productId: string) => adminApi.approveProduct(productId),
     onSuccess: () => {
       setApproveProduct(null);
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['admin-pending-products'] });
     },
-    onError: () => {},
+    onError: (err: unknown) => setActionError(getErrMsg(err)),
   });
 
-  const pendingProducts: PendingProduct[] = (data?.content ?? []).filter(
-    (p: PendingProduct) => tab === 'PENDING' ? p.status === 'PENDING' : p.status === tab
-  );
+  const pendingProducts: PendingProduct[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
 
   return (
@@ -135,7 +139,7 @@ export default function ProductModerationPage() {
                 {p.status === 'PENDING' && (
                   <div className="flex flex-col gap-2 shrink-0">
                     <button
-                      onClick={() => setApproveProduct(p)}
+                      onClick={() => { setActionError(null); setApproveProduct(p); }}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors whitespace-nowrap"
                     >
                       ✓ Duyệt
@@ -175,6 +179,9 @@ export default function ProductModerationPage() {
             <p className="text-sm text-gray-500 mb-6">
               "<strong>{approveProduct.name}</strong>" sẽ được phép bán trên nền tảng.
             </p>
+            {actionError && (
+              <p className="text-sm text-red-600 mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{actionError}</p>
+            )}
             <div className="flex gap-3">
               <button onClick={() => setApproveProduct(null)} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
               <button

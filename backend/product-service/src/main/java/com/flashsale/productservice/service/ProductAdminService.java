@@ -37,8 +37,9 @@ public class ProductAdminService {
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public ApiResponse<PageResponse<PendingProductCard>> getPendingProducts(Pageable pageable, UUID categoryId, Long sellerId) {
-        Page<Product> products = productRepository.findPendingProducts(categoryId, sellerId, pageable);
+    public ApiResponse<PageResponse<PendingProductCard>> getPendingProducts(Pageable pageable, UUID categoryId, Long sellerId, ProductStatus status) {
+        ProductStatus effectiveStatus = status != null ? status : ProductStatus.PENDING;
+        Page<Product> products = productRepository.findForModeration(effectiveStatus, categoryId, sellerId, pageable);
 
         List<PendingProductCard> cards = products.getContent().stream()
                 .map(productMapper::toPendingProductCard)

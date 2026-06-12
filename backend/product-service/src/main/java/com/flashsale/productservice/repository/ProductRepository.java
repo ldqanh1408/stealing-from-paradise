@@ -37,6 +37,15 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             @Param("sellerId") Long sellerId,
             Pageable pageable);
 
+    @Query("SELECT p FROM Product p WHERE p.status = :status AND p.deletedAt IS NULL " +
+           "AND (:categoryId IS NULL OR p.categoryId = :categoryId) " +
+           "AND (:sellerId IS NULL OR p.sellerId = :sellerId)")
+    Page<Product> findForModeration(
+            @Param("status") ProductStatus status,
+            @Param("categoryId") UUID categoryId,
+            @Param("sellerId") Long sellerId,
+            Pageable pageable);
+
     @Query("SELECT p FROM Product p WHERE p.status IN :statuses AND p.deletedAt IS NULL")
     Page<Product> findByStatusIn(@Param("statuses") List<ProductStatus> statuses, Pageable pageable);
 
