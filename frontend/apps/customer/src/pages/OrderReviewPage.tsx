@@ -388,7 +388,7 @@ export default function OrderReviewPage() {
   const [cartChanges, setCartChanges] = useState<CartChangeDetail[]>([]);
   const [refreshLoading, setRefreshLoading] = useState(false);
 
-  const selectedItemIds = (location.state?.selectedItemIds || []) as number[];
+  const selectedItemIds = (location.state?.selectedItemIds || []) as string[];
 
   // Check for price changes on cart load
   useEffect(() => {
@@ -397,7 +397,7 @@ export default function OrderReviewPage() {
       cart.sellers.forEach(seller => {
         seller.items.forEach(item => {
           changedItems.push({
-            variantId: String(item.cartItemId),
+            variantId: item.variantId,
             skuCode: item.skuCode,
             productName: item.productName,
             reason: 'PRICE_CHANGED',

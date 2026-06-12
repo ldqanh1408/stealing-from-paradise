@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
-import { orderApi } from '@shared/api/order.api';
 import { addressApi } from '@shared/api/address.api';
 import { cartApi } from '@shared/api/cart.api';
 
@@ -47,7 +46,7 @@ export default function ProductDetailPage() {
     setSuccessMsg(null);
     try {
       const variant = product.variants[selectedVariant];
-      await addToCart(variant.skuCode, quantity, (product as any).fsItemId);
+      await addToCart(variant.variantId, quantity, (product as any).fsItemId);
       setSuccessMsg('Đã thêm vào giỏ hàng!');
       navTimerRef.current = setTimeout(() => navigate('/cart'), 1200);
     } catch (err: any) {
@@ -79,38 +78,23 @@ export default function ProductDetailPage() {
 
       const fsItemId = (product as any).fsItemId;
 
-      // Add item to cart and immediately fetch updated cart
-      await cartApi.addItem(variant.skuCode, quantity, fsItemId);
+      // Add item to cart, then find it in the updated cart by variantId
+      await cartApi.addItem(variant.variantId, quantity, fsItemId);
       const { data: cartRes } = await cartApi.getCart();
       const cartData = cartRes?.data;
 
-      // Find the item we just added by matching sku and most recent addedAt
-      const sellers = cartData?.sellers ?? [];
-      const newestItem = sellers
-        .flatMap((s: any) => s?.items ?? [])
-        .filter((item: any) => item?.skuCode === variant.skuCode)
-        .sort((a: any, b: any) => {
-          const ta = a?.addedAt ? new Date(a.addedAt).getTime() : 0;
-          const tb = b?.addedAt ? new Date(b.addedAt).getTime() : 0;
-          return tb - ta;
-        })[0];
+      const newestItem = (cartData?.sellers ?? [])
+        .flatMap(s => s?.items ?? [])
+        .find(item => item?.variantId === variant.variantId);
 
       if (!newestItem?.cartItemId) {
         throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
       }
 
-      // Checkout
-      const { data: checkoutRes } = await orderApi.checkout({
-        addressId: addr.addressId,
-        itemIds: [String(newestItem.cartItemId)],
+      // Go to the checkout review flow (preview → submit)
+      navigate('/checkout', {
+        state: { selectedItemIds: [newestItem.cartItemId] },
       });
-
-      if (checkoutRes?.data) {
-        const orderData = checkoutRes.data;
-        navigate('/checkout/payment', {
-          state: { orderData, parentOrderId: orderData.parentOrderId },
-        });
-      }
     } catch (err: any) {
       setAddError(err?.response?.data?.message || err?.response?.data?.error || err.message || 'Mua ngay thất bại.');
     } finally {

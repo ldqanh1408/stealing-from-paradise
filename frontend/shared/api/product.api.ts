@@ -2,6 +2,7 @@ import apiClient from '../lib/axios';
 import type { ApiResponse } from '../types/api';
 
 export interface ProductVariant {
+  variantId: string;
   skuCode: string;
   variantName: string;
   stock: number;
@@ -73,6 +74,71 @@ interface SearchResponse {
   products: SearchProductCard[];
 }
 
+/** Backend product-service ProductResponse shape: GET /products/{productId} */
+interface RawVariantResponse {
+  id: string;
+  productId: string;
+  variantCode: string;
+  variantName: string;
+  variantAttributes?: Record<string, unknown>;
+  price: number;
+  originalPrice?: number;
+  stockQuantity: number;
+  status: string;
+  imageUrl?: string;
+}
+
+interface RawProductResponse {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string;
+  categoryId?: string;
+  categoryName?: string;
+  sellerId: number;
+  status?: string;
+  attributes?: Record<string, unknown>;
+  variants?: RawVariantResponse[];
+  images?: { url: string; sortOrder?: number; variantId?: string | null }[];
+  rejectReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function mapProductDetail(raw: RawProductResponse): ProductDetail {
+  const activeVariants = (raw.variants ?? []).filter(v => v.status === 'ACTIVE');
+  const cheapest = activeVariants.length
+    ? activeVariants.reduce((min, v) => (v.price < min.price ? v : min))
+    : undefined;
+  const images = (raw.images ?? [])
+    .slice()
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .map(img => img.url);
+  return {
+    productId: raw.id,
+    sellerId: raw.sellerId,
+    name: raw.name,
+    description: raw.description,
+    price: cheapest?.price,
+    originalPrice: cheapest?.originalPrice,
+    categoryId: raw.categoryId,
+    categoryName: raw.categoryName,
+    attributes: raw.attributes,
+    images,
+    status: raw.status,
+    rejectReason: raw.rejectReason,
+    stockAvailable: activeVariants.reduce((sum, v) => sum + (v.stockQuantity ?? 0), 0),
+    variants: activeVariants.map(v => ({
+      variantId: v.id,
+      skuCode: v.variantCode,
+      variantName: v.variantName,
+      stock: v.stockQuantity ?? 0,
+    })),
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+}
+
 function mapProductCard(card: SearchProductCard): ProductListItem {
   return {
     productId: card.productId,
@@ -123,9 +189,15 @@ export const productApi = {
     };
   },
 
-  /** Get product by ID — returns full ProductDetail from product service */
+  /** Get product by ID — maps backend ProductResponse to ProductDetail */
   getProductById: (productId: string) =>
-    apiClient.get<ApiResponse<ProductDetail>>(`/products/${productId}`),
+    apiClient.get<ApiResponse<RawProductResponse>>(`/products/${productId}`).then(res => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: res.data.data ? mapProductDetail(res.data.data) : undefined,
+      } as ApiResponse<ProductDetail>,
+    })),
 
   /** Search products (delegates to search service) */
   searchProducts: (query: string, params?: {

@@ -46,16 +46,18 @@ ID range `900xxx` la cua dataset nay.
 
 | Area | Fixture |
 | --- | --- |
-| Catalog/search | `FE Phone Pro Camera Kit`, `FE MacBook Air M3 Demo`, `FE AirPods Flash Combo`, `FE USB-C Hub 8-in-1` |
+| Identity / Addresses | `fe_buyer` 3 địa chỉ (default + 2 backup) cho flow chọn địa chỉ checkout; `fe_seller` 2 địa chỉ (warehouse + return center) |
+| Catalog/search | `FE Phone Pro Camera Kit`, `FE MacBook Air M3 Demo`, `FE AirPods Flash Combo`, `FE USB-C Hub 8-in-1`, `FE Out Of Stock Headphone` |
 | Seller product workflow | `FE Draft Smart Lamp`, `FE Pending Review Backpack`, `FE Rejected Sample Bag`, `FE Approved Robot Vacuum`, `FE Inactive Desk Setup` |
 | Cart | `fe_buyer` co san 2 item: phone + USB-C hub |
 | Orders | `900101..900109` cover `PENDING`, `PAID`, `SHIPPING`, `DELIVERED`, `CANCELLED`, `PARTIALLY_REFUNDED`, `REFUNDED`, `RETURNED` |
 | Payment | Transaction `900101` la `PENDING` co `client_secret`; cac order khac cover paid/refunded/failed |
 | Seller payouts | Transfers cover `AWAITING_DELIVERY`, `RETURN_WINDOW`, `READY_FOR_PAYOUT`, `REFUNDED`, `SKIPPED`, `PAID_OUT` |
+| Seller Stripe onboarding | Seller `900002` ACTIVE (đủ charges/payouts); Admin `900003` REQUIREMENTS_DUE (chưa hoàn thành KYC) |
 | Refund admin | Refunds `900201..900204` cover `PENDING`, `COMPLETED`, `REJECTED`, `PROCESSING` |
-| Flash sale | Sessions `900001` live, `900002` upcoming, `900003` ended |
-| Notifications | Buyer/seller/admin unread + read notifications |
-| AI chat | Active, closed, and pending-confirmation chat sessions |
+| Flash sale | Sessions `900001` live, `900002` upcoming, `900003` ended; reminders cho cả 3 session |
+| Notifications | Buyer/seller/admin unread + read notifications, bao gồm `PRODUCT_SUBMITTED` cho seller |
+| AI chat | Active, closed, and pending-confirmation chat sessions; tool call logs with `search_products` and `get_refund_status` |
 
 ## Frontend smoke flow
 
@@ -70,12 +72,13 @@ Suggested pass:
 1. Customer login `fe_buyer`.
 2. Vao `/products`, search `FE`, mo detail `FE Phone Pro Camera Kit`.
 3. Vao `/cart`, update quantity/remove item, preview checkout.
-4. Vao `/orders`, filter tung status; mo order `900102`, `900103`, `900104`.
-5. Vao `/refunds`, filter `PENDING`, `COMPLETED`, `REJECTED`, `PROCESSING`.
-6. Vao `/flash-sales`, kiem tra live/upcoming/ended sessions.
-7. Vao `/notifications`, mark read.
-8. Seller login `fe_seller`, vao `/dashboard`, `/products`, `/orders`, `/payments`.
-9. Admin login `fe_admin`, vao `/product-moderation`, `/refunds`, `/flash-sale-config`.
+4. Vao `/checkout`, chon 1 trong 3 địa chỉ cua `fe_buyer`.
+5. Vao `/orders`, filter tung status; mo order `900102`, `900103`, `900104`.
+6. Vao `/refunds`, filter `PENDING`, `COMPLETED`, `REJECTED`, `PROCESSING`.
+7. Vao `/flash-sales`, kiem tra live/upcoming/ended sessions va reminders.
+8. Vao `/notifications`, mark read.
+9. Seller login `fe_seller`, vao `/dashboard`, `/products`, `/orders`, `/payments`, `/addresses` (2 địa chỉ).
+10. Admin login `fe_admin`, vao `/product-moderation`, `/refunds`, `/flash-sale-config`, `/stripe-onboarding` (kiem tra account REQUIREMENTS_DUE).
 
 ## Kiem tra nhanh bang SQL/Mongo/ES
 
@@ -83,8 +86,10 @@ Postgres:
 
 ```powershell
 docker exec fs-postgres sh -lc 'psql -U "$POSTGRES_USER" -d flashsale_platform -c "select count(*) from identity.users where id between 900001 and 900003;"'
+docker exec fs-postgres sh -lc 'psql -U "$POSTGRES_USER" -d flashsale_platform -c "select user_id, count(*) from identity.addresses where id between 900001 and 900005 group by user_id order by user_id;"'
 docker exec fs-postgres sh -lc 'psql -U "$POSTGRES_USER" -d flashsale_platform -c "select status, count(*) from orders.orders where id between 900101 and 900109 group by status order by status;"'
 docker exec fs-postgres sh -lc 'psql -U "$POSTGRES_USER" -d flashsale_platform -c "select status, count(*) from refund.refunds where id between 900201 and 900204 group by status order by status;"'
+docker exec fs-postgres sh -lc 'psql -U "$POSTGRES_USER" -d flashsale_platform -c "select seller_id, account_status from payment.seller_stripe_accounts where id between 900002 and 900003;"'
 ```
 
 Mongo:

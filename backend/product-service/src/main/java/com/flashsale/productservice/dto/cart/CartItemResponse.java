@@ -27,5 +27,6 @@ public class CartItemResponse {
     private Boolean outOfStock;
     private Boolean unavailable;
     private Boolean insufficientStock;
+    private Integer stockAvailable;
     private Long sellerId;
 }

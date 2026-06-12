@@ -73,8 +73,7 @@ export default function ProductListPage() {
   const handleAddToCart = async (product: ProductDetail) => {
     if (!product.variants?.length) return;
     try {
-      const sku = product.variants[0].skuCode;
-      await addToCart(sku, 1, undefined);
+      await addToCart(product.variants[0].variantId, 1, undefined);
       navigate('/cart');
     } catch (err: any) {
       console.error('Add to cart failed:', err);

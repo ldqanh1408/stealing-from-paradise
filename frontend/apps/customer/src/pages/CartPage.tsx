@@ -12,13 +12,13 @@ function isFlashExpired(iso?: string | null) {
 
 export default function CartPage() {
   const { cart, isLoading, fetchCart, updateQuantity, removeFromCart } = useCartStore();
-  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
 
-  const [quantityError, setQuantityError] = useState<number | null>(null);
+  const [quantityError, setQuantityError] = useState<string | null>(null);
 
   const getMaxQty = (item: CartItem) => {
     if (item.maxQuantityPerUser) {
@@ -67,7 +67,7 @@ export default function CartPage() {
       .filter(s => s.total > 0);
   };
 
-  const toggleItemSelection = (itemId: number) => {
+  const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems);
     if (newSelected.has(itemId)) {
       newSelected.delete(itemId);
@@ -82,7 +82,7 @@ export default function CartPage() {
     if (selectedItems.size === getItemCount()) {
       setSelectedItems(new Set());
     } else {
-      const all = new Set<number>();
+      const all = new Set<string>();
       cart.sellers.forEach(seller => {
         seller.items.forEach(item => {
           all.add(item.cartItemId);

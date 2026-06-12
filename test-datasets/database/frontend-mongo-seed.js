@@ -206,6 +206,18 @@ upsertMany(notiDb.mg_notifications, [
     priority: 'NORMAL',
     read_at: null,
     created_at: ago(5 * 60 * 1000)
+  },
+  {
+    _id: 'fe-notif-seller-submitted',
+    user_id: NumberLong(900002),
+    type: 'PRODUCT_SUBMITTED',
+    title: 'FE product submitted for review',
+    body: 'FE Draft Smart Lamp was submitted and is pending approval.',
+    metadata: '{"product_id":"90000000-0000-4000-8001-000000000107","sku":"FE-SKU-DRAFT-LAMP"}',
+    is_read: true,
+    priority: 'NORMAL',
+    read_at: ago(90 * 60 * 1000),
+    created_at: ago(91 * 60 * 1000)
   }
 ]);
 
@@ -376,6 +388,20 @@ upsertMany(chatDb.tool_call_logs, [
     errorMessage: 'Sensitive action requires buyer confirmation.',
     latencyMs: 12,
     createdAt: ago(2 * 60 * 1000)
+  },
+  {
+    _id: 'fe-tool-log-search-products',
+    sessionId: 'fe-chat-session-active',
+    messageId: 'fe-chat-msg-active-1',
+    userId: NumberLong(900001),
+    toolName: 'search_products',
+    arguments: '{"query":"phone","maxPrice":25000000}',
+    result: '{"found":1,"products":[{"name":"FE Phone Pro Camera Kit","price":23990000}]}',
+    status: 'SUCCESS',
+    errorCode: null,
+    errorMessage: null,
+    latencyMs: 156,
+    createdAt: ago(2 * 60 * 60 * 1000 - 20 * 1000)
   }
 ]);
 

@@ -50,7 +50,7 @@ public class CartService {
         cartRepository.findByCustomerId(user.getId())
                 .orElseGet(() -> cartRepository.save(Cart.builder().customerId(user.getId()).build()));
 
-        ProductVariant variant = variantRepository.findById(request.getVariantId())
+        ProductVariant variant = resolveVariant(request)
                 .filter(v -> v.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
@@ -59,7 +59,7 @@ public class CartService {
         }
 
         Optional<CartItem> existingOpt = cartItemRepository.findByCustomerIdAndVariantId(
-                user.getId(), request.getVariantId());
+                user.getId(), variant.getId());
 
         if (existingOpt.isPresent()) {
             CartItem item = existingOpt.get();
@@ -84,6 +84,16 @@ public class CartService {
 
         Cart cart = cartRepository.findByCustomerId(user.getId()).get();
         return ApiResponse.success(toCartResponse(cart));
+    }
+
+    private Optional<ProductVariant> resolveVariant(AddCartItemRequest request) {
+        if (request.getVariantId() != null) {
+            return variantRepository.findById(request.getVariantId());
+        }
+        if (request.getSkuCode() != null && !request.getSkuCode().isBlank()) {
+            return variantRepository.findByVariantCode(request.getSkuCode());
+        }
+        throw new AppException(ErrorCode.BAD_REQUEST, "variantId or skuCode is required");
     }
 
     @Transactional
@@ -204,6 +214,7 @@ public class CartService {
                 .outOfStock(outOfStock)
                 .unavailable(unavailable)
                 .insufficientStock(insufficientStock)
+                .stockAvailable(variant != null ? variant.getStockQuantity() : 0)
                 .sellerId(item.getSellerId())
                 .build();
     }

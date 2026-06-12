@@ -50,7 +50,9 @@ INSERT INTO identity.addresses
 VALUES
     (900001, 900001, 79, 760, '123 Frontend Test Street, District 1, Ho Chi Minh City', true,  now() - interval '20 days', now()),
     (900002, 900001, 1,  1,   '456 Backup Address, Ba Dinh, Ha Noi', false, now() - interval '19 days', now()),
-    (900003, 900002, 79, 761, 'FE Seller Warehouse, District 3, Ho Chi Minh City', true, now() - interval '18 days', now())
+    (900003, 900002, 79, 761, 'FE Seller Warehouse, District 3, Ho Chi Minh City', true, now() - interval '18 days', now()),
+    (900004, 900001, 48, 490, '789 Da Nang Office, Hai Chau, Da Nang', false, now() - interval '17 days', now()),
+    (900005, 900002, 1,  4,   'FE Seller Return Center, Dong Da, Ha Noi', false, now() - interval '16 days', now())
 ON CONFLICT (id) DO UPDATE SET
     user_id = EXCLUDED.user_id,
     province_id = EXCLUDED.province_id,
@@ -143,9 +145,9 @@ VALUES
      now() - interval '4 days', now(), null),
     ('90000000-0000-4000-8001-000000000109', '90000000-0000-4000-8000-000000000003', 900002,
      'FE Out Of Stock Headphone', 'fe-out-of-stock-headphone',
-     'Out-of-stock product for inventory/restock tests.',
-     '{"brand":"FE","coverage":["inventory","out-of-stock"]}'::jsonb,
-     'OUT_OF_STOCK', null, now() - interval '8 days', 900003, 0, now() - interval '9 days',
+     'In-stock product for inventory/restock tests.',
+     '{"brand":"FE","coverage":["inventory","restock"]}'::jsonb,
+     'ACTIVE', null, now() - interval '8 days', 900003, 0, now() - interval '9 days',
      now() - interval '9 days', now(), now() - interval '8 days'),
     ('90000000-0000-4000-8001-000000000110', '90000000-0000-4000-8000-000000000005', 900002,
      'FE Inactive Desk Setup', 'fe-inactive-desk-setup',
@@ -199,7 +201,7 @@ VALUES
      3890000, 4590000, 18, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-approved-vacuum/500/500', now() - interval '4 days', now()),
     ('90000000-0000-4000-9001-000000000109', '90000000-0000-4000-8001-000000000109',
      'FE-SKU-OOS-HEADPHONE', 'Midnight', '{"color":"midnight"}'::jsonb,
-     1290000, 1590000, 0, 'OUT_OF_STOCK', 1, 'https://picsum.photos/seed/fe-oos-headphone/500/500', now() - interval '9 days', now()),
+     1290000, 1590000, 15, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-oos-headphone/500/500', now() - interval '9 days', now()),
     ('90000000-0000-4000-9001-000000000110', '90000000-0000-4000-8001-000000000110',
      'FE-SKU-INACTIVE-DESK', 'Default', '{}'::jsonb,
      1990000, 2490000, 10, 'INACTIVE', 1, 'https://picsum.photos/seed/fe-inactive-desk/500/500', now() - interval '8 days', now())
@@ -382,7 +384,10 @@ INSERT INTO payment.seller_stripe_accounts
 VALUES
     (900002, 900002, 'acct_fe_seller_900002', 'ACTIVE', true, true, true,
      null, null, 'https://dashboard.stripe.com/test/connect/accounts/acct_fe_seller_900002',
-     now() - interval '15 days', now())
+     now() - interval '15 days', now()),
+    (900003, 900003, 'acct_fe_admin_900003', 'REQUIREMENTS_DUE', false, false, false,
+     'https://connect.stripe.com/setup/e/acct_fe_admin_900003', now() + interval '7 days', null,
+     now() - interval '1 day', now())
 ON CONFLICT (seller_id) DO UPDATE SET
     stripe_account_id = EXCLUDED.stripe_account_id,
     account_status = EXCLUDED.account_status,
@@ -584,7 +589,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO flashsale.fs_reminders (id, customer_id, session_id, created_at)
 VALUES
     (900001, 900001, 900002, now() - interval '12 hours'),
-    (900002, 900001, 900001, now() - interval '2 hours')
+    (900002, 900001, 900001, now() - interval '2 hours'),
+    (900003, 900001, 900003, now() - interval '3 days')
 ON CONFLICT (customer_id, session_id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
@@ -593,14 +599,14 @@ ON CONFLICT (customer_id, session_id) DO NOTHING;
 
 SELECT setval('identity.users_id_seq',    GREATEST((SELECT COALESCE(MAX(id), 1) FROM identity.users), 900003));
 SELECT setval('identity.roles_id_seq',    GREATEST((SELECT COALESCE(MAX(id), 1) FROM identity.roles), 900003));
-SELECT setval('identity.addresses_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM identity.addresses), 900003));
+SELECT setval('identity.addresses_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM identity.addresses), 900005));
 
 SELECT setval('orders.parent_orders_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM orders.parent_orders), 900109));
 SELECT setval('orders.orders_id_seq',        GREATEST((SELECT COALESCE(MAX(id), 1) FROM orders.orders), 900109));
 SELECT setval('orders.order_items_id_seq',   GREATEST((SELECT COALESCE(MAX(id), 1) FROM orders.order_items), 900109));
 SELECT setval('orders.seq_parent_orders',    GREATEST((SELECT COALESCE(MAX(id), 100) FROM orders.parent_orders), 900109));
 
-SELECT setval('payment.seller_stripe_accounts_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.seller_stripe_accounts), 900002));
+SELECT setval('payment.seller_stripe_accounts_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.seller_stripe_accounts), 900003));
 SELECT setval('payment.transactions_id_seq',            GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.transactions), 900109));
 SELECT setval('payment.seller_transfers_id_seq',        GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.seller_transfers), 900109));
 
@@ -609,6 +615,6 @@ SELECT setval('refund.refund_items_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1
 
 SELECT setval('flashsale.fs_sessions_id_seq',  GREATEST((SELECT COALESCE(MAX(id), 1) FROM flashsale.fs_sessions), 900003));
 SELECT setval('flashsale.fs_items_id_seq',     GREATEST((SELECT COALESCE(MAX(id), 1) FROM flashsale.fs_items), 900005));
-SELECT setval('flashsale.fs_reminders_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM flashsale.fs_reminders), 900002));
+SELECT setval('flashsale.fs_reminders_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM flashsale.fs_reminders), 900003));
 
 COMMIT;
