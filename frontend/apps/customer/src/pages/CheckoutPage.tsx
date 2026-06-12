@@ -5,15 +5,22 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { getStripe } from '@/lib/stripe';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
-import type { CheckoutResponse } from '@shared/api/order.api';
+import { normalizeCheckoutPaymentData, type CheckoutPaymentData } from './checkoutPaymentData';
+import {
+  getClientSecretErrorMessage,
+  getClientSecretPanelState,
+  getClientSecretRetryDelay,
+  shouldPollClientSecret,
+  shouldRetryClientSecret,
+} from './paymentClientSecretQuery';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 function PaymentForm({
-  orderData,
+  amount,
   onSuccess,
 }: {
-  orderData: CheckoutResponse;
+  amount: number;
   onSuccess: (piId: string) => void;
 }) {
   const stripe = useStripe();
@@ -82,7 +89,7 @@ function PaymentForm({
               Đang xử lý thanh toán...
             </>
           ) : (
-            `Thanh toán ${fmt(orderData.finalAmount)}`
+            `Thanh toán ${fmt(amount)}`
           )}
         </button>
       </div>
@@ -94,8 +101,8 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [orderData, setOrderData] = useState<CheckoutResponse | null>(
-    (location.state?.orderData as CheckoutResponse) || null
+  const [orderData, setOrderData] = useState<CheckoutPaymentData | null>(
+    (location.state?.orderData as CheckoutPaymentData) || null
   );
 
   // Recover from sessionStorage if no location state (e.g., navigated here directly)
@@ -104,7 +111,7 @@ export default function CheckoutPage() {
       try {
         const stored = sessionStorage.getItem('pending_checkout');
         if (stored) {
-          const parsed: CheckoutResponse = JSON.parse(stored);
+          const parsed: CheckoutPaymentData = JSON.parse(stored);
           setOrderData(parsed);
           return;
         }
@@ -123,12 +130,22 @@ export default function CheckoutPage() {
     retry: 1,
   });
 
-  const { data: clientSecretData, isLoading: secretLoading, error: clientSecretError } = useQuery({
+  const normalizedOrderData = normalizeCheckoutPaymentData(orderData, parentOrder ?? null);
+
+  const {
+    data: clientSecretData,
+    error: clientSecretError,
+    failureCount: clientSecretFailureCount,
+    isFetching: secretFetching,
+    isPending: secretPending,
+  } = useQuery({
     queryKey: ['client-secret', parentOrderId],
     queryFn: () =>
-      paymentApi.getClientSecret(parentOrderId!).then(r => r.data.data),
+      paymentApi.getClientSecret(parentOrderId!).then(r => r.data.data ?? null),
     enabled: !!parentOrderId && !!orderData,
-    retry: 1,
+    retry: shouldRetryClientSecret,
+    retryDelay: getClientSecretRetryDelay,
+    refetchInterval: query => shouldPollClientSecret(query.state.data, query.state.error),
   });
 
   useEffect(() => {
@@ -162,11 +179,23 @@ export default function CheckoutPage() {
 
   const minutes = countdown !== null ? Math.floor(countdown / 60) : null;
   const seconds = countdown !== null ? countdown % 60 : null;
+  const checkoutOrders = normalizedOrderData?.orders ?? [];
+  const orderCode = normalizedOrderData?.orderCode ?? 'PENDING';
+  const totalAmount = normalizedOrderData?.totalAmount ?? 0;
+  const finalAmount = normalizedOrderData?.finalAmount ?? totalAmount;
+  const clientSecretPanelState = getClientSecretPanelState({
+    data: clientSecretData,
+    error: clientSecretError,
+    failureCount: clientSecretFailureCount,
+    isFetching: secretFetching,
+    isPending: secretPending,
+  });
+  const clientSecretErrorMessage = getClientSecretErrorMessage(clientSecretError);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận thanh toán</h1>
-      <p className="text-sm text-gray-500 mb-6">Mã đơn: <span className="font-mono font-medium">{orderData.orderCode}</span></p>
+      <p className="text-sm text-gray-500 mb-6">Mã đơn: <span className="font-mono font-medium">{orderCode}</span></p>
 
       {countdown !== null && countdown > 0 && (
         <div className="mb-6 flex items-center gap-2">
@@ -204,22 +233,40 @@ export default function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3">
-          {secretLoading && (
-            <div className="space-y-4 animate-pulse">
-              <div className="h-48 bg-gray-100 rounded-2xl" />
+          {clientSecretPanelState === 'initializing' && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <h2 className="font-bold text-gray-900">Đang khởi tạo cổng thanh toán...</h2>
+              </div>
+              <p className="text-sm text-gray-500">
+                Đơn hàng đã được tạo. Hệ thống đang chuẩn bị phiên thanh toán Stripe, vui lòng chờ vài giây.
+              </p>
+              <div className="mt-5 space-y-3 animate-pulse">
+                <div className="h-12 bg-gray-100 rounded-xl" />
+                <div className="h-12 bg-gray-100 rounded-xl" />
+                <div className="h-12 bg-gray-100 rounded-xl" />
+              </div>
             </div>
           )}
-          {!secretLoading && clientSecretData?.clientSecret && (
+          {clientSecretPanelState === 'ready' && clientSecretData?.clientSecret && (
             <Elements stripe={getStripe()} options={{ clientSecret: clientSecretData.clientSecret }}>
               <PaymentForm
-                orderData={orderData}
+                amount={finalAmount}
                 onSuccess={handleStripeSuccess}
               />
             </Elements>
           )}
-          {!secretLoading && !clientSecretData?.clientSecret && (
+          {clientSecretPanelState === 'failed' && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-              <p className="text-gray-500">Không thể kết nối với cổng thanh toán. Vui lòng thử lại.</p>
+              <p className="text-gray-700 font-medium">Không thể khởi tạo cổng thanh toán.</p>
+              <p className="text-sm text-gray-500 mt-1">Vui lòng thử lại sau ít phút.</p>
+              {clientSecretErrorMessage && (
+                <p className="text-xs text-gray-400 mt-3">{clientSecretErrorMessage}</p>
+              )}
             </div>
           )}
         </div>
@@ -228,7 +275,10 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-6 sticky top-24">
             <h2 className="font-bold text-gray-900 mb-4">📋 Đơn hàng</h2>
             <div className="space-y-3 mb-4 pb-4 border-b border-gray-100">
-              {orderData.orders.map(order => (
+              {checkoutOrders.length === 0 && (
+                <p className="text-sm text-gray-500">Đang tải thông tin đơn hàng...</p>
+              )}
+              {checkoutOrders.map(order => (
                 <div key={order.orderId} className="text-sm">
                   <p className="font-medium text-gray-900">{order.sellerName}</p>
                   <p className="text-xs text-gray-500 font-mono">{order.orderCode}</p>
@@ -239,7 +289,7 @@ export default function CheckoutPage() {
             <div className="space-y-2 text-sm mb-5">
               <div className="flex justify-between text-gray-600">
                 <span>Tạm tính</span>
-                <span>{fmt(orderData.totalAmount)}</span>
+                <span>{fmt(totalAmount)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Phí ship</span>
@@ -248,7 +298,7 @@ export default function CheckoutPage() {
               <div className="h-px bg-gray-100" />
               <div className="flex justify-between font-bold text-gray-900 text-base">
                 <span>Tổng</span>
-                <span className="text-red-600">{fmt(orderData.finalAmount)}</span>
+                <span className="text-red-600">{fmt(finalAmount)}</span>
               </div>
             </div>
             <div className="p-3 bg-blue-50 rounded-xl text-xs text-blue-700">

@@ -4,8 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { cartApi, type CartChangeDetail, type CheckoutPreviewResponse } from '@shared/api/cart.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
+import { orderApi, type ParentOrderDetail } from '@shared/api/order.api';
+import { buildCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const REASON_LABELS: Record<string, string> = {
   PRICE_CHANGED: 'Giá đã thay đổi',
@@ -14,6 +17,47 @@ const REASON_LABELS: Record<string, string> = {
   VARIANT_UNAVAILABLE: 'Sản phẩm không còn khả dụng',
   VARIANT_INACTIVE: 'Sản phẩm đã ngừng bán',
 };
+
+async function getMaxParentOrderId(): Promise<number> {
+  try {
+    const { data } = await orderApi.getOrders({ page: 0, size: 100 });
+    const orders = data.data?.content ?? [];
+    return orders.reduce((max, order) => Math.max(max, order.parentOrderId ?? 0), 0);
+  } catch (_) {
+    return 0;
+  }
+}
+
+async function waitForParentOrder(
+  parentOrderId: number | undefined,
+  minParentOrderId: number,
+): Promise<ParentOrderDetail> {
+  let currentParentOrderId = parentOrderId;
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!currentParentOrderId) {
+      const { data } = await orderApi.getOrders({ page: 0, size: 100 });
+      const orders = data.data?.content ?? [];
+      currentParentOrderId = orders.reduce((max, order) => {
+        const candidate = order.parentOrderId ?? 0;
+        return candidate > minParentOrderId ? Math.max(max, candidate) : max;
+      }, 0);
+    }
+
+    if (currentParentOrderId) {
+      try {
+        const { data } = await orderApi.getParentOrder(currentParentOrderId);
+        if (data.data) return data.data;
+      } catch (_) {
+        // Order-service may need another tick after checkout submit is accepted.
+      }
+    }
+
+    await sleep(1000);
+  }
+
+  throw new Error('ORDER_NOT_READY');
+}
 
 // ─── Address Form Modal ────────────────────────────────────────────────────────
 function AddressFormModal({
@@ -500,11 +544,12 @@ export default function OrderReviewPage() {
 
   // Step 2: Submit → create order via preview token
   const handleProceedToPayment = async () => {
-    if (!previewToken || !selectedAddressId) return;
+    if (!previewToken || !selectedAddressId || !previewData) return;
     const addr = addresses.find(a => a.addressId === selectedAddressId);
     setIsProcessing(true);
     setApiError(null);
     try {
+      const maxParentOrderIdBefore = await getMaxParentOrderId();
       const { data } = await cartApi.checkoutSubmit(
         previewToken,
         selectedAddressId,
@@ -513,11 +558,12 @@ export default function OrderReviewPage() {
         addr?.fullAddress,
       );
       if (data.data) {
-        const orderData = data.data;
+        const parentOrder = await waitForParentOrder(data.data.parentOrderId, maxParentOrderIdBefore);
+        const orderData = buildCheckoutPaymentData(data.data, previewData, parentOrder);
         sessionStorage.setItem('pending_checkout', JSON.stringify(orderData));
         if (paymentMethod === 'cod') {
           navigate('/checkout/result?status=success', {
-            state: { parentOrderId: orderData.parentOrderId, method: 'COD' },
+            state: { parentOrderId: orderData.parentOrderId, method: 'COD', orderData },
           });
         } else {
           navigate('/checkout/payment', {
@@ -533,6 +579,7 @@ export default function OrderReviewPage() {
       setApiError(
         errData?.message ||
         err?.response?.data?.message ||
+        (err?.message === 'ORDER_NOT_READY' ? 'Đơn hàng đang được tạo. Vui lòng thử lại sau vài giây.' : null) ||
         'Lỗi tạo đơn hàng'
       );
     } finally {

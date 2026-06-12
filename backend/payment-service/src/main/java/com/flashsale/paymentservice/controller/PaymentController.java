@@ -1,12 +1,15 @@
 package com.flashsale.paymentservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.exception.AppException;
+import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.paymentservice.dto.response.ClientSecretResponse;
 import com.flashsale.paymentservice.dto.response.TransactionDetailResponse;
 import com.flashsale.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -50,8 +53,20 @@ public class PaymentController {
             @AuthenticationPrincipal UserDetailsImpl user) {
 
         log.info("Get client secret for parentOrderId={} by userId={}", parentOrderId, user.getId());
-        ClientSecretResponse response = paymentService.getClientSecret(parentOrderId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        try {
+            ClientSecretResponse response = paymentService.getClientSecret(parentOrderId);
+            return ResponseEntity.ok(ApiResponse.success(response));
+        } catch (AppException ex) {
+            if (ex.getErrorCode() == ErrorCode.NOT_FOUND) {
+                log.info("Client secret is not ready yet for parentOrderId={}", parentOrderId);
+                return ResponseEntity.status(HttpStatus.ACCEPTED)
+                        .body(ApiResponse.<ClientSecretResponse>success(
+                                null,
+                                "Đang khởi tạo giao dịch thanh toán"
+                        ));
+            }
+            throw ex;
+        }
     }
 
     /**

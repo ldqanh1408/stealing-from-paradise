@@ -86,7 +86,7 @@ export interface CheckoutPreviewResponse {
 
 export interface CheckoutSubmitResponse {
   sessionId: string;
-  parentOrderId: number;
+  parentOrderId?: number;
   createdAt: string;
   totalItems: number;
   totalAmount: number;
@@ -208,4 +208,3 @@ export const cartApi = {
       fullAddress,
     }),
 };
-

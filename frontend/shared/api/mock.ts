@@ -1272,7 +1272,9 @@ const mockHandlers: MockHandler[] = [
       return { success: true, data: payment, timestamp: Date.now() };
     }
 
-    const clientSecretMatch = url?.match(/^\/payments\/parent-order\/(\d+)\/client-secret$/);
+    const clientSecretMatch =
+      url?.match(/^\/payments\/client-secret\/(\d+)$/) ??
+      url?.match(/^\/payments\/parent-order\/(\d+)\/client-secret$/);
     if (clientSecretMatch && method === 'get') {
       await sleep(500 + Math.random() * 200);
       const parentId = parseInt(clientSecretMatch[1]);

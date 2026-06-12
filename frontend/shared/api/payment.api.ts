@@ -31,5 +31,5 @@ export const paymentApi = {
 
   /** Get Stripe client secret for PaymentElement (backend fetches from existing PI) */
   getClientSecret: (parentOrderId: number) =>
-    apiClient.get<ApiResponse<ClientSecretResponse>>(`/payments/client-secret/${parentOrderId}`),
+    apiClient.get<ApiResponse<ClientSecretResponse | null>>(`/payments/client-secret/${parentOrderId}`),
 };
