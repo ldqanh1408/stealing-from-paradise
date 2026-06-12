@@ -20,6 +20,7 @@ const ProfilePage        = lazy(() => import('@/pages/ProfilePage'));
 const AddressPage        = lazy(() => import('@/pages/AddressPage'));
 const AccountSettingsPage = lazy(() => import('@/pages/AccountSettingsPage'));
 const RefundHistoryPage = lazy(() => import('@/pages/RefundHistoryPage'));
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 
 const NAV_LINKS = [
   { label: 'Sản phẩm', to: '/products' },
@@ -27,6 +28,7 @@ const NAV_LINKS = [
 ];
 
 const AUTH_LINKS = [
+  { label: 'Thông báo', to: '/notifications' },
   { label: 'Giỏ hàng', to: '/cart' },
   { label: 'Đơn hàng', to: '/orders' },
   { label: 'Hoàn tiền', to: '/refunds' },
@@ -66,6 +68,7 @@ export default function App() {
                 <Route path="/profile"          element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
                 <Route path="/addresses"        element={<PrivateRoute><AddressPage /></PrivateRoute>} />
                 <Route path="/account-settings" element={<PrivateRoute><AccountSettingsPage /></PrivateRoute>} />
+                <Route path="/notifications"    element={<PrivateRoute><NotificationsPage /></PrivateRoute>} />
 
                 <Route path="/"  element={<Navigate to="/products" replace />} />
                 <Route path="*"  element={<Navigate to="/" replace />} />

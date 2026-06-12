@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @Builder
@@ -19,4 +20,6 @@ public class UserProfileResponse {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String avatarUrl;
+    private Map<String, Boolean> notificationPreferences;
 }

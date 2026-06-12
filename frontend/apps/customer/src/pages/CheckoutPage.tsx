@@ -125,7 +125,8 @@ export default function CheckoutPage() {
 
   const { data: clientSecretData, isLoading: secretLoading, error: clientSecretError } = useQuery({
     queryKey: ['client-secret', parentOrderId],
-    queryFn: () => paymentApi.getClientSecret(parentOrderId!).then(r => r.data.data),
+    queryFn: () =>
+      paymentApi.getClientSecret(parentOrderId!).then(r => r.data.data),
     enabled: !!parentOrderId && !!orderData,
     retry: 1,
   });
@@ -188,7 +189,7 @@ export default function CheckoutPage() {
                 <span>📍</span> Địa chỉ giao hàng
               </h2>
               <p className="text-sm text-gray-700 mt-1">
-                {(parentOrder?.shippingAddress ?? orderData.orders[0]?.shippingAddress)?.fullAddress}
+                {parentOrder?.shippingAddress?.fullAddress}
               </p>
             </div>
             <button
@@ -208,15 +209,15 @@ export default function CheckoutPage() {
               <div className="h-48 bg-gray-100 rounded-2xl" />
             </div>
           )}
-          {!secretLoading && clientSecretData && (
-            <Elements stripe={getStripe()} options={{ clientSecret: clientSecretData }}>
+          {!secretLoading && clientSecretData?.clientSecret && (
+            <Elements stripe={getStripe()} options={{ clientSecret: clientSecretData.clientSecret }}>
               <PaymentForm
                 orderData={orderData}
                 onSuccess={handleStripeSuccess}
               />
             </Elements>
           )}
-          {!secretLoading && !clientSecretData && (
+          {!secretLoading && !clientSecretData?.clientSecret && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
               <p className="text-gray-500">Không thể kết nối với cổng thanh toán. Vui lòng thử lại.</p>
             </div>

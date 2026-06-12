@@ -2,6 +2,7 @@ package com.flashsale.paymentservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.security.UserDetailsImpl;
+import com.flashsale.paymentservice.dto.response.ClientSecretResponse;
 import com.flashsale.paymentservice.dto.response.TransactionDetailResponse;
 import com.flashsale.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -37,18 +38,20 @@ public class PaymentController {
     }
 
     /**
-     * GET /api/v1/payments/{parentOrderId}/client-secret
-     * Trả về Stripe client_secret để frontend dùng với PaymentElement.
+     * GET /api/v1/payments/client-secret/{parentOrderId}
+     * Lấy Stripe client_secret cho frontend hiển thị Stripe PaymentElement.
+     * PaymentIntent đã được tạo trong checkout.submit (Kafka event).
+     * Chỉ hoạt động khi transaction ở trạng thái PENDING.
      */
-    @GetMapping("/payments/{parentOrderId}/client-secret")
-    @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ApiResponse<String>> getClientSecret(
+    @GetMapping("/payments/client-secret/{parentOrderId}")
+    @PreAuthorize("hasRole('BUYER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ClientSecretResponse>> getClientSecret(
             @PathVariable Long parentOrderId,
             @AuthenticationPrincipal UserDetailsImpl user) {
 
-        log.info("Get client-secret for parentOrderId={} by userId={}", parentOrderId, user.getId());
-        String clientSecret = paymentService.getClientSecret(parentOrderId);
-        return ResponseEntity.ok(ApiResponse.success(clientSecret));
+        log.info("Get client secret for parentOrderId={} by userId={}", parentOrderId, user.getId());
+        ClientSecretResponse response = paymentService.getClientSecret(parentOrderId);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
