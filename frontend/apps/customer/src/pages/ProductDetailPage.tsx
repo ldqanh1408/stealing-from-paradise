@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
+import WishlistButton from '@/components/WishlistButton';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
 import { addressApi } from '@shared/api/address.api';
 import { cartApi } from '@shared/api/cart.api';
@@ -270,6 +271,11 @@ export default function ProductDetailPage() {
                   (tối đa {maxQty})
                 </span>
               </div>
+
+              <WishlistButton
+                productId={productId!}
+                className="!w-14 !h-14 text-2xl shrink-0 border border-gray-200 self-stretch"
+              />
 
               <button
                 onClick={handleAddToCart}
