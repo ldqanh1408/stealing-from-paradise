@@ -366,6 +366,60 @@ function CartChangeErrorAlert({
   );
 }
 
+// ─── Session Expired / Cart Changed Dialog ─────────────────────────────────────
+function CheckoutSessionExpiredDialog({
+  isExpired,
+  message,
+  details,
+  onGoToCart,
+}: {
+  isExpired: boolean;
+  message: string;
+  details: CartChangeDetail[];
+  onGoToCart: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md text-center">
+        <div className="text-5xl mb-4">{isExpired ? '⏰' : '⚠️'}</div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">
+          {isExpired ? 'Phiên mua hàng đã hết hạn' : 'Thông tin sản phẩm thay đổi'}
+        </h3>
+        <p className="text-sm text-gray-500 mb-1">{message}</p>
+        {details.length > 0 && (
+          <div className="mt-3 space-y-1.5 text-left bg-gray-50 rounded-xl p-3 max-h-40 overflow-y-auto">
+            {details.map((d, i) => (
+              <p key={i} className="text-xs text-gray-600">
+                <span className="font-medium text-gray-800">
+                  {d.productName || d.skuCode || d.variantId}
+                </span>
+                {' — '}
+                <span className="text-orange-600 font-medium">
+                  {REASON_LABELS[d.reason] ?? d.reason}
+                </span>
+                {d.expectedValue && d.currentValue && (
+                  <span className="ml-1">
+                    ({d.expectedValue} → <span className="font-bold">{d.currentValue}</span>)
+                  </span>
+                )}
+              </p>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-gray-400 mt-3 mb-6">
+          Vui lòng quay lại giỏ hàng để xem thông tin sản phẩm mới nhất.
+        </p>
+        <button
+          onClick={onGoToCart}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors"
+        >
+          Quay lại giỏ hàng
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function OrderReviewPage() {
   const navigate = useNavigate();
@@ -381,6 +435,7 @@ export default function OrderReviewPage() {
   const [deletingAddress, setDeletingAddress] = useState<UserAddress | null>(null);
   const [showNoDefaultDialog, setShowNoDefaultDialog] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   // Checkout flow state
   const [previewData, setPreviewData] = useState<CheckoutPreviewResponse | null>(null);
@@ -531,6 +586,14 @@ export default function OrderReviewPage() {
       }
     } catch (err: any) {
       const errData = err?.response?.data as any;
+      const isExpired =
+        err?.response?.status === 404 ||
+        errData?.error === 'PREVIEW_TOKEN_EXPIRED' ||
+        (errData?.message && errData.message.includes('không tồn tại') && errData.message.includes('hết hạn'));
+      if (isExpired) {
+        setSessionExpired(true);
+        return;
+      }
       if (errData?.error === 'STOCK_CHANGED' && errData?.details) {
         setCartChanges(errData.details as CartChangeDetail[]);
       }
@@ -758,18 +821,9 @@ export default function OrderReviewPage() {
         {step === 'review' && previewData && (
           <div className="max-w-3xl">
             {/* Cart change warnings on review step */}
-            {cartChanges.length > 0 && (
-              <CartChangeErrorAlert
-                message="Một số sản phẩm đã thay đổi. Vui lòng quay lại để làm mới."
-                details={cartChanges}
-                onRefresh={handleRefreshCart}
-                isLoading={refreshLoading}
-              />
-            )}
-
             <div className="flex items-center gap-3 mb-6">
               <button
-                onClick={() => setStep('address')}
+                onClick={() => { setStep('address'); setSessionExpired(false); setCartChanges([]); setApiError(null); }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
               >
                 ←
@@ -782,7 +836,7 @@ export default function OrderReviewPage() {
                 <h3 className="font-bold text-gray-900 mb-2">📍 Địa chỉ giao hàng</h3>
                 <p className="text-gray-700">{selectedAddress.fullAddress}</p>
                 <button
-                  onClick={() => setStep('address')}
+                  onClick={() => { setStep('address'); setSessionExpired(false); setCartChanges([]); setApiError(null); }}
                   className="text-sm text-blue-600 hover:underline mt-2"
                 >
                   Thay đổi
@@ -919,6 +973,17 @@ export default function OrderReviewPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {(sessionExpired || (cartChanges.length > 0 && step === 'review')) && (
+        <CheckoutSessionExpiredDialog
+          isExpired={sessionExpired}
+          message={sessionExpired
+            ? 'Phiên xem trước đơn hàng đã hết hạn. Vui lòng làm mới giỏ hàng.'
+            : 'Một số sản phẩm trong giỏ hàng có thông tin đã thay đổi.'}
+          details={cartChanges}
+          onGoToCart={() => navigate('/cart')}
+        />
       )}
 
       {showAddressForm && (
