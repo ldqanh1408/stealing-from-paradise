@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { isMockMode } from '../api/mock';
+import { handleAuthFailure } from '../lib/axios';
 
 export default function NotificationBell() {
   const { user } = useAuthStore();
@@ -73,6 +74,11 @@ export default function NotificationBell() {
 
         if (!response.ok) {
           console.warn('Notification SSE connection failed:', response.status);
+          if (response.status === 401) {
+            handleAuthFailure();
+            return;
+          }
+          if (active) setTimeout(connectSSE, 5000);
           return;
         }
 

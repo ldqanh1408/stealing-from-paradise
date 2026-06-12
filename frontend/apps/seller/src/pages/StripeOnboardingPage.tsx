@@ -162,6 +162,16 @@ export default function StripeOnboardingPage() {
         )}
       </div>
 
+      {status?.stripeAccountId?.startsWith('acct_manual_') && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-blue-800 text-sm flex items-start gap-3">
+          <span className="text-lg">🔗</span>
+          <div>
+            <p className="font-semibold">Kết nối thủ công (Platform Admin)</p>
+            <p>Tài khoản Stripe của bạn được quản trị viên nền tảng liên kết thủ công. Nếu cần thay đổi thông tin thanh toán, vui lòng liên hệ admin.</p>
+          </div>
+        </div>
+      )}
+
       {justReturnedFromStripe && !isComplete && (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex items-start gap-3">
           <span className="text-lg">⏳</span>
