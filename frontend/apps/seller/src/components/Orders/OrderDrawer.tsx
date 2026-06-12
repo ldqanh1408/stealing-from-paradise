@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { type SellerOrderSummary } from '@shared/api/order.api';
 import { fmtVnd } from '@shared/utils/format';
+import { OrderStatusBadge } from '@/lib/orderStatus';
 
 export default function OrderDrawer({ order, onClose }: { order: SellerOrderSummary; onClose: () => void }) {
   const navigate = useNavigate();
@@ -12,7 +13,10 @@ export default function OrderDrawer({ order, onClose }: { order: SellerOrderSumm
         onClick={e => e.stopPropagation()}
       >
         <div className="sticky top-0 bg-white border-b p-5 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900">Chi tiết đơn #{order.orderCode}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900">Chi tiết đơn #{order.orderCode}</h3>
+            <OrderStatusBadge status={order.status} />
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
         </div>
         <div className="p-5 space-y-5">

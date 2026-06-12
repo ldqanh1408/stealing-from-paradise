@@ -86,6 +86,12 @@ public class AccountEventHandler implements StripeEventHandler {
                             .setRefreshUrl(stripeConfig.getOnboardingRefreshUrl())
                             .setReturnUrl(stripeConfig.getOnboardingReturnUrl())
                             .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
+                            .setCollectionOptions(
+                                AccountLinkCreateParams.CollectionOptions.builder()
+                                    .setFields(AccountLinkCreateParams.CollectionOptions.Fields.EVENTUALLY_DUE)
+                                    .setFutureRequirements(AccountLinkCreateParams.CollectionOptions.FutureRequirements.INCLUDE)
+                                    .build()
+                            )
                             .build());
 
                     Instant expiresAt = Instant.now().plusSeconds(86400);
@@ -109,8 +115,15 @@ public class AccountEventHandler implements StripeEventHandler {
                 }
             }
 
-            // Sync Express Dashboard URL for identity verification link
-            seller.setExpressDashboardUrl("https://connect.stripe.com/express/" + account.getId());
+            // Sync Express Dashboard URL (view-as link for admin)
+            String platformAcct = stripeConfig.getPlatformAccountId();
+            if (platformAcct != null) {
+                seller.setExpressDashboardUrl(
+                        String.format("https://dashboard.stripe.com/%s/connect/view-as/%s/test/dashboard",
+                                platformAcct, account.getId()));
+            } else {
+                seller.setExpressDashboardUrl("https://connect.stripe.com/express/" + account.getId());
+            }
             sellerStripeAccountRepository.save(seller);
             log.info("Seller Stripe account synced: sellerId={}, status={}", seller.getSellerId(), seller.getAccountStatus());
         });

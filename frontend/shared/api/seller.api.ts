@@ -88,7 +88,7 @@ export const sellerApi = {
 
   /** Start Stripe onboarding */
   startStripeOnboarding: () =>
-    apiClient.post<ApiResponse<{ onboardingUrl: string; expiresAt: string }>>('/stripe/onboarding/start'),
+    apiClient.post<ApiResponse<{ onboardingUrl: string; expressDashboardUrl: string; stripeAccountId: string; expiresAt: string }>>('/stripe/onboarding/start'),
 
   /** Get Stripe onboarding status */
   getStripeStatus: () =>
@@ -96,7 +96,7 @@ export const sellerApi = {
 
   /** Refresh expired Stripe onboarding link */
   refreshStripeLink: () =>
-    apiClient.post<ApiResponse<{ onboardingUrl: string; expiresAt: string }>>('/stripe/onboarding/refresh-link'),
+    apiClient.post<ApiResponse<{ onboardingUrl: string; expressDashboardUrl: string; stripeAccountId: string; expiresAt: string }>>('/stripe/onboarding/refresh-link'),
 
   /** Submit a DRAFT product for review */
   submitForReview: (productId: string) =>

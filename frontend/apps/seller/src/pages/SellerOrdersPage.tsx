@@ -1,42 +1,48 @@
+/**
+ * SellerOrdersPage — UC-ORDER-007 "View Seller Orders".
+ *
+ * Paginated, status-filterable list of every order placed with this seller's
+ * shop. Per-row actions are driven by the business-rule predicates in
+ * {@link ../lib/orderActions} so the UI only ever offers a transition the
+ * backend will accept:
+ *   - PAID  → "Cập nhật vận đơn" (ship, UC-ORDER-004) or "Huỷ đơn" (UC-ORDER-008)
+ *   - SHIPPING → "Hoàn hàng" (return-to-sender, UC-ORDER-006 Flow B)
+ */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orderApi, type SellerOrderSummary, type OrderStatus } from '@shared/api/order.api';
-import { fmtVnd, fmtDate as formatDate } from '@shared/utils/format';
+import { fmtVnd, fmtDate } from '@shared/utils/format';
+import { getStatusMeta, OrderStatusBadge } from '@/lib/orderStatus';
+import { canShip, canCancel, canReturnToSender } from '@/lib/orderActions';
 import TrackingModal from '@/components/Orders/TrackingModal';
 import RTSModal from '@/components/Orders/RTSModal';
+import CancelOrderModal from '@/components/Orders/CancelOrderModal';
 import OrderDrawer from '@/components/Orders/OrderDrawer';
 
-const fmt = (n: number) => fmtVnd(n);
-
+/** Status filter chips shown above the table (includes the synthetic "ALL"). */
 const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
-  { value: 'PENDING', label: 'Chờ xác nhận' },
-  { value: 'PAID', label: 'Đã thanh toán' },
-  { value: 'SHIPPING', label: 'Đang giao' },
-  { value: 'DELIVERED', label: 'Đã giao' },
-  { value: 'CANCELLED', label: 'Đã huỷ' },
-  { value: 'PARTIALLY_REFUNDED', label: 'Hoàn một phần' },
-  { value: 'REFUNDED', label: 'Đã hoàn' },
+  { value: 'PENDING', label: getStatusMeta('PENDING').label },
+  { value: 'PAID', label: getStatusMeta('PAID').label },
+  { value: 'SHIPPING', label: getStatusMeta('SHIPPING').label },
+  { value: 'DELIVERED', label: getStatusMeta('DELIVERED').label },
+  { value: 'CANCELLED', label: getStatusMeta('CANCELLED').label },
+  { value: 'PARTIALLY_REFUNDED', label: getStatusMeta('PARTIALLY_REFUNDED').label },
+  { value: 'REFUNDED', label: getStatusMeta('REFUNDED').label },
 ];
 
-const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  PENDING:            { bg: 'bg-yellow-100', color: 'text-yellow-700' },
-  PAID:               { bg: 'bg-blue-100',   color: 'text-blue-700' },
-  SHIPPING:           { bg: 'bg-purple-100',  color: 'text-purple-700' },
-  DELIVERED:          { bg: 'bg-green-100',   color: 'text-green-700' },
-  CANCELLED:          { bg: 'bg-red-100',     color: 'text-red-700' },
-  RETURNED:           { bg: 'bg-orange-100',  color: 'text-orange-700' },
-  PARTIALLY_REFUNDED: { bg: 'bg-indigo-100',  color: 'text-indigo-700' },
-  REFUNDED:           { bg: 'bg-gray-100',    color: 'text-gray-600' },
-};
+/** Build a human-friendly buyer label for modal headers. */
+const buyerLabel = (o: SellerOrderSummary) => o.buyerName || o.buyerUsername || `User #${o.buyerId}`;
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SellerOrdersPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
+
+  // Each modal is keyed off the order it acts on (null = closed).
   const [trackingOrder, setTrackingOrder] = useState<SellerOrderSummary | null>(null);
   const [rtsOrder, setRtsOrder] = useState<SellerOrderSummary | null>(null);
+  const [cancelOrder, setCancelOrder] = useState<SellerOrderSummary | null>(null);
   const [drawerOrder, setDrawerOrder] = useState<SellerOrderSummary | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -53,6 +59,9 @@ export default function SellerOrdersPage() {
   const orders: SellerOrderSummary[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
 
+  /** Refresh the list after any mutation succeeds. */
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -62,7 +71,7 @@ export default function SellerOrdersPage() {
           <p className="text-sm text-gray-500 mt-1">Quản lý và xử lý đơn hàng từ khách</p>
         </div>
         <button
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['seller-orders'] })}
+          onClick={refresh}
           className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 text-gray-600"
         >
           🔄 Làm mới
@@ -101,7 +110,7 @@ export default function SellerOrdersPage() {
         </div>
       )}
 
-      {/* Empty */}
+      {/* Empty (UC-ORDER-007 A1: no orders found) */}
       {!isLoading && !error && orders.length === 0 && (
         <div className="text-center py-20 text-gray-400">
           <span className="text-4xl block mb-3">📋</span>
@@ -125,68 +134,56 @@ export default function SellerOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map(order => {
-                    const st = STATUS_STYLE[order.status] ?? { bg: 'bg-gray-100', color: 'text-gray-700' };
-                    const stLabel = STATUS_FILTERS.find(f => f.value === order.status)?.label ?? order.status;
-                    return (
-                      <tr key={order.orderId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-5 py-4">
-                          <button
-                            onClick={() => setDrawerOrder(order)}
-                            className="font-mono font-medium text-gray-900 hover:text-blue-600"
-                          >
-                            {order.orderCode}
-                          </button>
-                        </td>
-                        <td className="px-5 py-4 text-gray-700">
-                          <p className="font-medium">{order.buyerName || `User #${order.buyerId}`}</p>
-                          {order.buyerUsername && <p className="text-xs text-gray-400">@{order.buyerUsername}</p>}
-                        </td>
-                        <td className="px-5 py-4 text-gray-500">{order.itemCount} sản phẩm</td>
-                        <td className="px-5 py-4 font-semibold text-gray-900">{fmt(order.finalAmt)}</td>
-                        <td className="px-5 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.bg} ${st.color}`}>{stLabel}</span>
-                        </td>
-                        <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{formatDate(order.createdAt)}</td>
-                        <td className="px-5 py-4">
-                          <div className="flex gap-2 flex-wrap">
-                            {order.status === 'PENDING' && (
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Hủy đơn ${order.orderCode}? Hành động này không thể hoàn tác.`)) {
-                                    orderApi.cancelOrder(order.orderId, { reason: 'Người bán hủy đơn' })
-                                      .then(() => queryClient.invalidateQueries({ queryKey: ['seller-orders'] }));
-                                  }
-                                }}
-                                className="text-xs text-red-500 hover:text-red-600 font-medium whitespace-nowrap"
-                              >
-                                Huỷ đơn
-                              </button>
-                            )}
-                            {order.status === 'PAID' && (
-                              <button
-                                onClick={() => setTrackingOrder(order)}
-                                className="text-xs text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
-                              >
-                                + Vận đơn
-                              </button>
-                            )}
-                            {order.status === 'SHIPPING' && (
-                              <span className="text-xs text-gray-400 whitespace-nowrap">Đang giao...</span>
-                            )}
-                            {order.status === 'RETURNED' && (
-                              <button
-                                onClick={() => setRtsOrder(order)}
-                                className="text-xs text-orange-600 hover:text-orange-700 font-medium whitespace-nowrap"
-                              >
-                                Xác nhận hoàn
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {orders.map(order => (
+                    <tr key={order.orderId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <button
+                          onClick={() => setDrawerOrder(order)}
+                          className="font-mono font-medium text-gray-900 hover:text-blue-600"
+                        >
+                          {order.orderCode}
+                        </button>
+                      </td>
+                      <td className="px-5 py-4 text-gray-700">
+                        <p className="font-medium">{order.buyerName || `User #${order.buyerId}`}</p>
+                        {order.buyerUsername && <p className="text-xs text-gray-400">@{order.buyerUsername}</p>}
+                      </td>
+                      <td className="px-5 py-4 text-gray-500">{order.itemCount} sản phẩm</td>
+                      <td className="px-5 py-4 font-semibold text-gray-900">{fmtVnd(order.finalAmt)}</td>
+                      <td className="px-5 py-4"><OrderStatusBadge status={order.status} /></td>
+                      <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{fmtDate(order.createdAt)}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex gap-2 flex-wrap">
+                          {/* PAID, not yet shipped → ship or cancel (UC-ORDER-004 / UC-ORDER-008) */}
+                          {canShip(order.status) && (
+                            <button
+                              onClick={() => setTrackingOrder(order)}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
+                            >
+                              + Vận đơn
+                            </button>
+                          )}
+                          {canCancel(order.status, order.trackingNumber) && (
+                            <button
+                              onClick={() => setCancelOrder(order)}
+                              className="text-xs text-red-500 hover:text-red-600 font-medium whitespace-nowrap"
+                            >
+                              Huỷ đơn
+                            </button>
+                          )}
+                          {/* SHIPPING → carrier returned the package (UC-ORDER-006 Flow B) */}
+                          {canReturnToSender(order.status) && (
+                            <button
+                              onClick={() => setRtsOrder(order)}
+                              className="text-xs text-orange-600 hover:text-orange-700 font-medium whitespace-nowrap"
+                            >
+                              Hoàn hàng
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -217,19 +214,30 @@ export default function SellerOrdersPage() {
         </>
       )}
 
-      {/* Modals */}
+      {/* Action modals — all share the same refresh-on-success behaviour. */}
       {trackingOrder && (
         <TrackingModal
-          order={trackingOrder}
+          orderId={trackingOrder.orderId}
+          orderCode={trackingOrder.orderCode}
+          customerLabel={buyerLabel(trackingOrder)}
           onClose={() => setTrackingOrder(null)}
-          onSuccess={() => queryClient.invalidateQueries({ queryKey: ['seller-orders'] })}
+          onSuccess={refresh}
+        />
+      )}
+      {cancelOrder && (
+        <CancelOrderModal
+          orderId={cancelOrder.orderId}
+          orderCode={cancelOrder.orderCode}
+          onClose={() => setCancelOrder(null)}
+          onSuccess={refresh}
         />
       )}
       {rtsOrder && (
         <RTSModal
-          order={rtsOrder}
+          orderId={rtsOrder.orderId}
+          orderCode={rtsOrder.orderCode}
           onClose={() => setRtsOrder(null)}
-          onSuccess={() => queryClient.invalidateQueries({ queryKey: ['seller-orders'] })}
+          onSuccess={refresh}
         />
       )}
       {drawerOrder && (

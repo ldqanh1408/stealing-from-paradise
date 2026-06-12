@@ -30,9 +30,23 @@
 set -e
 
 SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPTS_DIR/../../../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPTS_DIR/../../.." && pwd)"
 GATEWAY="${GATEWAY:-http://api-gateway:8080}"
-WEBHOOK_SECRET="${WEBHOOK_SECRET:-whsec_9036236865171c8dd43b2c376f96d9847980b59fc9eef44c16ccb2ca0feb7268}"
+
+# Try to load Stripe Webhook Secret from root .env
+WEBHOOK_SECRET=""
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    ENV_SECRET=$(grep -E '^STRIPE_WEBHOOK_SECRET=' "$PROJECT_ROOT/.env" | cut -d'=' -f2-)
+    if [ -n "$ENV_SECRET" ]; then
+        WEBHOOK_SECRET="$ENV_SECRET"
+    fi
+fi
+
+# Fallback if not found in .env or environment
+if [ -z "$WEBHOOK_SECRET" ]; then
+    WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-whsec_9036236865171c8dd43b2c376f96d9847980b59fc9eef44c16ccb2ca0feb7268}"
+fi
+
 TIMEOUT="${E2E_TIMEOUT:-120}"
 
 echo "============================================"

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { sellerApi } from '@shared/api/seller.api';
 
-const fmt = (n: number) => (n / 100).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+const fmt = (n: number) => n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 const fmtNum = (n: number) => n.toLocaleString('vi-VN');
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string; icon: string }> = {
@@ -46,9 +46,9 @@ export default function SellerPaymentsPage() {
 
   const st = data
     ? {
-        total: data.totalEarnings / 100,
-        available: data.availableBalance / 100,
-        pending: data.pendingBalance / 100,
+        total: data.totalEarnings,
+        available: data.availableBalance,
+        pending: data.pendingBalance,
         fee: data.platformFeePercentage,
         count: data.totalOrders,
       }
@@ -201,6 +201,15 @@ export default function SellerPaymentsPage() {
                 <tbody className="divide-y divide-gray-50">
                   {data.transfers.map((t) => {
                     const cfg = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.PENDING;
+                    const feePct = data.platformFeePercentage ?? 0;
+                    const transferAmt = t.transferAmount ?? 0;
+                    const feeAmount = t.feeAmount !== undefined && t.feeAmount !== null
+                      ? t.feeAmount
+                      : Math.round(transferAmt * (feePct / 100));
+                    const netAmount = t.netAmount !== undefined && t.netAmount !== null
+                      ? t.netAmount
+                      : transferAmt - feeAmount;
+
                     return (
                       <tr key={t.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-4">
@@ -209,13 +218,13 @@ export default function SellerPaymentsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-right text-gray-600">
-                          {fmt(t.transferAmount)}
+                          {fmt(transferAmt)}
                         </td>
                         <td className="px-4 py-4 text-right text-red-500">
-                          {t.feeAmount > 0 ? `-${fmt(t.feeAmount)}` : fmt(t.feeAmount)}
+                          {feeAmount > 0 ? `-${fmt(feeAmount)}` : fmt(feeAmount)}
                         </td>
                         <td className="px-4 py-4 text-right font-bold text-gray-900">
-                          {fmt(t.netAmount)}
+                          {fmt(netAmount)}
                         </td>
                         <td className="px-4 py-4 text-center">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>

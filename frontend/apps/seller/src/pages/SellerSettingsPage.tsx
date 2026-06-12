@@ -149,6 +149,12 @@ export default function SellerSettingsPage() {
               ⚙️ Quản lý Stripe
             </a>
           </div>
+
+          {/* Change Password Info */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Đổi mật khẩu</h3>
+            <SellerChangePasswordSection />
+          </div>
         </>
       )}
 
@@ -158,6 +164,110 @@ export default function SellerSettingsPage() {
           onClose={() => setEditOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+function SellerChangePasswordSection() {
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPw, setShowPw] = useState({ current: false, new: false, confirm: false });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      if (form.newPassword !== form.confirmPassword) throw new Error('Mật khẩu xác nhận không khớp');
+      if (form.newPassword.length < 6) throw new Error('Mật khẩu mới phải có ít nhất 6 ký tự');
+      await userApi.changePassword({
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
+      });
+    },
+    onSuccess: () => {
+      setSuccess('Đổi mật khẩu thành công!');
+      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setError('');
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message ?? err.message ?? 'Đổi mật khẩu thất bại');
+      setSuccess('');
+    },
+  });
+
+  return (
+    <div>
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4">{error}</div>}
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl mb-4">{success}</div>}
+      <div className="max-w-md">
+        <PwInput
+          name="currentPassword"
+          label="Mật khẩu hiện tại"
+          placeholder="Nhập mật khẩu hiện tại"
+          value={form.currentPassword}
+          show={showPw.current}
+          onChange={val => setForm(f => ({ ...f, currentPassword: val }))}
+          onToggleShow={() => setShowPw(p => ({ ...p, current: !p.current }))}
+        />
+        <PwInput
+          name="newPassword"
+          label="Mật khẩu mới"
+          placeholder="Ít nhất 6 ký tự"
+          value={form.newPassword}
+          show={showPw.new}
+          onChange={val => setForm(f => ({ ...f, newPassword: val }))}
+          onToggleShow={() => setShowPw(p => ({ ...p, new: !p.new }))}
+        />
+        <PwInput
+          name="confirmPassword"
+          label="Xác nhận mật khẩu mới"
+          placeholder="Nhập lại mật khẩu mới"
+          value={form.confirmPassword}
+          show={showPw.confirm}
+          onChange={val => setForm(f => ({ ...f, confirmPassword: val }))}
+          onToggleShow={() => setShowPw(p => ({ ...p, confirm: !p.confirm }))}
+        />
+      </div>
+      <button
+        onClick={() => mut.mutate()}
+        disabled={mut.isPending || !form.currentPassword || !form.newPassword || !form.confirmPassword}
+        className="mt-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60 transition-all"
+      >
+        {mut.isPending ? 'Đang đổi...' : 'Đổi mật khẩu'}
+      </button>
+    </div>
+  );
+}
+
+interface PwInputProps {
+  name: 'currentPassword' | 'newPassword' | 'confirmPassword';
+  label: string;
+  placeholder: string;
+  value: string;
+  show: boolean;
+  onChange: (val: string) => void;
+  onToggleShow: () => void;
+}
+
+function PwInput({ label, placeholder, value, show, onChange, onToggleShow }: PwInputProps) {
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full px-4 py-2.5 pr-11 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button type="button" onClick={onToggleShow}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

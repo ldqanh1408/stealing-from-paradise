@@ -64,9 +64,17 @@ export const chatApi = {
   getSuggestions: () =>
     apiClient.get<ApiResponse<string[]>>('/suggest', { baseURL: getChatBaseUrl() }),
 
-  /** Confirm/Reject Level-3 Action */
-  confirmAction: (confirmId: string, confirmed: boolean) =>
-    apiClient.post<ApiResponse<ChatMessage>>('/confirm', { confirmId, confirmed }, { baseURL: getChatBaseUrl() }),
+  /**
+   * Confirm/Reject a Level-3 (Mức 3) action — UC-AICHAT-003.
+   * Sends both the legacy `confirmed` boolean and the documented
+   * `decision` enum + `sessionId` so the call satisfies either backend contract.
+   */
+  confirmAction: (confirmId: string, confirmed: boolean, sessionId?: string | null) =>
+    apiClient.post<ApiResponse<ChatMessage>>(
+      '/confirm',
+      { confirmId, sessionId: sessionId ?? undefined, confirmed, decision: confirmed ? 'CONFIRMED' : 'REJECTED' },
+      { baseURL: getChatBaseUrl() },
+    ),
 };
 
 /** Stream chat response via SSE (POST /chat) */

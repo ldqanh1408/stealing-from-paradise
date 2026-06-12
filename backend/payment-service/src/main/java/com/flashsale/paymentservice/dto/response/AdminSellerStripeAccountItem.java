@@ -14,6 +14,7 @@ public class AdminSellerStripeAccountItem {
     private Boolean chargesEnabled;
     private Boolean payoutsEnabled;
     private String onboardingStatus;
+    private String expressDashboardUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

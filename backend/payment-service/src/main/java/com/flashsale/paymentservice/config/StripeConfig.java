@@ -1,6 +1,8 @@
 package com.flashsale.paymentservice.config;
 
 import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
+import com.stripe.model.Account;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,8 +30,8 @@ public class StripeConfig {
     @Value("${stripe.default-country:US}")
     private String defaultCountry;
 
-    @Value("${stripe.manual-onboarding-form-url:https://forms.gle/StripeConnectManualRequest}")
-    private String manualOnboardingFormUrl;
+    /** Cached platform (Connect) account ID — loaded once at startup. */
+    private volatile String platformAccountId;
 
     @PostConstruct
     public void init() {
@@ -37,27 +39,36 @@ public class StripeConfig {
         log.info("Stripe SDK initialized. Platform fee: {}%", platformFeePercentage);
     }
 
-    public String getWebhookSecret() {
-        return webhookSecret;
-    }
+    // ── Getters ──────────────────────────────────────────────────────────────
 
-    public double getPlatformFeePercentage() {
-        return platformFeePercentage;
-    }
+    public String getWebhookSecret() { return webhookSecret; }
+    public double getPlatformFeePercentage() { return platformFeePercentage; }
+    public String getOnboardingReturnUrl() { return onboardingReturnUrl; }
+    public String getOnboardingRefreshUrl() { return onboardingRefreshUrl; }
+    public String getDefaultCountry() { return defaultCountry; }
 
-    public String getOnboardingReturnUrl() {
-        return onboardingReturnUrl;
-    }
-
-    public String getOnboardingRefreshUrl() {
-        return onboardingRefreshUrl;
-    }
-
-    public String getDefaultCountry() {
-        return defaultCountry;
-    }
-
-    public String getManualOnboardingFormUrl() {
-        return manualOnboardingFormUrl;
+    /**
+     * Lazy-load the platform's own Stripe account ID.
+     * <p>
+     * Calling {@code Account.retrieve()} with no ID returns the platform account
+     * (the account owning the API key). This ID is stable per API key, so we
+     * cache it after the first successful call.
+     */
+    public String getPlatformAccountId() {
+        if (platformAccountId == null) {
+            synchronized (this) {
+                if (platformAccountId == null) {
+                    try {
+                        Account platform = Account.retrieve();
+                        platformAccountId = platform.getId();
+                        log.info("Stripe platform account: {}", platformAccountId);
+                    } catch (StripeException e) {
+                        log.error("Failed to retrieve Stripe platform account ID", e);
+                        return null;
+                    }
+                }
+            }
+        }
+        return platformAccountId;
     }
 }

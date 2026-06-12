@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sellerApi, type StripeOnboardingStatus } from '@shared/api/seller.api';
+import { parseStripeError, type StripeErrorContext } from '@/lib/stripeError';
 
 type OnboardingStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'SUSPENDED';
 
@@ -9,36 +10,6 @@ function normalizeStatus(raw?: string | null): OnboardingStatus {
   if (!raw) return 'PENDING';
   if (raw === 'COMPLETE' || raw === 'IN_PROGRESS' || raw === 'SUSPENDED') return raw;
   return 'PENDING';
-}
-
-interface ErrorContext {
-  isPlatformError: boolean;
-  message: string;
-  hint?: string;
-}
-
-function parseStripeError(err: any): ErrorContext {
-  const raw = err?.response?.data?.message || err?.message || '';
-  const code = err?.response?.data?.code || '';
-
-  if (raw.includes('signed up for Connect') || code === 'CONNECT_NOT_ACTIVATED') {
-    return {
-      isPlatformError: true,
-      message: 'Nền tảng chưa kích hoạt Stripe Connect.',
-      hint: 'Đây là lỗi cấu hình phía nền tảng. Vui lòng liên hệ admin để kích hoạt Stripe Connect.',
-    };
-  }
-  if (raw.includes('country_unsupported')) {
-    return {
-      isPlatformError: true,
-      message: 'Quốc gia của bạn chưa được Stripe hỗ trợ.',
-      hint: 'Stripe hiện chưa hỗ trợ Vietnam làm quốc gia Connected Account. Vui lòng liên hệ admin.',
-    };
-  }
-  return {
-    isPlatformError: false,
-    message: err?.response?.data?.message || 'Không thể khởi tạo Stripe. Vui lòng thử lại.',
-  };
 }
 
 function VerificationChecklist({ status }: { status: StripeOnboardingStatus }) {
@@ -69,7 +40,8 @@ function VerificationChecklist({ status }: { status: StripeOnboardingStatus }) {
 export default function StripeOnboardingPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [error, setError] = useState<ErrorContext | null>(null);
+  const [error, setError] = useState<StripeErrorContext | null>(null);
+  const [expressDashboardUrl, setExpressDashboardUrl] = useState<string | null>(null);
 
   const justReturnedFromStripe = searchParams.get('from') === 'stripe';
   const requestRefresh         = searchParams.get('refresh') === '1';
@@ -90,7 +62,11 @@ export default function StripeOnboardingPage() {
   const startMut = useMutation({
     mutationFn: () => sellerApi.startStripeOnboarding(),
     onSuccess: (res) => {
-      const url = res.data.data?.onboardingUrl;
+      const data = res.data.data;
+      if (data?.expressDashboardUrl) {
+        setExpressDashboardUrl(data.expressDashboardUrl);
+      }
+      const url = data?.onboardingUrl;
       if (url) {
         window.location.href = url;
         queryClient.invalidateQueries({ queryKey: ['stripe-onboarding-status'] });
@@ -104,7 +80,11 @@ export default function StripeOnboardingPage() {
   const refreshMut = useMutation({
     mutationFn: () => sellerApi.refreshStripeLink(),
     onSuccess: (res) => {
-      const url = res.data.data?.onboardingUrl;
+      const data = res.data.data;
+      if (data?.expressDashboardUrl) {
+        setExpressDashboardUrl(data.expressDashboardUrl);
+      }
+      const url = data?.onboardingUrl;
       if (url) {
         window.location.href = url;
       }
@@ -114,8 +94,8 @@ export default function StripeOnboardingPage() {
     },
   });
 
-  // /stripe/refresh redirects here with ?refresh=1 when Stripe's onboarding link expired.
-  // Auto-trigger a fresh AccountLink, then strip the param so reloads don't re-fire.
+  // /stripe/refresh redirects here with ?refresh=1 when account link expired.
+  // Auto-trigger a fresh AccountLink.
   useEffect(() => {
     if (requestRefresh && !refreshMut.isPending) {
       refreshMut.mutate();
@@ -127,13 +107,11 @@ export default function StripeOnboardingPage() {
   }, [requestRefresh]);
 
   const currentStatus: OnboardingStatus = normalizeStatus(status?.onboardingStatus);
-  const isManual = !!status?.stripeAccountId?.startsWith('acct_manual_');
   const isComplete = currentStatus === 'COMPLETE';
   const isSuspended = currentStatus === 'SUSPENDED';
-  const isInProgress = currentStatus === 'IN_PROGRESS' && !isManual;
-  const isPending = currentStatus === 'PENDING' && !isManual;
+  const isInProgress = currentStatus === 'IN_PROGRESS';
   const hasOnboardingUrl = !!status?.onboardingUrl;
-  const hasExpressDashboard = !!status?.expressDashboardUrl;
+  const currentExpressUrl = expressDashboardUrl || status?.expressDashboardUrl;
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
@@ -148,9 +126,7 @@ export default function StripeOnboardingPage() {
           ? 'bg-green-50 border-green-200'
           : isSuspended
             ? 'bg-red-50 border-red-200'
-            : isManual
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-indigo-50 border-indigo-100'
+            : 'bg-indigo-50 border-indigo-100'
       }`}>
         {isComplete ? (
           <>
@@ -166,17 +142,7 @@ export default function StripeOnboardingPage() {
             <div>
               <p className="font-semibold text-red-900">Tài khoản Stripe bị tạm ngưng</p>
               <p className="text-sm text-red-700">
-                Stripe đã hạn chế tài khoản của bạn. Vui lòng kiểm tra Stripe Dashboard để biết lý do và cách khắc phục.
-              </p>
-            </div>
-          </>
-        ) : isManual ? (
-          <>
-            <span className="text-2xl">📝</span>
-            <div>
-              <p className="font-semibold text-amber-900">Kết nối thủ công (Platform Admin)</p>
-              <p className="text-sm text-amber-700">
-                Vui lòng điền form yêu cầu kết nối thủ công để Platform Admin kích hoạt tài khoản nhận thanh toán của bạn.
+                Stripe đã hạn chế tài khoản của bạn. Mở Express Dashboard để kiểm tra lý do.
               </p>
             </div>
           </>
@@ -186,7 +152,7 @@ export default function StripeOnboardingPage() {
             <div>
               <p className="font-semibold text-indigo-900">Chưa kết nối Stripe</p>
               <p className="text-sm text-indigo-700">
-                Trạng thái hiện tại: <strong>{currentStatus === 'IN_PROGRESS' ? 'Đang xác minh' : 'Chưa bắt đầu'}</strong>
+                Trạng thái hiện tại: <strong>{isInProgress ? 'Đang xác minh' : 'Chưa bắt đầu'}</strong>
               </p>
             </div>
           </>
@@ -209,12 +175,12 @@ export default function StripeOnboardingPage() {
           <h3 className="font-bold text-red-900 mb-2">Tài khoản bị hạn chế</h3>
           <p className="text-sm text-red-700 mb-3">
             Stripe có thể tạm ngưng tài khoản vì nhiều lý do: thông tin chưa đầy đủ, yêu cầu xác minh bổ sung,
-            hoặc hoạt động đáng ngờ. Bạn cần truy cập Stripe Dashboard để xem chi tiết và thực hiện các bước khắc phục.
+            hoặc hoạt động đáng ngờ. Truy cập Express Dashboard để xem chi tiết.
           </p>
           <div className="flex gap-2 flex-wrap">
-            {hasExpressDashboard && (
+            {currentExpressUrl && (
               <a
-                href={status!.expressDashboardUrl!}
+                href={currentExpressUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-colors"
@@ -248,35 +214,12 @@ export default function StripeOnboardingPage() {
         </div>
       )}
 
-      {/* Verification checklist (IN_PROGRESS / isManual) */}
-      {(isInProgress || isManual) && status && (
+      {/* Verification checklist (IN_PROGRESS) */}
+      {isInProgress && status && (
         <div className="mb-6 bg-white rounded-2xl border border-indigo-200 p-5">
           <h3 className="font-bold text-gray-900 mb-1">Tiến trình xác minh</h3>
-          <p className="text-sm text-gray-500 mb-1">
-            {isManual ? 'Trạng thái kết nối thủ công:' : 'Trạng thái các bước xác minh với Stripe:'}
-          </p>
-          {isManual ? (
-            <div className="space-y-2 mt-3">
-              {[
-                { done: true, label: 'Đã nộp form yêu cầu kết nối thủ công' },
-                { done: !!status.detailsSubmitted, label: 'Xác minh thông tin đối tác' },
-                { done: !!status.chargesEnabled, label: 'Kích hoạt nhận thanh toán (Charges)' },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-2 text-sm">
-                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                    item.done ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    {item.done ? '✓' : '—'}
-                  </span>
-                  <span className={item.done ? 'text-green-800' : 'text-gray-500'}>
-                    {item.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <VerificationChecklist status={status} />
-          )}
+          <p className="text-sm text-gray-500 mb-1">Trạng thái các bước xác minh với Stripe:</p>
+          <VerificationChecklist status={status} />
         </div>
       )}
 
@@ -290,7 +233,7 @@ export default function StripeOnboardingPage() {
         ].map(({ step, title, desc, key }) => {
           let stepState: 'completed' | 'active' | 'pending' = 'pending';
           if (isComplete) stepState = key === 'COMPLETE' ? 'active' : 'completed';
-          else if (currentStatus === 'IN_PROGRESS') stepState = key === 'PENDING' ? 'completed' : key === 'IN_PROGRESS' ? 'active' : 'pending';
+          else if (isInProgress) stepState = key === 'PENDING' ? 'completed' : key === 'IN_PROGRESS' ? 'active' : 'pending';
           else if (currentStatus === 'PENDING') stepState = key === 'PENDING' ? 'active' : 'pending';
           else if (isSuspended) stepState = 'active';
 
@@ -336,14 +279,14 @@ export default function StripeOnboardingPage() {
               <a href="/payments" className="inline-block px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm transition-colors">
                 Xem thu nhập
               </a>
-              {hasExpressDashboard && (
+              {currentExpressUrl && (
                 <a
-                  href={status!.expressDashboardUrl!}
+                  href={currentExpressUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block px-6 py-2.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-medium rounded-xl text-sm transition-colors"
                 >
-                  Mở Stripe Dashboard ↗
+                  Mở Stripe Express Dashboard ↗
                 </a>
               )}
               <a href="/dashboard" className="inline-block px-6 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium rounded-xl text-sm transition-colors">
@@ -354,31 +297,27 @@ export default function StripeOnboardingPage() {
         ) : (
           <>
             <h3 className="font-bold text-gray-900 mb-2">
-              {isManual ? 'Gửi yêu cầu kết nối thủ công' : isInProgress ? 'Tiếp tục xác minh với Stripe' : 'Sẵn sàng kết nối?'}
+              {isInProgress ? 'Tiếp tục xác minh với Stripe' : 'Sẵn sàng kết nối?'}
             </h3>
             <p className="text-sm text-gray-500 mb-5">
-              {isManual
-                ? 'Vui lòng hoàn thành form thông tin để Platform Admin tiến hành liên kết và kích hoạt tài khoản thanh toán của bạn.'
-                : isInProgress
-                  ? 'Bạn đã bắt đầu onboarding nhưng chưa hoàn tất. Chọn một cách để tiếp tục:'
-                  : 'Nhấn nút bên dưới để bắt đầu quá trình onboarding với Stripe. Thường mất 5–10 phút để hoàn thành.'
+              {isInProgress
+                ? 'Bạn đã bắt đầu onboarding nhưng chưa hoàn tất. Chọn một cách để tiếp tục:'
+                : 'Nhấn nút bên dưới để bắt đầu quá trình onboarding với Stripe. Thường mất 5–10 phút để hoàn thành.'
               }
             </p>
 
-            {/* IN_PROGRESS: Show both options — Express Dashboard and AccountLink */}
-            {isInProgress && (
-              <div className="flex flex-col gap-3 items-center mb-4">
-                {hasExpressDashboard && (
-                  <a
-                    href={status!.expressDashboardUrl!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-sm transition-all text-sm"
-                  >
-                    Tiếp tục trong Stripe Dashboard ↗
-                  </a>
-                )}
-                <p className="text-xs text-gray-400">— hoặc —</p>
+            {/* IN_PROGRESS: always show Express Dashboard as primary option */}
+            {isInProgress && currentExpressUrl && (
+              <div className="mb-4">
+                <a
+                  href={currentExpressUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-sm transition-all text-sm inline-block"
+                >
+                  Tiếp tục trong Stripe Express Dashboard ↗
+                </a>
+                <p className="text-xs text-gray-400 mt-3">— hoặc —</p>
               </div>
             )}
 
@@ -390,25 +329,23 @@ export default function StripeOnboardingPage() {
               >
                 {startMut.isPending
                   ? '⏳ Đang khởi tạo...'
-                  : isManual
-                    ? 'Điền form kết nối thủ công →'
-                    : isInProgress
-                      ? 'Mở lại form đăng ký Stripe →'
-                      : 'Bắt đầu với Stripe →'}
+                  : isInProgress
+                    ? 'Mở lại form đăng ký Stripe →'
+                    : 'Bắt đầu với Stripe →'}
               </button>
-              {(isSuspended || isInProgress || isManual) && (
+              {(isSuspended || isInProgress) && (
                 <button
                   onClick={() => refreshMut.mutate()}
                   disabled={startMut.isPending || refreshMut.isPending}
                   className="text-sm text-indigo-600 hover:text-indigo-700 underline disabled:opacity-40"
                 >
-                  {refreshMut.isPending ? 'Đang tạo liên kết…' : isManual ? 'Lấy lại link form kết nối' : 'Làm mới liên kết đã hết hạn'}
+                  {refreshMut.isPending ? 'Đang tạo liên kết…' : 'Làm mới liên kết đã hết hạn'}
                 </button>
               )}
             </div>
             <p className="text-xs text-gray-400 mt-3">
-              Miễn phí kết nối · Phí giao dịch 2.9% + 30₫
-              {hasOnboardingUrl && !isInProgress && !isManual && (
+              Miễn phí kết nối · Phí giao dịch 2.9% + 30¢
+              {hasOnboardingUrl && !isInProgress && (
                 <span className="block text-amber-500 mt-0.5">Liên kết có hiệu lực trong 24 giờ</span>
               )}
             </p>

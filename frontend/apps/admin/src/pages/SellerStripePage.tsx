@@ -239,18 +239,14 @@ export default function SellerStripePage() {
                         {fmtDateTime(acc.updatedAt)}
                       </td>
                       <td className="py-4 px-6 text-right">
-                        {acc.stripeAccountId.startsWith('acct_manual_') ? (
-                          <span className="text-xs text-gray-400 font-medium italic">Kết nối thủ công</span>
-                        ) : (
                           <a
-                            href={`https://dashboard.stripe.com/test/connect/accounts/${acc.stripeAccountId}`}
+                            href={acc.expressDashboardUrl || `https://dashboard.stripe.com/connect/accounts/${acc.stripeAccountId}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-lg transition-colors border border-indigo-100"
                           >
-                            Stripe Console ↗
+                            Express Dashboard ↗
                           </a>
-                        )}
                       </td>
                     </tr>
                   );

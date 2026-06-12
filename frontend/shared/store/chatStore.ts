@@ -5,6 +5,8 @@ interface ChatState {
   currentSessionId: string | null;
   messages: (ChatMessage & { products?: any[] })[];
   isStreaming: boolean;
+  /** Label shown while the AI is running a tool lookup (UC-AICHAT-002 step 8). */
+  toolStatus: string | null;
   pendingConfirmation: PendingConfirmation | null;
   suggestions: string[];
   isOpen: boolean;
@@ -29,6 +31,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   currentSessionId: null,
   messages: [],
   isStreaming: false,
+  toolStatus: null,
   pendingConfirmation: null,
   suggestions: [],
   isOpen: false,
@@ -148,12 +151,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
               content: updatedMessages[lastIdx].content + chunk,
             };
           }
-          return { messages: updatedMessages };
+          // First token means any tool lookup has finished.
+          return { messages: updatedMessages, toolStatus: null };
         });
       },
       onEvent: (event, data) => {
-        if (event === 'confirmation_required') {
-          set({ pendingConfirmation: data });
+        if (event === 'tool_start' || event === 'tool_call') {
+          // UC-AICHAT-002 step 8: surface "đang tra cứu" while a tool runs.
+          set({ toolStatus: data?.label || data?.toolName || 'Đang tra cứu thông tin...' });
+        } else if (event === 'confirmation_required') {
+          set({ pendingConfirmation: data, toolStatus: null });
         } else if (event === 'products') {
           set((state) => {
             const updatedMessages = [...state.messages];
@@ -169,10 +176,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       },
       onError: (error) => {
-        set({ error, isStreaming: false, abortController: null });
+        // UC-AICHAT-001 A2 / UC-AICHAT-002 422: session expired → drop the
+        // sessionId so the next message auto-creates a fresh session.
+        const expired = /\b422\b/.test(error) || /expired/i.test(error);
+        set({
+          error: expired
+            ? 'Phiên chat đã hết hạn. Vui lòng gửi lại tin nhắn để bắt đầu phiên mới.'
+            : error,
+          isStreaming: false,
+          abortController: null,
+          toolStatus: null,
+          ...(expired ? { currentSessionId: null } : {}),
+        });
       },
       onDone: () => {
-        set({ isStreaming: false, abortController: null });
+        set({ isStreaming: false, abortController: null, toolStatus: null });
       },
     });
 
@@ -183,7 +201,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const sessId = get().currentSessionId;
     set({ isStreaming: true, error: null, pendingConfirmation: null });
     try {
-      await chatApi.confirmAction(confirmId, true);
+      await chatApi.confirmAction(confirmId, true, sessId);
       if (sessId) {
         await get().fetchHistory(sessId);
       }
@@ -199,7 +217,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const sessId = get().currentSessionId;
     set({ isStreaming: true, error: null, pendingConfirmation: null });
     try {
-      await chatApi.confirmAction(confirmId, false);
+      await chatApi.confirmAction(confirmId, false, sessId);
       if (sessId) {
         await get().fetchHistory(sessId);
       }
@@ -224,6 +242,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       currentSessionId: null,
       messages: [],
       isStreaming: false,
+      toolStatus: null,
       pendingConfirmation: null,
       error: null,
       abortController: null,

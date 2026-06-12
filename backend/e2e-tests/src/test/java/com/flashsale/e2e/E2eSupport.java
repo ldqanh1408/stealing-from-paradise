@@ -30,7 +30,7 @@ public abstract class E2eSupport {
     protected static final String EUREKA   = env("E2E_EUREKA_URL", "http://localhost:8761");
     /** Must match payment-service's STRIPE_WEBHOOK_SECRET (root .env, dev default). */
     protected static final String WEBHOOK_SECRET =
-            env("STRIPE_WEBHOOK_SECRET", "whsec_9036236865171c8dd43b2c376f96d9847980b59fc9eef44c16ccb2ca0feb7268");
+            env("STRIPE_WEBHOOK_SECRET", "whsec_30eee4f19680f05b87cf7c5d28cbac3cf5d16fc172be10bd06beb8c0b686926e");
 
     /** Seeded dev accounts — see IdentityDevDataLoader (password dev123 for all). */
     protected static final String PASSWORD = env("E2E_DEV_PASSWORD", "dev123");

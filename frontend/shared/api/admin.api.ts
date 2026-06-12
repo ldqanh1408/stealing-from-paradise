@@ -97,6 +97,7 @@ export interface AdminSellerStripeAccountItem {
   chargesEnabled: boolean;
   payoutsEnabled: boolean;
   onboardingStatus: string;
+  expressDashboardUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

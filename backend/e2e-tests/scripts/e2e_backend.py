@@ -19,7 +19,7 @@ import sys, os, json, time, uuid, hmac, hashlib, threading, traceback, argparse,
 
 # ── Config ──────────────────────────────────────────────────────────────────
 GW   = os.environ.get("GATEWAY", "http://localhost:8080")
-WHS  = os.environ.get("WEBHOOK_SECRET", "whsec_9036236865171c8dd43b2c376f96d9847980b59fc9eef44c16ccb2ca0feb7268")
+WHS  = os.environ.get("WEBHOOK_SECRET", "whsec_30eee4f19680f05b87cf7c5d28cbac3cf5d16fc172be10bd06beb8c0b686926e")
 PW   = os.environ.get("E2E_DEV_PASSWORD", "dev123")
 TMO  = int(os.environ.get("E2E_TIMEOUT", "120"))
 POLL = int(os.environ.get("E2E_POLL", "2"))

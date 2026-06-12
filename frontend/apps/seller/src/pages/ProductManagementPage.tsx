@@ -6,21 +6,10 @@ import type { ApiResponse, PageResponse } from '@shared/types/api';
 import { fmtVnd } from '@shared/utils/format';
 import VariantModal from '@/components/ProductManagement/VariantModal';
 import ProductFormModal from '@/components/ProductManagement/ProductFormModal';
+import { ProductStatusBadge } from '@/lib/productStatus';
+import { canSubmit, canPublish, canUnpublish, canDelete } from '@/lib/productActions';
 
 const fmt = (n: number) => fmtVnd(n);
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg: Record<string, { bg: string; color: string; label: string }> = {
-    DRAFT:      { bg: 'bg-gray-100', color: 'text-gray-600', label: 'Nháp' },
-    PENDING:    { bg: 'bg-yellow-100', color: 'text-yellow-700', label: 'Chờ duyệt' },
-    APPROVED:   { bg: 'bg-green-100', color: 'text-green-700', label: 'Đã duyệt' },
-    REJECTED:   { bg: 'bg-red-100', color: 'text-red-700', label: 'Từ chối' },
-    UNPUBLISHED:{ bg: 'bg-blue-100', color: 'text-blue-700', label: 'Đã ẩn' },
-    PUBLISHED:  { bg: 'bg-green-100', color: 'text-green-700', label: 'Đang bán' },
-  };
-  const c = cfg[status] ?? { bg: 'bg-gray-100', color: 'text-gray-600', label: status };
-  return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${c.bg} ${c.color}`}>{c.label}</span>;
-}
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 const STATUS_TABS = [
@@ -190,7 +179,7 @@ export default function ProductManagementPage() {
                           {p.stockAvailable}
                         </span>
                       </td>
-                      <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
+                      <td className="px-5 py-4"><ProductStatusBadge status={p.status} /></td>
                       <td className="px-5 py-4 text-gray-400 whitespace-nowrap text-xs">
                         {p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                       </td>
@@ -201,8 +190,8 @@ export default function ProductManagementPage() {
                             Sửa
                           </button>
 
-                          {/* DRAFT → Submit for review */}
-                          {p.status === 'DRAFT' && (
+                          {/* DRAFT → Submit for review (UC-PRODUCT-003) */}
+                          {canSubmit(p.status) && (
                             <button onClick={() => submitMut.mutate(p.productId)}
                               disabled={submitMut.isPending}
                               className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
@@ -210,8 +199,8 @@ export default function ProductManagementPage() {
                             </button>
                           )}
 
-                          {/* APPROVED → Publish */}
-                          {(p.status === 'APPROVED' || p.status === 'UNPUBLISHED') && (
+                          {/* APPROVED / UNPUBLISHED → Publish (UC-PRODUCT-014) */}
+                          {canPublish(p.status) && (
                             <button onClick={() => publishMut.mutate(p.productId)}
                               disabled={publishMut.isPending}
                               className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
@@ -220,7 +209,7 @@ export default function ProductManagementPage() {
                           )}
 
                           {/* PUBLISHED → Unpublish */}
-                          {p.status === 'PUBLISHED' && (
+                          {canUnpublish(p.status) && (
                             <button onClick={() => unpublishMut.mutate(p.productId)}
                               disabled={unpublishMut.isPending}
                               className="text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50">
@@ -229,7 +218,7 @@ export default function ProductManagementPage() {
                           )}
 
                           {/* Delete (DRAFT or REJECTED only) */}
-                          {(p.status === 'DRAFT' || p.status === 'REJECTED') && (
+                          {canDelete(p.status) && (
                             <button onClick={() => {
                               if (confirm(`Xóa sản phẩm "${p.name}"? Hành động này không thể hoàn tác.`)) {
                                 deleteMut.mutate(p.productId);

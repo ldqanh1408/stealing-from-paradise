@@ -363,12 +363,52 @@ jobs:
         continue-on-error: true
 
   # ─────────────────────────────────────────────
+  # 5b. Frontend Unit Tests
+  # ─────────────────────────────────────────────
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: build-frontend-artifacts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            frontend/shared/package-lock.json
+            frontend/apps/seller/package-lock.json
+
+      - name: Install shared dependencies
+        working-directory: ./frontend/shared
+        run: npm ci
+
+      - name: Run shared tests
+        working-directory: ./frontend/shared
+        run: npm test
+
+      - name: Install seller app dependencies
+        working-directory: ./frontend/apps/seller
+        run: npm ci
+
+      - name: Check types for seller app
+        working-directory: ./frontend/apps/seller
+        run: npm run lint
+
+      - name: Run seller app tests
+        working-directory: ./frontend/apps/seller
+        run: npm test
+
+  # ─────────────────────────────────────────────
   # 6. Create PR to main on success
   # ─────────────────────────────────────────────
   create-pr-to-main:
     name: Create PR to Main
     runs-on: ubuntu-latest
-    needs: [build-dev, backend-tests]
+    needs: [build-dev, backend-tests, frontend-tests]
     if: github.event_name == 'push' && github.ref != 'refs/heads/main'
     permissions:
       contents: write

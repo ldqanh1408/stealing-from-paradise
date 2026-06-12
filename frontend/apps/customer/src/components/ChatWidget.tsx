@@ -6,28 +6,48 @@ export default function ChatWidget() {
     isOpen,
     messages,
     isStreaming,
+    toolStatus,
     pendingConfirmation,
     suggestions,
     isLoading,
     error,
+    currentSessionId,
     toggleChat,
     sendMessage,
     confirmAction,
     rejectAction,
     fetchSuggestions,
+    createSession,
     cancelStreaming,
   } = useChatStore();
 
   const [input, setInput] = useState('');
+  // UC-AICHAT-003 A5: 5-minute confirmation window countdown.
+  const CONFIRM_TTL = 300;
+  const [secondsLeft, setSecondsLeft] = useState(CONFIRM_TTL);
+  const confirmExpired = !!pendingConfirmation && secondsLeft <= 0;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch suggestions when opened
+  // On open: load suggestions and, per UC-AICHAT-001, start a session (which
+  // seeds the greeting) if one isn't active yet.
   useEffect(() => {
     if (isOpen) {
       fetchSuggestions();
+      if (!currentSessionId) createSession();
     }
-  }, [isOpen, fetchSuggestions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Run the confirmation countdown while a pending confirmation is shown.
+  useEffect(() => {
+    if (!pendingConfirmation) { setSecondsLeft(CONFIRM_TTL); return; }
+    const deadline = Date.now() + CONFIRM_TTL * 1000;
+    const tick = () => setSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [pendingConfirmation?.confirmId]);
 
   // Auto-scroll to bottom when messages or streaming status changes
   useEffect(() => {
@@ -205,25 +225,43 @@ export default function ChatWidget() {
                 )}
               </div>
             </div>
-            <div className="mt-3 flex justify-end space-x-2 border-t border-amber-100 pt-3">
-              <button
-                onClick={() => rejectAction(pendingConfirmation.confirmId)}
-                className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors"
-              >
-                Từ chối
-              </button>
-              <button
-                onClick={() => confirmAction(pendingConfirmation.confirmId)}
-                className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:from-blue-700 hover:to-indigo-700 transition-colors"
-              >
-                Đồng ý xác nhận
-              </button>
+            <div className="mt-3 flex items-center justify-between border-t border-amber-100 pt-3">
+              {/* Countdown / expiry (UC-AICHAT-003 A5) */}
+              <span className={`text-[11px] font-medium ${confirmExpired ? 'text-red-600' : 'text-amber-600'}`}>
+                {confirmExpired
+                  ? 'Hết thời gian xác nhận'
+                  : `Còn ${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(secondsLeft % 60).padStart(2, '0')}`}
+              </span>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => rejectAction(pendingConfirmation.confirmId)}
+                  disabled={confirmExpired}
+                  className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Từ chối
+                </button>
+                <button
+                  onClick={() => confirmAction(pendingConfirmation.confirmId)}
+                  disabled={confirmExpired}
+                  className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:from-blue-700 hover:to-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-400"
+                >
+                  Đồng ý xác nhận
+                </button>
+              </div>
             </div>
           </div>
         )}
 
+        {/* Tool-lookup status (UC-AICHAT-002 step 8) */}
+        {isStreaming && toolStatus && !pendingConfirmation && (
+          <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 w-fit shadow-sm">
+            <span className="h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            {toolStatus}
+          </div>
+        )}
+
         {/* Loading / Streaming typing indicator */}
-        {isStreaming && !pendingConfirmation && (
+        {isStreaming && !toolStatus && !pendingConfirmation && (
           <div className="flex items-center space-x-1.5 text-gray-400 bg-white border border-gray-100 rounded-2xl rounded-tl-none px-4 py-2 w-16 shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"></span>
             <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce delay-150"></span>
