@@ -20,4 +20,8 @@ export const paymentApi = {
   /** Get payment/transaction details for a parent order */
   getPayment: (parentOrderId: number) =>
     apiClient.get<ApiResponse<PaymentDetail>>(`/payments/parent-order/${parentOrderId}`),
+
+  /** Get Stripe client_secret to render PaymentElement for a parent order */
+  getClientSecret: (parentOrderId: number) =>
+    apiClient.get<ApiResponse<string>>(`/payments/${parentOrderId}/client-secret`),
 };

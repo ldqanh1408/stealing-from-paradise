@@ -393,6 +393,24 @@ def t_catalog_seller_create_product():
     vid = get_field(r2, "variantId") or get_field(get_field(r2, "data"), "id") or get_field(get_field(r2, "data"), "variantId")
     ok(f"Created variant: {vid}")
 
+    # Request presigned URL
+    s_presigned, r_presigned = api("GET", f"/api/v1/products/{pid}/presigned-url?filename=image.jpg", t)
+    check_status(s_presigned, 200, "get presigned-url: ")
+    img_data = get_field(r_presigned, "data") or r_presigned
+    img_id = get_field(img_data, "imageId")
+    check_not_none(img_id, "image ID from presigned-url")
+    ok(f"Got presigned URL image ID: {img_id}")
+
+    # Register image
+    img_url = f"http://localhost:9000/product-images/products/techworld/{pid}/{img_id}.jpg"
+    s_img, r_img = api("POST", f"/api/v1/products/{pid}/images", t, body={
+        "imageId": img_id,
+        "url": img_url,
+        "sortOrder": 0
+    })
+    check_status(s_img, 201, "register image: ")
+    ok("Registered product image")
+
     # Submit
     s3, _ = api("POST", f"/api/v1/seller/products/{pid}/submit", t, body={})
     check_status(s3, 200, "submit: ")
@@ -421,7 +439,7 @@ def t_inventory_check():
     t = login("techworld")
     s, r = api("GET", "/api/v1/inventory/SKU-MAGSAFE", t)
     check_status(s, 200, "inventory check: ")
-    qty = get_field(r, "stockQuantity") or get_field(r, "quantity")
+    qty = get_field(r, "stockAvailable") or get_field(r, "stockTotal") or get_field(r, "stockQuantity") or get_field(r, "quantity")
     check_not_none(qty, "stock quantity")
     ok(f"Inventory SKU-MAGSAFE: {qty}")
 
@@ -433,7 +451,7 @@ def t_inventory_restock():
 
 def t_inventory_adjust():
     t = login("techworld")
-    s, r = api("POST", "/api/v1/seller/inventory/adjust", t, body={"skuCode": "SKU-MAGSAFE", "quantity": -2, "reason": "E2E adjust"})
+    s, r = api("POST", "/api/v1/seller/inventory/adjust?skuCode=SKU-MAGSAFE", t, body={"delta": -2, "reason": "MANUAL"})
     check_status(s, 200, "inventory adjust: ")
     ok(f"Adjust SKU-MAGSAFE: {s}")
 
@@ -589,11 +607,11 @@ def t_order_tracking():
         return
     oid = None
     for o in orders:
-        if o.get("status") == "PENDING":
+        if o.get("status") == "PAID":
             oid = o.get("orderId") or o.get("id")
             break
     if not oid:
-        warn("No PENDING seller order found")
+        warn("No PAID seller order found")
         return
     s2, r2 = api("PUT", f"/api/v1/orders/{oid}/tracking", t, body={"trackingNumber": "E2E-TRK-001"})
     check_status(s2, 200, "tracking: ")
@@ -1565,6 +1583,18 @@ def t_e2e_publish_search_reindex():
     # Variant
     vc = f"SEARCH-{uuid.uuid4().hex[:8].upper()}"
     api("POST", f"/api/v1/seller/products/{pid}/variants", st, body={"variantCode": vc, "variantName": vc, "price": 100000, "stockQuantity": 10})
+    # Image
+    s_presigned, r_presigned = api("GET", f"/api/v1/products/{pid}/presigned-url?filename=image.jpg", st)
+    if s_presigned == 200:
+        img_data = get_field(r_presigned, "data") or r_presigned
+        img_id = get_field(img_data, "imageId")
+        if img_id:
+            img_url = f"http://localhost:9000/product-images/products/techworld/{pid}/{img_id}.jpg"
+            api("POST", f"/api/v1/products/{pid}/images", st, body={
+                "imageId": img_id,
+                "url": img_url,
+                "sortOrder": 0
+            })
     # Submit + approve + publish
     api("POST", f"/api/v1/seller/products/{pid}/submit", st, body={})
     api("POST", f"/api/v1/admin/products/{pid}/approve", at, body={})

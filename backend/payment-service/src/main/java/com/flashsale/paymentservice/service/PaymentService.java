@@ -24,6 +24,10 @@ public class PaymentService {
         return paymentQueryService.getTransactionByParentOrder(parentOrderId);
     }
 
+    public String getClientSecret(Long parentOrderId) {
+        return paymentQueryService.getClientSecret(parentOrderId);
+    }
+
     public void handleStripeWebhook(String payload, String sigHeader) {
         stripeWebhookDispatcher.dispatch(payload, sigHeader);
     }

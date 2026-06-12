@@ -1,5 +1,7 @@
 package com.flashsale.paymentservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.paymentservice.domain.model.SellerTransfer;
@@ -26,6 +28,7 @@ public class PaymentQueryService {
 
     private final TransactionRepository transactionRepository;
     private final SellerTransferRepository sellerTransferRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public TransactionDetailResponse getTransactionByParentOrder(Long parentOrderId) {
@@ -33,6 +36,37 @@ public class PaymentQueryService {
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
                         "Không tìm thấy giao dịch cho parent order: " + parentOrderId));
         return buildTransactionDetailResponse(tx);
+    }
+
+    /**
+     * Parse the Stripe client_secret from the Transaction's rawResponse.
+     * The rawResponse is the full JSON from PaymentIntent.create().
+     */
+    @Transactional(readOnly = true)
+    public String getClientSecret(Long parentOrderId) {
+        Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
+                        "Không tìm thấy giao dịch cho parent order: " + parentOrderId));
+
+        if (tx.getRawResponse() == null) {
+            throw new AppException(ErrorCode.NOT_FOUND,
+                    "Chưa có PaymentIntent cho đơn hàng này");
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(tx.getRawResponse());
+            if (root.has("client_secret") && !root.get("client_secret").isNull()) {
+                return root.get("client_secret").asText();
+            }
+            throw new AppException(ErrorCode.INTERNAL_ERROR,
+                    "client_secret not found in PaymentIntent response");
+        } catch (Exception e) {
+            if (e instanceof AppException) throw (AppException) e;
+            log.error("Failed to parse client_secret from rawResponse for parentOrderId={}: {}",
+                    parentOrderId, e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_ERROR,
+                    "Không thể đọc client_secret từ PaymentIntent");
+        }
     }
 
     private TransactionDetailResponse buildTransactionDetailResponse(Transaction tx) {

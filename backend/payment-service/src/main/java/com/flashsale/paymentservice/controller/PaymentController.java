@@ -37,6 +37,21 @@ public class PaymentController {
     }
 
     /**
+     * GET /api/v1/payments/{parentOrderId}/client-secret
+     * Trả về Stripe client_secret để frontend dùng với PaymentElement.
+     */
+    @GetMapping("/payments/{parentOrderId}/client-secret")
+    @PreAuthorize("hasRole('BUYER')")
+    public ResponseEntity<ApiResponse<String>> getClientSecret(
+            @PathVariable Long parentOrderId,
+            @AuthenticationPrincipal UserDetailsImpl user) {
+
+        log.info("Get client-secret for parentOrderId={} by userId={}", parentOrderId, user.getId());
+        String clientSecret = paymentService.getClientSecret(parentOrderId);
+        return ResponseEntity.ok(ApiResponse.success(clientSecret));
+    }
+
+    /**
      * POST /api/v1/stripe/webhooks
      * Nhận và xử lý Stripe Webhook events.
      * Endpoint này KHÔNG yêu cầu JWT — xác thực bằng Stripe-Signature header.

@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { getStripe } from '@/lib/stripe';
-import { isMockMode } from '@shared/api/mock';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
 import type { CheckoutResponse } from '@shared/api/order.api';
@@ -124,15 +123,9 @@ export default function CheckoutPage() {
     retry: 1,
   });
 
-  const { data: clientSecretData, isLoading: secretLoading } = useQuery({
+  const { data: clientSecretData, isLoading: secretLoading, error: clientSecretError } = useQuery({
     queryKey: ['client-secret', parentOrderId],
-    queryFn: async () => {
-      // payment-service does not expose client-secret endpoint directly.
-      // We generate the Stripe client secret in mock mode or fallback.
-      return {
-        clientSecret: `pi_mock_secret_${parentOrderId}_${Date.now()}_test_mock_secret`,
-      };
-    },
+    queryFn: () => paymentApi.getClientSecret(parentOrderId!).then(r => r.data.data),
     enabled: !!parentOrderId && !!orderData,
     retry: 1,
   });
@@ -187,7 +180,7 @@ export default function CheckoutPage() {
       )}
 
       {/* Shipping address */}
-      {(parentOrder?.shippingAddress || orderData.orders[0]?.shippingAddress) && (
+      {(parentOrder?.shippingAddress) && (
         <div className="mb-6 bg-white rounded-2xl border border-gray-100 p-5">
           <div className="flex items-center justify-between">
             <div>
@@ -215,15 +208,15 @@ export default function CheckoutPage() {
               <div className="h-48 bg-gray-100 rounded-2xl" />
             </div>
           )}
-          {!secretLoading && clientSecretData?.clientSecret && (
-            <Elements stripe={getStripe()} options={{ clientSecret: clientSecretData.clientSecret }}>
+          {!secretLoading && clientSecretData && (
+            <Elements stripe={getStripe()} options={{ clientSecret: clientSecretData }}>
               <PaymentForm
                 orderData={orderData}
                 onSuccess={handleStripeSuccess}
               />
             </Elements>
           )}
-          {!secretLoading && !clientSecretData?.clientSecret && (
+          {!secretLoading && !clientSecretData && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
               <p className="text-gray-500">Không thể kết nối với cổng thanh toán. Vui lòng thử lại.</p>
             </div>
