@@ -22,7 +22,26 @@ export default function ProductModerationPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-pending-products', tab, page],
     queryFn: () =>
-      adminApi.getPendingProducts({ page, size: 20, status: tab }).then(r => r.data.data),
+      adminApi.getPendingProducts({ page, size: 20, status: tab }).then(r => {
+        const res = r.data.data;
+        if (!res) {
+          return {
+            content: [],
+            totalElements: 0,
+            totalPages: 0,
+            last: true,
+          };
+        }
+        return {
+          ...res,
+          content: (res.content || []).map((p: any) => ({
+            ...p,
+            productId: p.id,
+            category: p.categoryName,
+            status: tab,
+          })),
+        };
+      }),
     retry: 1,
   });
 

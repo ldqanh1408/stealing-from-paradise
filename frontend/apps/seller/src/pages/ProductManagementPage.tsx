@@ -32,7 +32,26 @@ export default function ProductManagementPage() {
     queryFn: () =>
       apiClient.get<ApiResponse<PageResponse<SellerProduct>>>('/sellers/me/products', {
         params: { status: statusFilter || undefined, page, size: 20, search: debouncedSearch || undefined },
-      }).then(r => r.data.data),
+      }).then(r => {
+        const res = r.data.data;
+        if (!res) {
+          return {
+            content: [],
+            totalElements: 0,
+            totalPages: 0,
+            last: true,
+          };
+        }
+        return {
+          ...res,
+          content: (res.content || []).map((p: any) => ({
+            ...p,
+            productId: p.id,
+            stockAvailable: p.totalStock ?? 0,
+            images: p.thumbnailUrl ? [p.thumbnailUrl] : [],
+          })),
+        };
+      }),
     retry: 1,
   });
 
