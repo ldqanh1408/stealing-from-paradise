@@ -12,6 +12,7 @@ const ProductModerationPage = lazy(() => import('@/pages/ProductModerationPage')
 const RefundsPage           = lazy(() => import('@/pages/RefundsPage'));
 const FlashSaleConfigPage   = lazy(() => import('@/pages/FlashSaleConfigPage'));
 const SellerStripePage       = lazy(() => import('@/pages/SellerStripePage'));
+const BannerManagementPage   = lazy(() => import('@/pages/BannerManagementPage'));
 
 const NAV_GROUPS = [
   {
@@ -24,6 +25,7 @@ const NAV_GROUPS = [
       { label: 'Danh mục', to: '/categories', iconKey: 'tag' as const },
       { label: 'Người dùng', to: '/users', iconKey: 'users' as const },
       { label: 'Duyệt sản phẩm', to: '/product-moderation', iconKey: 'checkBadge' as const },
+      { label: 'Banner', to: '/banners', iconKey: 'grid' as const },
     ],
   },
   {
@@ -56,6 +58,7 @@ export default function App() {
                 <Route path="/refunds"            element={<PrivateRoute role="ADMIN"><RefundsPage /></PrivateRoute>} />
                 <Route path="/flash-sale-config"  element={<PrivateRoute role="ADMIN"><FlashSaleConfigPage /></PrivateRoute>} />
                 <Route path="/sellers-stripe"     element={<PrivateRoute role="ADMIN"><SellerStripePage /></PrivateRoute>} />
+                <Route path="/banners"            element={<PrivateRoute role="ADMIN"><BannerManagementPage /></PrivateRoute>} />
 
                 <Route path="/"  element={<Navigate to="/dashboard" replace />} />
                 <Route path="*"  element={<Navigate to="/" replace />} />
