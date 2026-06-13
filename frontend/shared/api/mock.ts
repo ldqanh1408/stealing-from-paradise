@@ -942,7 +942,44 @@ const MOCK_FLASH_ITEMS = [
 
 type MockHandler = (config: InternalAxiosRequestConfig) => Promise<any>;
 
+// Wishlist mock state — seed sẵn 1 sản phẩm để demo có dữ liệu.
+const MOCK_WISHLIST = new Set<string>(['1']);
+
 const mockHandlers: MockHandler[] = [
+  // ─── Wishlist ─────────────────────────────────────────────────────────────
+  async ({ method, url, data }) => {
+    if (url === '/wishlist' && method === 'get') {
+      await sleep(250 + Math.random() * 150);
+      const content = MOCK_PRODUCTS.filter((p) => MOCK_WISHLIST.has(p.productId)).map((p) => ({
+        productId: p.productId,
+        productName: p.productName,
+        thumbnailUrl: p.images?.[0] ?? null,
+        minPrice: p.price,
+        productStatus: 'ACTIVE',
+        available: true,
+        addedAt: new Date().toISOString(),
+      }));
+      return { success: true, data: { content, totalElements: content.length, totalPages: 1, last: true }, timestamp: Date.now() };
+    }
+    if (url === '/wishlist/items' && method === 'post') {
+      await sleep(150 + Math.random() * 100);
+      const body = JSON.parse(data || '{}');
+      if (body.productId) MOCK_WISHLIST.add(String(body.productId));
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+    const wishMatch = url?.match(/^\/wishlist\/items\/([\w-]+)$/);
+    if (wishMatch && method === 'delete') {
+      await sleep(150 + Math.random() * 100);
+      MOCK_WISHLIST.delete(wishMatch[1]);
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+    if (wishMatch && method === 'get') {
+      await sleep(100 + Math.random() * 100);
+      return { success: true, data: MOCK_WISHLIST.has(wishMatch[1]), timestamp: Date.now() };
+    }
+    return null;
+  },
+
   // ─── Cart ─────────────────────────────────────────────────────────────────
   async ({ method, url }) => {
     if (url === '/cart' && method === 'get') {

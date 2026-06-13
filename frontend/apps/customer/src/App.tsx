@@ -1,15 +1,17 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@shared/components/Layout';
 import PrivateRoute from '@shared/components/PrivateRoute';
 import ChatWidget from '@/components/ChatWidget';
 import { useAuthStore } from '@shared/store/authStore';
+import { useWishlistStore } from '@shared/store/wishlistStore';
 
 const LoginPage          = lazy(() => import('@shared/pages/LoginPage'));
 const RegisterPage       = lazy(() => import('@shared/pages/RegisterPage'));
 const ProductListPage    = lazy(() => import('@/pages/ProductListPage'));
 const ProductDetailPage  = lazy(() => import('@/pages/ProductDetailPage'));
 const CartPage           = lazy(() => import('@/pages/CartPage'));
+const WishlistPage       = lazy(() => import('@/pages/WishlistPage'));
 const OrderReviewPage    = lazy(() => import('@/pages/OrderReviewPage'));
 const CheckoutPage       = lazy(() => import('@/pages/CheckoutPage'));
 const CheckoutResultPage = lazy(() => import('@/pages/CheckoutResultPage'));
@@ -29,6 +31,7 @@ const NAV_LINKS = [
 
 const AUTH_LINKS = [
   { label: 'Thông báo', to: '/notifications' },
+  { label: 'Yêu thích', to: '/wishlist' },
   { label: 'Giỏ hàng', to: '/cart' },
   { label: 'Đơn hàng', to: '/orders' },
   { label: 'Hoàn tiền', to: '/refunds' },
@@ -39,6 +42,15 @@ const AUTH_LINKS = [
 
 export default function App() {
   const { isAuthenticated } = useAuthStore();
+  const fetchWishlist = useWishlistStore((s) => s.fetchWishlist);
+  const resetWishlist = useWishlistStore((s) => s.reset);
+
+  // Nạp danh sách yêu thích một lần khi đăng nhập (tô màu nút tim trên card);
+  // đăng xuất thì xóa để không lộ tim của user trước.
+  useEffect(() => {
+    if (isAuthenticated) fetchWishlist();
+    else resetWishlist();
+  }, [isAuthenticated, fetchWishlist, resetWishlist]);
 
   return (
     <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
@@ -59,6 +71,7 @@ export default function App() {
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
 
                 <Route path="/cart"     element={<PrivateRoute><CartPage /></PrivateRoute>} />
+                <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
                 <Route path="/checkout" element={<PrivateRoute><OrderReviewPage /></PrivateRoute>} />
                 <Route path="/checkout/payment" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
                 <Route path="/orders"   element={<PrivateRoute><OrderHistoryPage /></PrivateRoute>} />

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { fmtVnd } from '@shared/utils/format';
 import type { ProductDetail } from '@shared/api/product.api';
+import WishlistButton from './WishlistButton';
 
 function discountPct(original?: number, price?: number) {
   if (!original || !price || original <= price) return null;
@@ -37,6 +38,7 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
               -{disc}%
             </span>
           )}
+          <WishlistButton productId={product.productId} className="absolute bottom-2 right-2" />
         </div>
       </Link>
       <div className="p-3 flex flex-col flex-1">
