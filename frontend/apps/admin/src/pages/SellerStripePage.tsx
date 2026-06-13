@@ -1,30 +1,20 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { adminApi, type AdminSellerStripeAccountItem } from '@shared/api/admin.api';
-import { fmtDateTime } from '@shared/utils/format';
+import { adminApi } from '@shared/api/admin.api';
+import StripeStatsCards from '@/components/SellerStripe/StripeStatsCards';
+import StripeFilters from '@/components/SellerStripe/StripeFilters';
+import StripeAccountsTable from '@/components/SellerStripe/StripeAccountsTable';
 
-const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; icon: string }> = {
-  COMPLETE: {
-    label: 'Hoàn thành',
-    badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    icon: '✅',
-  },
-  IN_PROGRESS: {
-    label: 'Đang KYC',
-    badgeClass: 'bg-sky-100 text-sky-800 border-sky-200',
-    icon: '⏳',
-  },
-  PENDING: {
-    label: 'Chưa bắt đầu',
-    badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
-    icon: '🔒',
-  },
-  SUSPENDED: {
-    label: 'Bị hạn chế',
-    badgeClass: 'bg-rose-100 text-rose-800 border-rose-200',
-    icon: '⚠️',
-  },
-};
+const needsStripeAction = (acc: {
+  onboardingStatus: string;
+  detailsSubmitted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+}) =>
+  acc.onboardingStatus === 'SUSPENDED' ||
+  !acc.detailsSubmitted ||
+  !acc.chargesEnabled ||
+  !acc.payoutsEnabled;
 
 export default function SellerStripePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,14 +35,18 @@ export default function SellerStripePage() {
   };
 
   const accounts = data?.accounts || [];
+  const actionableCount = accounts.filter(needsStripeAction).length;
 
   const filteredAccounts = accounts.filter((acc) => {
-    const statusMatch = !statusFilter || acc.onboardingStatus === statusFilter;
+    const statusMatch =
+      !statusFilter ||
+      (statusFilter === 'NEEDS_ACTION' ? needsStripeAction(acc) : acc.onboardingStatus === statusFilter);
     const query = searchQuery.trim().toLowerCase();
     const searchMatch =
       !query ||
       String(acc.sellerId).includes(query) ||
-      acc.stripeAccountId.toLowerCase().includes(query);
+      acc.stripeAccountId.toLowerCase().includes(query) ||
+      acc.accountStatus.toLowerCase().includes(query);
     return statusMatch && searchMatch;
   });
 
@@ -75,88 +69,31 @@ export default function SellerStripePage() {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
-        {[
-          {
-            title: 'Tổng nhà bán hàng',
-            val: summary.totalSellers,
-            desc: 'Đã tạo tài khoản',
-            gradient: 'from-slate-50 to-slate-100 border-slate-200 text-slate-800',
-            dot: 'bg-slate-400',
-          },
-          {
-            title: 'Hoàn thành KYC',
-            val: summary.completedSellers,
-            desc: 'Được phép bán hàng',
-            gradient: 'from-emerald-50 to-emerald-100/50 border-emerald-200 text-emerald-800',
-            dot: 'bg-emerald-500',
-          },
-          {
-            title: 'Đang xác minh',
-            val: summary.inProgressSellers,
-            desc: 'Đang điền thông tin',
-            gradient: 'from-sky-50 to-sky-100/50 border-sky-200 text-sky-800',
-            dot: 'bg-sky-500',
-          },
-          {
-            title: 'Chưa bắt đầu',
-            val: summary.pendingSellers,
-            desc: 'Cần bắt đầu liên kết',
-            gradient: 'from-amber-50 to-amber-100/50 border-amber-200 text-amber-800',
-            dot: 'bg-amber-500',
-          },
-          {
-            title: 'Bị hạn chế / Khóa',
-            val: summary.suspendedSellers,
-            desc: 'Lỗi xác minh Stripe',
-            gradient: 'from-rose-50 to-rose-100/50 border-rose-200 text-rose-800',
-            dot: 'bg-rose-500',
-          },
-        ].map((card) => (
-          <div
-            key={card.title}
-            className={`rounded-2xl border p-5 bg-gradient-to-br ${card.gradient} transition-transform hover:-translate-y-0.5 duration-200 shadow-sm`}
-          >
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${card.dot} inline-block animate-pulse`} />
-              {card.title}
-            </div>
-            <div className="text-3xl font-black text-gray-900 tracking-tight">{card.val}</div>
-            <p className="text-xs text-gray-500 mt-1">{card.desc}</p>
+      {actionableCount > 0 && (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">{actionableCount} seller cần kiểm tra Stripe</p>
+            <p className="text-amber-700">Bao gồm tài khoản chưa KYC, chưa bật charges/payouts hoặc đang bị hạn chế.</p>
           </div>
-        ))}
-      </div>
+          <button
+            onClick={() => setStatusFilter('NEEDS_ACTION')}
+            className="shrink-0 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            Xem cần xử lý
+          </button>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      <StripeStatsCards summary={summary} />
 
       {/* Filter and Search */}
-      <div className="bg-white rounded-2xl border border-gray-200/80 p-5 mb-8 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96">
-          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 text-sm">
-            🔍
-          </span>
-          <input
-            type="text"
-            placeholder="Tìm theo Seller ID hoặc Stripe Account ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-gray-50 hover:bg-gray-100/70 focus:bg-white border border-gray-200 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-          />
-        </div>
-
-        <div className="flex gap-3 w-full md:w-auto">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full md:w-52 px-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="COMPLETE">Hoàn thành</option>
-            <option value="IN_PROGRESS">Đang KYC</option>
-            <option value="PENDING">Chưa bắt đầu</option>
-            <option value="SUSPENDED">Bị hạn chế</option>
-          </select>
-        </div>
-      </div>
+      <StripeFilters
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+      />
 
       {/* Main Content Table */}
       {isLoading ? (
@@ -182,83 +119,10 @@ export default function SellerStripePage() {
           <p className="text-gray-400 text-sm mt-1">Vui lòng thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  <th className="py-4 px-6">Seller ID</th>
-                  <th className="py-4 px-6">Stripe Account ID</th>
-                  <th className="py-4 px-6">Trạng thái KYC</th>
-                  <th className="py-4 px-6 text-center">Xác minh</th>
-                  <th className="py-4 px-6 text-center">Nhận tiền (Charges)</th>
-                  <th className="py-4 px-6 text-center">Rút tiền (Payouts)</th>
-                  <th className="py-4 px-6">Thời gian cập nhật</th>
-                  <th className="py-4 px-6 text-right">Liên kết ngoài</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                {filteredAccounts.map((acc) => {
-                  const cfg = STATUS_CONFIG[acc.onboardingStatus] || STATUS_CONFIG.PENDING;
-                  return (
-                    <tr key={acc.sellerId} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-6 font-bold text-gray-900">
-                        #{acc.sellerId}
-                      </td>
-                      <td className="py-4 px-6 font-mono text-xs text-gray-500">
-                        {acc.stripeAccountId}
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 border rounded-full text-xs font-semibold shadow-sm ${cfg.badgeClass}`}>
-                          <span>{cfg.icon}</span>
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        {acc.detailsSubmitted ? (
-                          <span className="inline-block text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded text-xs border border-green-200">Đã nộp ✓</span>
-                        ) : (
-                          <span className="inline-block text-gray-400 bg-gray-50 px-2 py-0.5 rounded text-xs border border-gray-200">Chưa —</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        {acc.chargesEnabled ? (
-                          <span className="inline-block text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-100">Bật ✓</span>
-                        ) : (
-                          <span className="inline-block text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded text-xs border border-rose-100">Tắt ✕</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        {acc.payoutsEnabled ? (
-                          <span className="inline-block text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-100">Bật ✓</span>
-                        ) : (
-                          <span className="inline-block text-rose-600 font-semibold bg-rose-50 px-2 py-0.5 rounded text-xs border border-rose-100">Tắt ✕</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-6 text-xs text-gray-400">
-                        {fmtDateTime(acc.updatedAt)}
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                          <a
-                            href={acc.expressDashboardUrl || `https://dashboard.stripe.com/connect/accounts/${acc.stripeAccountId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-lg transition-colors border border-indigo-100"
-                          >
-                            Express Dashboard ↗
-                          </a>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-gray-50 px-6 py-4.5 border-t border-gray-200 text-xs text-gray-500 font-medium flex items-center justify-between">
-            <span>Hiển thị <strong>{filteredAccounts.length}</strong> / <strong>{accounts.length}</strong> nhà bán hàng.</span>
-            <span className="italic">Lưu ý: Mọi tài khoản Connect thật (Express) đều có thể kiểm tra sâu hơn trong Stripe Console của Nền tảng.</span>
-          </div>
-        </div>
+        <StripeAccountsTable
+          filteredAccounts={filteredAccounts}
+          accounts={accounts}
+        />
       )}
     </div>
   );

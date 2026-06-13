@@ -26,6 +26,47 @@ POLL = int(os.environ.get("E2E_POLL", "2"))
 
 API_VERSION = "2024-06-20"  # matches stripe-java 26.1.0
 
+# ── Dynamic IDs ─────────────────────────────────────────────────────────────
+E2E_PRODUCT_ID = None
+E2E_VARIANT_ID = None
+
+def init_dynamic_ids():
+    global E2E_PRODUCT_ID, E2E_VARIANT_ID
+    if E2E_PRODUCT_ID and E2E_VARIANT_ID:
+        return E2E_PRODUCT_ID, E2E_VARIANT_ID
+
+    # 1. Fetch products
+    s, r = api("GET", "/api/v1/products?page=0&size=10")
+    if s != 200:
+        raise RuntimeError(f"Failed to fetch products for E2E dynamic ID initialization: status={s}, response={r}")
+    
+    content = get_field(r, "content")
+    if not content or not isinstance(content, list):
+        raise RuntimeError(f"Empty product listing in E2E dynamic ID initialization: response={r}")
+
+    # Iterate products to find one with variants
+    for prod in content:
+        pid = prod.get("id") or prod.get("productId")
+        if not pid:
+            continue
+        # Get product details
+        s2, r2 = api("GET", f"/api/v1/products/{pid}")
+        if s2 != 200:
+            continue
+        # Find variants
+        variants = get_field(r2, "variants") or r2.get("variants") or r2.get("data", {}).get("variants")
+        if not variants or not isinstance(variants, list):
+            continue
+        for v in variants:
+            vid = v.get("id") or v.get("variantId")
+            if vid:
+                E2E_PRODUCT_ID = pid
+                E2E_VARIANT_ID = vid
+                print(f"[Dynamic ID Init] Found E2E_PRODUCT_ID={E2E_PRODUCT_ID}, E2E_VARIANT_ID={E2E_VARIANT_ID}")
+                return E2E_PRODUCT_ID, E2E_VARIANT_ID
+
+    raise RuntimeError("No orderable product variant found in the database. Ensure dev seed data is loaded!")
+
 # ── HTTP ────────────────────────────────────────────────────────────────────
 def api(method, path, token=None, body=None, extra_headers=None):
     """Call API gateway. extra_headers: dict of additional headers (e.g. X-User-Id for chat)."""
@@ -301,14 +342,17 @@ def t_admin_lock_user():
 
 def t_admin_category_flow():
     t = login("admin")
+    suffix = uuid.uuid4().hex[:6]
+    name1 = f"E2E Test Cat {suffix}"
+    name2 = f"E2E Test Cat Updated {suffix}"
     # Create
-    s, r = api("POST", "/api/v1/admin/categories", t, body={"name": "E2E Test Cat", "parentId": None})
+    s, r = api("POST", "/api/v1/admin/categories", t, body={"name": name1, "parentId": None})
     check_status(s, (200, 201), "create category: ")
     cid = get_field(r, "id") or get_field(get_field(r, "data"), "id")
     check_not_none(cid, "category ID")
     ok(f"Created category: {cid}")
     # Update
-    s2, r2 = api("PUT", f"/api/v1/admin/categories/{cid}", t, body={"name": "E2E Test Cat Updated"})
+    s2, r2 = api("PUT", f"/api/v1/admin/categories/{cid}", t, body={"name": name2})
     check_status(s2, 200, "update category: ")
     ok(f"Updated category: {s2}")
     # Delete
@@ -329,7 +373,8 @@ def t_catalog_products():
     ok(f"Products: {len(content)}")
 
 def t_catalog_product_detail():
-    s, r = api("GET", "/api/v1/products/0b8e36ff-4b51-4d2b-b6c2-9b96373fafc0")
+    init_dynamic_ids()
+    s, r = api("GET", f"/api/v1/products/{E2E_PRODUCT_ID}")
     check_status(s, 200, "product detail: ")
     n = get_field(r, "name")
     check_not_none(n)
@@ -468,7 +513,8 @@ def t_inventory_logs():
 
 def t_cart_flow():
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     # Clear
     s, _ = api("DELETE", "/api/v1/cart", t)
@@ -514,7 +560,8 @@ def t_cart_flow():
 
 def t_checkout_preview():
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
     # Clear + add
     api("DELETE", "/api/v1/cart", t)
     api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
@@ -529,7 +576,8 @@ def t_checkout_preview():
 
 def t_checkout_submit():
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
     api("DELETE", "/api/v1/cart", t)
     api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
     # Preview
@@ -627,11 +675,11 @@ def t_order_confirm_received():
         return
     oid = None
     for o in orders:
-        if o.get("status") in ("DELIVERED", "SHIPPING"):
+        if o.get("status") == "SHIPPING":
             oid = o.get("orderId") or o.get("id")
             break
     if not oid:
-        warn("No DELIVERED or SHIPPING order found")
+        warn("No SHIPPING order found")
         return
     s2, r2 = api("POST", f"/api/v1/orders/{oid}/confirm-received", t, body={})
     check_status(s2, 200, "confirm received: ")
@@ -925,7 +973,8 @@ def t_e2e_ai_cancel_order():
     """UC-11.3 + AI: Cancel order via AI Chatbot and verify confirmation flow"""
     # 1. Login as buyer
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
     xuid = {"X-User-Id": "6", "X-User-Role": "BUYER", "X-User-Email": "minhhoa@gmail.com"}
 
     # 2. Create a fresh order via checkout
@@ -1061,7 +1110,8 @@ def t_webhook_account_updated():
 def t_e2e_checkout_payment_success():
     """UC-11.1: Checkout → PaymentIntent.succeeded → orders PAID"""
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     # Clear + add to cart
     api("DELETE", "/api/v1/cart", t)
@@ -1146,7 +1196,8 @@ def t_e2e_checkout_payment_success():
 def t_e2e_payment_failed():
     """UC-11.2: payment_intent.payment_failed → orders CANCELLED"""
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     api("DELETE", "/api/v1/cart", t)
     api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
@@ -1539,7 +1590,8 @@ def t_e2e_publish_search_reindex():
 def t_e2e_buyer_cancel_order():
     """UC-11.3: Buyer cancels PENDING order, verify transaction CANCELLED"""
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     # Create a fresh order via checkout
     api("DELETE", "/api/v1/cart", t)

@@ -45,6 +45,7 @@ spring:
         jdbc.batch_size: 10
         order_inserts: true
         order_updates: true
+        id.sequence.increment_size_mismatch_strategy: fix
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
     consumer:

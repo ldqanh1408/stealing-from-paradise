@@ -11,16 +11,20 @@ export default function InventoryPanel({ productId, variants }: { productId: str
   const [adjustError, setAdjustError] = useState('');
   const [restockQty, setRestockQty] = useState<number>(0);
   const [logSku, setLogSku] = useState<string | null>(null);
+  const selectedLogVariant = variants.find(v => v.skuCode === logSku);
 
   const adjustMut = useMutation({
     mutationFn: (data: { skuCode: string; delta: number; reason: string }) =>
       sellerApi.adjustInventory(data),
-    onSuccess: () => {
+    onSuccess: (_res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       queryClient.invalidateQueries({ queryKey: ['seller-variants', productId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-logs', variables.skuCode] });
+      setLogSku(variables.skuCode);
       setAdjustSku(null);
       setAdjustDelta(0);
       setAdjustReason('');
+      setRestockQty(0);
     },
     onError: (err: any) => setAdjustError(err?.response?.data?.message || 'Điều chỉnh thất bại'),
   });
@@ -28,14 +32,20 @@ export default function InventoryPanel({ productId, variants }: { productId: str
   const restockMut = useMutation({
     mutationFn: (data: { skuCode: string; quantity: number; reason: string }) =>
       sellerApi.restockInventory(data.skuCode, { quantity: data.quantity, reason: data.reason }),
-    onSuccess: () => {
+    onSuccess: (_res, variables) => {
       queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       queryClient.invalidateQueries({ queryKey: ['seller-variants', productId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-logs', variables.skuCode] });
+      setLogSku(variables.skuCode);
+      setAdjustSku(null);
+      setAdjustDelta(0);
+      setAdjustReason('');
+      setRestockQty(0);
     },
     onError: (err: any) => setAdjustError(err?.response?.data?.message || 'Nhập hàng thất bại'),
   });
 
-  const { data: logs = [], isLoading: logsLoading, error: logsQueryError } = useQuery({
+  const { data: logs = [], isLoading: logsLoading, isFetching: logsFetching, error: logsQueryError, refetch: refetchLogs } = useQuery({
     queryKey: ['inventory-logs', logSku],
     queryFn: () => sellerApi.getInventoryLogs(logSku!).then(r => r.data.data ?? []),
     enabled: !!logSku,
@@ -136,7 +146,7 @@ export default function InventoryPanel({ productId, variants }: { productId: str
               className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => { setAdjustSku(null); setAdjustError(''); }}
+              <button onClick={() => { setAdjustSku(null); setAdjustError(''); setRestockQty(0); }}
                 className="px-4 py-2 border rounded-xl text-sm hover:bg-gray-50">Huỷ</button>
               <button
                 onClick={() => {
@@ -156,11 +166,23 @@ export default function InventoryPanel({ productId, variants }: { productId: str
       {/* Logs panel */}
       {logSku && (
         <div className="border border-gray-200 rounded-xl p-4 mt-3">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-start justify-between gap-3 mb-3">
             <h4 className="font-semibold text-gray-900 text-sm">
               Lịch sử tồn kho: <span className="font-mono text-blue-700">{logSku}</span>
             </h4>
             <button onClick={() => setLogSku(null)} className="text-gray-400 hover:text-gray-600">×</button>
+          </div>
+          <div className="flex items-center justify-between gap-3 mb-2 rounded-lg bg-gray-50 px-3 py-2">
+            <p className="min-w-0 truncate text-xs text-gray-500">
+              {selectedLogVariant ? `${selectedLogVariant.variantName} · Stock: ${selectedLogVariant.stock}` : 'Inventory audit trail'}
+            </p>
+            <button
+              onClick={() => refetchLogs()}
+              disabled={logsFetching}
+              className="shrink-0 text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+            >
+              {logsFetching ? '...' : 'Refresh'}
+            </button>
           </div>
           {logsLoading ? (
             <p className="text-sm text-gray-400">Đang tải...</p>

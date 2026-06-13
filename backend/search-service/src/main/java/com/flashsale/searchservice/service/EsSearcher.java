@@ -14,6 +14,7 @@ import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.search.FieldCollapse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.InnerHits;
+import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.searchservice.domain.model.SearchDocument;
 import com.flashsale.searchservice.dto.ProductCard;
@@ -144,8 +145,13 @@ public class EsSearcher {
                         Hit<?> cheapestHit = cheapestHits.hits().hits().get(0);
                         if (cheapestHit.source() != null) {
                             try {
-                                SearchDocument cheapestSku = objectMapper.readValue(
-                                        objectMapper.writeValueAsString(cheapestHit.source()), SearchDocument.class);
+                                SearchDocument cheapestSku;
+                                if (cheapestHit.source() instanceof JsonData jsonData) {
+                                    cheapestSku = jsonData.to(SearchDocument.class);
+                                } else {
+                                    cheapestSku = objectMapper.readValue(
+                                            objectMapper.writeValueAsString(cheapestHit.source()), SearchDocument.class);
+                                }
                                 priceMinDoc = cheapestSku.getPrice();
                                 if (cheapestSku.getThumbnailUrl() != null) {
                                     List<String> newImages = new ArrayList<>();

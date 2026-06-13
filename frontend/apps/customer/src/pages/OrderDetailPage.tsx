@@ -6,6 +6,7 @@ import { paymentApi } from '@shared/api/payment.api';
 import { refundApi, type FullRefundCreatedResponse } from '@shared/api/refund.api';
 import { type ApiResponse } from '@shared/types/api';
 import { Spinner } from '@shared/components/ui';
+import { normalizeCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -710,6 +711,19 @@ export default function OrderDetailPage() {
   }
 
   const parent = orderData;
+  const isPaymentPending = (paymentData?.status === 'PENDING' || parent.status === 'PENDING') && paymentData?.status !== 'SUCCESS';
+  const createdAtTime = new Date(parent.createdAt).getTime();
+  const isWithin24h = (Date.now() - createdAtTime) < 24 * 60 * 60 * 1000;
+  const showPayButton = isPaymentPending && isWithin24h;
+
+  const handlePay = () => {
+    const pData = normalizeCheckoutPaymentData(null, parent);
+    if (pData) {
+      pData.timeoutAt = new Date(createdAtTime + 24 * 60 * 60 * 1000).toISOString();
+      sessionStorage.setItem('pending_checkout', JSON.stringify(pData));
+      navigate('/checkout', { state: { orderData: pData } });
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -724,8 +738,46 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Payment info */}
-      {paymentData && (
+      {/* Payment info / action */}
+      {showPayButton ? (
+        <div className="bg-gradient-to-r from-blue-50 to-violet-50 rounded-2xl border border-blue-100 p-5 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="font-bold text-blue-900 mb-1 flex items-center gap-2">
+                💳 Chờ thanh toán
+              </h2>
+              <p className="text-sm text-blue-700">
+                Đơn hàng đang chờ thanh toán. Vui lòng thanh toán trong vòng 24 giờ kể từ lúc đặt hàng.
+              </p>
+              <p className="text-xs text-blue-500 mt-1">
+                Hạn chót: {formatDate(new Date(createdAtTime + 24 * 60 * 60 * 1000).toISOString())}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 shrink-0">
+              <button
+                onClick={handlePay}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all text-center shadow-sm"
+              >
+                Thanh toán ngay
+              </button>
+              <Link
+                to="/checkout"
+                state={{ orderData: normalizeCheckoutPaymentData(null, parent) }}
+                onClick={() => {
+                  const pData = normalizeCheckoutPaymentData(null, parent);
+                  if (pData) {
+                    pData.timeoutAt = new Date(createdAtTime + 24 * 60 * 60 * 1000).toISOString();
+                    sessionStorage.setItem('pending_checkout', JSON.stringify(pData));
+                  }
+                }}
+                className="text-xs text-blue-600 hover:underline text-center"
+              >
+                Link thanh toán trực tiếp
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : paymentData ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
           <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
             💳 Thông tin thanh toán
@@ -758,7 +810,7 @@ export default function OrderDetailPage() {
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Shipping address */}
       {parent.shippingAddress && (
@@ -832,6 +884,14 @@ export default function OrderDetailPage() {
 
               {/* Action buttons */}
               <div className="px-5 py-4 border-t border-gray-50 flex flex-wrap gap-2">
+                {subOrder.status === 'PENDING' && showPayButton && (
+                  <button
+                    onClick={handlePay}
+                    className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    Thanh toán ngay
+                  </button>
+                )}
                 {canCancel(subOrder.status) && (
                   <button
                     onClick={() => setShowCancel(subOrder)}

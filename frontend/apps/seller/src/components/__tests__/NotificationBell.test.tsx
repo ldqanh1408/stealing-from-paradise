@@ -23,6 +23,10 @@ const h = vi.hoisted(() => ({
 vi.mock('../../../../../shared/store/notificationStore', () => ({ useNotificationStore: () => h.store }));
 vi.mock('../../../../../shared/store/authStore', () => ({ useAuthStore: () => h.authState }));
 
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 vi.mock('../../../../../shared/lib/axios', () => ({
   handleAuthFailure: vi.fn(),
 }));

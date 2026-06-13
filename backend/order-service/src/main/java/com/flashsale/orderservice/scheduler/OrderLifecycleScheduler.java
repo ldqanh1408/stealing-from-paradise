@@ -39,14 +39,14 @@ public class OrderLifecycleScheduler {
     @SchedulerLock(name = "order-auto-cancel-stale", lockAtMostFor = "PT5M", lockAtLeastFor = "PT10S")
     @Transactional
     public void autoCancelStalePendingOrders() {
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(30);
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
         List<Order> stale = orderRepository.findAllByStatusAndCreatedAtBefore("PENDING", cutoff);
         if (stale.isEmpty()) return;
 
         for (Order order : stale) {
             order.setStatus("CANCELLED");
             order.setCancelledBy("SYSTEM");
-            order.setCancelReason("Payment timeout — auto-cancelled after 30 minutes");
+            order.setCancelReason("Payment timeout — auto-cancelled after 24 hours");
             orderRepository.save(order);
 
             publish(KafkaTopics.ORDER_AUTO_CANCELLED, order, Map.of(

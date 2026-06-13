@@ -7,12 +7,16 @@ import VariantModal from './VariantModal';
 import ImageUploader from './ImageUploader';
 import InventoryPanel from './InventoryPanel';
 
+type ProductFormTab = 'info' | 'images' | 'variants' | 'inventory';
+
 export default function ProductFormModal({
   product,
+  initialTab = 'info',
   onClose,
   onSuccess,
 }: {
   product?: SellerProduct;
+  initialTab?: ProductFormTab;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -27,7 +31,11 @@ export default function ProductFormModal({
   const [done, setDone] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
-  const [activeTab, setActiveTab] = useState<'info' | 'images' | 'variants' | 'inventory'>('info');
+  const [activeTab, setActiveTab] = useState<ProductFormTab>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab, product?.productId]);
 
   // Categories query
   const { data: categories = [] } = useQuery({

@@ -156,7 +156,12 @@ export const sellerApi = {
 
   /** Adjust inventory by SKU */
   adjustInventory: (data: { skuCode: string; delta: number; reason: string }) =>
-    apiClient.post<ApiResponse<{ skuCode: string; stockAvailable: number }>>('/seller/inventory/adjust', data),
+    apiClient.post<ApiResponse<InventoryResponse>>('/seller/inventory/adjust', {
+      delta: data.delta,
+      reason: 'MANUAL',
+    }, {
+      params: { skuCode: data.skuCode },
+    }),
 
   /** Get inventory adjustment logs for a SKU */
   getInventoryLogs: (skuCode: string) =>
@@ -164,8 +169,18 @@ export const sellerApi = {
 
   /** Restock inventory by SKU */
   restockInventory: (skuCode: string, data: { quantity: number; reason: string; note?: string }) =>
-    apiClient.put<ApiResponse<{ skuCode: string; stockAvailable: number }>>(`/inventory/${skuCode}/restock`, data),
+    apiClient.put<ApiResponse<InventoryResponse>>(`/inventory/${skuCode}/restock`, { quantity: data.quantity }),
 };
+
+/** Inventory response */
+export interface InventoryResponse {
+  variantId: string;
+  variantCode: string;
+  stockTotal: number;
+  stockLocked: number;
+  stockAvailable: number;
+  stockFlashReserved: number;
+}
 
 /** Inventory log entry */
 export interface InventoryLogEntry {
