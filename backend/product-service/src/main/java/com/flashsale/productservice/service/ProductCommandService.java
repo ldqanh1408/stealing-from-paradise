@@ -107,7 +107,7 @@ public class ProductCommandService {
 
         product = productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_ACTIVATED, product.getId().toString(),
+        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
                 Map.ofEntries(
                         Map.entry("productId", product.getId()),
                         Map.entry("sellerId", product.getSellerId()),
@@ -214,7 +214,7 @@ public class ProductCommandService {
         product.setStatus(ProductStatus.ACTIVE);
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_DEACTIVATED, product.getId().toString(),
+        emitEvent(KafkaTopics.PRODUCT_ACTIVATED, product.getId().toString(),
                 Map.ofEntries(
                         Map.entry("productId", product.getId()),
                         Map.entry("sellerId", product.getSellerId()),
@@ -242,7 +242,7 @@ public class ProductCommandService {
         product.setStatus(ProductStatus.INACTIVE);
         productRepository.save(product);
 
-        emitEvent(KafkaTopics.PRODUCT_UPDATED, product.getId().toString(),
+        emitEvent(KafkaTopics.PRODUCT_DEACTIVATED, product.getId().toString(),
                 Map.ofEntries(
                         Map.entry("productId", product.getId()),
                         Map.entry("status", product.getStatus().name()),

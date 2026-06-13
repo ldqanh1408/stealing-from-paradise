@@ -34,8 +34,8 @@ export interface CreateFlashSaleRequest {
 }
 
 export const adminApi = {
-  /** List pending products */
-  getPendingProducts: (params?: { page?: number; size?: number }) =>
+  /** List products for moderation (default: PENDING) */
+  getPendingProducts: (params?: { page?: number; size?: number; status?: string }) =>
     apiClient.get<ApiResponse<PageResponse<PendingProduct>>>('/admin/products/pending', { params }),
 
   /** Approve a product */
