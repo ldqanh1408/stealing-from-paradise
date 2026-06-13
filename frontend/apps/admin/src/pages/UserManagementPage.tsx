@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi, type AdminUser } from '@shared/api/admin.api';
 import BanUserModal from '@/components/UserManagement/BanUserModal';
@@ -12,14 +12,25 @@ export default function UserManagementPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [banUser, setBanUser] = useState<AdminUser | null>(null);
 
+  // Debounce ô tìm kiếm: chờ 400ms ngừng gõ mới gọi API, và nhảy về trang 1.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-users', roleFilter, statusFilter, page],
+    queryKey: ['admin-users', roleFilter, statusFilter, debouncedSearch, page],
     queryFn: () =>
       adminApi.getUsers({
         role: roleFilter || undefined,
         status: statusFilter || undefined,
+        search: debouncedSearch || undefined,
         page,
         size: 20,
       }).then(r => r.data.data),
