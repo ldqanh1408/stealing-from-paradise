@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@shared/store/chatStore';
+import MarkdownRenderer from './MarkdownRenderer';
 
 export default function ChatWidget() {
   const {
@@ -53,6 +54,14 @@ export default function ChatWidget() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming, pendingConfirmation]);
+
+  // Cancel streaming on unmount to prevent memory leaks and dangling SSE connections
+  useEffect(() => {
+    return () => {
+      cancelStreaming();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -169,7 +178,11 @@ export default function ChatWidget() {
                     : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
                 }`}
               >
-                {msg.content}
+                {isUser ? (
+                  <span className="whitespace-pre-wrap">{msg.content}</span>
+                ) : (
+                  <MarkdownRenderer text={msg.content} />
+                )}
 
                 {/* Structured Products Output */}
                 {msg.products && msg.products.length > 0 && (

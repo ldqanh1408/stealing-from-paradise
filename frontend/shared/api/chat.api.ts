@@ -184,35 +184,40 @@ export function streamChat(
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          const cleaned = line.trim();
-          if (!cleaned) {
+          const trimmedStart = line.trimStart();
+          if (!trimmedStart) {
             currentEvent = 'message'; // reset
             continue;
           }
 
-          if (cleaned.startsWith('event:')) {
-            currentEvent = cleaned.replace('event:', '').trim();
-          } else if (cleaned.startsWith('data:')) {
-            const data = cleaned.replace('data:', '').trim();
+          if (trimmedStart.startsWith('event:')) {
+            currentEvent = trimmedStart.substring(6).trim();
+          } else if (trimmedStart.startsWith('data:')) {
+            let data = trimmedStart.substring(5);
+            if (data.startsWith(' ')) {
+              data = data.substring(1);
+            }
             if (currentEvent === 'delta') {
-              // raw text delta
+              // raw text delta, preserve spaces
               callbacks.onDelta(data);
             } else if (currentEvent === 'done') {
               callbacks.onDone();
             } else if (currentEvent === 'error') {
+              const trimmed = data.trim();
               try {
-                const parsed = JSON.parse(data);
+                const parsed = JSON.parse(trimmed);
                 callbacks.onError(parsed.error || 'Lỗi hệ thống');
               } catch {
-                callbacks.onError(data || 'Lỗi hệ thống');
+                callbacks.onError(trimmed || 'Lỗi hệ thống');
               }
             } else {
               // Custom event: confirmation_required, products, order, etc.
+              const trimmed = data.trim();
               try {
-                const parsedData = JSON.parse(data);
+                const parsedData = JSON.parse(trimmed);
                 callbacks.onEvent(currentEvent, parsedData);
               } catch {
-                callbacks.onEvent(currentEvent, data);
+                callbacks.onEvent(currentEvent, trimmed);
               }
             }
           }

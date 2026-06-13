@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -18,6 +19,17 @@ import java.util.Optional;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
+    @Override
+    @PostAuthorize("authentication == null || !authentication.authenticated || returnObject.isEmpty() || (" +
+            "(hasRole('BUYER') && returnObject.get().customerId.toString() == authentication.name) || " +
+            "(hasRole('SELLER') && returnObject.get().sellerId.toString() == authentication.name) || " +
+            "hasRole('ADMIN'))")
+    Optional<Order> findById(Long id);
+
+    @PostAuthorize("authentication == null || !authentication.authenticated || returnObject.isEmpty() || (" +
+            "(hasRole('BUYER') && returnObject.get().customerId.toString() == authentication.name) || " +
+            "(hasRole('SELLER') && returnObject.get().sellerId.toString() == authentication.name) || " +
+            "hasRole('ADMIN'))")
     Optional<Order> findByOrderCode(String orderCode);
 
     Optional<Order> findByIdAndCustomerId(Long id, Long customerId);

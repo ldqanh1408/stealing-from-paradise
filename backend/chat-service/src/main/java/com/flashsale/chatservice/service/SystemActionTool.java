@@ -8,11 +8,14 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.stereotype.Component;
+import org.springframework.kafka.core.KafkaTemplate;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -28,13 +31,16 @@ public class SystemActionTool {
     private final PendingConfirmationRepository pendingConfirmationRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final WebClient.Builder webClientBuilder;
 
     public SystemActionTool(PendingConfirmationRepository pendingConfirmationRepository,
                             KafkaTemplate<String, String> kafkaTemplate,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper,
+                            WebClient.Builder webClientBuilder) {
         this.pendingConfirmationRepository = pendingConfirmationRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.webClientBuilder = webClientBuilder;
     }
 
     @Tool(description = "Perform an irreversible system action that requires user confirmation. " +
@@ -47,9 +53,52 @@ public class SystemActionTool {
 
         log.info("[SystemActionTool] Level-3 action requested: type={}, orderId={}", actionType, orderId);
 
+        Long userId = ToolContext.getUserId();
+        if (userId == null) {
+            log.warn("[SystemActionTool] Unauthorized action attempt: userId is null");
+            return "{\"error\": \"Unauthorized: User not authenticated\"}";
+        }
+
+        // Verify order ownership in order-service
+        try {
+            String normalizedId = OrderIdNormalizer.normalize(orderId);
+            WebClient client = webClientBuilder.build();
+            WebClient.RequestHeadersSpec<?> spec = client.get()
+                    .uri("http://order-service/v1/orders/{orderId}", normalizedId);
+            
+            String accessToken = ToolContext.getAccessToken();
+            if (accessToken != null && !accessToken.isBlank()) {
+                spec.header("X-Access-Token", accessToken);
+            }
+            spec.header("X-User-Id", String.valueOf(userId));
+            String userEmail = ToolContext.getUserEmail();
+            if (userEmail != null && !userEmail.isBlank()) {
+                spec.header("X-User-Email", userEmail);
+            }
+            String userRole = ToolContext.getUserRole();
+            if (userRole != null && !userRole.isBlank()) {
+                spec.header("X-User-Role", userRole);
+            }
+
+            Boolean hasAccess = spec.exchangeToMono(res -> {
+                if (res.statusCode().isError()) {
+                    return Mono.just(false);
+                }
+                return Mono.just(true);
+            }).block(Duration.ofSeconds(5));
+
+            if (hasAccess == null || !hasAccess) {
+                log.warn("[SystemActionTool] Security Alert: User {} tried to perform action {} on order {} (normalized: {}) but verification failed",
+                        userId, actionType, orderId, normalizedId);
+                return "{\"error\": \"Unauthorized: You do not own this order or the order does not exist.\"}";
+            }
+        } catch (Exception e) {
+            log.error("[SystemActionTool] Order ownership verification failed for order: {}", orderId, e);
+            return "{\"error\": \"Failed to verify order ownership. Please try again.\"}";
+        }
+
         String confirmId = UUID.randomUUID().toString();
         String sessionId = ToolContext.getSessionId();
-        Long userId = ToolContext.getUserId();
         String summary = buildSummary(actionType, orderId, reason);
 
         String toolArguments;

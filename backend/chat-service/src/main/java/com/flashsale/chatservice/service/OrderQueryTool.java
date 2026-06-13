@@ -28,6 +28,10 @@ public class OrderQueryTool {
         log.info("[OrderQueryTool] Looking up order: {} (normalized from {})", normalizedId, orderId);
         String accessToken = ToolContext.getAccessToken();
         Long userId = ToolContext.getUserId();
+        if (userId == null) {
+            log.warn("[OrderQueryTool] Unauthorized lookup attempt: userId is null");
+            return "{\"error\": \"Unauthorized: User not authenticated\"}";
+        }
         String userEmail = ToolContext.getUserEmail();
         String userRole = ToolContext.getUserRole();
         try {
@@ -64,6 +68,10 @@ public class OrderQueryTool {
         log.info("[OrderQueryTool] Listing orders for current user");
         String accessToken = ToolContext.getAccessToken();
         Long userId = ToolContext.getUserId();
+        if (userId == null) {
+            log.warn("[OrderQueryTool] Unauthorized list attempt: userId is null");
+            return "{\"error\": \"Unauthorized: User not authenticated\", \"orders\": []}";
+        }
         String userEmail = ToolContext.getUserEmail();
         String userRole = ToolContext.getUserRole();
         try {

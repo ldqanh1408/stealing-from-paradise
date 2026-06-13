@@ -1596,7 +1596,7 @@ def t_e2e_refund_approve_flow():
     """UC-11.4: Admin approve refund after buyer request (full lifecycle)"""
     t = login("minhhoa")
     at = login("admin")
-    s, r = api("GET", "/api/v1/orders?page=0&size=5", t)
+    s, r = api("GET", "/api/v1/orders?page=0&size=50", t)
     check_status(s, 200)
     orders = get_field(r, "content")
     if not orders or not isinstance(orders, list) or len(orders) == 0:
@@ -1604,11 +1604,52 @@ def t_e2e_refund_approve_flow():
         return
     oid = None
     for o in orders:
-        if o.get("status") in ("PAID", "DELIVERED"):
-            oid = o.get("orderId") or o.get("id")
+        status = o.get("status")
+        candidate_id = o.get("orderId") or o.get("id")
+        
+        # Check if candidate has active refund request
+        ref_s, ref_r = api("GET", f"/api/v1/orders/{candidate_id}/refunds", t)
+        if ref_s == 200:
+            refs = get_field(ref_r, "data") or []
+            if refs:
+                continue # Skip if already has refund requests
+                
+        if status == "DELIVERED":
+            oid = candidate_id
             break
+        elif status == "PAID":
+            seller_id = o.get("sellerId")
+            seller_username = {
+                1: "techworld",
+                2: "fashionhub",
+                3: "gadgetpro",
+                4: "homeliving",
+                5: "sportoutdoor"
+            }.get(seller_id)
+            if not seller_username:
+                continue
+                
+            info(f"Transitioning PAID order {candidate_id} to DELIVERED via seller {seller_username}...")
+            # Login as seller to update tracking
+            st = login(seller_username)
+            s_track, _ = api("PUT", f"/api/v1/orders/{candidate_id}/tracking", st, body={
+                "trackingNumber": f"TRK-{uuid.uuid4().hex[:8].upper()}"
+            })
+            if s_track != 200:
+                warn(f"Failed to update tracking for order {candidate_id}: {s_track}")
+                continue
+                
+            # Confirm received to mark as DELIVERED
+            s_recv, _ = api("POST", f"/api/v1/orders/{candidate_id}/confirm-received", t, body={})
+            if s_recv != 200:
+                warn(f"Failed to confirm received for order {candidate_id}: {s_recv}")
+                continue
+                
+            oid = candidate_id
+            break
+
     if not oid:
-        warn("No PAID/DELIVERED order for refund test")
+        warn("No suitable PAID or DELIVERED order found for refund test")
         return
     # Get items
     s, r = api("GET", f"/api/v1/orders/{oid}", t)
@@ -1628,19 +1669,27 @@ def t_e2e_refund_approve_flow():
         "evidenceImages": []})
     check_status(s, (200, 201), "request refund: ")
     ok(f"Refund requested on order {oid}")
-    # Find refund ID
-    sid, rid = api("GET", f"/api/v1/orders/{oid}/refunds", t)
-    if sid == 200:
-        refs = get_field(rid, "data") or []
-        if isinstance(refs, list) and len(refs) > 0:
-            rfid = refs[-1].get("refundId") or refs[-1].get("id")
-            if rfid:
-                # Admin approve
-                sap, _ = api("POST", f"/api/v1/admin/refunds/{rfid}/approve", at, body={"adminNote": "E2E approve"})
-                info(f"Admin approve refund {rfid}: {sap}")
-                if sap == 200:
-                    ok("Refund approved by admin")
-                    return
+    # Find refund ID with polling (since Kafka processing is async)
+    def find_refund():
+        sid, rid = api("GET", f"/api/v1/orders/{oid}/refunds", t)
+        if sid == 200:
+            refs = get_field(rid, "data") or []
+            if isinstance(refs, list) and len(refs) > 0:
+                return refs[-1].get("refundId") or refs[-1].get("id")
+        return None
+
+    try:
+        rfid = poll("refund ID", find_refund, timeout=120)
+        ok(f"Found refund ID: {rfid}")
+        # Admin approve
+        sap, _ = api("POST", f"/api/v1/admin/refunds/{rfid}/approve", at, body={"adminNote": "E2E approve"})
+        info(f"Admin approve refund {rfid}: {sap}")
+        if sap in (200, 201):
+            ok("Refund approved by admin")
+            return
+    except TimeoutError:
+        warn("Timed out waiting for refund ID to appear")
+        
     warn("Could not complete refund approve flow")
 
 def t_e2e_publish_search_reindex():
