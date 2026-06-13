@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, type UserProfileResponse } from '@shared/api/user.api';
+import { Spinner } from '@shared/components/ui';
 
 function StatusBadge({ status }: { status: string }) {
   const colors =
@@ -207,8 +208,8 @@ export default function ProfilePage() {
       </div>
 
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>Đang tải...
+        <div className="flex flex-col items-center py-20 text-gray-400">
+          <Spinner className="w-8 h-8 text-blue-600" /><p className="mt-3 text-sm">Đang tải...</p>
         </div>
       )}
       {error && (

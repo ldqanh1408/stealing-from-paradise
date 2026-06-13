@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { sellerApi } from '@shared/api/seller.api';
+import { Skeleton } from '@shared/components/ui';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 const fmtNum = (n: number) => n.toLocaleString('vi-VN');
@@ -165,9 +166,17 @@ export default function SellerPaymentsPage() {
           </div>
 
           {isLoading ? (
-            <div className="p-8 text-center text-gray-400">
-              <div className="text-4xl mb-3">⏳</div>
-              Đang tải...
+            <div className="divide-y divide-gray-50">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-5 py-4">
+                  <Skeleton className="h-9 w-9 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-1/4" />
+                  </div>
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              ))}
             </div>
           ) : !data?.transfers?.length ? (
             <div className="p-12 text-center">
