@@ -12,6 +12,7 @@ export interface FlashSaleItem {
   soldQty: number;
   limitPerUser: number;
   status: string;
+  imageUrl?: string;
 }
 
 export interface FlashSaleSession {
@@ -49,6 +50,9 @@ interface BackendItem {
   status: string;
   createdAt: string;
   updatedAt: string;
+  productName?: string;
+  originalPrice?: number;
+  imageUrl?: string;
 }
 
 function mapSession(s: BackendSession): FlashSaleSession {
@@ -76,6 +80,9 @@ function mapItem(i: BackendItem): FlashSaleItem {
     soldQty: i.soldQty,
     limitPerUser: i.limitPerUser,
     status: i.status,
+    productName: i.productName,
+    originalPrice: i.originalPrice,
+    imageUrl: i.imageUrl,
   };
 }
 

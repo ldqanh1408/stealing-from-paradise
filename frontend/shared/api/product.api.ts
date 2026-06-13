@@ -154,6 +154,18 @@ function mapProductCard(card: SearchProductCard): ProductListItem {
   };
 }
 
+/** Variant lookup by SKU: GET /products/variants/sku/{skuCode} */
+export interface VariantBySku {
+  id: string;
+  variantCode: string;
+  variantName: string;
+  imageUrl?: string;
+  productId: string;
+  productName: string;
+  sellerId: number;
+  price: number;
+}
+
 export const productApi = {
   /**
    * List products via search service (the only product listing endpoint).
@@ -196,6 +208,12 @@ export const productApi = {
       },
     };
   },
+
+  /** Look up a single variant (with product name/image/price) by its SKU code. */
+  getVariantBySku: (skuCode: string) =>
+    apiClient
+      .get<ApiResponse<VariantBySku>>(`/products/variants/sku/${encodeURIComponent(skuCode)}`)
+      .then(res => res.data.data),
 
   /** Get product by ID — maps backend ProductResponse to ProductDetail */
   getProductById: (productId: string) =>

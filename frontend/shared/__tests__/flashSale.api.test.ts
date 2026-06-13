@@ -24,6 +24,9 @@ interface BackendItem {
   status: string;
   createdAt: string;
   updatedAt: string;
+  productName?: string;
+  originalPrice?: number;
+  imageUrl?: string;
 }
 
 function mapSession(s: BackendSession) {
@@ -49,6 +52,9 @@ function mapItem(i: BackendItem) {
     soldQty: i.soldQty,
     limitPerUser: i.limitPerUser,
     status: i.status,
+    productName: i.productName,
+    originalPrice: i.originalPrice,
+    imageUrl: i.imageUrl,
   };
 }
 

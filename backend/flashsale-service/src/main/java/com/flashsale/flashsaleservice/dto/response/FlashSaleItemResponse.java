@@ -22,6 +22,9 @@ public class FlashSaleItemResponse {
     private Integer limitPerUser;
     private Integer soldQty;
     private String status;
+    private String productName;
+    private BigDecimal originalPrice;
+    private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
