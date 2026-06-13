@@ -43,7 +43,7 @@ public class EsSearcher {
 
     /**
      * Category slug prefixes whose products are hidden from public search results
-     * (E2E/frontend fixtures seeded under fe-*/e2e-* categories). Blank entries are
+     * (E2E/frontend fixtures seeded under fe- / e2e- categories). Blank entries are
      * ignored; an empty list disables hiding (e.g. for fixture-driven test envs).
      */
     @Value("${search.hidden-category-prefixes:}")
@@ -239,13 +239,19 @@ public class EsSearcher {
 
     public SuggestResponse suggest(String q, int size) {
         try {
+            Query suggestMatch = MultiMatchQuery.of(mm -> mm
+                    .query(q)
+                    .fields("productName^3")
+                    .fuzziness("AUTO")
+            )._toQuery();
+            BoolQuery.Builder suggestBool = new BoolQuery.Builder().must(suggestMatch);
+            for (Query exclusion : hiddenCategoryExclusions()) {
+                suggestBool.mustNot(exclusion);
+            }
+
             var req = SearchRequest.of(s -> s
                     .index(indexName)
-                    .query(MultiMatchQuery.of(mm -> mm
-                            .query(q)
-                            .fields("productName^3")
-                            .fuzziness("AUTO")
-                    )._toQuery())
+                    .query(suggestBool.build()._toQuery())
                     .size(0)
                     .aggregations("product_names", a -> a
                             .terms(t -> t.field("productName.keyword").size(size))
