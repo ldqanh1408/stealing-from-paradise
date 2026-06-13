@@ -6,6 +6,7 @@ import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.productservice.dto.product.PendingProductCard;
 import com.flashsale.productservice.dto.product.ProductResponse;
 import com.flashsale.productservice.dto.product.RejectProductRequest;
+import com.flashsale.productservice.entity.ProductStatus;
 import com.flashsale.productservice.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,8 +30,9 @@ public class AdminProductController {
     public ResponseEntity<ApiResponse<PageResponse<PendingProductCard>>> getPendingProducts(
             Pageable pageable,
             @RequestParam(required = false) UUID categoryId,
-            @RequestParam(required = false) Long sellerId) {
-        return ResponseEntity.ok(productService.getPendingProducts(pageable, categoryId, sellerId));
+            @RequestParam(required = false) Long sellerId,
+            @RequestParam(required = false, defaultValue = "PENDING") ProductStatus status) {
+        return ResponseEntity.ok(productService.getPendingProducts(pageable, categoryId, sellerId, status));
     }
 
     @PostMapping("/{productId}/approve")

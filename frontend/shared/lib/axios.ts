@@ -4,9 +4,6 @@ import { installMockInterceptor, isMockMode, isNetworkError } from '../api/mock'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
 
-console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('All env:', import.meta.env);
-
 // ─── Singleton Axios instance ─────────────────────────────────────
 export const apiClient: AxiosInstance = axios.create({
   baseURL: `${BASE_URL}`,
@@ -17,6 +14,12 @@ export const apiClient: AxiosInstance = axios.create({
 
 // ─── Install mock interceptor ─────────────────────────────────────
 installMockInterceptor(apiClient);
+if (isMockMode()) {
+  console.warn(
+    '[flashsale] MOCK MODE đang bật — mọi API trả dữ liệu giả. ' +
+    'Set VITE_API_URL (hoặc bỏ VITE_BACKEND_MODE=mock) để gọi backend thật.'
+  );
+}
 
 // ─── Request interceptor: gắn Access Token ───────────────────────
 apiClient.interceptors.request.use(

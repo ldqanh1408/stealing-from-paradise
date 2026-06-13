@@ -21,6 +21,9 @@ public interface ParentOrderRepository extends JpaRepository<ParentOrder, Long> 
 
     Optional<ParentOrder> findByIdAndCustomerId(Long id, Long customerId);
 
+    /** Lookup the parent order by its checkout session id (used by stock-reservation-expired handling). */
+    Optional<ParentOrder> findBySessionId(String sessionId);
+
     /**
      * Pessimistic lock on ParentOrder during payment confirmation/failure.
      * Required because ParentOrder has @Version (optimistic locking) and may be
