@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.refundservice.domain.model.Refund;
+import com.flashsale.refundservice.domain.model.RefundItem;
 import com.flashsale.refundservice.domain.model.Transaction;
+import com.flashsale.refundservice.domain.repository.RefundItemRepository;
 import com.flashsale.refundservice.domain.repository.RefundRepository;
 import com.flashsale.refundservice.domain.repository.TransactionRepository;
 import com.flashsale.refundservice.support.RefundMapper;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class RefundReplyService {
 
     private final RefundRepository refundRepository;
+    private final RefundItemRepository refundItemRepository;
     private final TransactionRepository transactionRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final RefundTypeConverter typeConverter;
@@ -56,7 +59,7 @@ public class RefundReplyService {
             if (payload.containsKey("order_id")) {
                 Long orderId = typeConverter.toLong(payload.get("order_id"));
                 List<Refund> refunds = refundRepository.findAllByOrderId(orderId);
-                refundData = refunds.stream().map(RefundMapper::toRefundMap).collect(Collectors.toList());
+                refundData = refunds.stream().map(this::toRefundMap).collect(Collectors.toList());
                 totalElements = refundData.size();
 
             } else if (payload.containsKey("user_id")) {
@@ -74,7 +77,7 @@ public class RefundReplyService {
                 Page<Refund> pageResult = refundRepository.findAllByUserIdWithFilters(
                         userId, status, type, from, to,
                         PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
-                refundData = pageResult.getContent().stream().map(RefundMapper::toRefundMap).collect(Collectors.toList());
+                refundData = pageResult.getContent().stream().map(this::toRefundMap).collect(Collectors.toList());
                 totalElements = pageResult.getTotalElements();
                 totalPages    = pageResult.getTotalPages();
 
@@ -101,6 +104,29 @@ public class RefundReplyService {
                 kafkaTemplate.send(KafkaTopics.ORDER_REFUNDS_RESPONSE, correlationId, typeConverter.toJson(errorResp));
             }
         }
+    }
+
+    private Map<String, Object> toRefundMap(Refund refund) {
+        Map<String, Object> m = RefundMapper.toRefundMap(refund);
+        m.put("evidence_images", refund.getEvidenceImages());
+        m.put("items", refundItemRepository.findAllByRefundId(refund.getId()).stream()
+                .map(this::toRefundItemMap)
+                .collect(Collectors.toList()));
+        return m;
+    }
+
+    private Map<String, Object> toRefundItemMap(RefundItem item) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("item_id", item.getItemId());
+        m.put("order_item_id", item.getItemId());
+        m.put("quantity", item.getQuantity());
+        m.put("refund_amount", item.getRefundAmount());
+        m.put("item_reason", item.getItemReason());
+        m.put("status", item.getStatus());
+        m.put("return_tracking_number", item.getReturnTrackingNumber());
+        m.put("returned_at", item.getReturnedAt() != null
+                ? item.getReturnedAt().toInstant(java.time.ZoneOffset.UTC).toString() : null);
+        return m;
     }
 
     public void onRefundPresignedUrlRequest(String message) {

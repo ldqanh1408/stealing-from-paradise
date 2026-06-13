@@ -6,6 +6,8 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.orderservice.domain.model.Order;
+import com.flashsale.orderservice.domain.model.OrderItem;
+import com.flashsale.orderservice.domain.repository.OrderItemRepository;
 import com.flashsale.orderservice.domain.repository.OrderRepository;
 import com.flashsale.orderservice.domain.repository.ParentOrderRepository;
 import com.flashsale.orderservice.dto.response.FullRefundCreatedResponse;
@@ -24,6 +26,7 @@ import java.util.*;
 public class OrderRefundQueryService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final ParentOrderRepository parentOrderRepository;
     private final KafkaReplyService kafkaReplyService;
     private final ObjectMapper objectMapper;
@@ -169,6 +172,25 @@ public class OrderRefundQueryService {
         if (Boolean.TRUE.equals(response.get("error"))) return List.of();
         Object raw = response.get("refunds");
         if (raw == null) return List.of();
-        return objectMapper.convertValue(raw, new TypeReference<List<OrderRefundInfo>>() {});
+        List<OrderRefundInfo> refunds = objectMapper.convertValue(raw, new TypeReference<List<OrderRefundInfo>>() {});
+        enrichRefundItems(refunds);
+        return refunds;
+    }
+
+    private void enrichRefundItems(List<OrderRefundInfo> refunds) {
+        for (OrderRefundInfo refund : refunds) {
+            if (refund.getItems() == null) continue;
+            for (OrderRefundInfo.RefundItemInfo item : refund.getItems()) {
+                Long orderItemId = item.getOrderItemId() != null ? item.getOrderItemId() : item.getItemId();
+                if (orderItemId == null) continue;
+                orderItemRepository.findById(orderItemId).ifPresent(orderItem -> applyOrderItemSnapshot(item, orderItem));
+            }
+        }
+    }
+
+    private void applyOrderItemSnapshot(OrderRefundInfo.RefundItemInfo target, OrderItem source) {
+        target.setOrderItemId(source.getId());
+        target.setProductName(source.getNameSnapshot());
+        target.setImageSnapshot(source.getImageSnapshot());
     }
 }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@shared/components/Layout';
 import PrivateRoute from '@shared/components/PrivateRoute';
+import { PageLoader } from '@shared/components/ui';
 import ChatWidget from '@/components/ChatWidget';
 import { useAuthStore } from '@shared/store/authStore';
 import { useWishlistStore } from '@shared/store/wishlistStore';
@@ -24,20 +25,40 @@ const AccountSettingsPage = lazy(() => import('@/pages/AccountSettingsPage'));
 const RefundHistoryPage = lazy(() => import('@/pages/RefundHistoryPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 
-const NAV_LINKS = [
-  { label: 'Sản phẩm', to: '/products' },
-  { label: 'Flash Sale', to: '/flash-sales' },
+// Top-priority destinations shown inline on the desktop bar. The cart lives in
+// its own badge icon, so it's not repeated here.
+const PRIMARY_ITEMS = [
+  { label: 'Sản phẩm', to: '/products', iconKey: 'bag' as const },
+  { label: 'Flash Sale', to: '/flash-sales', iconKey: 'bolt' as const },
+  { label: 'Đơn hàng', to: '/orders', iconKey: 'receipt' as const },
 ];
 
-const AUTH_LINKS = [
-  { label: 'Thông báo', to: '/notifications' },
-  { label: 'Yêu thích', to: '/wishlist' },
-  { label: 'Giỏ hàng', to: '/cart' },
-  { label: 'Đơn hàng', to: '/orders' },
-  { label: 'Hoàn tiền', to: '/refunds' },
-  { label: 'Hồ sơ', to: '/profile' },
-  { label: 'Địa chỉ', to: '/addresses' },
-  { label: 'Cài đặt', to: '/account-settings' },
+// Everything else is grouped inside the account dropdown instead of crowding the bar.
+const MENU_GROUPS = [
+  {
+    label: 'Hoạt động',
+    items: [
+      { label: 'Yêu thích', to: '/wishlist', iconKey: 'heart' as const },
+      { label: 'Hoàn tiền', to: '/refunds', iconKey: 'refund' as const },
+      { label: 'Thông báo', to: '/notifications', iconKey: 'bell' as const },
+    ],
+  },
+  {
+    label: 'Tài khoản',
+    items: [
+      { label: 'Hồ sơ', to: '/profile', iconKey: 'user' as const },
+      { label: 'Địa chỉ', to: '/addresses', iconKey: 'mapPin' as const },
+      { label: 'Cài đặt', to: '/account-settings', iconKey: 'cog' as const },
+    ],
+  },
+];
+
+// Mobile bottom tab bar — four most-used destinations, always one tap away.
+const BOTTOM_TABS = [
+  { label: 'Sản phẩm', to: '/products', iconKey: 'bag' as const },
+  { label: 'Flash Sale', to: '/flash-sales', iconKey: 'bolt' as const },
+  { label: 'Giỏ hàng', to: '/cart', iconKey: 'cart' as const, badge: 'cart' as const },
+  { label: 'Đơn hàng', to: '/orders', iconKey: 'receipt' as const },
 ];
 
 export default function App() {
@@ -53,7 +74,7 @@ export default function App() {
   }, [isAuthenticated, fetchWishlist, resetWishlist]);
 
   return (
-    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+    <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Auth pages — no layout */}
         <Route path="/login"    element={<LoginPage redirectTo="/products" />} />
@@ -63,7 +84,14 @@ export default function App() {
         <Route
           path="/*"
           element={
-            <Layout appName="FlashSale" links={NAV_LINKS} authLinks={AUTH_LINKS}>
+            <Layout
+              appName="FlashSale"
+              primaryItems={PRIMARY_ITEMS}
+              menuGroups={MENU_GROUPS}
+              bottomTabItems={BOTTOM_TABS}
+              showSearch
+              showCart
+            >
               <Routes>
                 <Route path="/products"        element={<ProductListPage />} />
                 <Route path="/products/:productId" element={<ProductDetailPage />} />

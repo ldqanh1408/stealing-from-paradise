@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Layout from '@shared/components/Layout';
+import SidebarLayout from '@shared/components/SidebarLayout';
 import PrivateRoute from '@shared/components/PrivateRoute';
+import { PageLoader } from '@shared/components/ui';
 
 const LoginPage              = lazy(() => import('@shared/pages/LoginPage'));
 const SellerRegisterPage     = lazy(() => import('@/pages/SellerRegisterPage'));
@@ -13,18 +14,34 @@ const StripeOnboardingPage   = lazy(() => import('@/pages/StripeOnboardingPage')
 const SellerPaymentsPage     = lazy(() => import('@/pages/SellerPaymentsPage'));
 const SellerSettingsPage      = lazy(() => import('@/pages/SellerSettingsPage'));
 
-const AUTH_LINKS = [
-  { label: 'Dashboard', to: '/dashboard' },
-  { label: 'Sản phẩm', to: '/products' },
-  { label: 'Đơn hàng', to: '/orders' },
-  { label: 'Thu nhập', to: '/payments' },
-  { label: 'Stripe', to: '/stripe-onboarding' },
-  { label: 'Cài đặt', to: '/settings' },
+const NAV_GROUPS = [
+  {
+    label: 'Tổng quan',
+    items: [{ label: 'Dashboard', to: '/dashboard', iconKey: 'grid' as const }],
+  },
+  {
+    label: 'Bán hàng',
+    items: [
+      { label: 'Sản phẩm', to: '/products', iconKey: 'cube' as const },
+      { label: 'Đơn hàng', to: '/orders', iconKey: 'clipboard' as const },
+    ],
+  },
+  {
+    label: 'Tài chính',
+    items: [
+      { label: 'Thu nhập', to: '/payments', iconKey: 'money' as const },
+      { label: 'Stripe', to: '/stripe-onboarding', iconKey: 'card' as const },
+    ],
+  },
+  {
+    label: 'Khác',
+    items: [{ label: 'Cài đặt', to: '/settings', iconKey: 'cog' as const }],
+  },
 ];
 
 export default function App() {
   return (
-    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+    <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Auth pages — no layout */}
         <Route path="/login"    element={<LoginPage title="Cửa hàng" redirectTo="/dashboard" showRegisterLink={false} />} />
@@ -34,7 +51,7 @@ export default function App() {
         <Route
           path="/*"
           element={
-            <Layout appName="FlashSale Seller" authLinks={AUTH_LINKS}>
+            <SidebarLayout appName="FlashSale Seller" navGroups={NAV_GROUPS}>
               <Routes>
                 <Route path="/dashboard"         element={<PrivateRoute role="SELLER"><SellerDashboard /></PrivateRoute>} />
                 <Route path="/products"          element={<PrivateRoute role="SELLER"><ProductManagementPage /></PrivateRoute>} />
@@ -50,7 +67,7 @@ export default function App() {
                 <Route path="/"  element={<Navigate to="/dashboard" replace />} />
                 <Route path="*"  element={<Navigate to="/" replace />} />
               </Routes>
-            </Layout>
+            </SidebarLayout>
           }
         />
       </Routes>

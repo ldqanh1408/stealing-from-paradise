@@ -208,8 +208,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Lỗi xác nhận hành động',
-        isStreaming: false,
       });
+    } finally {
+      set({ isStreaming: false });
     }
   },
 
@@ -224,8 +225,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (err: any) {
       set({
         error: err?.response?.data?.message || 'Lỗi hủy bỏ hành động',
-        isStreaming: false,
       });
+    } finally {
+      set({ isStreaming: false });
     }
   },
 

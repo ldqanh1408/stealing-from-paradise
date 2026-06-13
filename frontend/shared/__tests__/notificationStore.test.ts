@@ -2,6 +2,16 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock the notification API so the store tests stay pure (no network).
 vi.mock('../api/notification.api', () => ({
+  normalizeNotification: (notif: any) => ({
+    id: String(notif.id ?? ''),
+    userId: Number(notif.userId ?? notif.user_id ?? 0),
+    type: notif.type ?? 'INFO',
+    title: notif.title ?? '',
+    message: notif.message ?? notif.body ?? '',
+    data: notif.data ?? notif.metadata,
+    read: Boolean(notif.read ?? notif.isRead ?? false),
+    createdAt: notif.createdAt ?? notif.created_at ?? '2026-01-01T00:00:00Z',
+  }),
   notificationApi: {
     getNotifications: vi.fn(),
     markAsRead: vi.fn(() => Promise.resolve({ data: {} })),

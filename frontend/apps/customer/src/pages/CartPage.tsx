@@ -170,7 +170,23 @@ export default function CartPage() {
                           className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
                         />
                         <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0 overflow-hidden">
-                          🛍️
+                          {item.image ? (
+                            <>
+                              <img
+                                src={item.image}
+                                alt={item.productName}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.classList.add('hidden');
+                                  event.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <span className="hidden" aria-hidden="true">🛍️</span>
+                            </>
+                          ) : (
+                            <span aria-hidden="true">🛍️</span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">

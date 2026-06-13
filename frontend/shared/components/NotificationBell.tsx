@@ -1,12 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { isMockMode } from '../api/mock';
 import { handleAuthFailure } from '../lib/axios';
+import type { Notification } from '../api/notification.api';
+import { getNotificationTarget } from '../utils/notificationRouting';
 
 export default function NotificationBell() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -133,9 +137,15 @@ export default function NotificationBell() {
     setIsOpen(!isOpen);
   };
 
-  const handleMarkAsRead = async (id: string, read: boolean) => {
-    if (!read) {
-      await markAsRead(id);
+  const handleNotificationClick = async (notif: Notification) => {
+    if (!notif.read) {
+      await markAsRead(notif.id);
+    }
+
+    const target = getNotificationTarget(notif, user?.role);
+    if (target) {
+      setIsOpen(false);
+      navigate(target);
     }
   };
 
@@ -223,7 +233,7 @@ export default function NotificationBell() {
               notifications.map((notif) => (
                 <div
                   key={notif.id}
-                  onClick={() => handleMarkAsRead(notif.id, notif.read)}
+                  onClick={() => handleNotificationClick(notif)}
                   className={`p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors cursor-pointer ${
                     !notif.read ? 'bg-blue-50/40' : ''
                   }`}

@@ -9,6 +9,7 @@ export interface CartItem {
   productId?: string;
   productName: string;
   variantName: string;
+  image?: string;
   unitPrice: number;
   quantity: number;
   stockAvailable: number;
@@ -128,6 +129,7 @@ function mapCartItem(raw: RawCartItemResponse, customerId: number): CartItem {
     skuCode: raw.variantCode ?? '',
     productName: raw.variantName ?? '',
     variantName: raw.variantName ?? '',
+    image: raw.variantImageSnapshot ?? undefined,
     unitPrice: raw.currentPrice ?? raw.priceSnapshot,
     quantity: raw.quantity,
     stockAvailable: raw.unavailable

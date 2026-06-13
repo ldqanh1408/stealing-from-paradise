@@ -111,12 +111,14 @@ describe('chatStore.confirmAction / rejectAction (UC-AICHAT-003)', () => {
     expect(chatApi.confirmAction).toHaveBeenCalledWith('c1', true, 'sess1');
     expect(chatApi.getHistory).toHaveBeenCalledWith('sess1', expect.any(Object));
     expect(useChatStore.getState().pendingConfirmation).toBeNull();
+    expect(useChatStore.getState().isStreaming).toBe(false);
   });
 
   it('rejects with confirmed=false', async () => {
     useChatStore.setState({ currentSessionId: 'sess1', pendingConfirmation: { confirmId: 'c1', actionType: 'CANCEL', summary: 's' } });
     await useChatStore.getState().rejectAction('c1');
     expect(chatApi.confirmAction).toHaveBeenCalledWith('c1', false, 'sess1');
+    expect(useChatStore.getState().isStreaming).toBe(false);
   });
 });
 

@@ -5,6 +5,7 @@ import { orderApi, type Order, type OrderItem } from '@shared/api/order.api';
 import { paymentApi } from '@shared/api/payment.api';
 import { refundApi, type FullRefundCreatedResponse } from '@shared/api/refund.api';
 import { type ApiResponse } from '@shared/types/api';
+import { Spinner } from '@shared/components/ui';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -40,6 +41,135 @@ function canRequestFullRefund(order: Order) {
 
 function canRequestPartialRefund(order: Order) {
   return ['PAID', 'SHIPPING', 'DELIVERED', 'PARTIALLY_REFUNDED'].includes(order.status);
+}
+
+type EvidenceImage = {
+  url: string;
+  name: string;
+};
+
+function getPublicEvidenceUrl(uploadUrl: string) {
+  return uploadUrl.split('?')[0];
+}
+
+async function uploadRefundEvidence(orderId: number, file: File): Promise<EvidenceImage> {
+  const { data } = await refundApi.getRefundPresignedUrl(orderId, file.name, file.type || 'image/jpeg');
+  const presigned = data.data;
+  if (!presigned?.url) {
+    throw new Error('Không thể tạo URL tải ảnh');
+  }
+
+  if (presigned.url.startsWith('mock://')) {
+    return {
+      url: URL.createObjectURL(file),
+      name: file.name,
+    };
+  }
+
+  const uploadRes = await fetch(presigned.url, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || presigned.contentType || 'image/jpeg' },
+    body: file,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error('Tải ảnh bằng chứng thất bại');
+  }
+
+  return {
+    url: getPublicEvidenceUrl(presigned.url),
+    name: file.name,
+  };
+}
+
+function EvidenceUploader({
+  orderId,
+  images,
+  onChange,
+  disabled,
+}: {
+  orderId: number;
+  images: EvidenceImage[];
+  onChange: (images: EvidenceImage[]) => void;
+  disabled?: boolean;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const selected = Array.from(files).filter(file => file.type.startsWith('image/'));
+    if (selected.length === 0) {
+      setUploadError('Vui lòng chọn file ảnh hợp lệ');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      const uploaded = [];
+      for (const file of selected) {
+        uploaded.push(await uploadRefundEvidence(orderId, file));
+      }
+      onChange([...images, ...uploaded]);
+    } catch (err: any) {
+      setUploadError(err?.message || 'Tải ảnh bằng chứng thất bại');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <label className="block text-sm font-medium text-gray-700">Ảnh bằng chứng</label>
+        {isUploading && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-blue-600">
+            <Spinner className="w-3 h-3" />
+            Đang tải...
+          </span>
+        )}
+      </div>
+      <label className={`flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-4 text-center transition-colors ${
+        disabled || isUploading ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-blue-200 bg-blue-50/40 text-blue-700 hover:bg-blue-50'
+      }`}>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          disabled={disabled || isUploading}
+          onChange={event => {
+            void handleFiles(event.target.files);
+            event.target.value = '';
+          }}
+          className="hidden"
+        />
+        <span className="text-sm font-semibold">Chọn ảnh bằng chứng</span>
+        <span className="mt-1 text-xs text-gray-500">Có thể chọn nhiều ảnh, định dạng JPG/PNG/WebP.</span>
+      </label>
+      {uploadError && (
+        <p className="mt-2 text-xs text-red-600">{uploadError}</p>
+      )}
+      {images.length > 0 && (
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {images.map((image, index) => (
+            <div key={`${image.url}-${index}`} className="relative overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+              <img src={image.url} alt={image.name} className="h-20 w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => onChange(images.filter((_, i) => i !== index))}
+                disabled={disabled || isUploading}
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/75 disabled:opacity-50"
+                aria-label="Xóa ảnh bằng chứng"
+              >
+                x
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Cancel Modal ─────────────────────────────────────────────────────────────
@@ -113,17 +243,22 @@ function CancelModal({ order, queryClient, parentOrderId, onClose, onSuccess }: 
 function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClose: () => void; onSuccess: () => void }) {
   const [reason, setReason] = useState('');
   const [selectedItems, setSelectedItems] = useState<Map<number, { qty: number; itemReason: string }>>(new Map());
+  const [evidenceImages, setEvidenceImages] = useState<EvidenceImage[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   const mut = useMutation({
     mutationFn: () => {
       const items = Array.from(selectedItems.entries()).map(([itemId, v]) => ({
-        order_item_id: itemId,
+        orderItemId: itemId,
         quantity: v.qty,
-        item_reason: v.itemReason,
+        itemReason: v.itemReason,
       }));
-      return refundApi.requestPartialRefund(order.orderId, { reason, items });
+      return refundApi.requestPartialRefund(order.orderId, {
+        reason,
+        items,
+        evidenceImages: evidenceImages.map(image => image.url),
+      });
     },
     onSuccess: () => {
       setSuccess(true);
@@ -250,6 +385,13 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
           </select>
         </div>
 
+        <EvidenceUploader
+          orderId={order.orderId}
+          images={evidenceImages}
+          onChange={setEvidenceImages}
+          disabled={mut.isPending}
+        />
+
         {/* Summary */}
         {selectedItems.size > 0 && (
           <div className="bg-gray-50 rounded-xl p-3 mb-4">
@@ -276,15 +418,19 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
 }
 
 // ─── Full Refund Modal ─────────────────────────────────────────────────────────
-function FullRefundModal({ parentOrderId, onClose, onSuccess }: { parentOrderId: number; onClose: () => void; onSuccess: () => void }) {
+function FullRefundModal({ parentOrderId, evidenceOrderId, onClose, onSuccess }: { parentOrderId: number; evidenceOrderId?: number; onClose: () => void; onSuccess: () => void }) {
   const [reason, setReason] = useState('');
+  const [evidenceImages, setEvidenceImages] = useState<EvidenceImage[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   const mut = useMutation({
     mutationFn: () =>
-      refundApi.requestFullRefund(parentOrderId, { reason }) as Promise<{ data: ApiResponse<FullRefundCreatedResponse> }>,
+      refundApi.requestFullRefund(parentOrderId, {
+        reason,
+        evidenceImages: evidenceImages.map(image => image.url),
+      }) as Promise<{ data: ApiResponse<FullRefundCreatedResponse> }>,
     onSuccess: (res) => {
       setResult(res.data.data);
       setSuccess(true);
@@ -335,6 +481,18 @@ function FullRefundModal({ parentOrderId, onClose, onSuccess }: { parentOrderId:
             <option value="Khác">Khác</option>
           </select>
         </div>
+        {evidenceOrderId ? (
+          <EvidenceUploader
+            orderId={evidenceOrderId}
+            images={evidenceImages}
+            onChange={setEvidenceImages}
+            disabled={mut.isPending}
+          />
+        ) : (
+          <p className="mb-4 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700">
+            Không thể tải ảnh bằng chứng vì không tìm thấy đơn con.
+          </p>
+        )}
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Đóng</button>
           <button
@@ -761,6 +919,7 @@ export default function OrderDetailPage() {
       {showFullRefund && (
         <FullRefundModal
           parentOrderId={id}
+          evidenceOrderId={parent.orders[0]?.orderId}
           onClose={() => setShowFullRefund(false)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['parent-order', id] })}
         />

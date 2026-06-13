@@ -1194,6 +1194,23 @@ const mockHandlers: MockHandler[] = [
     }
 
     // ─── Order Refunds (buyer) ────────────────────────────────────────────────
+    const refundPresignedMatch = url?.match(/^\/orders\/(\d+)\/refunds\/presigned-url$/);
+    if (refundPresignedMatch && method === 'get') {
+      await sleep(200 + Math.random() * 100);
+      const fileName = params?.file_name || `refund-evidence-${Date.now()}.jpg`;
+      const contentType = params?.content_type || 'image/jpeg';
+      return {
+        success: true,
+        data: {
+          url: `mock://refund-evidence/${refundPresignedMatch[1]}/${Date.now()}-${encodeURIComponent(fileName)}`,
+          fileName,
+          contentType,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        },
+        timestamp: Date.now(),
+      };
+    }
+
     const orderRefundMatch = url?.match(/^\/orders\/(\d+)\/refunds$/);
     if (orderRefundMatch && method === 'post') {
       await sleep(500 + Math.random() * 300);
@@ -1209,6 +1226,7 @@ const mockHandlers: MockHandler[] = [
           status: 'PENDING',
           amount: body.items?.reduce((s: number, it: any) => s + (it.quantity * 2_190_000), 0) || 299_000,
           reason: body.reason || 'Sản phẩm lỗi',
+          evidenceImages: body.evidenceImages || [],
           initiatedBy: 'BUYER',
           items: body.items?.map((it: any) => ({
             orderItemId: it.orderItemId,
@@ -1361,6 +1379,78 @@ const mockHandlers: MockHandler[] = [
 
   // ─── Products ───────────────────────────────────────────────────────────────
   async ({ method, url, params }) => {
+    if (url === '/search/products' && method === 'get') {
+      await sleep(300 + Math.random() * 200);
+      const search = params?.q || params?.search || '';
+      const category = params?.category_id || params?.category;
+      const priceMin = params?.price_min != null ? Number(params.price_min) : undefined;
+      const priceMax = params?.price_max != null ? Number(params.price_max) : undefined;
+      const inStock = params?.in_stock === true || params?.in_stock === 'true';
+      const isFlash = params?.is_flash === true || params?.is_flash === 'true';
+      const page = params?.page ?? 0;
+      const size = params?.size ?? 20;
+      const sort = params?.sort || 'relevance';
+
+      let filtered = MOCK_PRODUCTS;
+      if (search) {
+        filtered = filtered.filter(p =>
+          p.productName.toLowerCase().includes(search.toLowerCase()) ||
+          p.description?.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      if (category) {
+        filtered = filtered.filter(p => p.category?.toLowerCase().includes(String(category).toLowerCase()));
+      }
+      if (priceMin != null && !Number.isNaN(priceMin)) {
+        filtered = filtered.filter(p => (p.price ?? 0) >= priceMin);
+      }
+      if (priceMax != null && !Number.isNaN(priceMax)) {
+        filtered = filtered.filter(p => (p.price ?? 0) <= priceMax);
+      }
+      if (inStock) {
+        filtered = filtered.filter(p => (p.stock ?? 0) > 0);
+      }
+      if (isFlash) {
+        filtered = filtered.filter(p => Boolean((p as any).isFlash));
+      }
+      if (sort === 'price_asc') {
+        filtered = [...filtered].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+      } else if (sort === 'price_desc') {
+        filtered = [...filtered].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+      } else if (sort === 'newest') {
+        filtered = [...filtered].sort((a, b) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''));
+      } else if (sort === 'popular') {
+        filtered = [...filtered].sort((a, b) => (b.reviewsCount ?? 0) - (a.reviewsCount ?? 0));
+      }
+
+      const start = page * size;
+      const content = filtered.slice(start, start + size);
+      return {
+        success: true,
+        data: {
+          totalResults: filtered.length,
+          page,
+          size,
+          totalPages: Math.ceil(filtered.length / size),
+          products: content.map(p => ({
+            productId: p.productId,
+            name: p.productName,
+            sellerId: p.sellerId,
+            sellerName: p.sellerName,
+            categoryId: p.category,
+            categoryName: p.category,
+            priceMin: p.price ?? null,
+            priceMax: p.originalPrice ?? p.price ?? null,
+            images: p.images ?? [],
+            stockAvailable: p.stock ?? 0,
+            isFlash: Boolean((p as any).isFlash),
+            thumbnailUrl: p.images?.[0] ?? '',
+          })),
+        },
+        timestamp: Date.now(),
+      };
+    }
+
     if ((url === '/products' || url === '/search') && method === 'get') {
       await sleep(300 + Math.random() * 200);
       const search = params?.q || params?.search || '';

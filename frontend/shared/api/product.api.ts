@@ -162,6 +162,10 @@ export const productApi = {
   getProducts: async (params?: {
     category?: string;
     search?: string;
+    priceMin?: number;
+    priceMax?: number;
+    inStock?: boolean;
+    isFlash?: boolean;
     page?: number;
     size?: number;
     sort?: string;
@@ -170,6 +174,10 @@ export const productApi = {
       params: {
         q: params?.search || undefined,
         category_id: params?.category || undefined,
+        price_min: params?.priceMin,
+        price_max: params?.priceMax,
+        in_stock: params?.inStock,
+        is_flash: params?.isFlash,
         page: params?.page ?? 0,
         size: params?.size ?? 20,
         sort: params?.sort || undefined,
@@ -202,15 +210,25 @@ export const productApi = {
   /** Search products (delegates to search service) */
   searchProducts: (query: string, params?: {
     category?: string;
+    priceMin?: number;
+    priceMax?: number;
+    inStock?: boolean;
+    isFlash?: boolean;
     page?: number;
     size?: number;
+    sort?: string;
   }) =>
     apiClient.get<ApiResponse<SearchResponse>>('/search/products', {
       params: {
         q: query,
         category_id: params?.category || undefined,
+        price_min: params?.priceMin,
+        price_max: params?.priceMax,
+        in_stock: params?.inStock,
+        is_flash: params?.isFlash,
         page: params?.page ?? 0,
         size: params?.size ?? 20,
+        sort: params?.sort || undefined,
       },
     }).then(res => ({
       ...res,

@@ -847,8 +847,24 @@ export default function OrderReviewPage() {
                   <div className="space-y-3">
                     {sellerGroup.items.map((item) => (
                       <div key={item.variantId} className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-xl shrink-0">
-                          🛍️
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-xl shrink-0 overflow-hidden">
+                          {item.imageUrl ? (
+                            <>
+                              <img
+                                src={item.imageUrl}
+                                alt={item.productName}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.classList.add('hidden');
+                                  event.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <span className="hidden" aria-hidden="true">🛍️</span>
+                            </>
+                          ) : (
+                            <span aria-hidden="true">🛍️</span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>

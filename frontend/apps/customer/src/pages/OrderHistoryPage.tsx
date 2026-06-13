@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { orderApi, type OrderSummary, type OrderStatus } from '@shared/api/order.api';
+import { Badge, Button, Card, Container, EmptyState, PageHeader, Skeleton, cn, type BadgeProps } from '@shared/components/ui';
+import { Icon } from '@shared/components/icons';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -17,31 +19,127 @@ const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string }[] = [
   { value: 'RETURNED', label: 'Hoàn hàng' },
 ];
 
-const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  PENDING:            { bg: 'bg-yellow-100', color: 'text-yellow-700' },
-  PAID:               { bg: 'bg-blue-100',   color: 'text-blue-700' },
-  SHIPPING:           { bg: 'bg-purple-100',  color: 'text-purple-700' },
-  DELIVERED:          { bg: 'bg-green-100',   color: 'text-green-700' },
-  CANCELLED:          { bg: 'bg-red-100',     color: 'text-red-700' },
-  RETURNED:           { bg: 'bg-orange-100',  color: 'text-orange-700' },
-  PARTIALLY_REFUNDED: { bg: 'bg-indigo-100',  color: 'text-indigo-700' },
-  REFUNDED:           { bg: 'bg-gray-100',    color: 'text-gray-600' },
+const STATUS_META: Record<OrderStatus, { label: string; tone: BadgeProps['tone']; helper: string }> = {
+  PENDING: { label: 'Chờ xác nhận', tone: 'warning', helper: 'Đơn đang chờ shop xác nhận' },
+  PAID: { label: 'Đã thanh toán', tone: 'info', helper: 'Đang chuẩn bị giao hàng' },
+  SHIPPING: { label: 'Đang giao', tone: 'brand', helper: 'Đơn đang trên đường giao' },
+  DELIVERED: { label: 'Đã nhận', tone: 'success', helper: 'Đã giao thành công' },
+  CANCELLED: { label: 'Đã huỷ', tone: 'danger', helper: 'Đơn đã bị huỷ' },
+  RETURNED: { label: 'Hoàn hàng', tone: 'warning', helper: 'Đang xử lý hoàn hàng' },
+  PARTIALLY_REFUNDED: { label: 'Hoàn một phần', tone: 'info', helper: 'Một phần đơn đã được hoàn tiền' },
+  REFUNDED: { label: 'Đã hoàn', tone: 'neutral', helper: 'Đơn đã hoàn tiền' },
 };
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   });
 }
 
-function getActionLabel(status: string): string {
-  switch (status) {
-    case 'PENDING': return 'Chờ xác nhận';
-    case 'PAID': return 'Chờ giao hàng';
-    case 'SHIPPING': return 'Đang giao';
-    case 'DELIVERED': return 'Đã giao';
-    default: return status;
+function getStatusMeta(status: OrderStatus) {
+  return STATUS_META[status] ?? { label: status, tone: 'neutral' as const, helper: status };
+}
+
+function OrderHistorySkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Card key={index} className="flex gap-4">
+          <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
+          <div className="min-w-0 flex-1 space-y-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-56" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <Skeleton className="h-9 w-28 shrink-0" />
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function OrderThumb({ order }: { order: OrderSummary }) {
+  const firstItem = order.items?.[0];
+
+  if (firstItem?.imageSnapshot) {
+    return (
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+        <img src={firstItem.imageSnapshot} alt={firstItem.productName || order.orderCode} className="h-full w-full object-cover" />
+        {order.itemCount > 1 && (
+          <span className="absolute bottom-1 right-1 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-semibold text-white">
+            +{order.itemCount - 1}
+          </span>
+        )}
+      </div>
+    );
   }
+
+  return (
+    <div className={cn(
+      'flex h-20 w-20 shrink-0 items-center justify-center rounded-xl',
+      order.isFlashSale ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600',
+    )}>
+      <Icon name={order.isFlashSale ? 'bolt' : 'bag'} className="h-8 w-8" />
+    </div>
+  );
+}
+
+function OrderCard({ order, onOpen }: { order: OrderSummary; onOpen: () => void }) {
+  const meta = getStatusMeta(order.status);
+  const firstItem = order.items?.[0];
+  const sellerLabel = order.sellerName || `Shop #${order.sellerId}`;
+
+  return (
+    <Card
+      hoverable
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') onOpen();
+      }}
+      className="cursor-pointer"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 gap-4">
+          <OrderThumb order={order} />
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="font-bold text-gray-900">{order.orderCode}</span>
+              <Badge tone={meta.tone} dot>{meta.label}</Badge>
+              {order.isFlashSale && <Badge tone="danger">Flash Sale</Badge>}
+            </div>
+            <p className="truncate text-sm font-medium text-gray-700">
+              {firstItem?.productName || `${order.itemCount} sản phẩm trong đơn`}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              {sellerLabel} · {order.itemCount} sản phẩm · {formatDate(order.createdAt)}
+            </p>
+            <p className="mt-2 text-xs font-medium text-blue-600">{meta.helper}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
+          <div>
+            <p className="text-xs text-gray-500">Tổng thanh toán</p>
+            <p className="font-bold text-gray-900">{fmt(order.finalAmt)}</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={event => {
+              event.stopPropagation();
+              onOpen();
+            }}
+          >
+            Chi tiết
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export default function OrderHistoryPage() {
@@ -49,7 +147,7 @@ export default function OrderHistoryPage() {
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['buyer-orders', filter, page],
     queryFn: () =>
       orderApi.getOrders({
@@ -79,152 +177,101 @@ export default function OrderHistoryPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Đơn hàng của tôi</h1>
-        <button
-          onClick={() => refetch()}
-          className="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Làm mới
-        </button>
-      </div>
+    <Container className="max-w-5xl py-8 pb-24 sm:pb-8">
+      <PageHeader
+        title="Đơn hàng của tôi"
+        subtitle={totalElements > 0 ? `${totalElements} đơn hàng` : 'Theo dõi trạng thái và lịch sử mua hàng của bạn'}
+        actions={
+          <Button type="button" variant="outline" size="sm" loading={isFetching && !isLoading} onClick={() => refetch()}>
+            Làm mới
+          </Button>
+        }
+      />
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {STATUS_FILTERS.map(f => (
-          <button
-            key={f.value}
-            onClick={() => handleFilterChange(f.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
-              filter === f.value
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-            }`}
+      <div className="mb-6 flex flex-wrap gap-2">
+        {STATUS_FILTERS.map(item => (
+          <Button
+            key={item.value}
+            type="button"
+            variant={filter === item.value ? 'primary' : 'outline'}
+            size="sm"
+            className="rounded-full"
+            onClick={() => handleFilterChange(item.value)}
           >
-            {f.label}
-          </button>
+            {item.label}
+          </Button>
         ))}
       </div>
 
-      {/* Loading */}
-      {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>
-          Đang tải đơn hàng...
-        </div>
-      )}
+      {isLoading && <OrderHistorySkeleton />}
 
-      {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm mb-4">
-          Không thể tải đơn hàng. Vui lòng thử lại.
-        </div>
-      )}
-
-      {/* Empty */}
-      {!isLoading && !error && orders.length === 0 && (
-        <div className="text-center py-20">
-          <div className="w-24 h-24 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-6 text-5xl">
-            📦
+        <Card className="border-red-100 bg-red-50">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-red-700">Không thể tải đơn hàng. Vui lòng thử lại.</p>
+            <Button type="button" variant="danger" size="sm" onClick={() => refetch()}>
+              Tải lại
+            </Button>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Chưa có đơn hàng nào</h2>
-          <p className="text-gray-500 mb-8">Các đơn hàng của bạn sẽ xuất hiện ở đây sau khi đặt mua</p>
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
-          >
-            Khám phá sản phẩm
-          </Link>
-        </div>
+        </Card>
       )}
 
-      {/* Order list */}
+      {!isLoading && !error && orders.length === 0 && (
+        <Card>
+          <EmptyState
+            iconKey="cube"
+            title="Chưa có đơn hàng nào"
+            description="Các đơn hàng của bạn sẽ xuất hiện ở đây sau khi đặt mua."
+            action={
+              <Link to="/products">
+                <Button type="button">Khám phá sản phẩm</Button>
+              </Link>
+            }
+          />
+        </Card>
+      )}
+
       {!isLoading && !error && orders.length > 0 && (
         <>
-          <p className="text-sm text-gray-500 mb-4">{totalElements} đơn hàng</p>
           <div className="space-y-3">
-            {orders.map(order => {
-              const st = STATUS_STYLE[order.status] ?? { bg: 'bg-gray-100', color: 'text-gray-700' };
-              const actionLabel = getActionLabel(order.status);
-              return (
-                <div
-                  key={order.orderId}
-                  className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-all cursor-pointer"
-                  onClick={() => navigate(`/orders/${order.parentOrderId}`)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-bold text-gray-900">{order.orderCode}</span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${st.bg} ${st.color}`}>
-                          {STATUS_FILTERS.find(f => f.value === order.status)?.label ?? order.status}
-                        </span>
-                        {order.isFlashSale && (
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
-                            ⚡ Flash Sale
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-500">
-                        {order.sellerName} · {order.itemCount} sản phẩm
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">{formatDate(order.createdAt)}</p>
-                      {actionLabel && (
-                        <p className="text-xs text-blue-600 mt-1 font-medium">{actionLabel}</p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-gray-900">{fmt(order.finalAmt)}</p>
-                      <button
-                        onClick={e => { e.stopPropagation(); navigate(`/orders/${order.parentOrderId}`); }}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-1 flex items-center gap-1"
-                      >
-                        Chi tiết
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {orders.map(order => (
+              <OrderCard
+                key={order.orderId}
+                order={order}
+                onOpen={() => navigate(`/orders/${order.parentOrderId}`)}
+              />
+            ))}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 disabled={page === 0}
-                className="px-4 py-2 rounded-xl border text-sm font-medium disabled:opacity-40 hover:bg-gray-50 flex items-center gap-1"
+                onClick={() => setPage(p => Math.max(0, p - 1))}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <Icon name="chevronLeft" className="h-4 w-4" />
                 Trước
-              </button>
-              <span className="px-4 py-2 text-sm text-gray-600">
+              </Button>
+              <span className="text-sm font-medium text-gray-600">
                 Trang {page + 1} / {totalPages}
               </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 disabled={page >= totalPages - 1}
-                className="px-4 py-2 rounded-xl border text-sm font-medium disabled:opacity-40 hover:bg-gray-50 flex items-center gap-1"
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               >
                 Sau
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+                <Icon name="chevronLeft" className="h-4 w-4 rotate-180" />
+              </Button>
             </div>
           )}
         </>
       )}
-    </div>
+    </Container>
   );
 }

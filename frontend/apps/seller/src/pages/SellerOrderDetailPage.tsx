@@ -10,13 +10,135 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orderApi } from '@shared/api/order.api';
+import { refundApi, type RefundResponse } from '@shared/api/refund.api';
 import { paymentApi } from '@shared/api/payment.api';
 import { fmtVnd, fmtDateTime } from '@shared/utils/format';
+import { Badge, Card, Skeleton, type BadgeProps } from '@shared/components/ui';
 import { getStatusMeta } from '@/lib/orderStatus';
 import { canShip, canCancel, canReturnToSender } from '@/lib/orderActions';
 import TrackingModal from '@/components/Orders/TrackingModal';
 import RTSModal from '@/components/Orders/RTSModal';
 import CancelOrderModal from '@/components/Orders/CancelOrderModal';
+
+const REFUND_STATUS_META: Record<string, { label: string; tone: BadgeProps['tone'] }> = {
+  PENDING: { label: 'Chờ duyệt', tone: 'warning' },
+  APPROVED: { label: 'Đã duyệt', tone: 'info' },
+  PROCESSING: { label: 'Đang xử lý', tone: 'info' },
+  SUCCESS: { label: 'Đã hoàn', tone: 'success' },
+  COMPLETED: { label: 'Hoàn tất', tone: 'success' },
+  RTS_COMPLETED: { label: 'Hoàn hàng xong', tone: 'success' },
+  REJECTED: { label: 'Từ chối', tone: 'danger' },
+  FAILED: { label: 'Thất bại', tone: 'danger' },
+};
+
+function getRefundStatusMeta(status: string) {
+  return REFUND_STATUS_META[status] ?? { label: status, tone: 'neutral' as const };
+}
+
+function RefundStatusPanel({
+  refunds,
+  isLoading,
+  isError,
+}: {
+  refunds: RefundResponse[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <Card className="mb-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+      </Card>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Card className="mb-6 border-amber-100 bg-amber-50">
+        <h2 className="font-bold text-gray-900 mb-2">Yêu cầu hoàn tiền</h2>
+        <p className="text-sm text-amber-700">Không thể tải trạng thái hoàn tiền của đơn này.</p>
+      </Card>
+    );
+  }
+
+  if (refunds.length === 0) {
+    return (
+      <Card className="mb-6">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-bold text-gray-900">Yêu cầu hoàn tiền</h2>
+            <p className="text-sm text-gray-500">Đơn này chưa có yêu cầu hoàn tiền từ khách.</p>
+          </div>
+          <Badge tone="neutral">Chưa có refund</Badge>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mb-6">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-bold text-gray-900">Yêu cầu hoàn tiền</h2>
+          <p className="text-sm text-gray-500">{refunds.length} yêu cầu liên quan đến đơn này</p>
+        </div>
+        <Badge tone="info">{refunds.length} refund</Badge>
+      </div>
+      <div className="space-y-3">
+        {refunds.map(refund => {
+          const meta = getRefundStatusMeta(refund.status);
+          const effectiveAmount = refund.adjustAmount ?? refund.amount;
+          return (
+            <div key={refund.refundId} className="rounded-xl border border-gray-100 bg-gray-50/60 p-4">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-gray-900">{refund.groupRef || `Refund #${refund.refundId}`}</span>
+                    <Badge tone={meta.tone} dot>{meta.label}</Badge>
+                    <Badge tone="neutral">{refund.type}</Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600">{refund.reason}</p>
+                </div>
+                <div className="sm:text-right">
+                  <p className="text-xs text-gray-500">Số tiền hoàn</p>
+                  <p className="font-bold text-red-600">{fmtVnd(effectiveAmount)}</p>
+                </div>
+              </div>
+
+              {refund.items && refund.items.length > 0 && (
+                <div className="mb-3 space-y-2">
+                  {refund.items.map((item, index) => (
+                    <div key={`${refund.refundId}-${item.orderItemId}-${index}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-gray-800">{item.productName || `Sản phẩm #${item.orderItemId}`}</p>
+                        <p className="text-xs text-gray-500">x{item.quantity} · {item.itemReason || 'Không có lý do riêng'}</p>
+                      </div>
+                      <span className="shrink-0 font-semibold text-gray-900">{fmtVnd(item.refundAmount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid gap-2 text-xs text-gray-500 sm:grid-cols-2">
+                <span>Tạo lúc: {fmtDateTime(refund.createdAt)}</span>
+                {refund.reviewedAt && <span>Duyệt lúc: {fmtDateTime(refund.reviewedAt)}</span>}
+                {refund.adminNote && <span className="sm:col-span-2">Ghi chú admin: {refund.adminNote}</span>}
+                {refund.rejectReason && <span className="sm:col-span-2 text-red-600">Lý do từ chối: {refund.rejectReason}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 export default function SellerOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -39,6 +161,17 @@ export default function SellerOrderDetailPage() {
     queryKey: ['payment-for-seller', order?.parentOrderId],
     queryFn: () => paymentApi.getPayment(order!.parentOrderId!).then(r => r.data.data),
     enabled: !!order?.parentOrderId,
+    retry: 1,
+  });
+
+  const {
+    data: refunds = [],
+    isLoading: refundsLoading,
+    error: refundsError,
+  } = useQuery({
+    queryKey: ['seller-order-refunds', id],
+    queryFn: () => refundApi.getRefundsByOrder(id).then(r => r.data.data),
+    enabled: id > 0 && !!order,
     retry: 1,
   });
 
@@ -173,6 +306,12 @@ export default function SellerOrderDetailPage() {
           </div>
         </div>
       )}
+
+      <RefundStatusPanel
+        refunds={refunds}
+        isLoading={refundsLoading}
+        isError={!!refundsError}
+      />
 
       {/* Line items */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-6">

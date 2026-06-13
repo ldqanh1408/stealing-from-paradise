@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
@@ -33,6 +33,11 @@ const PRICE_RANGES = [
   { label: 'Trên 1M', min: 1000000, max: undefined },
 ];
 
+const STOCK_FILTERS = [
+  { value: 'in_stock', label: 'Còn hàng' },
+  { value: 'all', label: 'Tất cả tồn kho' },
+];
+
 function mapSort(value: string) {
   switch (value) {
     case 'price_asc': return 'price_asc';
@@ -45,21 +50,36 @@ function mapSort(value: string) {
 
 export default function ProductListPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { addToCart } = useCartStore();
 
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [page, setPage] = useState(0);
+
+  // Sync with searches submitted from the global header (?q=...).
+  useEffect(() => {
+    setSearchQuery(searchParams.get('q') ?? '');
+    setPage(0);
+  }, [searchParams]);
   const [sort, setSort] = useState('');
   const [priceRange, setPriceRange] = useState(0);
+  const [stockFilter, setStockFilter] = useState<'in_stock' | 'all'>('in_stock');
+  const [flashOnly, setFlashOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  const selectedPriceRange = PRICE_RANGES[priceRange];
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['products', selectedCategory, page, searchQuery, sort, priceRange],
+    queryKey: ['products', selectedCategory, page, searchQuery, sort, priceRange, stockFilter, flashOnly],
     queryFn: () =>
       productApi.getProducts({
         category: selectedCategory || undefined,
         search: searchQuery || undefined,
+        priceMin: selectedPriceRange.min,
+        priceMax: selectedPriceRange.max,
+        inStock: stockFilter === 'in_stock',
+        isFlash: flashOnly ? true : undefined,
         page,
         size: 20,
         sort: mapSort(sort),
@@ -89,6 +109,8 @@ export default function ProductListPage() {
     selectedCategory !== '',
     sort !== '',
     priceRange !== 0,
+    stockFilter !== 'in_stock',
+    flashOnly,
   ].filter(Boolean).length;
 
   return (
@@ -199,6 +221,36 @@ export default function ProductListPage() {
               </div>
             </div>
 
+            {/* Stock + flash sale */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tình trạng</p>
+              <div className="flex flex-wrap gap-2">
+                {STOCK_FILTERS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setStockFilter(opt.value as 'in_stock' | 'all'); setPage(0); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      stockFilter === opt.value
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-blue-300'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setFlashOnly(v => !v); setPage(0); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    flashOnly
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-red-300'
+                  }`}
+                >
+                  Chỉ Flash Sale
+                </button>
+              </div>
+            </div>
+
             {/* Active filter chips + clear */}
             {activeFiltersCount > 0 && (
               <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
@@ -221,8 +273,20 @@ export default function ProductListPage() {
                     <button onClick={() => { setPriceRange(0); setPage(0); }} className="hover:text-blue-900 ml-0.5">×</button>
                   </span>
                 )}
+                {stockFilter !== 'in_stock' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
+                    Tất cả tồn kho
+                    <button onClick={() => { setStockFilter('in_stock'); setPage(0); }} className="hover:text-blue-900 ml-0.5">×</button>
+                  </span>
+                )}
+                {flashOnly && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 text-xs rounded-full">
+                    Flash Sale
+                    <button onClick={() => { setFlashOnly(false); setPage(0); }} className="hover:text-red-900 ml-0.5">×</button>
+                  </span>
+                )}
                 <button
-                  onClick={() => { setSelectedCategory(''); setSort(''); setPriceRange(0); setPage(0); }}
+                  onClick={() => { setSelectedCategory(''); setSort(''); setPriceRange(0); setStockFilter('in_stock'); setFlashOnly(false); setPage(0); }}
                   className="text-xs text-red-500 hover:text-red-700 font-medium ml-1"
                 >
                   Xóa tất cả
@@ -236,7 +300,7 @@ export default function ProductListPage() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm text-gray-500">
             {searchQuery ? `Kết quả tìm kiếm cho "${searchQuery}"` : 'Tất cả sản phẩm'}
-            {(selectedCategory || sort || priceRange !== 0) && (
+            {(selectedCategory || sort || priceRange !== 0 || stockFilter !== 'in_stock' || flashOnly) && (
               <span className="ml-1">— đã lọc</span>
             )}
           </p>

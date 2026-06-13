@@ -137,12 +137,13 @@ export interface OrderSummary {
   parentOrderId: number;
   orderCode: string;
   sellerId: number;
-  sellerName: string;
+  sellerName?: string;
   status: OrderStatus;
   totalAmt: number;
   finalAmt: number;
   isFlashSale?: boolean;
   itemCount: number;
+  items?: Pick<OrderItem, 'productName' | 'imageSnapshot' | 'quantity'>[];
   createdAt: string;
   updatedAt?: string;
 }
