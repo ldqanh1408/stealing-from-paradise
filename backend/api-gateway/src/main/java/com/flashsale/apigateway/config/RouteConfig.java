@@ -75,6 +75,12 @@ public class RouteConfig {
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://product-service"))
 
+            // ===== Wishlist (part of Product Service — requires JWT) =====
+            .route("wishlist", r -> r
+                .path("/api/v1/wishlist/**")
+                .filters(f -> f.stripPrefix(1))
+                .uri("lb://product-service"))
+
             // ===== Order Service (requires JWT) =====
             .route("seller-orders", r -> r
                 .path("/api/v1/sellers/**")
