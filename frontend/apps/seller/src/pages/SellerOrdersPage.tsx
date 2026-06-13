@@ -18,6 +18,7 @@ import OrderDrawer from '@/components/Orders/OrderDrawer';
 import OrderFilters from '@/components/Orders/OrderFilters';
 import OrdersTable from '@/components/Orders/OrdersTable';
 import Pagination from '@shared/components/Pagination';
+import { Skeleton, EmptyState } from '@shared/components/ui';
 
 /** Build a human-friendly buyer label for modal headers. */
 const buyerLabel = (o: SellerOrderSummary) => o.buyerName || o.buyerUsername || `User #${o.buyerId}`;
@@ -74,9 +75,18 @@ export default function SellerOrdersPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>
-          Đang tải đơn hàng...
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4">
+              <Skeleton className="h-10 w-10 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-1/4" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          ))}
         </div>
       )}
 
@@ -89,10 +99,11 @@ export default function SellerOrdersPage() {
 
       {/* Empty (UC-ORDER-007 A1: no orders found) */}
       {!isLoading && !error && orders.length === 0 && (
-        <div className="text-center py-20 text-gray-400">
-          <span className="text-4xl block mb-3">📋</span>
-          Chưa có đơn hàng nào
-        </div>
+        <EmptyState
+          iconKey="receipt"
+          title="Chưa có đơn hàng nào"
+          description="Đơn hàng từ khách sẽ xuất hiện ở đây khi có người mua sản phẩm của bạn."
+        />
       )}
 
       {/* Table */}

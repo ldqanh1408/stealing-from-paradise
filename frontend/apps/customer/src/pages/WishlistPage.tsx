@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useWishlistStore } from '@shared/store/wishlistStore';
 import { fmtVnd } from '@shared/utils/format';
+import { Skeleton, EmptyState } from '@shared/components/ui';
 
 export default function WishlistPage() {
   const { items, isLoading, error, fetchWishlist, remove } = useWishlistStore();
@@ -19,18 +20,32 @@ export default function WishlistPage() {
       )}
 
       {isLoading ? (
-        <div className="py-16 text-center text-gray-400">⏳ Đang tải...</div>
-      ) : items.length === 0 ? (
-        <div className="py-16 text-center">
-          <div className="text-5xl mb-3">🤍</div>
-          <p className="text-gray-500 mb-4">Bạn chưa thích sản phẩm nào.</p>
-          <Link
-            to="/products"
-            className="inline-block px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
-          >
-            Khám phá sản phẩm
-          </Link>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <Skeleton className="aspect-square rounded-none" />
+              <div className="p-3 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-5 w-1/2" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            </div>
+          ))}
         </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          iconKey="heart"
+          title="Chưa có sản phẩm yêu thích"
+          description="Nhấn vào trái tim trên sản phẩm để lưu lại những món bạn thích."
+          action={
+            <Link
+              to="/products"
+              className="inline-flex items-center justify-center h-10 px-4 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 shadow-sm transition-colors"
+            >
+              Khám phá sản phẩm
+            </Link>
+          }
+        />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {items.map((item) => (

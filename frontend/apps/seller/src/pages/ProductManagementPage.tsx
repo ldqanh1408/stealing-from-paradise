@@ -8,6 +8,7 @@ import ProductTabs from '@/components/ProductManagement/ProductTabs';
 import ProductsTable from '@/components/ProductManagement/ProductsTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
 import Pagination from '@shared/components/Pagination';
+import { Skeleton } from '@shared/components/ui';
 
 type ProductFormTab = 'info' | 'images' | 'variants' | 'inventory';
 
@@ -125,8 +126,18 @@ export default function ProductManagementPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400">
-          ⏳ Đang tải sản phẩm...
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4">
+              <Skeleton className="h-12 w-12 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-1/4" />
+              </div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
         </div>
       )}
 
