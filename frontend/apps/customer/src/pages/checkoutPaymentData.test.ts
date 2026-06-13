@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildCheckoutPaymentData,
+  formatPaymentCountdown,
+  getPaymentDeadlineAt,
+  getPaymentRemainingSeconds,
   normalizeCheckoutPaymentData,
   type CheckoutPaymentData,
 } from './checkoutPaymentData';
@@ -50,6 +53,7 @@ describe('checkout payment data', () => {
 
     expect(data.parentOrderId).toBe(123);
     expect(data.finalAmount).toBe(300000);
+    expect(data.timeoutAt).toBe('2026-06-13T13:00:00.000Z');
     expect(data.orders).toHaveLength(1);
     expect(data.orders?.[0]).toMatchObject({
       sellerId: 42,
@@ -103,5 +107,16 @@ describe('checkout payment data', () => {
     expect(data?.orders).toEqual([]);
     expect(data?.finalAmount).toBe(120000);
     expect(data?.orderCode).toBe('session-2');
+  });
+
+  it('calculates and formats payment deadline countdowns', () => {
+    expect(getPaymentDeadlineAt('2026-06-12T13:00:00.000Z')).toBe('2026-06-13T13:00:00.000Z');
+    expect(getPaymentRemainingSeconds(
+      '2026-06-12T13:00:00.000Z',
+      new Date('2026-06-13T10:30:30.000Z').getTime(),
+    )).toBe(8970);
+    expect(formatPaymentCountdown(8970)).toBe('2 giờ 29 phút');
+    expect(formatPaymentCountdown(65)).toBe('1 phút 05 giây');
+    expect(formatPaymentCountdown(0)).toBe('0 giây');
   });
 });

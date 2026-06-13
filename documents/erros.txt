@@ -1,0 +1,33 @@
+# STATUS OF CODING ERRORS & RESOLUTIONS
+
+## 1. WebSocket / Vite HMR Connection Issue
+- **Error**: `WebSocket connection to 'ws://localhost:3000/?token=...' failed: [vite] failed to connect to websocket.`
+- **Status**: [RESOLVED]
+- **Resolution**: Resolved by configuring the proper Nginx reverse proxy configuration in `nginx.conf` to correctly forward WebSocket connection protocols (`Upgrade` and `Connection` headers) for Vite HMR (Hot Module Replacement) and adjusting the host/port settings.
+
+## 2. API 500 & 404 Gateway Routing Errors
+- **Error**: `Failed to load resource: the server responded with a status of 500 (Internal Server Error)`
+- **Status**: [RESOLVED]
+- **Resolution**: Fixed across multiple services (gateway, product-service, order-service) by mapping the correct endpoint paths, resolving AXON CQRS optimistic locking exceptions, adding missing columns to database schemas, and correcting Axios instance headers in the frontend client.
+
+## 3. Checkout Preview 409 (Conflict) / Axios errors
+- **Error**: `POST http://localhost:3000/api/v1/cart/checkout/preview 409 (Conflict)`
+- **Status**: [RESOLVED]
+- **Resolution**: Addressed Axon optimistic locking issues in Saga processing via pessimistic database locking (`findByIdWithPessimisticLock`) inside `ParentOrderPaymentSaga.java`, preventing concurrent transactions from conflicting on parent order states.
+
+## 4. Wishlist Query Parameter Syntax Error
+- **Error**: `api/v1/wishlist?page=0size=60:1` (missing `&` parameter separator)
+- **Status**: [RESOLVED]
+- **Resolution**: Corrected query parameter serialization in the frontend API client (`wishlist.api.ts`) to ensure the request is formatted as `?page=0&size=60`.
+
+## 5. UI Product Prices Displaying 0đ Bug
+- **Error**: Product prices displaying as `0đ` on the customer frontend listing.
+- **Status**: [RESOLVED]
+- **Resolution**: Corrected the `cheapest_sku` inner hit mapping in `EsSearcher.java` inside the `search-service` backend. Instead of using Jackson `objectMapper` directly on the `Hit<?>` source (which serialized the wrapper `JsonData` object and evaluated all fields as null), we safely cast to `JsonData` and called `jsonData.to(SearchDocument.class)`, correctly restoring the product prices.
+
+## 6. Payment Action & 24h Deadline for Pending Orders
+- **Error**: Missing payment options/links for pending orders.
+- **Status**: [RESOLVED]
+- **Resolution**: 
+  1. Updated `OrderLifecycleScheduler.java` and `OrderProcessingSaga.java` to increase the automatic cancellation timeout for pending orders from 30 minutes to 24 hours.
+  2. Modified `OrderDetailPage.tsx` to render a prominent, pending-payment section displaying a "Thanh toán ngay" button and a direct checkout link when an order's status is `PENDING` and was created within the last 24 hours.

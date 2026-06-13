@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { fmtVnd } from '@shared/utils/format';
+import { Icon } from '@shared/components/icons';
 import type { ProductDetail } from '@shared/api/product.api';
 import WishlistButton from './WishlistButton';
 
@@ -60,21 +61,14 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
             <span className="text-xs text-gray-400">({product.reviewsCount ?? 0})</span>
           </div>
         )}
-        <div className="flex gap-1.5 mt-auto">
-          <Link
-            to={`/products/${product.productId}`}
-            className="flex-1 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 text-xs font-semibold rounded-xl transition-colors text-center"
-          >
-            Chi tiết
-          </Link>
-          <button
-            onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
-            disabled={product.stockAvailable <= 0}
-            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1"
-          >
-            ➕
-          </button>
-        </div>
+        <button
+          onClick={(e) => { e.preventDefault(); onAddToCart(product); }}
+          disabled={product.stockAvailable <= 0}
+          className="mt-auto w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+        >
+          <Icon name="cart" className="w-4 h-4" />
+          {product.stockAvailable <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+        </button>
       </div>
     </div>
   );

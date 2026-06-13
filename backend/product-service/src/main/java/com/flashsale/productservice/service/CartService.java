@@ -42,7 +42,27 @@ public class CartService {
                     .groupedBySeller(Collections.emptyMap())
                     .build());
         }
-        return ApiResponse.success(toCartResponse(cartOpt.get()));
+        Cart cart = cartOpt.get();
+        List<CartItem> items = cartItemRepository.findByCustomerId(cart.getCustomerId());
+        for (CartItem item : items) {
+            ProductVariant variant = variantRepository.findById(item.getVariantId())
+                    .filter(v -> v.getDeletedAt() == null)
+                    .orElse(null);
+            if (variant != null) {
+                boolean priceChanged = variant.getPrice().compareTo(item.getPriceSnapshot()) != 0;
+                boolean nameChanged = !variant.getVariantName().equals(item.getVariantNameSnapshot());
+                boolean imageChanged = (variant.getImageUrl() != null && !variant.getImageUrl().equals(item.getVariantImageSnapshot()))
+                        || (variant.getImageUrl() == null && item.getVariantImageSnapshot() != null);
+                
+                if (priceChanged || nameChanged || imageChanged) {
+                    item.setPriceSnapshot(variant.getPrice());
+                    item.setVariantNameSnapshot(variant.getVariantName());
+                    item.setVariantImageSnapshot(variant.getImageUrl());
+                    cartItemRepository.save(item);
+                }
+            }
+        }
+        return ApiResponse.success(toCartResponse(cart));
     }
 
     @Transactional

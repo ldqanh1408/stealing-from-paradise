@@ -7,6 +7,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.ExistsQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MultiMatchQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.PrefixQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.TermQuery;
@@ -39,6 +40,35 @@ public class EsSearcher {
 
     @Value("${search.elasticsearch.index-name:skus}")
     private String indexName;
+
+    /**
+     * Category slug prefixes whose products are hidden from public search results
+     * (E2E/frontend fixtures seeded under fe-*/e2e-* categories). Blank entries are
+     * ignored; an empty list disables hiding (e.g. for fixture-driven test envs).
+     */
+    @Value("${search.hidden-category-prefixes:}")
+    private List<String> hiddenCategoryPrefixes;
+
+    /**
+     * Builds {@code must_not} prefix queries that exclude any document whose category
+     * lineage ({@code categorySlugPath}) starts with a hidden fixture prefix. A prefix
+     * query on a keyword array matches if any element matches, so a product anywhere
+     * under an {@code fe-*}/{@code e2e-*} category is excluded.
+     */
+    private List<Query> hiddenCategoryExclusions() {
+        if (hiddenCategoryPrefixes == null || hiddenCategoryPrefixes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Query> exclusions = new ArrayList<>();
+        for (String prefix : hiddenCategoryPrefixes) {
+            if (prefix == null || prefix.isBlank()) {
+                continue;
+            }
+            String value = prefix.trim();
+            exclusions.add(PrefixQuery.of(p -> p.field("categorySlugPath").value(value))._toQuery());
+        }
+        return exclusions;
+    }
 
     public SearchResponse search(
             String q,
@@ -88,6 +118,9 @@ public class EsSearcher {
             BoolQuery.Builder boolBuilder = new BoolQuery.Builder().must(rootQuery);
             for (Query fq : filterQueries) {
                 boolBuilder.filter(fq);
+            }
+            for (Query exclusion : hiddenCategoryExclusions()) {
+                boolBuilder.mustNot(exclusion);
             }
 
             int from = page * size;

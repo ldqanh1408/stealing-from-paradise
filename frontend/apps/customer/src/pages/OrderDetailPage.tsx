@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi, type Order, type OrderItem } from '@shared/api/order.api';
@@ -6,12 +6,12 @@ import { paymentApi } from '@shared/api/payment.api';
 import { refundApi, type FullRefundCreatedResponse } from '@shared/api/refund.api';
 import { type ApiResponse } from '@shared/types/api';
 import { Spinner } from '@shared/components/ui';
-import { normalizeCheckoutPaymentData } from './checkoutPaymentData';
+import { formatPaymentCountdown, getPaymentDeadlineAt, getPaymentRemainingSeconds, normalizeCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 const STATUS_STYLE: Record<string, { label: string; bg: string; color: string }> = {
-  PENDING:            { label: 'Chờ xác nhận',    bg: 'bg-yellow-100', color: 'text-yellow-700' },
+  PENDING:            { label: 'Chờ thanh toán',  bg: 'bg-yellow-100', color: 'text-yellow-700' },
   PAID:               { label: 'Đã thanh toán',    bg: 'bg-blue-100',   color: 'text-blue-700' },
   SHIPPING:           { label: 'Đang giao',         bg: 'bg-purple-100', color: 'text-purple-700' },
   DELIVERED:          { label: 'Đã nhận hàng',     bg: 'bg-green-100',  color: 'text-green-700' },
@@ -569,7 +569,7 @@ function SubOrderTimeline({ subOrder, paymentPaidAt }: { subOrder: Order; paymen
   const steps = [
     {
       key: 'PENDING',
-      label: 'Chờ xác nhận',
+      label: 'Chờ thanh toán',
       active: true,
       time: subOrder.createdAt,
     },
@@ -671,7 +671,7 @@ export default function OrderDetailPage() {
     retry: 1,
   });
 
-  const { data: paymentData } = useQuery({
+  const { data: paymentData, dataUpdatedAt: paymentDataUpdatedAt } = useQuery({
     queryKey: ['payment', id],
     queryFn: () => paymentApi.getPayment(id).then(r => r.data.data),
     enabled: !isNaN(id),
@@ -682,6 +682,12 @@ export default function OrderDetailPage() {
   const [showPartialRefund, setShowPartialRefund] = useState<Order | null>(null);
   const [showFullRefund, setShowFullRefund] = useState(false);
   const [showConfirm, setShowConfirm] = useState<Order | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   if (isNaN(id)) {
     return (
@@ -712,16 +718,24 @@ export default function OrderDetailPage() {
 
   const parent = orderData;
   const isPaymentPending = (paymentData?.status === 'PENDING' || parent.status === 'PENDING') && paymentData?.status !== 'SUCCESS';
-  const createdAtTime = new Date(parent.createdAt).getTime();
-  const isWithin24h = (Date.now() - createdAtTime) < 24 * 60 * 60 * 1000;
-  const showPayButton = isPaymentPending && isWithin24h;
+  const paymentDeadlineFromApi = paymentData?.status === 'PENDING' && typeof paymentData.remainingSeconds === 'number'
+    ? paymentDataUpdatedAt + paymentData.remainingSeconds * 1000
+    : null;
+  const fallbackDeadlineAt = getPaymentDeadlineAt(parent.createdAt);
+  const fallbackDeadlineMs = fallbackDeadlineAt ? new Date(fallbackDeadlineAt).getTime() : NaN;
+  const paymentDeadlineMs = paymentDeadlineFromApi ?? (Number.isFinite(fallbackDeadlineMs) ? fallbackDeadlineMs : null);
+  const paymentRemainingSeconds = paymentDeadlineMs
+    ? Math.max(0, Math.ceil((paymentDeadlineMs - nowMs) / 1000))
+    : getPaymentRemainingSeconds(parent.createdAt, nowMs);
+  const paymentTimeoutAt = paymentDeadlineMs ? new Date(paymentDeadlineMs).toISOString() : fallbackDeadlineAt;
+  const showPayButton = isPaymentPending && (paymentRemainingSeconds == null || paymentRemainingSeconds > 0);
 
   const handlePay = () => {
     const pData = normalizeCheckoutPaymentData(null, parent);
     if (pData) {
-      pData.timeoutAt = new Date(createdAtTime + 24 * 60 * 60 * 1000).toISOString();
+      pData.timeoutAt = paymentTimeoutAt;
       sessionStorage.setItem('pending_checkout', JSON.stringify(pData));
-      navigate('/checkout', { state: { orderData: pData } });
+      navigate('/checkout/payment', { state: { orderData: pData, parentOrderId: pData.parentOrderId } });
     }
   };
 
@@ -749,9 +763,12 @@ export default function OrderDetailPage() {
               <p className="text-sm text-blue-700">
                 Đơn hàng đang chờ thanh toán. Vui lòng thanh toán trong vòng 24 giờ kể từ lúc đặt hàng.
               </p>
-              <p className="text-xs text-blue-500 mt-1">
-                Hạn chót: {formatDate(new Date(createdAtTime + 24 * 60 * 60 * 1000).toISOString())}
-              </p>
+              <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-lg border border-blue-100 bg-white/70 px-3 py-2 text-xs text-blue-800">
+                <span className="font-semibold">Còn {formatPaymentCountdown(paymentRemainingSeconds)}</span>
+                {paymentTimeoutAt && (
+                  <span className="text-blue-500">Hạn chót: {formatDate(paymentTimeoutAt)}</span>
+                )}
+              </div>
             </div>
             <div className="flex flex-col gap-2 shrink-0">
               <button
@@ -760,20 +777,6 @@ export default function OrderDetailPage() {
               >
                 Thanh toán ngay
               </button>
-              <Link
-                to="/checkout"
-                state={{ orderData: normalizeCheckoutPaymentData(null, parent) }}
-                onClick={() => {
-                  const pData = normalizeCheckoutPaymentData(null, parent);
-                  if (pData) {
-                    pData.timeoutAt = new Date(createdAtTime + 24 * 60 * 60 * 1000).toISOString();
-                    sessionStorage.setItem('pending_checkout', JSON.stringify(pData));
-                  }
-                }}
-                className="text-xs text-blue-600 hover:underline text-center"
-              >
-                Link thanh toán trực tiếp
-              </Link>
             </div>
           </div>
         </div>

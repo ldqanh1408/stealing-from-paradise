@@ -15,6 +15,7 @@ export default function ProductDetailPage() {
   const queryClient = useQueryClient();
   const { addToCart } = useCartStore();
   const [selectedVariant, setSelectedVariant] = useState(0);
+  const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [isBuyNow, setIsBuyNow] = useState(false);
@@ -166,16 +167,22 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Images */}
           <div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 mb-6">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-6 mb-6 md:sticky md:top-6">
               <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center text-8xl overflow-hidden">
-                {product.images?.[0] ? (
-                  <img src={product.images[0]} alt={product.name} className="w-full h-full object-contain" />
+                {product.images?.[selectedImage] ? (
+                  <img src={product.images[selectedImage]} alt={product.name} className="w-full h-full object-contain" />
                 ) : '🛍️'}
               </div>
               {product.images && product.images.length > 1 && (
-                <div className="grid grid-cols-4 gap-3 mt-4">
+                <div className="grid grid-cols-5 gap-2.5 mt-4">
                   {product.images.map((img, i) => (
-                    <button key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all">
+                    <button
+                      key={i}
+                      onClick={() => setSelectedImage(i)}
+                      className={`aspect-square bg-gray-100 rounded-lg overflow-hidden ring-2 transition-all ${
+                        selectedImage === i ? 'ring-blue-500' : 'ring-transparent hover:ring-blue-300'
+                      }`}
+                    >
                       <img src={img} alt="" className="w-full h-full object-cover" />
                     </button>
                   ))}
@@ -272,26 +279,28 @@ export default function ProductDetailPage() {
                 </span>
               </div>
 
-              <WishlistButton
-                productId={productId!}
-                className="!w-14 !h-14 text-2xl shrink-0 border border-gray-200 self-stretch"
-              />
+              <div className="flex items-stretch gap-3">
+                <WishlistButton
+                  productId={productId!}
+                  className="!w-14 !h-auto self-stretch shrink-0 text-2xl border border-gray-200 !rounded-xl"
+                />
 
-              <button
-                onClick={handleAddToCart}
-                disabled={isAdding || isBuyNow || maxQty <= 0}
-                className="flex-1 py-4 bg-white border-2 border-blue-600 hover:bg-blue-50 disabled:from-gray-400 disabled:to-gray-400 disabled:border-gray-300 text-blue-600 font-bold text-lg rounded-xl transition-all"
-              >
-                {isAdding ? '⏳ Đang thêm...' : '🛒 Thêm vào giỏ hàng'}
-              </button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isAdding || isBuyNow || maxQty <= 0}
+                  className="flex-1 py-4 px-3 bg-white border-2 border-blue-600 hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400 text-blue-600 font-bold text-base sm:text-lg rounded-xl transition-all"
+                >
+                  {isAdding ? 'Đang thêm…' : '🛒 Thêm vào giỏ'}
+                </button>
 
-              <button
-                onClick={handleBuyNow}
-                disabled={isAdding || isBuyNow || maxQty <= 0}
-                className="flex-1 py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold text-lg rounded-xl transition-all"
-              >
-                {isBuyNow ? '⏳ Đang xử lý...' : '⚡ Mua ngay'}
-              </button>
+                <button
+                  onClick={handleBuyNow}
+                  disabled={isAdding || isBuyNow || maxQty <= 0}
+                  className="flex-1 py-4 px-3 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold text-base sm:text-lg rounded-xl transition-all"
+                >
+                  {isBuyNow ? 'Đang xử lý…' : '⚡ Mua ngay'}
+                </button>
+              </div>
 
               {successMsg && (
                 <div className="mt-3 p-3 bg-green-100 text-green-800 text-sm rounded-lg text-center font-semibold">

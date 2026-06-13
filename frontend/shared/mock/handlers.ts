@@ -104,7 +104,7 @@ export const mockHandlers: MockHandler[] = [
         totalAmount: 6_490_000,
         finalAmount: 6_490_000,
         itemsCount: body.itemIds?.length || 1,
-        timeoutAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        timeoutAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         createdAt: now,
       };
       checkoutOrderData[poId] = orderData;

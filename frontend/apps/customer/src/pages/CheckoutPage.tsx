@@ -5,7 +5,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { getStripe } from '@/lib/stripe';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
-import { normalizeCheckoutPaymentData, type CheckoutPaymentData } from './checkoutPaymentData';
+import { formatPaymentCountdown, normalizeCheckoutPaymentData, type CheckoutPaymentData } from './checkoutPaymentData';
 import {
   getClientSecretErrorMessage,
   getClientSecretPanelState,
@@ -177,8 +177,6 @@ export default function CheckoutPage() {
     );
   }
 
-  const minutes = countdown !== null ? Math.floor(countdown / 60) : null;
-  const seconds = countdown !== null ? countdown % 60 : null;
   const checkoutOrders = normalizedOrderData?.orders ?? [];
   const orderCode = normalizedOrderData?.orderCode ?? 'PENDING';
   const totalAmount = normalizedOrderData?.totalAmount ?? 0;
@@ -204,7 +202,7 @@ export default function CheckoutPage() {
           </svg>
           <span className="text-sm text-gray-500">Thanh toán trong:</span>
           <span className={`text-sm font-bold ${countdown < 60 ? 'text-red-600 animate-pulse' : 'text-gray-900'}`}>
-            {minutes}:{seconds!.toString().padStart(2, '0')}
+            {formatPaymentCountdown(countdown)}
           </span>
         </div>
       )}

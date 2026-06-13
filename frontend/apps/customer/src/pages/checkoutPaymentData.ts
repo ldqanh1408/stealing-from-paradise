@@ -6,6 +6,8 @@ export type CheckoutPaymentData = Partial<CheckoutResponse> & {
   message?: string;
 };
 
+export const PAYMENT_DEADLINE_MS = 24 * 60 * 60 * 1000;
+
 function asNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
@@ -15,11 +17,35 @@ function asNumber(value: unknown, fallback = 0): number {
   return fallback;
 }
 
-function timeoutFrom(createdAt?: string): string | undefined {
+export function getPaymentDeadlineAt(createdAt?: string): string | undefined {
   if (!createdAt) return undefined;
   const created = new Date(createdAt).getTime();
   if (!Number.isFinite(created)) return undefined;
-  return new Date(created + 15 * 60 * 1000).toISOString();
+  return new Date(created + PAYMENT_DEADLINE_MS).toISOString();
+}
+
+export function getPaymentRemainingSeconds(createdAt?: string, nowMs = Date.now()): number | null {
+  const deadlineAt = getPaymentDeadlineAt(createdAt);
+  if (!deadlineAt) return null;
+  const deadlineMs = new Date(deadlineAt).getTime();
+  if (!Number.isFinite(deadlineMs)) return null;
+  return Math.max(0, Math.ceil((deadlineMs - nowMs) / 1000));
+}
+
+export function formatPaymentCountdown(seconds: number | null | undefined): string {
+  if (seconds == null) return 'Đang đồng bộ';
+  const remaining = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(remaining / 3600);
+  const minutes = Math.floor((remaining % 3600) / 60);
+  const secs = remaining % 60;
+
+  if (hours > 0) {
+    return `${hours} giờ ${minutes.toString().padStart(2, '0')} phút`;
+  }
+  if (minutes > 0) {
+    return `${minutes} phút ${secs.toString().padStart(2, '0')} giây`;
+  }
+  return `${secs} giây`;
 }
 
 function parentOrders(parentOrder?: ParentOrderDetail | null): CheckoutSubOrder[] {
@@ -71,7 +97,7 @@ export function buildCheckoutPaymentData(
       ?? preview?.totalItems
       ?? 0,
     paymentStatus: 'PENDING',
-    timeoutAt: timeoutFrom(createdAt),
+    timeoutAt: getPaymentDeadlineAt(createdAt),
     createdAt,
     message: submit.message,
   };
@@ -98,7 +124,7 @@ export function normalizeCheckoutPaymentData(
     itemsCount: parentOrder?.orders?.reduce((sum, order) => sum + (order.itemCount ?? 0), 0)
       ?? data?.itemsCount
       ?? existingOrders.reduce((sum, order) => sum + (order.itemCount ?? 0), 0),
-    timeoutAt: data?.timeoutAt ?? timeoutFrom(createdAt),
+    timeoutAt: data?.timeoutAt ?? getPaymentDeadlineAt(createdAt),
     createdAt,
   };
 }

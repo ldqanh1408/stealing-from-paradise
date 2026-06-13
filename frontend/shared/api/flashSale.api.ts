@@ -52,12 +52,14 @@ interface BackendItem {
 }
 
 function mapSession(s: BackendSession): FlashSaleSession {
+  // Backend emits "LIVE" for an in-progress session; normalize to "ACTIVE".
+  const status = s.status === 'LIVE' ? 'ACTIVE' : s.status;
   return {
     id: s.sessionId,
     name: s.name,
     startTime: s.startTime,
     endTime: s.endTime,
-    status: s.status as FlashSaleSession['status'],
+    status: status as FlashSaleSession['status'],
     secondsRemaining: s.secondsRemaining,
     isEnded: s.isEnded,
     createdAt: s.createdAt,
