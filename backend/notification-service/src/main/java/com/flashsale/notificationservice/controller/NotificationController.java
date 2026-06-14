@@ -1,5 +1,6 @@
 package com.flashsale.notificationservice.controller;
 
+import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.notificationservice.domain.model.Notification;
 import com.flashsale.notificationservice.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -29,9 +32,11 @@ public class NotificationController {
      * Supports Last-Event-ID for reconnection replay.
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("isAuthenticated()")
     public Flux<ServerSentEvent<Notification>> stream(
-            @RequestHeader("X-User-Id") Long userId,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
+        Long userId = user.getId();
         log.info("SSE stream connected: userId={}, lastEventId={}", userId, lastEventId);
         return notificationService.getNotificationStream(userId, lastEventId)
                 .delayElements(Duration.ofMillis(100))
@@ -50,26 +55,30 @@ public class NotificationController {
      * Paginated notification history. Spec path is /history; legacy / is kept.
      */
     @GetMapping({"", "/history"})
-    public Flux<Notification> getNotifications(@RequestHeader("X-User-Id") Long userId,
+    @PreAuthorize("isAuthenticated()")
+    public Flux<Notification> getNotifications(@AuthenticationPrincipal UserDetailsImpl user,
                                                 @RequestParam(defaultValue = "0") int page,
                                                 @RequestParam(defaultValue = "20") int size) {
-        return notificationService.getNotifications(userId, page, size);
+        return notificationService.getNotifications(user.getId(), page, size);
     }
 
     /**
      * Mark a single notification as read. Spec method is PUT; PATCH kept for back-compat.
      */
     @RequestMapping(value = "/{notifId}/read", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    @PreAuthorize("isAuthenticated()")
     public Mono<Notification> markAsRead(@PathVariable String notifId,
-                                          @RequestHeader("X-User-Id") Long userId) {
-        return notificationService.markAsRead(notifId, userId);
+                                          @AuthenticationPrincipal UserDetailsImpl user) {
+        return notificationService.markAsRead(notifId, user.getId());
     }
 
     /**
      * Mark all notifications as read for the current user. Spec method is PUT.
      */
     @RequestMapping(value = "/read-all", method = {RequestMethod.PUT, RequestMethod.PATCH})
-    public Mono<ResponseEntity<Map<String, Object>>> markAllAsRead(@RequestHeader("X-User-Id") Long userId) {
+    @PreAuthorize("isAuthenticated()")
+    public Mono<ResponseEntity<Map<String, Object>>> markAllAsRead(@AuthenticationPrincipal UserDetailsImpl user) {
+        Long userId = user.getId();
         return notificationService.markAllAsRead(userId)
                 .map(count -> ResponseEntity.ok(Map.of(
                         "success", true,
@@ -82,7 +91,9 @@ public class NotificationController {
      * Get unread notification count.
      */
     @GetMapping("/unread-count")
-    public Mono<ResponseEntity<Map<String, Object>>> getUnreadCount(@RequestHeader("X-User-Id") Long userId) {
+    @PreAuthorize("isAuthenticated()")
+    public Mono<ResponseEntity<Map<String, Object>>> getUnreadCount(@AuthenticationPrincipal UserDetailsImpl user) {
+        Long userId = user.getId();
         return notificationService.getUnreadCount(userId)
                 .map(count -> ResponseEntity.ok(Map.of(
                         "user_id", userId,
