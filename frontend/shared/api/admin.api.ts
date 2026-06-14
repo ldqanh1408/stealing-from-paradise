@@ -53,7 +53,7 @@ export const adminApi = {
     ),
 
   /** List all users */
-  getUsers: (params?: { role?: string; status?: string; page?: number; size?: number }) =>
+  getUsers: (params?: { role?: string; status?: string; search?: string; page?: number; size?: number }) =>
     apiClient.get<ApiResponse<PageResponse<AdminUser>>>('/admin/users', { params }),
 
   /** Lock user account */
