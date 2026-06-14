@@ -13,6 +13,7 @@ import { MOCK_CATEGORIES } from './data/categories';
 import { MOCK_NOTIFICATIONS } from './data/notifications';
 import { MOCK_CHAT_SESSIONS, MOCK_CHAT_SUGGESTIONS, MOCK_CHAT_HISTORY } from './data/chat';
 import { MOCK_WISHLIST } from './data/wishlist';
+import { MOCK_BANNERS } from './data/banners';
 import { checkoutOrderData } from './checkout';
 
 type MockHandler = (config: InternalAxiosRequestConfig) => Promise<any>;
@@ -997,6 +998,37 @@ export const mockHandlers: MockHandler[] = [
     if (url === '/ai/confirm' && method === 'post') {
       await sleep(500);
       return { success: true, data: null, message: 'Action confirmed', timestamp: Date.now() };
+    }
+
+    // ─── Banners (admin) ───────────────────────────────────────────────────────
+    if (url === '/admin/banners' && method === 'get') {
+      await sleep(200);
+      return { success: true, data: [...MOCK_BANNERS], timestamp: Date.now() };
+    }
+    if (url === '/admin/banners' && method === 'post') {
+      await sleep(250);
+      const body = JSON.parse(data || '{}');
+      const created = { ...body, id: `bn-${Date.now()}`, active: body.active ?? true };
+      MOCK_BANNERS.push(created);
+      return { success: true, data: created, message: 'Đã tạo banner', timestamp: Date.now() };
+    }
+    if (url === '/admin/banners/presigned-url' && method === 'get') {
+      await sleep(150);
+      return { success: true, data: { uploadUrl: 'https://placehold.co/1200x400/16a34a/FFF?text=Anh+Vua+Upload' }, timestamp: Date.now() };
+    }
+    const bannerMatch = url?.match(/^\/admin\/banners\/([\w-]+)$/);
+    if (bannerMatch && method === 'put') {
+      await sleep(200);
+      const idx = MOCK_BANNERS.findIndex((b) => b.id === bannerMatch[1]);
+      const body = JSON.parse(data || '{}');
+      if (idx >= 0) MOCK_BANNERS[idx] = { ...MOCK_BANNERS[idx], ...body };
+      return { success: true, data: MOCK_BANNERS[idx], message: 'Đã cập nhật banner', timestamp: Date.now() };
+    }
+    if (bannerMatch && method === 'delete') {
+      await sleep(200);
+      const idx = MOCK_BANNERS.findIndex((b) => b.id === bannerMatch[1]);
+      if (idx >= 0) MOCK_BANNERS.splice(idx, 1);
+      return { success: true, data: null, message: 'Đã xoá banner', timestamp: Date.now() };
     }
 
     return null;
