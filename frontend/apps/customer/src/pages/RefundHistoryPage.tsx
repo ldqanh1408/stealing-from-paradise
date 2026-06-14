@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { refundApi, type RefundResponse } from '@shared/api/refund.api';
+import { Skeleton } from '@shared/components/ui';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -92,9 +93,17 @@ export default function RefundHistoryPage() {
       </div>
 
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>
-          Đang tải lịch sử hoàn tiền...
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </div>
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-3 w-1/4" />
+            </div>
+          ))}
         </div>
       )}
 

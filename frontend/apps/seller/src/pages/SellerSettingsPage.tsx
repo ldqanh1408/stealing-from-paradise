@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi } from '@shared/api/user.api';
+import { Spinner } from '@shared/components/ui';
 
 function SellerProfileCard({ profile }: {
   profile: {
@@ -128,7 +129,7 @@ export default function SellerSettingsPage() {
 
       {isLoading && (
         <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>Đang tải...
+          <Spinner className="w-8 h-8 text-blue-600 inline-block" /><p className="mt-3 text-sm">Đang tải...</p>
         </div>
       )}
 
