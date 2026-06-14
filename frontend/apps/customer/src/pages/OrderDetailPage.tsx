@@ -700,9 +700,9 @@ export default function OrderDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center text-gray-400">
-        <div className="text-4xl mb-3">⏳</div>
-        Đang tải chi tiết đơn hàng...
+      <div className="max-w-4xl mx-auto px-4 py-24 flex flex-col items-center text-gray-400">
+        <Spinner className="w-8 h-8 text-blue-600" />
+        <p className="mt-3 text-sm">Đang tải chi tiết đơn hàng...</p>
       </div>
     );
   }

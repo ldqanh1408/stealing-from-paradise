@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '@shared/store/cartStore';
 import type { CartItem } from '@shared/api/cart.api';
+import { Skeleton } from '@shared/components/ui';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -99,8 +100,18 @@ export default function CartPage() {
 
   if (isLoading && !cart) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <p className="text-gray-500">Đang tải giỏ hàng...</p>
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-3">
+        <Skeleton className="h-7 w-40 mb-4" />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 p-4">
+            <Skeleton className="h-16 w-16 rounded-xl" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+            <Skeleton className="h-5 w-20" />
+          </div>
+        ))}
       </div>
     );
   }
