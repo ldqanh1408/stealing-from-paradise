@@ -106,4 +106,68 @@ export const MOCK_PARENT_ORDERS = [
     createdAt: '2025-06-03T15:00:00Z',
     updatedAt: '2025-06-05T10:00:00Z',
   },
+  // ─── parentOrderId=11: PAID (Điện Máy Xanh — Trần Thị B) ──────────
+  {
+    parentOrderId: 11,
+    orderCode: 'PO-20250611-0011',
+    status: 'PAID',
+    totalAmt: 7_780_000,
+    finalAmt: 7_780_000,
+    shippingAddress: {
+      fullAddress: '78 Đường Hai Bà Trưng, Quận 3, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 3,
+    },
+    orders: [MOCK_ORDERS[7]],
+    createdAt: '2025-06-11T08:00:00Z',
+    updatedAt: '2025-06-11T08:05:00Z',
+  },
+  // ─── parentOrderId=12: SHIPPING (Điện Máy Xanh — Lê Minh C) ─────
+  {
+    parentOrderId: 12,
+    orderCode: 'PO-20250609-0012',
+    status: 'SHIPPING',
+    totalAmt: 1_290_000,
+    finalAmt: 1_290_000,
+    shippingAddress: {
+      fullAddress: '15 Đường Cái Khế, Quận Ninh Kiều, TP. Cần Thơ',
+      provinceId: 3,
+      districtId: 10,
+    },
+    orders: [MOCK_ORDERS[8]],
+    createdAt: '2025-06-09T13:00:00Z',
+    updatedAt: '2025-06-10T10:00:00Z',
+  },
+  // ─── parentOrderId=13: CANCELLED (Nhà Sách Phương Nam — Phạm Hoàng D)
+  {
+    parentOrderId: 13,
+    orderCode: 'PO-20250607-0013',
+    status: 'CANCELLED',
+    totalAmt: 490_000,
+    finalAmt: 490_000,
+    shippingAddress: {
+      fullAddress: '88 Đường Lý Thường Kiệt, Quận 5, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 5,
+    },
+    orders: [MOCK_ORDERS[9]],
+    createdAt: '2025-06-07T10:00:00Z',
+    updatedAt: '2025-06-07T11:30:00Z',
+  },
+  // ─── parentOrderId=14: REFUNDED (Nhà Xinh — Võ Đình E) ──────────
+  {
+    parentOrderId: 14,
+    orderCode: 'PO-20250601-0014',
+    status: 'REFUNDED',
+    totalAmt: 890_000,
+    finalAmt: 890_000,
+    shippingAddress: {
+      fullAddress: '200 Đường 3/2, Quận 10, TP. Hồ Chí Minh',
+      provinceId: 1,
+      districtId: 10,
+    },
+    orders: [MOCK_ORDERS[10]],
+    createdAt: '2025-06-01T11:00:00Z',
+    updatedAt: '2025-06-04T15:00:00Z',
+  },
 ];
