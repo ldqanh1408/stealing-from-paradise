@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
@@ -63,11 +63,14 @@ export default function ProductListPage() {
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
   const [page, setPage] = useState(0);
 
   // Sync with searches submitted from the global header (?q=...).
   useEffect(() => {
-    setSearchQuery(searchParams.get('q') ?? '');
+    const q = searchParams.get('q') ?? '';
+    setSearchQuery(q);
+    setSearchInput(q);
     setPage(0);
   }, [searchParams]);
   const [sort, setSort] = useState('');
@@ -75,6 +78,53 @@ export default function ProductListPage() {
   const [stockFilter, setStockFilter] = useState<'in_stock' | 'all'>('in_stock');
   const [flashOnly, setFlashOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  // ─── Search suggest (debounced) ────────────────────────────────────────
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestContainerRef = useRef<HTMLDivElement>(null);
+
+  // Debounce: after user stops typing 500ms, fetch suggestions
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!searchInput || searchInput.trim().length === 0) {
+      setSuggestions([]);
+      setShowSuggest(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const items = await productApi.getSuggestions(searchInput.trim(), 5);
+        setSuggestions(items);
+        setShowSuggest(items.length > 0);
+        setHighlightIndex(-1);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 500);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchInput]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestContainerRef.current && !suggestContainerRef.current.contains(e.target as Node)) {
+        setShowSuggest(false);
+      }
+    };
+    if (showSuggest) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSuggest]);
+
+  const selectSuggestion = (text: string) => {
+    setSearchInput(text);
+    setSearchQuery(text);
+    setSuggestions([]);
+    setShowSuggest(false);
+    setPage(0);
+  };
 
   const selectedPriceRange = PRICE_RANGES[priceRange];
 
@@ -148,6 +198,8 @@ export default function ProductListPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setSearchQuery(searchInput);
+    setSuggestions([]); // dismiss dropdown
     setPage(0);
   };
 
@@ -167,20 +219,57 @@ export default function ProductListPage() {
           <p className="text-blue-200 text-sm font-medium uppercase tracking-widest mb-2">Khám phá ngay</p>
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">Hàng ngàn sản phẩm</h1>
           <p className="text-blue-100 text-lg mb-8">Giá tốt nhất, giao hàng nhanh nhất toàn quốc</p>
-          <form onSubmit={handleSearch} className="max-w-lg mx-auto flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm sản phẩm..."
-              className="flex-1 px-5 py-3 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-            />
-            <button
-              type="submit"
-              className="px-6 py-3 bg-white text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-colors text-sm"
-            >
-              Tìm kiếm
-            </button>
+          <form onSubmit={handleSearch} className="max-w-lg mx-auto">
+            <div className="relative" ref={suggestContainerRef}>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  onFocus={() => { if (suggestions.length > 0) setShowSuggest(true); }}
+                  onKeyDown={e => {
+                    if (!showSuggest || suggestions.length === 0) return;
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIndex(i => Math.max(i - 1, -1)); }
+                    else if (e.key === 'Enter') {
+                      if (highlightIndex >= 0) { e.preventDefault(); selectSuggestion(suggestions[highlightIndex]); }
+                    }
+                    else if (e.key === 'Escape') { setShowSuggest(false); }
+                  }}
+                  placeholder="Tìm kiếm sản phẩm..."
+                  className="flex-1 px-5 py-3 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-white text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-colors text-sm"
+                >
+                  Tìm kiếm
+                </button>
+              </div>
+              {/* Suggest dropdown */}
+              {showSuggest && suggestions.length > 0 && (
+                <div className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => selectSuggestion(s)}
+                      onMouseEnter={() => setHighlightIndex(i)}
+                      className={`w-full text-left px-5 py-3 text-sm transition-colors ${
+                        i === highlightIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        {s}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </form>
         </div>
       </div>

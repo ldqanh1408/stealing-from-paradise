@@ -524,6 +524,23 @@ export const mockHandlers: MockHandler[] = [
       };
     }
 
+    if (url === '/search/products/suggest' && method === 'get') {
+      await sleep(100 + Math.random() * 80);
+      const query = (params?.q || '').toLowerCase();
+      const size = Math.min(Number(params?.size) || 5, 10);
+      const names = query
+        ? MOCK_PRODUCTS
+            .map(p => p.productName)
+            .filter(name => name.toLowerCase().includes(query))
+            .slice(0, size)
+        : MOCK_PRODUCTS.slice(0, size).map(p => p.productName);
+      return {
+        success: true,
+        data: { suggestions: names },
+        timestamp: Date.now(),
+      };
+    }
+
     if ((url === '/products' || url === '/search') && method === 'get') {
       await sleep(300 + Math.random() * 200);
       const search = params?.q || params?.search || '';

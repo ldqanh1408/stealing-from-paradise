@@ -45,6 +45,9 @@ public class RefundReplyService {
     @Value("${minio.url:http://localhost:9000}")
     private String minioUrl;
 
+    @Value("${minio.public-url:http://localhost:9000}")
+    private String minioPublicUrl;
+
     public void onOrderRefundsRequest(String message) {
         String correlationId = null;
         try {
@@ -160,7 +163,7 @@ public class RefundReplyService {
             String ext = dot > 0 ? fileName.substring(dot) : ".jpg";
             String objectKey = "refunds/" + orderId + "/" + UUID.randomUUID() + ext;
 
-            String presignedUrl = minioUrl + "/refund-evidences/" + objectKey 
+            String presignedUrl = minioPublicUrl + "/refund-evidences/" + objectKey
                     + "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
                     + "&X-Amz-Credential=minioadmin%2F" + java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) 
                     + "%2Fus-east-1%2Fs3%2Faws4_request"

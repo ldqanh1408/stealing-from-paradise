@@ -360,6 +360,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_REFUND}
+      - MINIO_URL=${MINIO_URL}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
     depends_on:
       postgres: { condition: service_started }
       kafka: { condition: service_started }
@@ -453,6 +455,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - KAFKA_SERVER=${KAFKA_SERVER}
       - MINIO_URL=${MINIO_URL}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - REDIS_HOST=${REDIS_HOST}

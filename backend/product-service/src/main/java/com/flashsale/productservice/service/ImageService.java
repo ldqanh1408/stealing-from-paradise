@@ -40,6 +40,9 @@ public class ImageService {
     @Value("${minio.url}")
     private String minioUrl;
 
+    @Value("${minio.public-url:http://localhost:9000}")
+    private String minioPublicUrl;
+
     @Value("${minio.bucket}")
     private String bucket;
 
@@ -88,12 +91,14 @@ public class ImageService {
                             .expiry(PRESIGNED_URL_TTL_MINUTES * 60)
                             .build()
             );
+            // Replace internal Docker hostname with browser-accessible URL
+            String publicUploadUrl = uploadUrl.replace(minioUrl, minioPublicUrl);
 
-            String objectUrl = String.format("%s/%s/%s", minioUrl, bucket, objectName);
+            String objectUrl = String.format("%s/%s/%s", minioPublicUrl, bucket, objectName);
 
             ImageUploadResponse response = ImageUploadResponse.builder()
-                    .uploadUrl(uploadUrl)
-                    .presignedUrl(uploadUrl)
+                    .uploadUrl(publicUploadUrl)
+                    .presignedUrl(publicUploadUrl)
                     .objectUrl(objectUrl)
                     .imageId(imageId)
                     .expiresAt(LocalDateTime.now().plusMinutes(PRESIGNED_URL_TTL_MINUTES))

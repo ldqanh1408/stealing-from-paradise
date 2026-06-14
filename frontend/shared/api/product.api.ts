@@ -225,6 +225,12 @@ export const productApi = {
       } as ApiResponse<ProductDetail>,
     })),
 
+  /** Get search suggestions (autocomplete) — debounced while typing */
+  getSuggestions: (query: string, size: number = 5) =>
+    apiClient.get<ApiResponse<{ suggestions: string[] }>>('/search/products/suggest', {
+      params: { q: query, size },
+    }).then(res => res.data.data?.suggestions ?? []),
+
   /** Search products (delegates to search service) */
   searchProducts: (query: string, params?: {
     category?: string;
