@@ -5,6 +5,8 @@ import { useCartStore } from '@shared/store/cartStore';
 import { cartApi, type CartChangeDetail, type CheckoutPreviewResponse } from '@shared/api/cart.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
 import { orderApi, type ParentOrderDetail } from '@shared/api/order.api';
+import { Skeleton } from '@shared/components/ui';
+import CheckoutStepper from '@/components/CheckoutStepper';
 import { buildCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -592,6 +594,8 @@ export default function OrderReviewPage() {
   return (
     <div className="bg-gray-50 min-h-screen py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <CheckoutStepper currentStep="review" className="mb-6" />
+
         {/* Cart change warning banner (shown on page load if cart has changes) */}
         {cartChanges.length > 0 && step === 'address' && (
           <CartChangeBanner
@@ -658,9 +662,17 @@ export default function OrderReviewPage() {
             </div>
 
             {addrsLoading && (
-              <div className="text-center py-12 text-gray-400">
-                <div className="text-3xl mb-2">⏳</div>
-                Đang tải địa chỉ...
+              <div className="space-y-3 mb-8">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="flex items-start p-4 border-2 border-gray-100 rounded-xl bg-white">
+                    <Skeleton className="w-5 h-5 mt-1 rounded-full shrink-0" />
+                    <div className="ml-4 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                    <Skeleton className="h-8 w-20 rounded-lg shrink-0" />
+                  </div>
+                ))}
               </div>
             )}
 

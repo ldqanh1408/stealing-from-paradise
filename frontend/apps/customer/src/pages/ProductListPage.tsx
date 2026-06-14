@@ -5,6 +5,7 @@ import { useCartStore } from '@shared/store/cartStore';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
 import { categoryApi } from '@shared/api/category.api';
 import { flashSaleApi } from '@shared/api/flashSale.api';
+import { notify } from '@shared/lib/toast';
 import ProductCard from '@/components/ProductCard';
 
 // The "All" chip is always first. Real categories are loaded from the backend.
@@ -141,7 +142,7 @@ export default function ProductListPage() {
       await addToCart(variants[0].variantId, 1, undefined);
       navigate('/cart');
     } catch (err: any) {
-      console.error('Add to cart failed:', err);
+      notify.error(err?.response?.data?.message || 'Không thể thêm sản phẩm vào giỏ hàng');
     }
   };
 

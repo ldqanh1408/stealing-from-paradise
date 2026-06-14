@@ -5,6 +5,7 @@ import CategoryFormModal from '@/components/Categories/CategoryFormModal';
 import CategoriesTable from '@/components/Categories/CategoriesTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
 import { notify } from '@shared/lib/toast';
+import { Skeleton } from '@shared/components/ui';
 
 // Helper to slugify Vietnamese text
 const slugify = (text: string) => {
@@ -185,9 +186,15 @@ export default function CategoryManagementPage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl animate-bounce mb-3">⏳</div>
-          Đang tải danh sách danh mục...
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-[1.5fr_1fr_1fr_120px] gap-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+          ))}
         </div>
       )}
 

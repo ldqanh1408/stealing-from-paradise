@@ -129,7 +129,7 @@ export const sellerApi = {
   /** Get presigned URL for image upload */
   getPresignedUrl: (productId: string, fileName: string, contentType: string) =>
     apiClient.get<ApiResponse<PresignedUrlResponse>>(`/products/${productId}/presigned-url`, {
-      params: { fileName, contentType },
+      params: { filename: fileName, contentType },
     }),
 
   /** Get seller earnings summary with all transfer records */

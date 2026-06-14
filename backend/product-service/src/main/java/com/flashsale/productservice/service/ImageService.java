@@ -37,6 +37,9 @@ public class ImageService {
     private final ProductRepository productRepository;
     private final MinioClient minioClient;
 
+    @Value("${minio.url}")
+    private String minioUrl;
+
     @Value("${minio.bucket}")
     private String bucket;
 
@@ -86,10 +89,15 @@ public class ImageService {
                             .build()
             );
 
+            String objectUrl = String.format("%s/%s/%s", minioUrl, bucket, objectName);
+
             ImageUploadResponse response = ImageUploadResponse.builder()
                     .uploadUrl(uploadUrl)
+                    .presignedUrl(uploadUrl)
+                    .objectUrl(objectUrl)
                     .imageId(imageId)
                     .expiresAt(LocalDateTime.now().plusMinutes(PRESIGNED_URL_TTL_MINUTES))
+                    .expiresIn(PRESIGNED_URL_TTL_MINUTES * 60)
                     .build();
 
             return ApiResponse.success(response);

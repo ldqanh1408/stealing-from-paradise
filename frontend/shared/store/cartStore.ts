@@ -17,6 +17,100 @@ interface CartState {
   getItemCount: () => number;
 }
 
+const emptyCart = (): Cart => ({ sellers: [], totalItems: 0, subtotal: 0 });
+
+const getLinePrice = (item: CartItem) => item.flashPrice ?? item.unitPrice ?? 0;
+
+const matchesCartItem = (item: CartItem, itemId: string) =>
+  item.cartItemId === itemId || item.variantId === itemId || item.skuCode === itemId;
+
+const recalculateCart = (cart: Cart): Cart => {
+  const sellers = cart.sellers
+    .map((seller) => {
+      const items = seller.items.map((item) => ({
+        ...item,
+        subtotal: getLinePrice(item) * item.quantity,
+      }));
+      return {
+        ...seller,
+        items,
+        sellerSubtotal: items.reduce((sum, item) => sum + (item.subtotal ?? 0), 0),
+      };
+    })
+    .filter((seller) => seller.items.length > 0);
+
+  return {
+    ...cart,
+    sellers,
+    totalItems: sellers.reduce(
+      (sum, seller) => sum + seller.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+      0,
+    ),
+    subtotal: sellers.reduce((sum, seller) => sum + (seller.sellerSubtotal ?? 0), 0),
+  };
+};
+
+const updateCartQuantity = (cart: Cart, itemId: string, quantity: number): Cart =>
+  recalculateCart({
+    ...cart,
+    sellers: cart.sellers.map((seller) => ({
+      ...seller,
+      items: seller.items.map((item) =>
+        matchesCartItem(item, itemId) ? { ...item, quantity } : item,
+      ),
+    })),
+  });
+
+const removeCartItem = (cart: Cart, itemId: string): Cart =>
+  recalculateCart({
+    ...cart,
+    sellers: cart.sellers.map((seller) => ({
+      ...seller,
+      items: seller.items.filter((item) => !matchesCartItem(item, itemId)),
+    })),
+  });
+
+const addCartItem = (cart: Cart, variantId: string, quantity: number, fsItemId?: number): Cart => {
+  let found = false;
+  const sellers = cart.sellers.map((seller) => ({
+    ...seller,
+    items: seller.items.map((item) => {
+      if (!matchesCartItem(item, variantId)) return item;
+      found = true;
+      return { ...item, quantity: item.quantity + quantity };
+    }),
+  }));
+
+  if (!found) {
+    const optimisticItem: CartItem = {
+      cartItemId: `optimistic:${variantId}`,
+      variantId,
+      skuCode: variantId,
+      productName: 'Đang đồng bộ giỏ hàng',
+      variantName: 'Sản phẩm mới',
+      unitPrice: 0,
+      quantity,
+      stockAvailable: quantity,
+      isFlash: !!fsItemId,
+      fsItemId: fsItemId ?? null,
+      subtotal: 0,
+      addedAt: new Date().toISOString(),
+    };
+    const firstSeller = sellers[0];
+    if (firstSeller) {
+      sellers[0] = { ...firstSeller, items: [...firstSeller.items, optimisticItem] };
+    } else {
+      sellers.push({
+        sellerId: 0,
+        sellerName: 'Đang cập nhật',
+        items: [optimisticItem],
+      });
+    }
+  }
+
+  return recalculateCart({ ...cart, sellers });
+};
+
 export const useCartStore = create<CartState>((set, get) => ({
   cart: null,
   isLoading: false,
@@ -36,12 +130,18 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   addToCart: async (variantId, quantity, fsItemId) => {
-    set({ isLoading: true, error: null });
+    const previousCart = get().cart;
+    set({
+      cart: previousCart ? addCartItem(previousCart, variantId, quantity, fsItemId) : previousCart,
+      isLoading: true,
+      error: null,
+    });
     try {
       await cartApi.addItem(variantId, quantity, fsItemId);
       await get().fetchCart();
     } catch (err: any) {
       set({
+        cart: previousCart,
         error: err?.response?.data?.message || 'Failed to add item to cart',
         isLoading: false,
       });
@@ -50,12 +150,18 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   updateQuantity: async (itemId, quantity) => {
-    set({ isLoading: true, error: null });
+    const previousCart = get().cart;
+    set({
+      cart: previousCart ? updateCartQuantity(previousCart, itemId, quantity) : previousCart,
+      isLoading: true,
+      error: null,
+    });
     try {
       await cartApi.updateItemQuantity(itemId, quantity);
       await get().fetchCart();
     } catch (err: any) {
       set({
+        cart: previousCart,
         error: err?.response?.data?.message || 'Failed to update quantity',
         isLoading: false,
       });
@@ -64,12 +170,18 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   removeFromCart: async (itemId) => {
-    set({ isLoading: true, error: null });
+    const previousCart = get().cart;
+    set({
+      cart: previousCart ? removeCartItem(previousCart, itemId) : previousCart,
+      isLoading: true,
+      error: null,
+    });
     try {
       await cartApi.removeItem(itemId);
       await get().fetchCart();
     } catch (err: any) {
       set({
+        cart: previousCart,
         error: err?.response?.data?.message || 'Failed to remove item',
         isLoading: false,
       });
@@ -78,12 +190,14 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   clearCart: async () => {
-    set({ isLoading: true, error: null });
+    const previousCart = get().cart;
+    set({ cart: emptyCart(), isLoading: true, error: null });
     try {
       await cartApi.clearCart();
-      set({ cart: { sellers: [], totalItems: 0, subtotal: 0 }, isLoading: false });
+      set({ cart: emptyCart(), isLoading: false });
     } catch (err: any) {
       set({
+        cart: previousCart,
         error: err?.response?.data?.message || 'Failed to clear cart',
         isLoading: false,
       });

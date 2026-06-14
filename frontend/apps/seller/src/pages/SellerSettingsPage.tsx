@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi } from '@shared/api/user.api';
-import { Spinner } from '@shared/components/ui';
+import { Skeleton } from '@shared/components/ui';
 
 function SellerProfileCard({ profile }: {
   profile: {
@@ -128,8 +128,22 @@ export default function SellerSettingsPage() {
       </div>
 
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <Spinner className="w-8 h-8 text-blue-600 inline-block" /><p className="mt-3 text-sm">Đang tải...</p>
+        <div className="space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="flex items-start gap-5">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-56" />
+                <Skeleton className="h-4 w-44" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-10 w-36 rounded-xl" />
+          </div>
         </div>
       )}
 

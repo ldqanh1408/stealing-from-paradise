@@ -6,6 +6,7 @@ import ProductModerationTabs from '@/components/ProductModeration/ProductModerat
 import ProductModerationList from '@/components/ProductModeration/ProductModerationList';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
 import Pagination from '@shared/components/Pagination';
+import { EmptyState, Skeleton } from '@shared/components/ui';
 
 const getErrMsg = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message
@@ -82,9 +83,24 @@ export default function ProductModerationPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>
-          Đang tải...
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-start gap-4">
+              <Skeleton className="h-16 w-16 rounded-xl shrink-0" />
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+                <Skeleton className="h-4 w-64" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+              <div className="hidden sm:block space-y-2">
+                <Skeleton className="h-9 w-24 rounded-xl" />
+                <Skeleton className="h-9 w-24 rounded-xl" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -97,15 +113,16 @@ export default function ProductModerationPage() {
 
       {/* Empty */}
       {!isLoading && !error && pendingProducts.length === 0 && (
-        <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 py-20 text-center">
-          <span className="text-5xl block mb-4">✅</span>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {tab === 'PENDING' ? 'Không có sản phẩm nào chờ duyệt' : 'Không có sản phẩm nào'}
-          </h3>
-          <p className="text-sm text-gray-500">
-            {tab === 'PENDING' ? 'Tất cả sản phẩm đã được kiểm duyệt.' : 'Không có sản phẩm nào trong danh mục này.'}
-          </p>
-        </div>
+        <EmptyState
+          iconKey="checkBadge"
+          title={tab === 'PENDING' ? 'Không có sản phẩm nào chờ duyệt' : 'Không có sản phẩm nào'}
+          description={
+            tab === 'PENDING'
+              ? 'Tất cả sản phẩm đã được kiểm duyệt.'
+              : 'Không có sản phẩm nào trong danh mục này.'
+          }
+          className="bg-white rounded-2xl border border-gray-100"
+        />
       )}
 
       {/* List */}

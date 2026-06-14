@@ -78,7 +78,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       await chatApi.closeSession(currentSessionId);
       get().clearChat();
     } catch (err: any) {
-      console.error('Failed to close chat session:', err);
+      set({ error: err?.response?.data?.message || 'Không thể đóng phiên chat AI' });
     }
   },
 
@@ -106,8 +106,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const { data } = await chatApi.getSuggestions();
       set({ suggestions: data?.data || [] });
-    } catch (err) {
-      console.error('Failed to fetch chat suggestions:', err);
+    } catch (err: any) {
+      set({ error: err?.response?.data?.message || 'Không thể tải gợi ý chat AI' });
     }
   },
 

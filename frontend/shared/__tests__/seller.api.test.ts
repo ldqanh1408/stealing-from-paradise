@@ -125,10 +125,10 @@ describe('sellerApi — inventory', () => {
 });
 
 describe('sellerApi — images & earnings', () => {
-  it('getPresignedUrl → GET /products/{id}/presigned-url with fileName & contentType params', async () => {
+  it('getPresignedUrl → GET /products/{id}/presigned-url with filename & contentType params', async () => {
     await sellerApi.getPresignedUrl('p1', 'a.png', 'image/png');
     expect(client.get).toHaveBeenCalledWith('/products/p1/presigned-url', {
-      params: { fileName: 'a.png', contentType: 'image/png' },
+      params: { filename: 'a.png', contentType: 'image/png' },
     });
   });
 

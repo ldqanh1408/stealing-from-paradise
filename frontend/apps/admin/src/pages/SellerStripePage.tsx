@@ -4,6 +4,7 @@ import { adminApi } from '@shared/api/admin.api';
 import StripeStatsCards from '@/components/SellerStripe/StripeStatsCards';
 import StripeFilters from '@/components/SellerStripe/StripeFilters';
 import StripeAccountsTable from '@/components/SellerStripe/StripeAccountsTable';
+import { Skeleton } from '@shared/components/ui';
 
 const needsStripeAction = (acc: {
   onboardingStatus: string;
@@ -97,9 +98,18 @@ export default function SellerStripePage() {
 
       {/* Main Content Table */}
       {isLoading ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
-          <div className="inline-block animate-spin text-2xl mr-2">⏳</div>
-          <span className="text-gray-500 text-sm font-medium">Đang tải dữ liệu onboarding...</span>
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1fr_120px_120px_100px] gap-4">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : error ? (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center shadow-sm">

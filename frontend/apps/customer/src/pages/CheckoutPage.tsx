@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import CheckoutStepper from '@/components/CheckoutStepper';
 import { getStripe } from '@/lib/stripe';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
+import { Skeleton } from '@shared/components/ui';
 import { formatPaymentCountdown, normalizeCheckoutPaymentData, type CheckoutPaymentData } from './checkoutPaymentData';
 import {
   getClientSecretErrorMessage,
@@ -171,8 +173,13 @@ export default function CheckoutPage() {
 
   if (!orderData) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <p className="text-gray-500">Đang chuyển hướng...</p>
+      <div className="max-w-2xl mx-auto px-4 py-20">
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-3">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-11 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -192,6 +199,8 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <CheckoutStepper currentStep="payment" className="mb-6" />
+
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận thanh toán</h1>
       <p className="text-sm text-gray-500 mb-6">Mã đơn: <span className="font-mono font-medium">{orderCode}</span></p>
 
@@ -234,19 +243,17 @@ export default function CheckoutPage() {
           {clientSecretPanelState === 'initializing' && (
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-3">
-                <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <h2 className="font-bold text-gray-900">Đang khởi tạo cổng thanh toán...</h2>
+                <Skeleton className="h-5 w-5 rounded-full" />
+                <Skeleton className="h-5 w-64" />
               </div>
-              <p className="text-sm text-gray-500">
-                Đơn hàng đã được tạo. Hệ thống đang chuẩn bị phiên thanh toán Stripe, vui lòng chờ vài giây.
-              </p>
-              <div className="mt-5 space-y-3 animate-pulse">
-                <div className="h-12 bg-gray-100 rounded-xl" />
-                <div className="h-12 bg-gray-100 rounded-xl" />
-                <div className="h-12 bg-gray-100 rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+              </div>
+              <div className="mt-5 space-y-3">
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <Skeleton className="h-12 w-full rounded-xl" />
               </div>
             </div>
           )}
@@ -274,7 +281,11 @@ export default function CheckoutPage() {
             <h2 className="font-bold text-gray-900 mb-4">📋 Đơn hàng</h2>
             <div className="space-y-3 mb-4 pb-4 border-b border-gray-100">
               {checkoutOrders.length === 0 && (
-                <p className="text-sm text-gray-500">Đang tải thông tin đơn hàng...</p>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-5 w-24" />
+                </div>
               )}
               {checkoutOrders.map(order => (
                 <div key={order.orderId} className="text-sm">

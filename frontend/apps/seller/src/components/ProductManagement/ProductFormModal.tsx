@@ -7,6 +7,7 @@ import VariantModal from './VariantModal';
 import ImageUploader from './ImageUploader';
 import InventoryPanel from './InventoryPanel';
 import { notify } from '@shared/lib/toast';
+import ConfirmDialog from '@shared/components/ConfirmDialog';
 
 type ProductFormTab = 'info' | 'images' | 'variants' | 'inventory';
 
@@ -58,6 +59,7 @@ export default function ProductFormModal({
   });
   const [showVariant, setShowVariant] = useState<SellerVariant | undefined>(undefined);
   const [showVariantForm, setShowVariantForm] = useState(false);
+  const [deletingVariant, setDeletingVariant] = useState<SellerVariant | null>(null);
 
   const mut = useMutation({
     mutationFn: (data: { name: string; description: string; categoryId: string; images?: string[] }) =>
@@ -77,6 +79,21 @@ export default function ProductFormModal({
       }
     },
     onError: (err: any) => setError(err?.response?.data?.message || 'Lưu sản phẩm thất bại'),
+  });
+
+  const deleteVariantMut = useMutation({
+    mutationFn: (variantId: string) => sellerApi.deleteVariant(variantId),
+    onSuccess: () => {
+      if (product) {
+        queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
+        queryClient.invalidateQueries({ queryKey: ['seller-products'] });
+      }
+      setDeletingVariant(null);
+      notify.success('Đã xoá biến thể');
+    },
+    onError: (err: any) => {
+      notify.error(err?.response?.data?.message || 'Xóa biến thể thất bại');
+    },
   });
 
   const handleSaveInfo = () => {
@@ -192,15 +209,12 @@ export default function ProductFormModal({
                       </div>
                       <button onClick={() => { setShowVariant(v); setShowVariantForm(true); }}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0">Sửa</button>
-                      <button onClick={async () => {
-                        if (!confirm(`Xóa biến thể "${v.variantName}"?`)) return;
-                        try {
-                          await sellerApi.deleteVariant(v.variantId);
-                          queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
-                        } catch (err: any) {
-                          notify.error(err?.response?.data?.message || 'Xóa biến thể thất bại');
-                        }
-                      }} className="text-xs text-red-500 hover:text-red-600 font-medium shrink-0">Xoá</button>
+                      <button
+                        onClick={() => setDeletingVariant(v)}
+                        className="text-xs text-red-500 hover:text-red-600 font-medium shrink-0"
+                      >
+                        Xoá
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -245,6 +259,18 @@ export default function ProductFormModal({
             queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
             queryClient.invalidateQueries({ queryKey: ['seller-products'] });
           }}
+        />
+      )}
+
+      {deletingVariant && (
+        <ConfirmDialog
+          title="Xóa biến thể?"
+          message={`Biến thể "${deletingVariant.variantName}" sẽ bị xóa khỏi sản phẩm.`}
+          confirmLabel="Xóa"
+          danger
+          loading={deleteVariantMut.isPending}
+          onConfirm={() => deleteVariantMut.mutate(deletingVariant.variantId)}
+          onCancel={() => setDeletingVariant(null)}
         />
       )}
     </div>

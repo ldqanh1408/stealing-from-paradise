@@ -7,6 +7,7 @@ import RefundDetailDrawer from '@/components/Refunds/RefundDetailDrawer';
 import RefundFilters, { type RefundStatus, type RefundType } from '@/components/Refunds/RefundFilters';
 import RefundsTable from '@/components/Refunds/RefundsTable';
 import Pagination from '@shared/components/Pagination';
+import { EmptyState, Skeleton } from '@shared/components/ui';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function RefundsPage() {
@@ -62,9 +63,27 @@ export default function RefundsPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>
-          Đang tải...
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+          <div className="grid grid-cols-[90px_100px_90px_120px_100px_1.5fr_110px_120px_110px] gap-4 border-b border-gray-100 bg-gray-50 px-4 py-3.5">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <Skeleton key={i} className="h-3 w-full" />
+            ))}
+          </div>
+          <div className="divide-y divide-gray-50">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-[90px_100px_90px_120px_100px_1.5fr_110px_120px_110px] items-center gap-4 px-4 py-4">
+                <Skeleton className="h-4 w-14" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -77,10 +96,12 @@ export default function RefundsPage() {
 
       {/* Empty */}
       {!isLoading && !error && refunds.length === 0 && (
-        <div className="text-center py-20 text-gray-400">
-          <span className="text-4xl block mb-3">💸</span>
-          Không có yêu cầu hoàn tiền nào
-        </div>
+        <EmptyState
+          iconKey="refund"
+          title="Không có yêu cầu hoàn tiền nào"
+          description="Các yêu cầu hoàn tiền mới sẽ xuất hiện ở đây để admin xử lý."
+          className="bg-white rounded-2xl border border-gray-100"
+        />
       )}
 
       {/* Table */}

@@ -6,6 +6,7 @@ import FlashSaleSessionForm from '@/components/FlashSale/FlashSaleSessionForm';
 import FlashSaleSessionsTable from '@/components/FlashSale/FlashSaleSessionsTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
 import { notify } from '@shared/lib/toast';
+import { Skeleton } from '@shared/components/ui';
 
 function toLocalDatetime(iso?: string) {
   if (!iso) return '';
@@ -159,9 +160,15 @@ export default function FlashSaleConfigPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>
-          Đang tải...
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-[1.5fr_1fr_1fr_120px] gap-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+          ))}
         </div>
       )}
 

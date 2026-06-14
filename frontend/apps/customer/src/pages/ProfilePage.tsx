@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userApi, type UserProfileResponse } from '@shared/api/user.api';
-import { Spinner } from '@shared/components/ui';
+import { Skeleton, Spinner } from '@shared/components/ui';
 
 function StatusBadge({ status }: { status: string }) {
   const colors =
@@ -208,8 +208,22 @@ export default function ProfilePage() {
       </div>
 
       {isLoading && (
-        <div className="flex flex-col items-center py-20 text-gray-400">
-          <Spinner className="w-8 h-8 text-blue-600" /><p className="mt-3 text-sm">Đang tải...</p>
+        <div className="space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="flex items-center gap-5">
+              <Skeleton className="h-20 w-20 rounded-full" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-56" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+          </div>
         </div>
       )}
       {error && (

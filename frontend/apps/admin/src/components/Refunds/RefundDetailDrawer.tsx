@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { adminRefundApi, type RefundDetailResponse, type RefundResponse } from '@shared/api/refund.api';
-import { Spinner } from '@shared/components/ui';
+import { Skeleton } from '@shared/components/ui';
 import { fmtVnd, fmtDate } from '@shared/utils/format';
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
@@ -75,9 +75,8 @@ export default function RefundDetailDrawer({ refund, onClose }: { refund: Refund
           </div>
 
           {isLoading && (
-            <div className="flex items-center gap-2 rounded-xl bg-blue-50 p-3 text-sm text-blue-700">
-              <Spinner className="w-4 h-4" />
-              Đang tải chi tiết hoàn tiền...
+            <div className="rounded-xl bg-blue-50 p-3">
+              <Skeleton className="h-4 w-2/3" />
             </div>
           )}
 

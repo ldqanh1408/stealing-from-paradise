@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sellerApi, type SellerVariant, type InventoryLogEntry } from '@shared/api/seller.api';
+import { Skeleton } from '@shared/components/ui';
 import { fmtVnd as fmt } from '@shared/utils/format';
 
 export default function InventoryPanel({ productId, variants }: { productId: string; variants: SellerVariant[] }) {
@@ -185,7 +186,11 @@ export default function InventoryPanel({ productId, variants }: { productId: str
             </button>
           </div>
           {logsLoading ? (
-            <p className="text-sm text-gray-400">Đang tải...</p>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
           ) : logsError ? (
             <div className="text-center py-4 text-gray-400 text-sm">
               <p>Tính năng nhật ký tồn kho đang được phát triển.</p>

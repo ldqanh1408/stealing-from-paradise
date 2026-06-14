@@ -147,7 +147,7 @@ export default function ProductDetailPage() {
   const maxQty = selectedVariantData?.stock ?? 0;
 
   return (
-    <div className="bg-gray-50 min-h-screen py-8">
+    <div className="bg-gray-50 min-h-screen pt-8 pb-40 md:py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         {/* Breadcrumb */}
         <div className="mb-8 flex items-center gap-2 text-sm flex-wrap">
@@ -341,6 +341,36 @@ export default function ProductDetailPage() {
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">{product.description}</p>
           </div>
         )}
+      </div>
+
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+        {(successMsg || addError) && (
+          <p className={`mb-2 rounded-lg px-3 py-2 text-center text-xs font-semibold ${
+            successMsg ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
+            {successMsg || addError}
+          </p>
+        )}
+        <div className="mx-auto flex max-w-5xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-gray-500">Tạm tính</p>
+            <p className="truncate text-lg font-bold text-red-600">{fmt(price * quantity)}</p>
+          </div>
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding || isBuyNow || maxQty <= 0}
+            className="rounded-xl border-2 border-blue-600 bg-white px-3 py-3 text-sm font-bold text-blue-600 transition-colors hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400"
+          >
+            {isAdding ? 'Đang thêm...' : 'Thêm vào giỏ'}
+          </button>
+          <button
+            onClick={handleBuyNow}
+            disabled={isAdding || isBuyNow || maxQty <= 0}
+            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400"
+          >
+            {isBuyNow ? 'Đang xử lý...' : 'Mua ngay'}
+          </button>
+        </div>
       </div>
     </div>
   );

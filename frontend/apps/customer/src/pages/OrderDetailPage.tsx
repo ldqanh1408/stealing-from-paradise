@@ -5,7 +5,7 @@ import { orderApi, type Order, type OrderItem } from '@shared/api/order.api';
 import { paymentApi } from '@shared/api/payment.api';
 import { refundApi, type FullRefundCreatedResponse } from '@shared/api/refund.api';
 import { type ApiResponse } from '@shared/types/api';
-import { Spinner } from '@shared/components/ui';
+import { Skeleton, Spinner } from '@shared/components/ui';
 import { notify } from '@shared/lib/toast';
 import { formatPaymentCountdown, getPaymentDeadlineAt, getPaymentRemainingSeconds, normalizeCheckoutPaymentData } from './checkoutPaymentData';
 
@@ -703,9 +703,21 @@ export default function OrderDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-24 flex flex-col items-center text-gray-400">
-        <Spinner className="w-8 h-8 text-blue-600" />
-        <p className="mt-3 text-sm">Đang tải chi tiết đơn hàng...</p>
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-7 w-24 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <Skeleton className="h-5 w-36 mb-4" />
+          <div className="space-y-3">
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }

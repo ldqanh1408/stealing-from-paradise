@@ -5,6 +5,7 @@ import BanUserModal from '@/components/UserManagement/BanUserModal';
 import UserFilters from '@/components/UserManagement/UserFilters';
 import UsersTable from '@/components/UserManagement/UsersTable';
 import Pagination from '@shared/components/Pagination';
+import { EmptyState, Skeleton } from '@shared/components/ui';
 
 export default function UserManagementPage() {
   const queryClient = useQueryClient();
@@ -71,9 +72,28 @@ export default function UserManagementPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>
-          Đang tải...
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+          <div className="grid grid-cols-[80px_1.5fr_2fr_1fr_1fr_1fr_1fr] gap-4 border-b border-gray-100 bg-gray-50 px-5 py-3.5">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Skeleton key={i} className="h-3 w-full" />
+            ))}
+          </div>
+          <div className="divide-y divide-gray-50">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-[80px_1.5fr_2fr_1fr_1fr_1fr_1fr] items-center gap-4 px-5 py-4">
+                <Skeleton className="h-4 w-12" />
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <Skeleton className="h-4 w-44" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -86,10 +106,16 @@ export default function UserManagementPage() {
 
       {/* Empty */}
       {!isLoading && !error && users.length === 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 py-20 text-center text-gray-400">
-          <span className="text-4xl block mb-3">👥</span>
-          Không có người dùng nào
-        </div>
+        <EmptyState
+          iconKey="users"
+          title="Không có người dùng nào"
+          description={
+            debouncedSearch || roleFilter || statusFilter
+              ? 'Thử đổi từ khóa hoặc bộ lọc để xem thêm tài khoản.'
+              : 'Tài khoản mới sẽ xuất hiện ở đây sau khi người dùng đăng ký.'
+          }
+          className="bg-white rounded-2xl border border-gray-100"
+        />
       )}
 
       {/* Table */}

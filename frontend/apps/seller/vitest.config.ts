@@ -32,6 +32,6 @@ export default defineConfig({
     // Shared components import react/react-router; force a single copy so
     // hooks and router context are shared with the test renderer (otherwise
     // "Cannot read properties of null (reading 'useContext')").
-    dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom', '@tanstack/react-query'],
+    dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom', '@tanstack/react-query', 'sonner'],
   },
 });

@@ -27,9 +27,9 @@ export default function RefundsTable({
 }: RefundsTableProps) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
+      <div className="max-h-[70vh] overflow-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 border-b border-gray-100">
+          <thead className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur border-b border-gray-100">
             <tr>
               {['Mã YC', 'Đơn hàng', 'Loại', 'Số tiền', 'Người YC', 'Lý do', 'Trạng thái', 'Ngày', 'Thao tác'].map((h) => (
                 <th

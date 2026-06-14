@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCartStore } from '@shared/store/cartStore';
 import type { CartItem } from '@shared/api/cart.api';
 import { Skeleton } from '@shared/components/ui';
+import CheckoutStepper from '@/components/CheckoutStepper';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -139,6 +140,7 @@ export default function CartPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <CheckoutStepper currentStep="cart" className="mb-6" />
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         Giỏ hàng ({getItemCount()} sản phẩm)
       </h1>
