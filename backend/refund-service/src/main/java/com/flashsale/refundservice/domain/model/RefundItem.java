@@ -50,4 +50,10 @@ public class RefundItem {
 
     @Column(name = "returned_at")
     private LocalDateTime returnedAt;
+
+    @Column(name = "product_name", length = 500)
+    private String productName;
+
+    @Column(name = "image_snapshot", length = 1000)
+    private String imageSnapshot;
 }

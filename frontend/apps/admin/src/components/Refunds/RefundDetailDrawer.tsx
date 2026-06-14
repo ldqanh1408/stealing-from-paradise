@@ -112,15 +112,22 @@ export default function RefundDetailDrawer({ refund, onClose }: { refund: Refund
                 {items.map((item, index) => (
                   <div key={`${item.orderItemId ?? item.itemId ?? index}`} className="rounded-xl bg-gray-50 p-3 text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-gray-900">Item #{item.orderItemId ?? item.itemId}</p>
-                        <p className="text-xs text-gray-500">Số lượng: {item.quantity}</p>
-                        {item.itemReason && <p className="mt-1 text-xs text-gray-500">{item.itemReason}</p>}
-                        {item.returnTrackingNumber && (
-                          <p className="mt-1 text-xs text-blue-600">Mã hoàn: {item.returnTrackingNumber}</p>
-                        )}
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 text-lg">
+                          {item.imageSnapshot
+                            ? <img src={item.imageSnapshot} alt={item.productName ?? ''} className="h-full w-full object-cover" />
+                            : '📦'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-gray-900">{item.productName ?? `Item #${item.orderItemId ?? item.itemId}`}</p>
+                          <p className="text-xs text-gray-500">Số lượng: {item.quantity}</p>
+                          {item.itemReason && <p className="mt-1 text-xs text-gray-500">{item.itemReason}</p>}
+                          {item.returnTrackingNumber && (
+                            <p className="mt-1 text-xs text-blue-600">Mã hoàn: {item.returnTrackingNumber}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
+                      <div className="shrink-0 text-right">
                         <p className="font-semibold text-gray-900">{fmtVnd(item.refundAmount)}</p>
                         <p className="text-xs text-gray-400">{item.status}</p>
                       </div>

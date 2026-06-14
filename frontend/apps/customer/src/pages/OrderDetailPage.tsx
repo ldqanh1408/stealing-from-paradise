@@ -6,6 +6,7 @@ import { paymentApi } from '@shared/api/payment.api';
 import { refundApi, type FullRefundCreatedResponse } from '@shared/api/refund.api';
 import { type ApiResponse } from '@shared/types/api';
 import { Spinner } from '@shared/components/ui';
+import { notify } from '@shared/lib/toast';
 import { formatPaymentCountdown, getPaymentDeadlineAt, getPaymentRemainingSeconds, normalizeCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -513,8 +514,10 @@ function FullRefundModal({ parentOrderId, evidenceOrderId, onClose, onSuccess }:
 function ConfirmReceivedModal({ order, onClose, onSuccess }: { order: Order; onClose: () => void; onSuccess: () => void }) {
   const mut = useMutation({
     mutationFn: () => orderApi.confirmReceived(order.orderId),
-    onSuccess: () => { onSuccess(); onClose(); },
-    onError: () => {},
+    onSuccess: () => { notify.success('Đã xác nhận nhận hàng. Cảm ơn bạn!'); onSuccess(); onClose(); },
+    onError: (err: any) => {
+      notify.error(err?.response?.data?.message || 'Không thể xác nhận đã nhận hàng. Vui lòng thử lại.');
+    },
   });
 
   return (

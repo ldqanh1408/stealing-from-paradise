@@ -6,6 +6,7 @@ import { fmtVnd as fmt } from '@shared/utils/format';
 import VariantModal from './VariantModal';
 import ImageUploader from './ImageUploader';
 import InventoryPanel from './InventoryPanel';
+import { notify } from '@shared/lib/toast';
 
 type ProductFormTab = 'info' | 'images' | 'variants' | 'inventory';
 
@@ -197,7 +198,7 @@ export default function ProductFormModal({
                           await sellerApi.deleteVariant(v.variantId);
                           queryClient.invalidateQueries({ queryKey: ['seller-variants', product.productId] });
                         } catch (err: any) {
-                          alert(err?.response?.data?.message || 'Xóa biến thể thất bại');
+                          notify.error(err?.response?.data?.message || 'Xóa biến thể thất bại');
                         }
                       }} className="text-xs text-red-500 hover:text-red-600 font-medium shrink-0">Xoá</button>
                     </div>

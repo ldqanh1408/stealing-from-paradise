@@ -75,6 +75,9 @@ public class OrderRefundCommandService {
             ri.put("quantity", reqItem.getQuantity());
             ri.put("refund_amount", itemAmt);
             ri.put("item_reason", reqItem.getItemReason() != null ? reqItem.getItemReason() : "");
+            // Snapshot tên + ảnh sản phẩm để refund-service hiển thị được mà không cần join lại
+            ri.put("product_name", oi.getNameSnapshot());
+            ri.put("image_snapshot", oi.getImageSnapshot());
             refundItems.add(ri);
         }
 
@@ -234,6 +237,9 @@ public class OrderRefundCommandService {
                 rim.put("quantity",      ri.getQuantity());
                 rim.put("refund_amount", amt);
                 rim.put("item_reason",   ri.getItemReason() != null ? ri.getItemReason() : "");
+                // Snapshot tên + ảnh sản phẩm để refund-service hiển thị được mà không cần join lại
+                rim.put("product_name",  oi.getNameSnapshot());
+                rim.put("image_snapshot", oi.getImageSnapshot());
                 refundItems.add(rim);
             }
 

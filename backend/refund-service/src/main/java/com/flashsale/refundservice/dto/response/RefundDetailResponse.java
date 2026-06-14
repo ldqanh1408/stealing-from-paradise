@@ -37,6 +37,8 @@ public class RefundDetailResponse {
     @Builder
     public static class RefundItemInfo {
         private Long itemId;
+        private String productName;
+        private String imageSnapshot;
         private Integer quantity;
         private BigDecimal refundAmount;
         private String itemReason;

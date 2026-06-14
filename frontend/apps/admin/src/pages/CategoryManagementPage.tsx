@@ -4,6 +4,7 @@ import { categoryApi, adminCategoryApi, type Category } from '@shared/api/catego
 import CategoryFormModal from '@/components/Categories/CategoryFormModal';
 import CategoriesTable from '@/components/Categories/CategoriesTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
+import { notify } from '@shared/lib/toast';
 
 // Helper to slugify Vietnamese text
 const slugify = (text: string) => {
@@ -103,7 +104,7 @@ export default function CategoryManagementPage() {
       setDeletingCategory(null);
     },
     onError: (err: any) => {
-      alert(err?.response?.data?.message || 'Không thể xóa danh mục này.');
+      notify.error(err?.response?.data?.message || 'Không thể xóa danh mục này.');
       setDeletingCategory(null);
     },
   });

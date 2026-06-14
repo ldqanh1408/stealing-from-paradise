@@ -5,6 +5,7 @@ import { adminApi } from '@shared/api/admin.api';
 import FlashSaleSessionForm from '@/components/FlashSale/FlashSaleSessionForm';
 import FlashSaleSessionsTable from '@/components/FlashSale/FlashSaleSessionsTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
+import { notify } from '@shared/lib/toast';
 
 function toLocalDatetime(iso?: string) {
   if (!iso) return '';
@@ -65,7 +66,7 @@ export default function FlashSaleConfigPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-flash-sale-sessions'] });
     },
     onError: (err: any) => {
-      alert(err?.response?.data?.message || 'Không thể xoá phiên.');
+      notify.error(err?.response?.data?.message || 'Không thể xoá phiên.');
       setDeletingSession(null);
     },
   });

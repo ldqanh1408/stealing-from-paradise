@@ -80,6 +80,8 @@ public class RefundQueryService {
         List<RefundDetailResponse.RefundItemInfo> itemInfos = items.stream()
                 .map(ri -> RefundDetailResponse.RefundItemInfo.builder()
                         .itemId(ri.getItemId())
+                        .productName(ri.getProductName())
+                        .imageSnapshot(ri.getImageSnapshot())
                         .quantity(ri.getQuantity())
                         .refundAmount(ri.getRefundAmount())
                         .itemReason(ri.getItemReason())

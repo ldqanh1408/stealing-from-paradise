@@ -109,6 +109,7 @@ public class RefundReplyService {
     private Map<String, Object> toRefundMap(Refund refund) {
         Map<String, Object> m = RefundMapper.toRefundMap(refund);
         m.put("evidence_images", refund.getEvidenceImages());
+        m.put("evidenceImages", refund.getEvidenceImages());
         m.put("items", refundItemRepository.findAllByRefundId(refund.getId()).stream()
                 .map(this::toRefundItemMap)
                 .collect(Collectors.toList()));
@@ -119,12 +120,26 @@ public class RefundReplyService {
         Map<String, Object> m = new HashMap<>();
         m.put("item_id", item.getItemId());
         m.put("order_item_id", item.getItemId());
+        m.put("product_name", item.getProductName());
+        m.put("image_snapshot", item.getImageSnapshot());
         m.put("quantity", item.getQuantity());
         m.put("refund_amount", item.getRefundAmount());
         m.put("item_reason", item.getItemReason());
         m.put("status", item.getStatus());
         m.put("return_tracking_number", item.getReturnTrackingNumber());
         m.put("returned_at", item.getReturnedAt() != null
+                ? item.getReturnedAt().toInstant(java.time.ZoneOffset.UTC).toString() : null);
+        // camelCase keys: order-service dùng ObjectMapper mặc định (camelCase) khi
+        // convertValue reply sang OrderRefundInfo.RefundItemInfo — nếu thiếu thì các field
+        // này bị null. Giữ luôn key snake_case ở trên để không phá consumer nào khác.
+        m.put("itemId", item.getItemId());
+        m.put("orderItemId", item.getItemId());
+        m.put("productName", item.getProductName());
+        m.put("imageSnapshot", item.getImageSnapshot());
+        m.put("refundAmount", item.getRefundAmount());
+        m.put("itemReason", item.getItemReason());
+        m.put("returnTrackingNumber", item.getReturnTrackingNumber());
+        m.put("returnedAt", item.getReturnedAt() != null
                 ? item.getReturnedAt().toInstant(java.time.ZoneOffset.UTC).toString() : null);
         return m;
     }
