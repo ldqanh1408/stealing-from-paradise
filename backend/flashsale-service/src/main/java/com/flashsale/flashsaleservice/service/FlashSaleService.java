@@ -45,7 +45,7 @@ public class FlashSaleService {
             ObjectMapper objectMapper,
             String productServiceUrl) {
         FlashSaleItemMapper mapper = new FlashSaleItemMapper();
-        this.sessionService = new FlashSaleSessionService(sessionRepo, itemRepo, redisTemplate, kafkaTemplate, objectMapper, mapper);
+        this.sessionService = new FlashSaleSessionService(sessionRepo, itemRepo, redisTemplate, kafkaTemplate, objectMapper, mapper, productServiceUrl);
         this.itemService = new FlashSaleItemService(itemRepo, kafkaTemplate, objectMapper, mapper);
         this.reminderService = new FlashSaleReminderService(reminderRepo);
         this.purchaseService = new FlashSalePurchaseService(sessionRepo, itemRepo, redisTemplate, kafkaTemplate, objectMapper, productServiceUrl);

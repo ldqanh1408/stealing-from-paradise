@@ -7,6 +7,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.ExistsQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MultiMatchQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.PrefixQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.TermQuery;
@@ -14,6 +15,7 @@ import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.search.FieldCollapse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.InnerHits;
+import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.searchservice.domain.model.SearchDocument;
 import com.flashsale.searchservice.dto.ProductCard;
@@ -38,6 +40,35 @@ public class EsSearcher {
 
     @Value("${search.elasticsearch.index-name:skus}")
     private String indexName;
+
+    /**
+     * Category slug prefixes whose products are hidden from public search results
+     * (E2E/frontend fixtures seeded under fe- / e2e- categories). Blank entries are
+     * ignored; an empty list disables hiding (e.g. for fixture-driven test envs).
+     */
+    @Value("${search.hidden-category-prefixes:}")
+    private List<String> hiddenCategoryPrefixes;
+
+    /**
+     * Builds {@code must_not} prefix queries that exclude any document whose category
+     * lineage ({@code categorySlugPath}) starts with a hidden fixture prefix. A prefix
+     * query on a keyword array matches if any element matches, so a product anywhere
+     * under an {@code fe-*}/{@code e2e-*} category is excluded.
+     */
+    private List<Query> hiddenCategoryExclusions() {
+        if (hiddenCategoryPrefixes == null || hiddenCategoryPrefixes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Query> exclusions = new ArrayList<>();
+        for (String prefix : hiddenCategoryPrefixes) {
+            if (prefix == null || prefix.isBlank()) {
+                continue;
+            }
+            String value = prefix.trim();
+            exclusions.add(PrefixQuery.of(p -> p.field("categorySlugPath").value(value))._toQuery());
+        }
+        return exclusions;
+    }
 
     public SearchResponse search(
             String q,
@@ -87,6 +118,9 @@ public class EsSearcher {
             BoolQuery.Builder boolBuilder = new BoolQuery.Builder().must(rootQuery);
             for (Query fq : filterQueries) {
                 boolBuilder.filter(fq);
+            }
+            for (Query exclusion : hiddenCategoryExclusions()) {
+                boolBuilder.mustNot(exclusion);
             }
 
             int from = page * size;
@@ -144,8 +178,13 @@ public class EsSearcher {
                         Hit<?> cheapestHit = cheapestHits.hits().hits().get(0);
                         if (cheapestHit.source() != null) {
                             try {
-                                SearchDocument cheapestSku = objectMapper.readValue(
-                                        objectMapper.writeValueAsString(cheapestHit.source()), SearchDocument.class);
+                                SearchDocument cheapestSku;
+                                if (cheapestHit.source() instanceof JsonData jsonData) {
+                                    cheapestSku = jsonData.to(SearchDocument.class);
+                                } else {
+                                    cheapestSku = objectMapper.readValue(
+                                            objectMapper.writeValueAsString(cheapestHit.source()), SearchDocument.class);
+                                }
                                 priceMinDoc = cheapestSku.getPrice();
                                 if (cheapestSku.getThumbnailUrl() != null) {
                                     List<String> newImages = new ArrayList<>();
@@ -200,13 +239,19 @@ public class EsSearcher {
 
     public SuggestResponse suggest(String q, int size) {
         try {
+            Query suggestMatch = MultiMatchQuery.of(mm -> mm
+                    .query(q)
+                    .fields("productName^3")
+                    .fuzziness("AUTO")
+            )._toQuery();
+            BoolQuery.Builder suggestBool = new BoolQuery.Builder().must(suggestMatch);
+            for (Query exclusion : hiddenCategoryExclusions()) {
+                suggestBool.mustNot(exclusion);
+            }
+
             var req = SearchRequest.of(s -> s
                     .index(indexName)
-                    .query(MultiMatchQuery.of(mm -> mm
-                            .query(q)
-                            .fields("productName^3")
-                            .fuzziness("AUTO")
-                    )._toQuery())
+                    .query(suggestBool.build()._toQuery())
                     .size(0)
                     .aggregations("product_names", a -> a
                             .terms(t -> t.field("productName.keyword").size(size))

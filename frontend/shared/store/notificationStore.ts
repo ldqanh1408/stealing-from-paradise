@@ -1,5 +1,5 @@
-import { notificationApi, type Notification } from '../api/notification.api';
-import { userApi } from '../api/user.api';
+import { create } from 'zustand';
+import { notificationApi, normalizeNotification, type Notification } from '../api/notification.api';
 
 interface NotificationState {
   notifications: Notification[];
@@ -78,18 +78,19 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       const count = await notificationApi.getUnreadCount();
       set({ unreadCount: count ?? 0 });
     } catch (err: any) {
-      console.error('Failed to fetch unread count:', err);
+      set({ error: err?.response?.data?.message || 'Failed to fetch unread count' });
     }
   },
 
   addNotification: (notif) => {
+    const normalized = normalizeNotification(notif);
     set((state) => {
-      if (state.notifications.some((n) => n.id === notif.id)) {
+      if (state.notifications.some((n) => n.id === normalized.id)) {
         return state;
       }
       return {
-        notifications: [notif, ...state.notifications],
-        unreadCount: state.unreadCount + (notif.read ? 0 : 1),
+        notifications: [normalized, ...state.notifications],
+        unreadCount: state.unreadCount + (normalized.read ? 0 : 1),
       };
     });
   },

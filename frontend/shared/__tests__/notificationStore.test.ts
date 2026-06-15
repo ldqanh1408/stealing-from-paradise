@@ -2,6 +2,16 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock the notification API so the store tests stay pure (no network).
 vi.mock('../api/notification.api', () => ({
+  normalizeNotification: (notif: any) => ({
+    id: String(notif.id ?? ''),
+    userId: Number(notif.userId ?? notif.user_id ?? 0),
+    type: notif.type ?? 'INFO',
+    title: notif.title ?? '',
+    message: notif.message ?? notif.body ?? '',
+    data: notif.data ?? notif.metadata,
+    read: Boolean(notif.read ?? notif.isRead ?? false),
+    createdAt: notif.createdAt ?? notif.created_at ?? '2026-01-01T00:00:00Z',
+  }),
   notificationApi: {
     getNotifications: vi.fn(),
     markAsRead: vi.fn(() => Promise.resolve({ data: {} })),
@@ -66,13 +76,13 @@ describe('notificationStore — read state', () => {
 
 describe('notificationStore — fetch', () => {
   it('fetchUnreadCount stores unread_count', async () => {
-    (notificationApi.getUnreadCount as any).mockResolvedValue({ data: { user_id: 1, unread_count: 5 } });
+    (notificationApi.getUnreadCount as any).mockResolvedValue(5);
     await useNotificationStore.getState().fetchUnreadCount();
     expect(useNotificationStore.getState().unreadCount).toBe(5);
   });
 
   it('fetchNotifications stores list', async () => {
-    (notificationApi.getNotifications as any).mockResolvedValue({ data: [notif('a'), notif('b')] });
+    (notificationApi.getNotifications as any).mockResolvedValue([notif('a'), notif('b')]);
     await useNotificationStore.getState().fetchNotifications({ page: 0, size: 20 });
     expect(useNotificationStore.getState().notifications).toHaveLength(2);
   });

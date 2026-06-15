@@ -7,6 +7,8 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
+
 /**
  * Level 1 Tool: Product search -- calls search-service API.
  * No authentication required. Returns product list as JSON.
@@ -31,6 +33,7 @@ public class ProductSearchTool {
                     .uri("http://search-service/search/products?q={query}", query)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(10))
                     .onErrorReturn("{\"error\": \"Search service unavailable\", \"products\": []}")
                     .block();
             log.info("[ProductSearchTool] Search completed for query: {}", query);
@@ -50,6 +53,7 @@ public class ProductSearchTool {
                     .uri("http://search-service/search/products/suggest?q={query}", query)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(10))
                     .onErrorReturn("{\"suggestions\": []}")
                     .block();
         } catch (Exception e) {

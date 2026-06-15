@@ -12,6 +12,7 @@ export interface FlashSaleItem {
   soldQty: number;
   limitPerUser: number;
   status: string;
+  imageUrl?: string;
 }
 
 export interface FlashSaleSession {
@@ -49,15 +50,20 @@ interface BackendItem {
   status: string;
   createdAt: string;
   updatedAt: string;
+  productName?: string;
+  originalPrice?: number;
+  imageUrl?: string;
 }
 
 function mapSession(s: BackendSession): FlashSaleSession {
+  // Backend emits "LIVE" for an in-progress session; normalize to "ACTIVE".
+  const status = s.status === 'LIVE' ? 'ACTIVE' : s.status;
   return {
     id: s.sessionId,
     name: s.name,
     startTime: s.startTime,
     endTime: s.endTime,
-    status: s.status as FlashSaleSession['status'],
+    status: status as FlashSaleSession['status'],
     secondsRemaining: s.secondsRemaining,
     isEnded: s.isEnded,
     createdAt: s.createdAt,
@@ -74,6 +80,9 @@ function mapItem(i: BackendItem): FlashSaleItem {
     soldQty: i.soldQty,
     limitPerUser: i.limitPerUser,
     status: i.status,
+    productName: i.productName,
+    originalPrice: i.originalPrice,
+    imageUrl: i.imageUrl,
   };
 }
 

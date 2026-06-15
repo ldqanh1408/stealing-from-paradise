@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import CheckoutStepper from '@/components/CheckoutStepper';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
 import { useCartStore } from '@shared/store/cartStore';
+import { Skeleton } from '@shared/components/ui';
 import type { CheckoutResponse } from '@shared/api/order.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -138,14 +140,20 @@ export default function CheckoutResultPage() {
   if (!state) {
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center text-gray-400">
-        <div className="text-4xl mb-3">⏳</div>
-        Đang tải kết quả thanh toán...
+        <CheckoutStepper currentStep="complete" className="mb-8 text-gray-900" />
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+          <Skeleton className="h-16 w-16 rounded-full mx-auto" />
+          <Skeleton className="h-5 w-48 mx-auto" />
+          <Skeleton className="h-4 w-64 mx-auto" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-20 text-center">
+      <CheckoutStepper currentStep="complete" className="mb-8" />
+
       {success ? (
         <>
           <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6 text-5xl">
@@ -213,7 +221,12 @@ export default function CheckoutResultPage() {
 
           {!paymentData && state.parentOrderId > 0 && (
             <div className="bg-gray-50 rounded-xl p-4 mb-6 text-center">
-              <p className="text-sm text-gray-500">Đang tải thông tin thanh toán...</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
             </div>
           )}
 

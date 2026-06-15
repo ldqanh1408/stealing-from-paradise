@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import ChatWidget from '../ChatWidget';
 
 // The widget reads everything from the chat store; we provide a controllable
@@ -29,7 +29,11 @@ function makeStore(over: any = {}) {
   };
 }
 
-beforeEach(() => { vi.clearAllMocks(); h.store = makeStore(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  window.localStorage.clear();
+  h.store = makeStore();
+});
 
 describe('ChatWidget', () => {
   it('renders the floating launcher when closed', () => {
@@ -77,5 +81,43 @@ describe('ChatWidget', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('minimizes the panel and remembers that preference', async () => {
+    h.store = makeStore({ isOpen: true, currentSessionId: 's' });
+    render(<ChatWidget />);
+
+    fireEvent.click(screen.getByLabelText('Thu gọn trợ lý AI'));
+
+    expect(screen.queryByPlaceholderText('Hỏi trợ lý AI...')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem('ai-chat-widget:prefs') || '{}')).toMatchObject({
+        minimized: true,
+      });
+    });
+  });
+
+  it('restores minimized state from localStorage', () => {
+    window.localStorage.setItem('ai-chat-widget:prefs', JSON.stringify({ minimized: true, size: 'comfortable' }));
+    h.store = makeStore({ isOpen: true, currentSessionId: 's' });
+
+    render(<ChatWidget />);
+
+    expect(screen.getByLabelText('Mở rộng trợ lý AI')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Hỏi trợ lý AI...')).not.toBeInTheDocument();
+  });
+
+  it('toggles wide mode and persists the selected size', async () => {
+    h.store = makeStore({ isOpen: true, currentSessionId: 's' });
+    render(<ChatWidget />);
+
+    fireEvent.click(screen.getByLabelText('Phóng to khung chat'));
+
+    expect(screen.getByLabelText('Thu nhỏ khung chat')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem('ai-chat-widget:prefs') || '{}')).toMatchObject({
+        size: 'wide',
+      });
+    });
   });
 });

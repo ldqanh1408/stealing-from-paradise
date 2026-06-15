@@ -15,6 +15,9 @@ import java.util.UUID;
 public class ImageUploadResponse {
 
     private String uploadUrl;
+    private String presignedUrl;
+    private String objectUrl;
     private UUID imageId;
     private LocalDateTime expiresAt;
+    private int expiresIn;
 }

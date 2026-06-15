@@ -35,7 +35,7 @@
         <spring-cloud.version>2025.1.1</spring-cloud.version>
         <spring-boot-maven-plugin.version>4.0.4</spring-boot-maven-plugin.version>
         <axon.version>4.13.0</axon.version>
-        <lombok.version>1.18.40</lombok.version>
+        <lombok.version>1.18.44</lombok.version>
     </properties>
 
     <dependencies>

@@ -225,6 +225,7 @@ public class VariantService {
                 .productName(product.getName())
                 .sellerId(product.getSellerId())
                 .price(variant.getPrice())
+                .originalPrice(variant.getOriginalPrice() != null ? variant.getOriginalPrice() : variant.getPrice())
                 .build();
 
         return ApiResponse.success(resp);

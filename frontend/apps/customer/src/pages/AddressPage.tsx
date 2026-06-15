@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { addressApi } from '@shared/api/address.api';
 import { userApi, type AddressResponse } from '@shared/api/user.api';
+import { Skeleton } from '@shared/components/ui';
 
 interface AddressFormData {
   provinceId: number;
@@ -969,8 +970,14 @@ export default function AddressPage() {
       </div>
 
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl mb-3">⏳</div>Đang tải...
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
+              <Skeleton className="h-5 w-2/3 mb-3" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-1/3" />
+            </div>
+          ))}
         </div>
       )}
       {error && (

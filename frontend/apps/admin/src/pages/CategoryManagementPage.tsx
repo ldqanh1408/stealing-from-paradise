@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoryApi, adminCategoryApi, type Category } from '@shared/api/category.api';
 import CategoryFormModal from '@/components/Categories/CategoryFormModal';
+import CategoriesTable from '@/components/Categories/CategoriesTable';
+import ConfirmDialog from '@shared/components/ConfirmDialog';
+import { notify } from '@shared/lib/toast';
+import { Skeleton } from '@shared/components/ui';
 
 // Helper to slugify Vietnamese text
 const slugify = (text: string) => {
@@ -101,7 +105,7 @@ export default function CategoryManagementPage() {
       setDeletingCategory(null);
     },
     onError: (err: any) => {
-      alert(err?.response?.data?.message || 'Không thể xóa danh mục này.');
+      notify.error(err?.response?.data?.message || 'Không thể xóa danh mục này.');
       setDeletingCategory(null);
     },
   });
@@ -182,9 +186,15 @@ export default function CategoryManagementPage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="text-center py-20 text-gray-400">
-          <div className="text-4xl animate-bounce mb-3">⏳</div>
-          Đang tải danh sách danh mục...
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-[1.5fr_1fr_1fr_120px] gap-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+          ))}
         </div>
       )}
 
@@ -198,68 +208,12 @@ export default function CategoryManagementPage() {
 
       {/* Categories Table */}
       {!isLoading && !error && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  <th className="px-6 py-4">Tên danh mục</th>
-                  <th className="px-6 py-4">Slug</th>
-                  <th className="px-6 py-4">Danh mục cha</th>
-                  <th className="px-6 py-4">Cấp độ (Level)</th>
-                  <th className="px-6 py-4">Số sản phẩm</th>
-                  <th className="px-6 py-4 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
-                {categories.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                      Chưa có danh mục nào được tạo.
-                    </td>
-                  </tr>
-                ) : (
-                  categories.map((cat) => (
-                    <tr key={cat.categoryId} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        {cat.level > 1 && (
-                          <span className="text-gray-300 font-mono mr-1">
-                            {'—'.repeat(cat.level - 1)}
-                          </span>
-                        )}
-                        {cat.name}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-gray-500">{cat.slug}</td>
-                      <td className="px-6 py-4 text-gray-500">
-                        {getParentName(cat.parentId)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          Cấp {cat.level}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500">{cat.productCount ?? 0}</td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button
-                          onClick={() => handleOpenEdit(cat)}
-                          className="px-2.5 py-1 text-xs border border-gray-200 text-blue-600 bg-white hover:bg-blue-50 hover:border-blue-200 rounded-lg font-medium transition-all"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => setDeletingCategory(cat)}
-                          className="px-2.5 py-1 text-xs border border-gray-200 text-red-600 bg-white hover:bg-red-50 hover:border-red-200 rounded-lg font-medium transition-all"
-                        >
-                          Xóa
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <CategoriesTable
+          categories={categories}
+          getParentName={getParentName}
+          onEdit={handleOpenEdit}
+          onDelete={setDeletingCategory}
+        />
       )}
 
       {/* Create / Edit Modal */}
@@ -282,30 +236,15 @@ export default function CategoryManagementPage() {
 
       {/* Delete Confirmation Modal */}
       {deletingCategory && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center border border-gray-100 shadow-xl">
-            <div className="text-5xl mb-4">⚠️</div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Xác nhận xóa danh mục?</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Bạn có chắc chắn muốn xóa danh mục "{deletingCategory.name}"? Hành động này không thể hoàn tác.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeletingCategory(null)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 text-gray-700"
-              >
-                Huỷ
-              </button>
-              <button
-                onClick={() => deleteMut.mutate(deletingCategory.categoryId)}
-                disabled={deleteMut.isPending}
-                className="flex-1 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-xl text-sm font-medium disabled:opacity-50 transition-all"
-              >
-                {deleteMut.isPending ? 'Đang xóa...' : 'Xóa'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="Xác nhận xóa danh mục?"
+          message={`Bạn có chắc chắn muốn xóa danh mục "${deletingCategory.name}"? Hành động này không thể hoàn tác.`}
+          confirmLabel="Xóa"
+          danger
+          loading={deleteMut.isPending}
+          onConfirm={() => deleteMut.mutate(deletingCategory.categoryId)}
+          onCancel={() => setDeletingCategory(null)}
+        />
       )}
     </div>
   );

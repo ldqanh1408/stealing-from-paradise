@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.refundservice.domain.model.Refund;
+import com.flashsale.refundservice.domain.model.RefundItem;
 import com.flashsale.refundservice.domain.model.Transaction;
+import com.flashsale.refundservice.domain.repository.RefundItemRepository;
 import com.flashsale.refundservice.domain.repository.RefundRepository;
 import com.flashsale.refundservice.domain.repository.TransactionRepository;
 import com.flashsale.refundservice.support.RefundMapper;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class RefundReplyService {
 
     private final RefundRepository refundRepository;
+    private final RefundItemRepository refundItemRepository;
     private final TransactionRepository transactionRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final RefundTypeConverter typeConverter;
@@ -41,6 +44,9 @@ public class RefundReplyService {
 
     @Value("${minio.url:http://localhost:9000}")
     private String minioUrl;
+
+    @Value("${minio.public-url:http://localhost:9000}")
+    private String minioPublicUrl;
 
     public void onOrderRefundsRequest(String message) {
         String correlationId = null;
@@ -56,7 +62,7 @@ public class RefundReplyService {
             if (payload.containsKey("order_id")) {
                 Long orderId = typeConverter.toLong(payload.get("order_id"));
                 List<Refund> refunds = refundRepository.findAllByOrderId(orderId);
-                refundData = refunds.stream().map(RefundMapper::toRefundMap).collect(Collectors.toList());
+                refundData = refunds.stream().map(this::toRefundMap).collect(Collectors.toList());
                 totalElements = refundData.size();
 
             } else if (payload.containsKey("user_id")) {
@@ -74,7 +80,7 @@ public class RefundReplyService {
                 Page<Refund> pageResult = refundRepository.findAllByUserIdWithFilters(
                         userId, status, type, from, to,
                         PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
-                refundData = pageResult.getContent().stream().map(RefundMapper::toRefundMap).collect(Collectors.toList());
+                refundData = pageResult.getContent().stream().map(this::toRefundMap).collect(Collectors.toList());
                 totalElements = pageResult.getTotalElements();
                 totalPages    = pageResult.getTotalPages();
 
@@ -103,6 +109,44 @@ public class RefundReplyService {
         }
     }
 
+    private Map<String, Object> toRefundMap(Refund refund) {
+        Map<String, Object> m = RefundMapper.toRefundMap(refund);
+        m.put("evidence_images", refund.getEvidenceImages());
+        m.put("evidenceImages", refund.getEvidenceImages());
+        m.put("items", refundItemRepository.findAllByRefundId(refund.getId()).stream()
+                .map(this::toRefundItemMap)
+                .collect(Collectors.toList()));
+        return m;
+    }
+
+    private Map<String, Object> toRefundItemMap(RefundItem item) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("item_id", item.getItemId());
+        m.put("order_item_id", item.getItemId());
+        m.put("product_name", item.getProductName());
+        m.put("image_snapshot", item.getImageSnapshot());
+        m.put("quantity", item.getQuantity());
+        m.put("refund_amount", item.getRefundAmount());
+        m.put("item_reason", item.getItemReason());
+        m.put("status", item.getStatus());
+        m.put("return_tracking_number", item.getReturnTrackingNumber());
+        m.put("returned_at", item.getReturnedAt() != null
+                ? item.getReturnedAt().toInstant(java.time.ZoneOffset.UTC).toString() : null);
+        // camelCase keys: order-service dùng ObjectMapper mặc định (camelCase) khi
+        // convertValue reply sang OrderRefundInfo.RefundItemInfo — nếu thiếu thì các field
+        // này bị null. Giữ luôn key snake_case ở trên để không phá consumer nào khác.
+        m.put("itemId", item.getItemId());
+        m.put("orderItemId", item.getItemId());
+        m.put("productName", item.getProductName());
+        m.put("imageSnapshot", item.getImageSnapshot());
+        m.put("refundAmount", item.getRefundAmount());
+        m.put("itemReason", item.getItemReason());
+        m.put("returnTrackingNumber", item.getReturnTrackingNumber());
+        m.put("returnedAt", item.getReturnedAt() != null
+                ? item.getReturnedAt().toInstant(java.time.ZoneOffset.UTC).toString() : null);
+        return m;
+    }
+
     public void onRefundPresignedUrlRequest(String message) {
         String correlationId = null;
         try {
@@ -119,7 +163,7 @@ public class RefundReplyService {
             String ext = dot > 0 ? fileName.substring(dot) : ".jpg";
             String objectKey = "refunds/" + orderId + "/" + UUID.randomUUID() + ext;
 
-            String presignedUrl = minioUrl + "/refund-evidences/" + objectKey 
+            String presignedUrl = minioPublicUrl + "/refund-evidences/" + objectKey
                     + "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
                     + "&X-Amz-Credential=minioadmin%2F" + java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) 
                     + "%2Fus-east-1%2Fs3%2Faws4_request"

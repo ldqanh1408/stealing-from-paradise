@@ -21,4 +21,5 @@ public class VariantDetailsResponse {
     private String productName;
     private Long sellerId;
     private BigDecimal price;
+    private BigDecimal originalPrice;
 }

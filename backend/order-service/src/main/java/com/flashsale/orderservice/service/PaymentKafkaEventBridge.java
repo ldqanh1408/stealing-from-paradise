@@ -3,8 +3,11 @@ package com.flashsale.orderservice.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.orderservice.axon.event.OrderCancelledEvent;
+import com.flashsale.orderservice.axon.event.OrderPaidEvent;
 import com.flashsale.orderservice.axon.event.ParentOrderPaymentFailedEvent;
 import com.flashsale.orderservice.axon.event.ParentOrderPaymentSucceededEvent;
+import com.flashsale.orderservice.domain.model.Order;
 import com.flashsale.orderservice.domain.model.ParentOrder;
 import com.flashsale.orderservice.domain.repository.ParentOrderRepository;
 import com.flashsale.orderservice.domain.repository.OrderRepository;
@@ -15,6 +18,7 @@ import com.flashsale.commonlib.infra.outbox.OutboxEventWriter;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -29,6 +33,7 @@ public class PaymentKafkaEventBridge {
     private final ParentOrderRepository parentOrderRepository;
     private final OutboxEventWriter outboxEventWriter;
 
+    @Transactional
     public void onPaymentSuccess(String message) {
         try {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
@@ -38,6 +43,7 @@ public class PaymentKafkaEventBridge {
                 return;
             }
 
+            markParentOrderPaid(parentOrderId);
             eventGateway.publish(new ParentOrderPaymentSucceededEvent(parentOrderId));
 
             publishOrderPaidEvent(parentOrderId);
@@ -46,6 +52,7 @@ public class PaymentKafkaEventBridge {
         }
     }
 
+    @Transactional
     public void onPaymentFailed(String message) {
         try {
             Map<String, Object> payload = objectMapper.readValue(message, new TypeReference<>() {});
@@ -56,12 +63,69 @@ public class PaymentKafkaEventBridge {
             }
 
             String reason = payload.get("reason") != null ? payload.get("reason").toString() : "Thanh toan that bai";
+            markParentOrderPaymentFailed(parentOrderId, reason);
             eventGateway.publish(new ParentOrderPaymentFailedEvent(parentOrderId, reason));
 
             publishOrderPaymentFailedEvent(parentOrderId, reason);
         } catch (Exception e) {
             log.error("Error bridging payment.failed to Axon event: {}", e.getMessage(), e);
         }
+    }
+
+    private void markParentOrderPaid(Long parentOrderId) {
+        if (parentOrderRepository.findByIdWithPessimisticLock(parentOrderId).isEmpty()) {
+            log.warn("ParentOrder {} not found when marking payment success", parentOrderId);
+            return;
+        }
+
+        List<Order> pendingOrders = orderRepository.findAllByParentOrderIdAndStatusWithLock(parentOrderId, "PENDING");
+        if (pendingOrders.isEmpty()) {
+            log.info("[PaymentBridge][{}] No PENDING sub-orders to mark PAID", parentOrderId);
+            return;
+        }
+
+        pendingOrders.forEach(order -> {
+            order.setStatus("PAID");
+            orderRepository.save(order);
+            eventGateway.publish(new OrderPaidEvent(
+                    order.getId(),
+                    order.getParentOrderId(),
+                    order.getCustomerId(),
+                    order.getSellerId(),
+                    order.getTotalAmt()
+            ));
+        });
+        log.info("[PaymentBridge][{}] Marked {} sub-orders PAID", parentOrderId, pendingOrders.size());
+    }
+
+    private void markParentOrderPaymentFailed(Long parentOrderId, String reason) {
+        if (parentOrderRepository.findByIdWithPessimisticLock(parentOrderId).isEmpty()) {
+            log.warn("ParentOrder {} not found when marking payment failure", parentOrderId);
+            return;
+        }
+
+        List<Order> pendingOrders = orderRepository.findAllByParentOrderIdAndStatusWithLock(parentOrderId, "PENDING");
+        if (pendingOrders.isEmpty()) {
+            log.info("[PaymentBridge][{}] No PENDING sub-orders to cancel after payment failure", parentOrderId);
+            return;
+        }
+
+        pendingOrders.forEach(order -> {
+            order.setStatus("CANCELLED");
+            order.setCancelledBy("PAYMENT_FAILED");
+            order.setCancelReason(reason);
+            orderRepository.save(order);
+            eventGateway.publish(new OrderCancelledEvent(
+                    order.getId(),
+                    order.getParentOrderId(),
+                    order.getCustomerId(),
+                    order.getSellerId(),
+                    "PAYMENT_FAILED",
+                    reason,
+                    order.getTotalAmt()
+            ));
+        });
+        log.info("[PaymentBridge][{}] Cancelled {} sub-orders after payment failure", parentOrderId, pendingOrders.size());
     }
 
     @Transactional

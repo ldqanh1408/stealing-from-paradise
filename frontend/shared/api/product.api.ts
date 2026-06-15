@@ -2,10 +2,11 @@ import apiClient from '../lib/axios';
 import type { ApiResponse } from '../types/api';
 
 export interface ProductVariant {
-  id: string;
+  variantId: string;
   skuCode: string;
   variantName: string;
   stockQuantity: number;
+  stock?: number;
   isFlash: boolean;
   price?: number;
   originalPrice?: number;
@@ -32,62 +33,66 @@ export interface ProductDetail {
   updatedAt?: string;
 }
 
-/** Backend VariantResponse shape */
-interface BackendVariant {
+/** Backend product-service ProductResponse shape: GET /products/{productId} */
+interface RawVariantResponse {
   id: string;
   productId: string;
-  skuCode: string;
+  variantCode: string;
   variantName: string;
+  variantAttributes?: Record<string, unknown>;
   price: number;
   originalPrice?: number;
   stockQuantity: number;
-  isFlash: boolean;
   status: string;
   imageUrl?: string;
-  variantAttributes?: Record<string, unknown>;
 }
 
-/** Backend ProductResponse shape */
-interface BackendProductResponse {
+interface RawProductResponse {
   id: string;
   name: string;
-  slug: string;
+  slug?: string;
   description?: string;
   categoryId?: string;
   categoryName?: string;
   sellerId: number;
-  sellerName?: string;
-  status: string;
+  status?: string;
   attributes?: Record<string, unknown>;
-  variants: BackendVariant[];
-  images: string[];
+  variants?: RawVariantResponse[];
+  images?: { url: string; sortOrder?: number; variantId?: string | null }[];
   rejectReason?: string;
-  rejectCount?: number;
-  createdAt: string;
+  createdAt?: string;
   updatedAt?: string;
-  publishedAt?: string;
 }
 
-function mapBackendProduct(raw: BackendProductResponse): ProductDetail {
+function mapProductDetail(raw: RawProductResponse): ProductDetail {
+  const activeVariants = (raw.variants ?? []).filter(v => v.status === 'ACTIVE');
+  const cheapest = activeVariants.length
+    ? activeVariants.reduce((min, v) => (v.price < min.price ? v : min))
+    : undefined;
+  const images = (raw.images ?? [])
+    .slice()
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .map(img => img.url);
   return {
     productId: raw.id,
     sellerId: raw.sellerId,
-    sellerName: raw.sellerName,
     name: raw.name,
-    slug: raw.slug,
     description: raw.description,
     categoryId: raw.categoryId,
     categoryName: raw.categoryName,
-    status: raw.status,
     attributes: raw.attributes,
-    images: raw.images ?? [],
+    images,
+    status: raw.status,
     rejectReason: raw.rejectReason,
-    variants: (raw.variants ?? []).map(v => ({
-      id: v.id,
-      skuCode: v.skuCode,
+    price: cheapest?.price,
+    originalPrice: cheapest?.originalPrice,
+    variants: activeVariants.map(v => ({
+      variantId: v.id,
+      skuCode: v.variantCode,
       variantName: v.variantName,
       stockQuantity: v.stockQuantity ?? 0,
-      isFlash: v.isFlash ?? false,
+      stock: v.stockQuantity ?? 0,
+      isFlash: false,
       price: v.price,
       originalPrice: v.originalPrice,
     })),
@@ -152,6 +157,18 @@ function mapProductCard(card: SearchProductCard): ProductListItem {
   };
 }
 
+/** Variant lookup by SKU: GET /products/variants/sku/{skuCode} */
+export interface VariantBySku {
+  id: string;
+  variantCode: string;
+  variantName: string;
+  imageUrl?: string;
+  productId: string;
+  productName: string;
+  sellerId: number;
+  price: number;
+}
+
 export const productApi = {
   /**
    * List products via search service (the only product listing endpoint).
@@ -160,6 +177,10 @@ export const productApi = {
   getProducts: async (params?: {
     category?: string;
     search?: string;
+    priceMin?: number;
+    priceMax?: number;
+    inStock?: boolean;
+    isFlash?: boolean;
     page?: number;
     size?: number;
     sort?: string;
@@ -168,6 +189,10 @@ export const productApi = {
       params: {
         q: params?.search || undefined,
         category_id: params?.category || undefined,
+        price_min: params?.priceMin,
+        price_max: params?.priceMax,
+        in_stock: params?.inStock,
+        is_flash: params?.isFlash,
         page: params?.page ?? 0,
         size: params?.size ?? 20,
         sort: params?.sort || undefined,
@@ -187,29 +212,50 @@ export const productApi = {
     };
   },
 
-  /** Get product by ID — returns full ProductDetail from product service */
+  /** Look up a single variant (with product name/image/price) by its SKU code. */
+  getVariantBySku: (skuCode: string) =>
+    apiClient
+      .get<ApiResponse<VariantBySku>>(`/products/variants/sku/${encodeURIComponent(skuCode)}`)
+      .then(res => res.data.data),
+
+  /** Get product by ID — maps backend ProductResponse to ProductDetail */
   getProductById: (productId: string) =>
-    apiClient.get<ApiResponse<BackendProductResponse>>(`/products/${productId}`)
-      .then(res => ({
-        ...res,
-        data: {
-          ...res.data,
-          data: mapBackendProduct(res.data.data),
-        },
-      })),
+    apiClient.get<ApiResponse<RawProductResponse>>(`/products/${productId}`).then(res => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: res.data.data ? mapProductDetail(res.data.data) : undefined,
+      } as ApiResponse<ProductDetail>,
+    })),
+
+  /** Get search suggestions (autocomplete) — debounced while typing */
+  getSuggestions: (query: string, size: number = 5) =>
+    apiClient.get<ApiResponse<{ suggestions: string[] }>>('/search/products/suggest', {
+      params: { q: query, size },
+    }).then(res => res.data.data?.suggestions ?? []),
 
   /** Search products (delegates to search service) */
   searchProducts: (query: string, params?: {
     category?: string;
+    priceMin?: number;
+    priceMax?: number;
+    inStock?: boolean;
+    isFlash?: boolean;
     page?: number;
     size?: number;
+    sort?: string;
   }) =>
     apiClient.get<ApiResponse<SearchResponse>>('/search/products', {
       params: {
         q: query,
         category_id: params?.category || undefined,
+        price_min: params?.priceMin,
+        price_max: params?.priceMax,
+        in_stock: params?.inStock,
+        is_flash: params?.isFlash,
         page: params?.page ?? 0,
         size: params?.size ?? 20,
+        sort: params?.sort || undefined,
       },
     }).then(res => ({
       ...res,

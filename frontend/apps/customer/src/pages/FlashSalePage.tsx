@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { flashSaleApi, type FlashSaleSession } from '@shared/api/flashSale.api';
+import { productApi } from '@shared/api/product.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 

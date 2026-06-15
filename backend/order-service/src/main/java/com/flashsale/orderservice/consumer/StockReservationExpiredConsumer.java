@@ -44,19 +44,18 @@ public class StockReservationExpiredConsumer {
 
             log.info("Stock reservation expired: reservationId={}, sessionId={}", reservationId, sessionId);
 
-            // Find the parent order by session_id and cancel if still PENDING
-            List<Order> subOrders = orderRepository.findAllByParentOrderIdAndStatus(
-                    Long.valueOf(sessionId.hashCode()), "PENDING");
-
-            // Fallback: query by parentOrderId if available in event
-            if (subOrders.isEmpty()) {
-                log.info("No PENDING sub-orders found for reservation expiry, sessionId={}", sessionId);
+            // Find the parent order by its checkout session id, then cancel its PENDING sub-orders.
+            ParentOrder parentOrder = parentOrderRepository.findBySessionId(sessionId).orElse(null);
+            if (parentOrder == null) {
+                log.info("No parent order found for reservation expiry, sessionId={}", sessionId);
                 return;
             }
 
-            ParentOrder parentOrder = parentOrderRepository.findById(
-                    subOrders.get(0).getParentOrderId()).orElse(null);
-            if (parentOrder == null) {
+            List<Order> subOrders = orderRepository.findAllByParentOrderIdAndStatus(
+                    parentOrder.getId(), "PENDING");
+            if (subOrders.isEmpty()) {
+                log.info("No PENDING sub-orders for reservation expiry, sessionId={}, parentOrderId={}",
+                        sessionId, parentOrder.getId());
                 return;
             }
 

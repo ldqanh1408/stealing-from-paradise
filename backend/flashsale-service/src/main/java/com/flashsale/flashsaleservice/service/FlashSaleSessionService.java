@@ -1,23 +1,29 @@
 package com.flashsale.flashsaleservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.flashsaleservice.domain.model.FlashSaleSession;
 import com.flashsale.flashsaleservice.domain.repository.FlashSaleItemRepository;
 import com.flashsale.flashsaleservice.domain.repository.FlashSaleSessionRepository;
 import com.flashsale.flashsaleservice.dto.request.CreateSessionRequest;
 import com.flashsale.flashsaleservice.dto.request.UpdateSessionRequest;
+import com.flashsale.flashsaleservice.dto.response.FlashSaleItemResponse;
 import com.flashsale.flashsaleservice.dto.response.SessionDetailResponse;
 import com.flashsale.flashsaleservice.dto.response.SessionListResponse;
 import com.flashsale.flashsaleservice.dto.response.SessionResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -26,7 +32,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FlashSaleSessionService {
 
@@ -36,6 +41,27 @@ public class FlashSaleSessionService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final FlashSaleItemMapper itemMapper;
+    private final WebClient webClient;
+
+    @Autowired
+    public FlashSaleSessionService(
+            FlashSaleSessionRepository sessionRepo,
+            FlashSaleItemRepository itemRepo,
+            ReactiveStringRedisTemplate redisTemplate,
+            KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
+            FlashSaleItemMapper itemMapper,
+            @Value("${product-service.url:http://localhost:8084}") String productServiceUrl) {
+        this.sessionRepo = sessionRepo;
+        this.itemRepo = itemRepo;
+        this.redisTemplate = redisTemplate;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+        this.itemMapper = itemMapper;
+        this.webClient = WebClient.builder()
+                .baseUrl(productServiceUrl != null && !productServiceUrl.trim().isEmpty() ? productServiceUrl : "http://localhost:8084")
+                .build();
+    }
 
     public Mono<SessionListResponse> getSessions(String status) {
         Flux<FlashSaleSession> sessionsFlux = (status != null && !status.isEmpty())
@@ -59,12 +85,44 @@ public class FlashSaleSessionService {
                 .flatMap(session ->
                         itemRepo.findBySessionId(sessionId)
                                 .map(itemMapper::toItemResponse)
+                                .flatMap(this::enrichItem)
                                 .collectList()
                                 .map(items -> SessionDetailResponse.builder()
                                         .session(toSessionResponse(session))
                                         .items(items)
                                         .build())
                 );
+    }
+
+    private Mono<FlashSaleItemResponse> enrichItem(FlashSaleItemResponse item) {
+        return webClient.get()
+                .uri("/v1/products/variants/sku/{skuCode}", item.getSkuCode())
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<ApiResponse<Map<String, Object>>>() {})
+                .map(ApiResponse::getData)
+                .map(variantInfo -> {
+                    if (variantInfo != null) {
+                        item.setProductName((String) variantInfo.get("productName"));
+                        item.setImageUrl((String) variantInfo.get("imageUrl"));
+                        
+                        Object origPriceObj = variantInfo.get("originalPrice");
+                        if (origPriceObj != null) {
+                            item.setOriginalPrice(new BigDecimal(origPriceObj.toString()));
+                        } else {
+                            Object priceObj = variantInfo.get("price");
+                            if (priceObj != null) {
+                                item.setOriginalPrice(new BigDecimal(priceObj.toString()));
+                            }
+                        }
+                    }
+                    return item;
+                })
+                .onErrorResume(ex -> {
+                    log.warn("Failed to fetch variant details for skuCode={}: {}", item.getSkuCode(), ex.getMessage());
+                    item.setProductName("Sản phẩm " + item.getSkuCode());
+                    item.setOriginalPrice(item.getFlashPrice());
+                    return Mono.just(item);
+                });
     }
 
     public Mono<SessionListResponse> getActiveSessions() {

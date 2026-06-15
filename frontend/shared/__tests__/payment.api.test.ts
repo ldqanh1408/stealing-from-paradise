@@ -20,4 +20,9 @@ describe('paymentApi', () => {
     await paymentApi.getPayment(7);
     expect(client.get).toHaveBeenCalledWith('/payments/parent-order/7');
   });
+
+  it('getClientSecret → GET /payments/client-secret/{id}', async () => {
+    await paymentApi.getClientSecret(7);
+    expect(client.get).toHaveBeenCalledWith('/payments/client-secret/7');
+  });
 });

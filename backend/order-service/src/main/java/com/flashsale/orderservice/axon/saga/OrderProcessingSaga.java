@@ -245,7 +245,7 @@ public class OrderProcessingSaga {
         timeoutPayload.put("parent_order_id", parentOrderId);
         timeoutPayload.put("order_ids", java.util.List.of(orderId));
         timeoutPayload.put("session_id", sessionId != null ? sessionId : "");
-        timeoutPayload.put("timeout_threshold_minutes", 30);
+        timeoutPayload.put("timeout_threshold_minutes", 1440);
         timeoutPayload.put("timeout_reason", "PAYMENT_NOT_COMPLETED");
         timeoutPayload.put("auto_cancelled_at", Instant.now().toString());
         send(KafkaTopics.ORDER_PAYMENT_TIMEOUT, String.valueOf(parentOrderId), timeoutPayload);
@@ -278,7 +278,7 @@ public class OrderProcessingSaga {
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private Duration computeTimeout(LocalDateTime deadline) {
-        if (deadline == null) return Duration.ofMinutes(30);
+        if (deadline == null) return Duration.ofHours(24);
         Duration d = Duration.between(LocalDateTime.now(), deadline);
         return (d.isNegative() || d.isZero()) ? Duration.ofSeconds(30) : d;
     }

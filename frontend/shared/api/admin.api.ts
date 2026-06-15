@@ -34,8 +34,8 @@ export interface CreateFlashSaleRequest {
 }
 
 export const adminApi = {
-  /** List pending products */
-  getPendingProducts: (params?: { page?: number; size?: number }) =>
+  /** List products for moderation (default: PENDING) */
+  getPendingProducts: (params?: { page?: number; size?: number; status?: string }) =>
     apiClient.get<ApiResponse<PageResponse<PendingProduct>>>('/admin/products/pending', { params }),
 
   /** Approve a product */
@@ -53,7 +53,7 @@ export const adminApi = {
     ),
 
   /** List all users */
-  getUsers: (params?: { role?: string; status?: string; page?: number; size?: number }) =>
+  getUsers: (params?: { role?: string; status?: string; search?: string; page?: number; size?: number }) =>
     apiClient.get<ApiResponse<PageResponse<AdminUser>>>('/admin/users', { params }),
 
   /** Lock user account */

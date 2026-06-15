@@ -14,9 +14,9 @@ function normalizeStatus(raw?: string | null): OnboardingStatus {
 
 function VerificationChecklist({ status }: { status: StripeOnboardingStatus }) {
   const items = [
-    { done: !!status.detailsSubmitted, label: 'Xác minh danh tính' },
-    { done: !!status.chargesEnabled,   label: 'Kích hoạt nhận thanh toán (charges)' },
-    { done: !!status.payoutsEnabled,   label: 'Liên kết tài khoản ngân hàng (payouts)' },
+    { done: !!status.detailsSubmitted, label: 'Đã xác minh danh tính' },
+    { done: !!status.chargesEnabled,   label: 'Đã kích hoạt nhận thanh toán' },
+    { done: !!status.payoutsEnabled,   label: 'Đã liên kết tài khoản ngân hàng' },
   ];
 
   return (
@@ -154,10 +154,23 @@ export default function StripeOnboardingPage() {
               <p className="text-sm text-indigo-700">
                 Trạng thái hiện tại: <strong>{isInProgress ? 'Đang xác minh' : 'Chưa bắt đầu'}</strong>
               </p>
+              <p className="text-xs text-indigo-500 mt-1">
+                Form của Stripe sẽ hướng dẫn bạn xác minh danh tính và liên kết ngân hàng trong cùng một luồng.
+              </p>
             </div>
           </>
         )}
       </div>
+
+      {status?.stripeAccountId?.startsWith('acct_manual_') && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-blue-800 text-sm flex items-start gap-3">
+          <span className="text-lg">🔗</span>
+          <div>
+            <p className="font-semibold">Kết nối thủ công (Platform Admin)</p>
+            <p>Tài khoản Stripe của bạn được quản trị viên nền tảng liên kết thủ công. Nếu cần thay đổi thông tin thanh toán, vui lòng liên hệ admin.</p>
+          </div>
+        </div>
+      )}
 
       {justReturnedFromStripe && !isComplete && (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm flex items-start gap-3">
@@ -223,19 +236,25 @@ export default function StripeOnboardingPage() {
         </div>
       )}
 
-      {/* Steps */}
+      {/* Steps — matches Stripe Express onboarding reality:
+            1. Tạo Express Account
+            2. Xác minh danh tính + liên kết ngân hàng (form Stripe gom chung)
+            3. Kích hoạt — nhận thanh toán */}
       <div className="space-y-4 mb-8">
         {[
-          { step: 1, title: 'Tạo tài khoản Stripe', desc: 'Đăng ký tài khoản Stripe miễn phí để nhận thanh toán', key: 'PENDING' as OnboardingStatus },
-          { step: 2, title: 'Xác minh danh tính', desc: 'Cung cấp thông tin cá nhân và giấy tờ tùy thân theo yêu cầu Stripe', key: 'IN_PROGRESS' as OnboardingStatus },
-          { step: 3, title: 'Liên kết tài khoản ngân hàng', desc: 'Kết nối thẻ hoặc tài khoản ngân hàng để nhận thanh toán từ khách hàng', key: 'COMPLETE' as OnboardingStatus },
-          { step: 4, title: 'Kích hoạt bán hàng', desc: 'Stripe phê duyệt tài khoản — bắt đầu nhận tiền từ khách hàng', key: 'COMPLETE' as OnboardingStatus },
+          { step: 1, title: 'Tạo tài khoản Stripe', desc: 'Đăng ký tài khoản Stripe Connect Express để nhận thanh toán', key: 'inactive' as const },
+          { step: 2, title: 'Xác minh danh tính & Liên kết ngân hàng', desc: 'Điền form Stripe: giấy tờ tùy thân, thông tin cá nhân, tài khoản ngân hàng', key: 'IN_PROGRESS' as OnboardingStatus },
+          { step: 3, title: 'Kích hoạt bán hàng', desc: 'Stripe phê duyệt tài khoản — bắt đầu nhận tiền từ khách hàng', key: 'COMPLETE' as OnboardingStatus },
         ].map(({ step, title, desc, key }) => {
           let stepState: 'completed' | 'active' | 'pending' = 'pending';
-          if (isComplete) stepState = key === 'COMPLETE' ? 'active' : 'completed';
-          else if (isInProgress) stepState = key === 'PENDING' ? 'completed' : key === 'IN_PROGRESS' ? 'active' : 'pending';
-          else if (currentStatus === 'PENDING') stepState = key === 'PENDING' ? 'active' : 'pending';
-          else if (isSuspended) stepState = 'active';
+          if (isComplete) {
+            stepState = 'completed';
+          } else if (isInProgress) {
+            // step 1 done, step 2 active, step 3 pending
+            stepState = step === 1 ? 'completed' : step === 2 ? 'active' : 'pending';
+          } else if (currentStatus === 'PENDING') {
+            stepState = step === 1 ? 'active' : 'pending';
+          }
 
           return (
             <div key={step} className={`bg-white rounded-2xl border p-5 flex items-start gap-4 transition-all ${

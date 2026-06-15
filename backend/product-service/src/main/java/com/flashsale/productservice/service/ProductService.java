@@ -8,6 +8,7 @@ import com.flashsale.productservice.dto.product.PendingProductCard;
 import com.flashsale.productservice.dto.product.ProductResponse;
 import com.flashsale.productservice.dto.product.SellerProductCard;
 import com.flashsale.productservice.dto.product.UpdateProductRequest;
+import com.flashsale.productservice.entity.ProductStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -57,8 +58,8 @@ public class ProductService {
         return commandService.unpublishProduct(productId, user);
     }
 
-    public ApiResponse<PageResponse<PendingProductCard>> getPendingProducts(Pageable pageable, UUID categoryId, Long sellerId) {
-        return adminService.getPendingProducts(pageable, categoryId, sellerId);
+    public ApiResponse<PageResponse<PendingProductCard>> getPendingProducts(Pageable pageable, UUID categoryId, Long sellerId, ProductStatus status) {
+        return adminService.getPendingProducts(pageable, categoryId, sellerId, status);
     }
 
     public ApiResponse<Void> approveProduct(UUID productId, UserDetailsImpl user) {

@@ -11,7 +11,7 @@ export default defineConfig({
     },
     // Force packages to resolve from this app's node_modules when imported
     // via ../../shared — prevents "failed to resolve" errors at build time
-    dedupe: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'zustand', 'axios', 'js-cookie'],
+    dedupe: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'zustand', 'axios', 'js-cookie', 'sonner'],
   },
   server: {
     port: 3000,
@@ -32,6 +32,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'zustand', 'axios', 'js-cookie'],
+    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', 'zustand', 'axios', 'js-cookie', 'sonner'],
   },
 });

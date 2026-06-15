@@ -45,6 +45,10 @@ search:
     index-name: skus
     index-alias: skus
     max-result-window: 10000
+  # Category slug prefixes whose products are hidden from public search results
+  # (E2E/frontend fixtures seeded under fe-*/e2e-* categories). The fixtures stay
+  # in the index so tests can still target them; set this empty to disable hiding.
+  hidden-category-prefixes: ${SEARCH_HIDDEN_CATEGORY_PREFIXES:fe-,e2e-}
   kafka:
     product-group: search-service-product-group
     flashsale-group: search-service-flashsale-group

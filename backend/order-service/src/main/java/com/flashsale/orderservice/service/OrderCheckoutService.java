@@ -1,6 +1,8 @@
 package com.flashsale.orderservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.commonlib.exception.AppException;
 import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.orderservice.axon.event.OrderCreatedEvent;
@@ -18,13 +20,18 @@ import com.flashsale.orderservice.dto.response.CheckoutSubOrderResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,6 +45,8 @@ public class OrderCheckoutService {
     private final ParentOrderRepository parentOrderRepository;
     private final OrderItemRepository orderItemRepository;
     private final EventGateway eventGateway;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     /**
      * Tạo order từ event order.checkout_submitted.
@@ -166,6 +175,7 @@ public class OrderCheckoutService {
                 userId,
                 finalAmt
         ));
+        publishPaymentRequestedAfterCommit(parentOrder.getId(), userId, finalAmt, subOrders);
 
         log.info("Order created from event: parentOrderId={}, userId={}, totalAmt={}, sessionId={}",
                 parentOrder.getId(), userId, totalAmt, sessionId);
@@ -178,5 +188,62 @@ public class OrderCheckoutService {
                 .totalItems(cartItems.stream().mapToInt(CartItemInfo::getQuantity).sum())
                 .createdAt(parentOrder.getCreatedAt().toInstant(ZoneOffset.UTC))
                 .build();
+    }
+
+    private void publishPaymentRequestedAfterCommit(Long parentOrderId,
+                                                    Long userId,
+                                                    BigDecimal totalAmount,
+                                                    List<Order> subOrders) {
+        List<Map<String, Object>> orders = subOrders.stream()
+                .map(order -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("order_id", order.getId());
+                    item.put("seller_id", order.getSellerId());
+                    item.put("amount", order.getTotalAmt());
+                    return item;
+                })
+                .toList();
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("parent_order_id", parentOrderId);
+        payload.put("user_id", userId);
+        payload.put("total_amount", totalAmount);
+        payload.put("currency", "VND");
+        payload.put("timestamp", Instant.now().toString());
+        payload.put("orders", orders);
+
+        Runnable publish = () -> sendPaymentRequested(parentOrderId, payload, orders.size());
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publish.run();
+                }
+            });
+        } else {
+            publish.run();
+        }
+    }
+
+    private void sendPaymentRequested(Long parentOrderId, Map<String, Object> payload, int orderCount) {
+        try {
+            String message = objectMapper.writeValueAsString(payload);
+            kafkaTemplate.send(KafkaTopics.PAYMENT_REQUESTED, String.valueOf(parentOrderId), message)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("[CheckoutPaymentBridge][{}] Failed to publish payment.requested: {}",
+                                    parentOrderId, ex.getMessage(), ex);
+                            return;
+                        }
+                        log.info("[CheckoutPaymentBridge][{}] payment.requested published directly with {} sub-orders",
+                                parentOrderId, orderCount);
+                    });
+        } catch (JsonProcessingException e) {
+            log.error("[CheckoutPaymentBridge][{}] Failed to serialize payment.requested: {}",
+                    parentOrderId, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("[CheckoutPaymentBridge][{}] Failed to schedule payment.requested publish: {}",
+                    parentOrderId, e.getMessage(), e);
+        }
     }
 }

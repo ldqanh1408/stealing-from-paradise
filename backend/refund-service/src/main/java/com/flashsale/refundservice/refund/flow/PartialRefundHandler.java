@@ -86,6 +86,8 @@ public class PartialRefundHandler {
                             .quantity(typeConverter.toInt(item.get("quantity")))
                             .refundAmount(typeConverter.toBigDecimal(item.get("refund_amount")))
                             .itemReason((String) item.get("item_reason"))
+                            .productName((String) item.get("product_name"))
+                            .imageSnapshot((String) item.get("image_snapshot"))
                             .status("PENDING")
                             .build();
                     refundItemRepository.save(ri);

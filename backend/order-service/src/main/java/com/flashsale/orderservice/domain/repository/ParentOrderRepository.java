@@ -5,6 +5,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -12,7 +13,16 @@ import java.util.Optional;
 @Repository
 public interface ParentOrderRepository extends JpaRepository<ParentOrder, Long> {
 
+    @Override
+    @PostAuthorize("authentication == null || !authentication.authenticated || returnObject.isEmpty() || (" +
+            "(hasRole('BUYER') && returnObject.get().customerId.toString() == authentication.name) || " +
+            "hasRole('ADMIN'))")
+    Optional<ParentOrder> findById(Long id);
+
     Optional<ParentOrder> findByIdAndCustomerId(Long id, Long customerId);
+
+    /** Lookup the parent order by its checkout session id (used by stock-reservation-expired handling). */
+    Optional<ParentOrder> findBySessionId(String sessionId);
 
     /**
      * Pessimistic lock on ParentOrder during payment confirmation/failure.

@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '@shared/store/notificationStore';
 import { useAuthStore } from '@shared/store/authStore';
 import type { Notification } from '@shared/api/notification.api';
+import { getNotificationTarget } from '@shared/utils/notificationRouting';
 
 function formatTime(isoString: string) {
   try {
@@ -36,10 +38,10 @@ function getNotificationIcon(type: string) {
   }
 }
 
-function NotificationItem({ notif, onMarkRead }: { notif: Notification; onMarkRead: (id: string) => void }) {
+function NotificationItem({ notif, onOpen }: { notif: Notification; onOpen: (notif: Notification) => void }) {
   return (
     <div
-      onClick={() => onMarkRead(notif.id)}
+      onClick={() => onOpen(notif)}
       className={`flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-50 last:border-0 ${
         !notif.read ? 'bg-blue-50/30' : ''
       }`}
@@ -69,6 +71,7 @@ function NotificationItem({ notif, onMarkRead }: { notif: Notification; onMarkRe
 
 export default function NotificationsPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -85,8 +88,15 @@ export default function NotificationsPage() {
     }
   }, [user?.userId]);
 
-  const handleMarkRead = async (id: string) => {
-    await markAsRead(id);
+  const handleOpenNotification = async (notif: Notification) => {
+    if (!notif.read) {
+      await markAsRead(notif.id);
+    }
+
+    const target = getNotificationTarget(notif, user?.role);
+    if (target) {
+      navigate(target);
+    }
   };
 
   const handleMarkAll = async () => {
@@ -121,7 +131,7 @@ export default function NotificationsPage() {
           </div>
         ) : (
           notifications.map((notif) => (
-            <NotificationItem key={notif.id} notif={notif} onMarkRead={handleMarkRead} />
+            <NotificationItem key={notif.id} notif={notif} onOpen={handleOpenNotification} />
           ))
         )}
       </div>

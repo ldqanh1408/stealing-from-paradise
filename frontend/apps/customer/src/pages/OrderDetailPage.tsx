@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi, type Order, type OrderItem } from '@shared/api/order.api';
 import { paymentApi } from '@shared/api/payment.api';
 import { refundApi, type FullRefundCreatedResponse } from '@shared/api/refund.api';
 import { type ApiResponse } from '@shared/types/api';
+import { Skeleton, Spinner } from '@shared/components/ui';
+import { notify } from '@shared/lib/toast';
+import { formatPaymentCountdown, getPaymentDeadlineAt, getPaymentRemainingSeconds, normalizeCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 const STATUS_STYLE: Record<string, { label: string; bg: string; color: string }> = {
-  PENDING:            { label: 'Chờ xác nhận',    bg: 'bg-yellow-100', color: 'text-yellow-700' },
+  PENDING:            { label: 'Chờ thanh toán',  bg: 'bg-yellow-100', color: 'text-yellow-700' },
   PAID:               { label: 'Đã thanh toán',    bg: 'bg-blue-100',   color: 'text-blue-700' },
   SHIPPING:           { label: 'Đang giao',         bg: 'bg-purple-100', color: 'text-purple-700' },
   DELIVERED:          { label: 'Đã nhận hàng',     bg: 'bg-green-100',  color: 'text-green-700' },
@@ -40,6 +43,135 @@ function canRequestFullRefund(order: Order) {
 
 function canRequestPartialRefund(order: Order) {
   return ['PAID', 'SHIPPING', 'DELIVERED', 'PARTIALLY_REFUNDED'].includes(order.status);
+}
+
+type EvidenceImage = {
+  url: string;
+  name: string;
+};
+
+function getPublicEvidenceUrl(uploadUrl: string) {
+  return uploadUrl.split('?')[0];
+}
+
+async function uploadRefundEvidence(orderId: number, file: File): Promise<EvidenceImage> {
+  const { data } = await refundApi.getRefundPresignedUrl(orderId, file.name, file.type || 'image/jpeg');
+  const presigned = data.data;
+  if (!presigned?.url) {
+    throw new Error('Không thể tạo URL tải ảnh');
+  }
+
+  if (presigned.url.startsWith('mock://')) {
+    return {
+      url: URL.createObjectURL(file),
+      name: file.name,
+    };
+  }
+
+  const uploadRes = await fetch(presigned.url, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || presigned.contentType || 'image/jpeg' },
+    body: file,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error('Tải ảnh bằng chứng thất bại');
+  }
+
+  return {
+    url: getPublicEvidenceUrl(presigned.url),
+    name: file.name,
+  };
+}
+
+function EvidenceUploader({
+  orderId,
+  images,
+  onChange,
+  disabled,
+}: {
+  orderId: number;
+  images: EvidenceImage[];
+  onChange: (images: EvidenceImage[]) => void;
+  disabled?: boolean;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const selected = Array.from(files).filter(file => file.type.startsWith('image/'));
+    if (selected.length === 0) {
+      setUploadError('Vui lòng chọn file ảnh hợp lệ');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      const uploaded = [];
+      for (const file of selected) {
+        uploaded.push(await uploadRefundEvidence(orderId, file));
+      }
+      onChange([...images, ...uploaded]);
+    } catch (err: any) {
+      setUploadError(err?.message || 'Tải ảnh bằng chứng thất bại');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <label className="block text-sm font-medium text-gray-700">Ảnh bằng chứng</label>
+        {isUploading && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-blue-600">
+            <Spinner className="w-3 h-3" />
+            Đang tải...
+          </span>
+        )}
+      </div>
+      <label className={`flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-4 text-center transition-colors ${
+        disabled || isUploading ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-blue-200 bg-blue-50/40 text-blue-700 hover:bg-blue-50'
+      }`}>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          disabled={disabled || isUploading}
+          onChange={event => {
+            void handleFiles(event.target.files);
+            event.target.value = '';
+          }}
+          className="hidden"
+        />
+        <span className="text-sm font-semibold">Chọn ảnh bằng chứng</span>
+        <span className="mt-1 text-xs text-gray-500">Có thể chọn nhiều ảnh, định dạng JPG/PNG/WebP.</span>
+      </label>
+      {uploadError && (
+        <p className="mt-2 text-xs text-red-600">{uploadError}</p>
+      )}
+      {images.length > 0 && (
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {images.map((image, index) => (
+            <div key={`${image.url}-${index}`} className="relative overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+              <img src={image.url} alt={image.name} className="h-20 w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => onChange(images.filter((_, i) => i !== index))}
+                disabled={disabled || isUploading}
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/75 disabled:opacity-50"
+                aria-label="Xóa ảnh bằng chứng"
+              >
+                x
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Cancel Modal ─────────────────────────────────────────────────────────────
@@ -113,17 +245,22 @@ function CancelModal({ order, queryClient, parentOrderId, onClose, onSuccess }: 
 function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClose: () => void; onSuccess: () => void }) {
   const [reason, setReason] = useState('');
   const [selectedItems, setSelectedItems] = useState<Map<number, { qty: number; itemReason: string }>>(new Map());
+  const [evidenceImages, setEvidenceImages] = useState<EvidenceImage[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   const mut = useMutation({
     mutationFn: () => {
       const items = Array.from(selectedItems.entries()).map(([itemId, v]) => ({
-        order_item_id: itemId,
+        orderItemId: itemId,
         quantity: v.qty,
-        item_reason: v.itemReason,
+        itemReason: v.itemReason,
       }));
-      return refundApi.requestPartialRefund(order.orderId, { reason, items });
+      return refundApi.requestPartialRefund(order.orderId, {
+        reason,
+        items,
+        evidenceImages: evidenceImages.map(image => image.url),
+      });
     },
     onSuccess: () => {
       setSuccess(true);
@@ -250,6 +387,13 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
           </select>
         </div>
 
+        <EvidenceUploader
+          orderId={order.orderId}
+          images={evidenceImages}
+          onChange={setEvidenceImages}
+          disabled={mut.isPending}
+        />
+
         {/* Summary */}
         {selectedItems.size > 0 && (
           <div className="bg-gray-50 rounded-xl p-3 mb-4">
@@ -276,15 +420,19 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
 }
 
 // ─── Full Refund Modal ─────────────────────────────────────────────────────────
-function FullRefundModal({ parentOrderId, onClose, onSuccess }: { parentOrderId: number; onClose: () => void; onSuccess: () => void }) {
+function FullRefundModal({ parentOrderId, evidenceOrderId, onClose, onSuccess }: { parentOrderId: number; evidenceOrderId?: number; onClose: () => void; onSuccess: () => void }) {
   const [reason, setReason] = useState('');
+  const [evidenceImages, setEvidenceImages] = useState<EvidenceImage[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   const mut = useMutation({
     mutationFn: () =>
-      refundApi.requestFullRefund(parentOrderId, { reason }) as Promise<{ data: ApiResponse<FullRefundCreatedResponse> }>,
+      refundApi.requestFullRefund(parentOrderId, {
+        reason,
+        evidenceImages: evidenceImages.map(image => image.url),
+      }) as Promise<{ data: ApiResponse<FullRefundCreatedResponse> }>,
     onSuccess: (res) => {
       setResult(res.data.data);
       setSuccess(true);
@@ -335,6 +483,18 @@ function FullRefundModal({ parentOrderId, onClose, onSuccess }: { parentOrderId:
             <option value="Khác">Khác</option>
           </select>
         </div>
+        {evidenceOrderId ? (
+          <EvidenceUploader
+            orderId={evidenceOrderId}
+            images={evidenceImages}
+            onChange={setEvidenceImages}
+            disabled={mut.isPending}
+          />
+        ) : (
+          <p className="mb-4 rounded-xl bg-yellow-50 p-3 text-sm text-yellow-700">
+            Không thể tải ảnh bằng chứng vì không tìm thấy đơn con.
+          </p>
+        )}
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Đóng</button>
           <button
@@ -354,8 +514,10 @@ function FullRefundModal({ parentOrderId, onClose, onSuccess }: { parentOrderId:
 function ConfirmReceivedModal({ order, onClose, onSuccess }: { order: Order; onClose: () => void; onSuccess: () => void }) {
   const mut = useMutation({
     mutationFn: () => orderApi.confirmReceived(order.orderId),
-    onSuccess: () => { onSuccess(); onClose(); },
-    onError: () => {},
+    onSuccess: () => { notify.success('Đã xác nhận nhận hàng. Cảm ơn bạn!'); onSuccess(); onClose(); },
+    onError: (err: any) => {
+      notify.error(err?.response?.data?.message || 'Không thể xác nhận đã nhận hàng. Vui lòng thử lại.');
+    },
   });
 
   return (
@@ -410,7 +572,7 @@ function SubOrderTimeline({ subOrder, paymentPaidAt }: { subOrder: Order; paymen
   const steps = [
     {
       key: 'PENDING',
-      label: 'Chờ xác nhận',
+      label: 'Chờ thanh toán',
       active: true,
       time: subOrder.createdAt,
     },
@@ -512,7 +674,7 @@ export default function OrderDetailPage() {
     retry: 1,
   });
 
-  const { data: paymentData } = useQuery({
+  const { data: paymentData, dataUpdatedAt: paymentDataUpdatedAt } = useQuery({
     queryKey: ['payment', id],
     queryFn: () => paymentApi.getPayment(id).then(r => r.data.data),
     enabled: !isNaN(id),
@@ -523,6 +685,12 @@ export default function OrderDetailPage() {
   const [showPartialRefund, setShowPartialRefund] = useState<Order | null>(null);
   const [showFullRefund, setShowFullRefund] = useState(false);
   const [showConfirm, setShowConfirm] = useState<Order | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   if (isNaN(id)) {
     return (
@@ -535,9 +703,21 @@ export default function OrderDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center text-gray-400">
-        <div className="text-4xl mb-3">⏳</div>
-        Đang tải chi tiết đơn hàng...
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-7 w-24 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <Skeleton className="h-5 w-36 mb-4" />
+          <div className="space-y-3">
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -552,6 +732,27 @@ export default function OrderDetailPage() {
   }
 
   const parent = orderData;
+  const isPaymentPending = (paymentData?.status === 'PENDING' || parent.status === 'PENDING') && paymentData?.status !== 'SUCCESS';
+  const paymentDeadlineFromApi = paymentData?.status === 'PENDING' && typeof paymentData.remainingSeconds === 'number'
+    ? paymentDataUpdatedAt + paymentData.remainingSeconds * 1000
+    : null;
+  const fallbackDeadlineAt = getPaymentDeadlineAt(parent.createdAt);
+  const fallbackDeadlineMs = fallbackDeadlineAt ? new Date(fallbackDeadlineAt).getTime() : NaN;
+  const paymentDeadlineMs = paymentDeadlineFromApi ?? (Number.isFinite(fallbackDeadlineMs) ? fallbackDeadlineMs : null);
+  const paymentRemainingSeconds = paymentDeadlineMs
+    ? Math.max(0, Math.ceil((paymentDeadlineMs - nowMs) / 1000))
+    : getPaymentRemainingSeconds(parent.createdAt, nowMs);
+  const paymentTimeoutAt = paymentDeadlineMs ? new Date(paymentDeadlineMs).toISOString() : fallbackDeadlineAt;
+  const showPayButton = isPaymentPending && (paymentRemainingSeconds == null || paymentRemainingSeconds > 0);
+
+  const handlePay = () => {
+    const pData = normalizeCheckoutPaymentData(null, parent);
+    if (pData) {
+      pData.timeoutAt = paymentTimeoutAt;
+      sessionStorage.setItem('pending_checkout', JSON.stringify(pData));
+      navigate('/checkout/payment', { state: { orderData: pData, parentOrderId: pData.parentOrderId } });
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -566,8 +767,35 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Payment info */}
-      {paymentData && (
+      {/* Payment info / action */}
+      {showPayButton ? (
+        <div className="bg-gradient-to-r from-blue-50 to-violet-50 rounded-2xl border border-blue-100 p-5 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="font-bold text-blue-900 mb-1 flex items-center gap-2">
+                💳 Chờ thanh toán
+              </h2>
+              <p className="text-sm text-blue-700">
+                Đơn hàng đang chờ thanh toán. Vui lòng thanh toán trong vòng 24 giờ kể từ lúc đặt hàng.
+              </p>
+              <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-lg border border-blue-100 bg-white/70 px-3 py-2 text-xs text-blue-800">
+                <span className="font-semibold">Còn {formatPaymentCountdown(paymentRemainingSeconds)}</span>
+                {paymentTimeoutAt && (
+                  <span className="text-blue-500">Hạn chót: {formatDate(paymentTimeoutAt)}</span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 shrink-0">
+              <button
+                onClick={handlePay}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all text-center shadow-sm"
+              >
+                Thanh toán ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : paymentData ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
           <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
             💳 Thông tin thanh toán
@@ -600,7 +828,7 @@ export default function OrderDetailPage() {
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Shipping address */}
       {parent.shippingAddress && (
@@ -674,6 +902,14 @@ export default function OrderDetailPage() {
 
               {/* Action buttons */}
               <div className="px-5 py-4 border-t border-gray-50 flex flex-wrap gap-2">
+                {subOrder.status === 'PENDING' && showPayButton && (
+                  <button
+                    onClick={handlePay}
+                    className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    Thanh toán ngay
+                  </button>
+                )}
                 {canCancel(subOrder.status) && (
                   <button
                     onClick={() => setShowCancel(subOrder)}
@@ -761,6 +997,7 @@ export default function OrderDetailPage() {
       {showFullRefund && (
         <FullRefundModal
           parentOrderId={id}
+          evidenceOrderId={parent.orders[0]?.orderId}
           onClose={() => setShowFullRefund(false)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['parent-order', id] })}
         />

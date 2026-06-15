@@ -6,15 +6,17 @@ import com.flashsale.chatservice.dto.request.ChatRequest;
 import com.flashsale.chatservice.dto.request.ConfirmRequest;
 import com.flashsale.chatservice.service.ChatService;
 import com.flashsale.commonlib.dto.ApiResponse;
+import com.flashsale.commonlib.security.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -32,16 +34,19 @@ public class ChatController {
     // ────────────────────────────────────────────────────────────────────────
 
     @PostMapping(value = "/ai/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("isAuthenticated()")
     public Flux<ServerSentEvent<String>> chat(
-            ServerWebExchange exchange,
+            @AuthenticationPrincipal UserDetailsImpl user,
+            @RequestHeader(value = "X-Access-Token", required = false) String accessToken,
             @RequestBody ChatRequest request) {
 
-        Long userId = extractUserId(exchange);
-        String accessToken = extractAccessToken(exchange);
-
-        if (userId == null) {
-            return Flux.just(errorEvent("Missing X-User-Id header"));
+        if (user == null) {
+            return Flux.just(errorEvent("Missing authentication principal"));
         }
+        Long userId = user.getId();
+        String userEmail = user.getEmail();
+        String userRole = user.getRole();
+
         if (request.getMessage() == null || request.getMessage().isBlank()) {
             return Flux.just(errorEvent("Message is required"));
         }
@@ -50,7 +55,7 @@ public class ChatController {
                 userId, request.getSessionId(), request.getMessage().substring(0,
                         Math.min(50, request.getMessage().length())));
 
-        return chatService.streamChat(request.getSessionId(), request.getMessage(), userId, accessToken);
+        return chatService.streamChat(request.getSessionId(), request.getMessage(), userId, userEmail, userRole, accessToken);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -58,17 +63,19 @@ public class ChatController {
     // ────────────────────────────────────────────────────────────────────────
 
     @GetMapping("/ai/chat/history")
+    @PreAuthorize("isAuthenticated()")
     public Mono<ResponseEntity<ApiResponse<List<ChatMessage>>>> history(
-            ServerWebExchange exchange,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @RequestParam(required = false) String sessionId,
             @RequestParam(defaultValue = "50") int pageSize,
             @RequestParam(required = false) String before) {
 
-        Long userId = extractUserId(exchange);
-        if (userId == null) {
+        if (user == null) {
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
+                    .body(ApiResponse.error("AUTH_001", "Missing authentication principal")));
         }
+        Long userId = user.getId();
+
         if (sessionId == null || sessionId.isBlank()) {
             return Mono.just(ResponseEntity.badRequest()
                     .body(ApiResponse.error("VAL_001", "sessionId is required")));
@@ -87,12 +94,14 @@ public class ChatController {
     // ────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/ai/sessions")
-    public Mono<ResponseEntity<ApiResponse<ChatSession>>> createSession(ServerWebExchange exchange) {
-        Long userId = extractUserId(exchange);
-        if (userId == null) {
+    @PreAuthorize("isAuthenticated()")
+    public Mono<ResponseEntity<ApiResponse<ChatSession>>> createSession(
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        if (user == null) {
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
+                    .body(ApiResponse.error("AUTH_001", "Missing authentication principal")));
         }
+        Long userId = user.getId();
 
         return chatService.createSession(userId)
                 .map(session -> ResponseEntity.status(HttpStatus.CREATED)
@@ -100,12 +109,14 @@ public class ChatController {
     }
 
     @GetMapping("/ai/sessions")
-    public Mono<ResponseEntity<ApiResponse<List<ChatSession>>>> listSessions(ServerWebExchange exchange) {
-        Long userId = extractUserId(exchange);
-        if (userId == null) {
+    @PreAuthorize("isAuthenticated()")
+    public Mono<ResponseEntity<ApiResponse<List<ChatSession>>>> listSessions(
+            @AuthenticationPrincipal UserDetailsImpl user) {
+        if (user == null) {
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
+                    .body(ApiResponse.error("AUTH_001", "Missing authentication principal")));
         }
+        Long userId = user.getId();
 
         return chatService.getActiveSessions(userId)
                 .collectList()
@@ -117,15 +128,16 @@ public class ChatController {
     // ────────────────────────────────────────────────────────────────────────
 
     @DeleteMapping("/ai/sessions/{sessionId}")
+    @PreAuthorize("isAuthenticated()")
     public Mono<ResponseEntity<ApiResponse<Void>>> closeSession(
-            ServerWebExchange exchange,
+            @AuthenticationPrincipal UserDetailsImpl user,
             @PathVariable String sessionId) {
 
-        Long userId = extractUserId(exchange);
-        if (userId == null) {
+        if (user == null) {
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
+                    .body(ApiResponse.error("AUTH_001", "Missing authentication principal")));
         }
+        Long userId = user.getId();
 
         return chatService.closeSession(sessionId, userId)
                 .then(Mono.just(ResponseEntity.ok(
@@ -144,15 +156,20 @@ public class ChatController {
     // ────────────────────────────────────────────────────────────────────────
 
     @PostMapping("/ai/confirm")
+    @PreAuthorize("isAuthenticated()")
     public Mono<ResponseEntity<ApiResponse<ChatMessage>>> confirm(
-            ServerWebExchange exchange,
+            @AuthenticationPrincipal UserDetailsImpl user,
+            @RequestHeader(value = "X-Access-Token", required = false) String accessToken,
             @RequestBody ConfirmRequest request) {
 
-        Long userId = extractUserId(exchange);
-        if (userId == null) {
+        if (user == null) {
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("AUTH_001", "Missing X-User-Id header")));
+                    .body(ApiResponse.error("AUTH_001", "Missing authentication principal")));
         }
+        Long userId = user.getId();
+        String userEmail = user.getEmail();
+        String userRole = user.getRole();
+
         if (request.getConfirmId() == null || request.getConfirmId().isBlank()) {
             return Mono.just(ResponseEntity.badRequest()
                     .body(ApiResponse.error("VAL_001", "confirmId is required")));
@@ -161,7 +178,7 @@ public class ChatController {
         log.info("[ChatController] Confirm action: confirmId={}, confirmed={}, userId={}",
                 request.getConfirmId(), request.isConfirmed(), userId);
 
-        return chatService.confirmAction(request.getConfirmId(), request.isConfirmed(), userId)
+        return chatService.confirmAction(request.getConfirmId(), request.isConfirmed(), userId, userEmail, userRole, accessToken)
                 .map(msg -> ResponseEntity.ok(ApiResponse.success(msg,
                         request.isConfirmed() ? "Action confirmed" : "Action rejected")));
     }
@@ -171,7 +188,7 @@ public class ChatController {
     // ────────────────────────────────────────────────────────────────────────
 
     @GetMapping("/ai/suggest")
-    public Mono<ResponseEntity<ApiResponse<List<String>>>> suggest(ServerWebExchange exchange) {
+    public Mono<ResponseEntity<ApiResponse<List<String>>>> suggest() {
         // Public endpoint (optional JWT) — userId used for personalization if available
         return chatService.getSuggestions()
                 .map(suggestions -> ResponseEntity.ok(ApiResponse.success(suggestions)));
@@ -180,22 +197,6 @@ public class ChatController {
     // ────────────────────────────────────────────────────────────────────────
     //  Helper methods
     // ────────────────────────────────────────────────────────────────────────
-
-    private Long extractUserId(ServerWebExchange exchange) {
-        String userIdStr = exchange.getRequest().getHeaders().getFirst("X-User-Id");
-        if (userIdStr == null || userIdStr.isBlank()) {
-            return null;
-        }
-        try {
-            return Long.parseLong(userIdStr);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private String extractAccessToken(ServerWebExchange exchange) {
-        return exchange.getRequest().getHeaders().getFirst("X-Access-Token");
-    }
 
     private ServerSentEvent<String> errorEvent(String message) {
         return ServerSentEvent.<String>builder()

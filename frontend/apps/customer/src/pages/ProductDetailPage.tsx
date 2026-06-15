@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
+import WishlistButton from '@/components/WishlistButton';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
+import { addressApi } from '@shared/api/address.api';
 import { cartApi } from '@shared/api/cart.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -12,6 +14,7 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { addToCart } = useCartStore();
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [isBuyNow, setIsBuyNow] = useState(false);
@@ -24,6 +27,15 @@ export default function ProductDetailPage() {
     queryKey: ['product', productId],
     queryFn: () => productApi.getProductById(productId!).then(r => r.data.data),
     enabled: !!productId,
+    retry: 1,
+  });
+
+  const { data: addresses = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: async () => {
+      const res = await addressApi.list();
+      return res.data.data ?? [];
+    },
     retry: 1,
   });
 
@@ -66,9 +78,36 @@ export default function ProductDetailPage() {
     setAddError(null);
     setSuccessMsg(null);
     try {
-      await addToCart(selectedVariant.skuCode, quantity);
-      await cartApi.getCart();
-      navigate('/cart');
+      const addr = (addresses as any[]).find((a: any) => a.isDefault) ?? (addresses as any[])[0];
+      if (!addr) {
+        setAddError('Vui lòng thêm địa chỉ giao hàng trước khi mua hàng.');
+        setIsBuyNow(false);
+        return;
+      }
+
+      if ((selectedVariant as any).stockQuantity <= 0) {
+        setAddError('Sản phẩm đã hết hàng.');
+        setIsBuyNow(false);
+        return;
+      }
+
+      // Add item to cart, then find it in the updated cart by variantId/skuCode
+      await cartApi.addItem(selectedVariant.skuCode, quantity, (product as any).fsItemId);
+      const { data: cartRes } = await cartApi.getCart();
+      const cartData = cartRes?.data;
+
+      const newestItem = (cartData?.sellers ?? [])
+        .flatMap(s => s?.items ?? [])
+        .find(item => item?.variantId === selectedVariant.variantId || item?.skuCode === selectedVariant.skuCode);
+
+      if (!newestItem?.cartItemId) {
+        throw new Error('Không tìm thấy sản phẩm trong giỏ hàng');
+      }
+
+      // Go to the checkout review flow (preview → submit)
+      navigate('/checkout', {
+        state: { selectedItemIds: [newestItem.cartItemId] },
+      });
     } catch (err: any) {
       setAddError(err?.response?.data?.message || err?.response?.data?.error || 'Mua ngay thất bại.');
       setIsBuyNow(false);
@@ -113,7 +152,7 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen py-8">
+    <div className="bg-gray-50 min-h-screen pt-8 pb-40 md:py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         {/* Breadcrumb */}
         <div className="mb-8 flex items-center gap-2 text-sm flex-wrap">
@@ -133,18 +172,21 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Images */}
           <div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-8 mb-6">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-6 mb-6 md:sticky md:top-6">
               <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center text-8xl overflow-hidden">
-                {product.images?.[0] ? (
-                  <img src={product.images[0]} alt={product.name} className="w-full h-full object-contain" />
+                {product.images?.[selectedImage] ? (
+                  <img src={product.images[selectedImage]} alt={product.name} className="w-full h-full object-contain" />
                 ) : '🛍️'}
               </div>
               {product.images && product.images.length > 1 && (
-                <div className="grid grid-cols-4 gap-3 mt-4">
+                <div className="grid grid-cols-5 gap-2.5 mt-4">
                   {product.images.map((img, i) => (
                     <button
                       key={i}
-                      className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+                      onClick={() => setSelectedImage(i)}
+                      className={`aspect-square bg-gray-100 rounded-lg overflow-hidden ring-2 transition-all ${
+                        selectedImage === i ? 'ring-blue-500' : 'ring-transparent hover:ring-blue-300'
+                      }`}
                     >
                       <img src={img} alt="" className="w-full h-full object-cover" />
                     </button>
@@ -254,35 +296,36 @@ export default function ProductDetailPage() {
                 </span>
               </div>
 
-              {!selectedVariant && hasVariants && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 text-center">
-                  Vui lòng chọn phân loại sản phẩm
-                </div>
-              )}
+              <div className="flex items-stretch gap-3">
+                <WishlistButton
+                  productId={productId!}
+                  className="!w-14 !h-auto self-stretch shrink-0 text-2xl border border-gray-200 !rounded-xl"
+                />
 
-              <button
-                onClick={handleAddToCart}
-                disabled={isAdding || isBuyNow || isOutOfStock || (hasVariants && !selectedVariant)}
-                className={`w-full py-4 border-2 font-bold text-lg rounded-xl transition-all mb-3 ${
-                  isOutOfStock || (hasVariants && !selectedVariant)
-                    ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
-                    : 'border-blue-600 text-blue-600 hover:bg-blue-50'
-                }`}
-              >
-                {isAdding ? '⏳ Đang thêm...' : '🛒 Thêm vào giỏ hàng'}
-              </button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isAdding || isBuyNow || isOutOfStock || (hasVariants && !selectedVariant)}
+                  className={`flex-1 py-4 px-3 border-2 font-bold text-base sm:text-lg rounded-xl transition-all ${
+                    isOutOfStock || (hasVariants && !selectedVariant)
+                      ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                      : 'border-blue-600 text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  {isAdding ? 'Đang thêm…' : '🛒 Thêm vào giỏ'}
+                </button>
 
-              <button
-                onClick={handleBuyNow}
-                disabled={isAdding || isBuyNow || isOutOfStock || (hasVariants && !selectedVariant)}
-                className={`w-full py-4 font-bold text-lg rounded-xl transition-all ${
-                  isOutOfStock || (hasVariants && !selectedVariant)
-                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white'
-                }`}
-              >
-                {isBuyNow ? '⏳ Đang xử lý...' : '⚡ Mua ngay'}
-              </button>
+                <button
+                  onClick={handleBuyNow}
+                  disabled={isAdding || isBuyNow || isOutOfStock || (hasVariants && !selectedVariant)}
+                  className={`flex-1 py-4 px-3 font-bold text-base sm:text-lg rounded-xl transition-all ${
+                    isOutOfStock || (hasVariants && !selectedVariant)
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white'
+                  }`}
+                >
+                  {isBuyNow ? 'Đang xử lý…' : '⚡ Mua ngay'}
+                </button>
+              </div>
 
               {successMsg && (
                 <div className="mt-3 p-3 bg-green-100 text-green-800 text-sm rounded-lg text-center font-semibold">
@@ -323,6 +366,36 @@ export default function ProductDetailPage() {
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">{product.description}</p>
           </div>
         )}
+      </div>
+
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+        {(successMsg || addError) && (
+          <p className={`mb-2 rounded-lg px-3 py-2 text-center text-xs font-semibold ${
+            successMsg ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
+            {successMsg || addError}
+          </p>
+        )}
+        <div className="mx-auto flex max-w-5xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-gray-500">Tạm tính</p>
+            <p className="truncate text-lg font-bold text-red-600">{fmt(price * quantity)}</p>
+          </div>
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding || isBuyNow || maxQty <= 0}
+            className="rounded-xl border-2 border-blue-600 bg-white px-3 py-3 text-sm font-bold text-blue-600 transition-colors hover:bg-blue-50 disabled:border-gray-300 disabled:text-gray-400"
+          >
+            {isAdding ? 'Đang thêm...' : 'Thêm vào giỏ'}
+          </button>
+          <button
+            onClick={handleBuyNow}
+            disabled={isAdding || isBuyNow || maxQty <= 0}
+            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400"
+          >
+            {isBuyNow ? 'Đang xử lý...' : 'Mua ngay'}
+          </button>
+        </div>
       </div>
     </div>
   );

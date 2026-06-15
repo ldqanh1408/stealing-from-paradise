@@ -2,11 +2,14 @@ import apiClient from '../lib/axios';
 import type { ApiResponse } from '../types/api';
 
 export interface CartItem {
-  cartItemId: number;
+  /** Opaque item key "customerId:variantId" — the format checkout preview expects */
+  cartItemId: string;
+  variantId: string;
   skuCode: string;
   productId?: string;
   productName: string;
   variantName: string;
+  image?: string;
   unitPrice: number;
   quantity: number;
   stockAvailable: number;
@@ -17,7 +20,6 @@ export interface CartItem {
   maxQuantityPerUser?: number | null;
   subtotal?: number;
   addedAt?: string;
-  variantId?: string;
 }
 
 export interface CartSeller {
@@ -36,78 +38,74 @@ export interface Cart {
   hasPriceChanges?: boolean;
 }
 
-// ─── Backend cart response (flat) ───────────────────────────────────────────────
+// ─── Backend product-service cart shapes ───────────────────────────────────────
 
-interface BackendCartItem {
+interface RawCartItemResponse {
   variantId: string;
-  variantCode: string;
-  variantName: string;
-  productName?: string;
+  variantCode?: string | null;
+  variantName?: string | null;
+  productName?: string | null;
   priceSnapshot: number;
-  currentPrice?: number;
+  currentPrice?: number | null;
   priceChanged?: boolean;
   quantity: number;
-  stockAvailable: number;
-  variantImageSnapshot?: string;
-  subtotal: number;
+  variantImageSnapshot?: string | null;
+  subtotal?: number;
   outOfStock?: boolean;
   unavailable?: boolean;
   insufficientStock?: boolean;
-  sellerId: number;
+  stockAvailable?: number | null;
+  sellerId?: number | null;
 }
 
-interface BackendCartResponse {
+interface RawCartResponse {
   customerId: number;
-  items: BackendCartItem[];
+  items: RawCartItemResponse[];
   totalItems: number;
   subtotal: number;
-  hasPriceChanges: boolean;
-  groupedBySeller: Record<string, BackendCartItem[]>;
+  hasPriceChanges?: boolean;
+  groupedBySeller?: Record<string, RawCartItemResponse[]>;
 }
 
-function mapBackendCart(raw: BackendCartResponse): Cart {
-  const sellerGroups = Object.entries(raw.groupedBySeller ?? {});
-  const sellers: CartSeller[] = sellerGroups.map(([sellerIdStr, items]) => {
-    const sellerId = Number(sellerIdStr);
-    const cartItems: CartItem[] = items.map((item) => ({
-      cartItemId: generateCartItemId(sellerId, item.variantId),
-      skuCode: item.variantCode ?? '',
-      variantId: item.variantId,
-      productName: item.productName ?? '',
-      variantName: item.variantName ?? '',
-      unitPrice: item.priceSnapshot,
-      quantity: item.quantity,
-      stockAvailable: item.stockAvailable ?? 0,
-      isFlash: false,
-      subtotal: item.subtotal,
-      priceChanged: item.priceChanged,
-      outOfStock: item.outOfStock,
-      insufficientStock: item.insufficientStock,
-      unavailable: item.unavailable,
-    }));
-    return {
-      sellerId,
-      sellerName: `Seller ${sellerId}`,
-      items: cartItems,
-      sellerSubtotal: cartItems.reduce((sum, item) => sum + (item.subtotal ?? 0), 0),
-    };
-  });
-
+function mapCartItem(raw: RawCartItemResponse, customerId: number): CartItem {
   return {
-    sellers,
-    totalItems: raw.totalItems ?? 0,
-    subtotal: raw.subtotal ?? 0,
-    hasPriceChanges: raw.hasPriceChanges ?? false,
+    cartItemId: `${customerId}:${raw.variantId}`,
+    variantId: raw.variantId,
+    skuCode: raw.variantCode ?? '',
+    productName: raw.productName ?? raw.variantName ?? '',
+    variantName: raw.variantName ?? '',
+    image: raw.variantImageSnapshot ?? undefined,
+    unitPrice: raw.currentPrice ?? raw.priceSnapshot,
+    quantity: raw.quantity,
+    stockAvailable: raw.unavailable
+      ? 0
+      : raw.stockAvailable ?? (raw.outOfStock ? 0 : raw.quantity),
+    isFlash: false,
+    subtotal: raw.subtotal,
   };
 }
 
-function generateCartItemId(sellerId: number, variantId: string): number {
-  let hash = sellerId;
-  for (let i = 0; i < variantId.length; i++) {
-    hash = ((hash << 5) - hash + variantId.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
+function mapCart(raw: RawCartResponse): Cart {
+  const grouped = raw.groupedBySeller && Object.keys(raw.groupedBySeller).length > 0
+    ? raw.groupedBySeller
+    : { 0: raw.items ?? [] };
+  const sellers: CartSeller[] = Object.entries(grouped).map(([sellerId, items]) => ({
+    sellerId: Number(sellerId),
+    sellerName: `Người bán #${sellerId}`,
+    items: (items ?? []).map(i => mapCartItem(i, raw.customerId)),
+    sellerSubtotal: (items ?? []).reduce((sum, i) => sum + (i.subtotal ?? 0), 0),
+  }));
+  return {
+    userId: raw.customerId,
+    sellers,
+    totalItems: raw.totalItems ?? 0,
+    subtotal: raw.subtotal ?? 0,
+    hasPriceChanges: raw.hasPriceChanges,
+  };
 }
+
+/** Extract the variant UUID from an opaque "customerId:variantId" item key */
+const variantIdOf = (itemId: string) => itemId.includes(':') ? itemId.split(':')[1] : itemId;
 
 // ─── Checkout Preview / Submit ──────────────────────────────────────────────────
 
@@ -158,7 +156,7 @@ export interface CheckoutPreviewResponse {
 
 export interface CheckoutSubmitResponse {
   sessionId: string;
-  parentOrderId: number;
+  parentOrderId?: number;
   createdAt: string;
   totalItems: number;
   totalAmount: number;
@@ -167,31 +165,41 @@ export interface CheckoutSubmitResponse {
 
 export const cartApi = {
   getCart: () =>
-    apiClient.get<ApiResponse<BackendCartResponse>('/cart').then(res => ({
+    apiClient.get<ApiResponse<RawCartResponse>>('/cart').then(res => ({
       ...res,
       data: {
         ...res.data,
-        data: mapBackendCart(res.data.data),
-      },
+        data: res.data.data ? mapCart(res.data.data) : undefined,
+      } as ApiResponse<Cart>,
     })),
 
-  addItem: (skuCode: string, quantity: number) =>
-    apiClient.post<ApiResponse<CartItem>('/cart/items', { skuCode, quantity }),
+  // Add item to cart — accepts the variant UUID or a SKU code
+  addItem: (variantIdOrSku: string, quantity: number, _fsItemId?: number) => {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(variantIdOrSku);
+    return apiClient.post<ApiResponse<unknown>>('/cart/items', {
+      ...(isUuid ? { variantId: variantIdOrSku } : { skuCode: variantIdOrSku }),
+      quantity,
+    });
+  },
 
-  updateItemQuantity: (variantId: string, quantity: number) =>
-    apiClient.put<ApiResponse<CartItem>(`/cart/items/${variantId}`, { quantity }),
+  // Update item quantity (itemId is the "customerId:variantId" key)
+  updateItemQuantity: (itemId: string, quantity: number) =>
+    apiClient.put<ApiResponse<unknown>>(`/cart/items/${variantIdOf(itemId)}`, {
+      quantity,
+    }),
 
-  removeItem: (variantId: string) =>
-    apiClient.delete<ApiResponse<void>(`/cart/items/${variantId}`),
+  // Remove item from cart
+  removeItem: (itemId: string) =>
+    apiClient.delete<ApiResponse<void>>(`/cart/items/${variantIdOf(itemId)}`),
 
   clearCart: () =>
-    apiClient.delete<ApiResponse<void>('/cart'),
+    apiClient.delete<ApiResponse<void>>('/cart'),
 
   checkoutPreview: (itemIds: string[]) =>
-    apiClient.post<ApiResponse<CheckoutPreviewResponse>('/cart/checkout/preview', { itemIds }),
+    apiClient.post<ApiResponse<CheckoutPreviewResponse>>('/cart/checkout/preview', { itemIds }),
 
   checkoutSubmit: (previewToken: string, addressId: number) =>
-    apiClient.post<ApiResponse<CheckoutSubmitResponse>('/cart/checkout/submit', {
+    apiClient.post<ApiResponse<CheckoutSubmitResponse>>('/cart/checkout/submit', {
       previewToken,
       addressId,
     }),

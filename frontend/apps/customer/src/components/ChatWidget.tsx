@@ -1,5 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@shared/store/chatStore';
+import MarkdownRenderer from './MarkdownRenderer';
+
+type ChatPanelSize = 'comfortable' | 'wide';
+
+interface ChatWidgetPrefs {
+  minimized: boolean;
+  size: ChatPanelSize;
+}
+
+const CHAT_WIDGET_PREFS_KEY = 'ai-chat-widget:prefs';
+const DEFAULT_CHAT_WIDGET_PREFS: ChatWidgetPrefs = {
+  minimized: false,
+  size: 'comfortable',
+};
+
+function readChatWidgetPrefs(): ChatWidgetPrefs {
+  if (typeof window === 'undefined') return DEFAULT_CHAT_WIDGET_PREFS;
+  try {
+    const raw = window.localStorage.getItem(CHAT_WIDGET_PREFS_KEY);
+    if (!raw) return DEFAULT_CHAT_WIDGET_PREFS;
+    const parsed = JSON.parse(raw) as Partial<ChatWidgetPrefs>;
+    return {
+      minimized: !!parsed.minimized,
+      size: parsed.size === 'wide' ? 'wide' : 'comfortable',
+    };
+  } catch (_) {
+    return DEFAULT_CHAT_WIDGET_PREFS;
+  }
+}
+
+function saveChatWidgetPrefs(prefs: ChatWidgetPrefs) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(CHAT_WIDGET_PREFS_KEY, JSON.stringify(prefs));
+  } catch (_) {}
+}
 
 export default function ChatWidget() {
   const {
@@ -22,12 +58,18 @@ export default function ChatWidget() {
   } = useChatStore();
 
   const [input, setInput] = useState('');
+  const [isMinimized, setIsMinimized] = useState(() => readChatWidgetPrefs().minimized);
+  const [panelSize, setPanelSize] = useState<ChatPanelSize>(() => readChatWidgetPrefs().size);
   // UC-AICHAT-003 A5: 5-minute confirmation window countdown.
   const CONFIRM_TTL = 300;
   const [secondsLeft, setSecondsLeft] = useState(CONFIRM_TTL);
   const confirmExpired = !!pendingConfirmation && secondsLeft <= 0;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    saveChatWidgetPrefs({ minimized: isMinimized, size: panelSize });
+  }, [isMinimized, panelSize]);
 
   // On open: load suggestions and, per UC-AICHAT-001, start a session (which
   // seeds the greeting) if one isn't active yet.
@@ -51,8 +93,17 @@ export default function ChatWidget() {
 
   // Auto-scroll to bottom when messages or streaming status changes
   useEffect(() => {
+    if (isMinimized) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isStreaming, pendingConfirmation]);
+  }, [messages, isStreaming, pendingConfirmation, isMinimized]);
+
+  // Cancel streaming on unmount to prevent memory leaks and dangling SSE connections
+  useEffect(() => {
+    return () => {
+      cancelStreaming();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -75,11 +126,21 @@ export default function ChatWidget() {
     }).format(price);
   };
 
+  const togglePanelSize = () => {
+    setPanelSize(size => size === 'wide' ? 'comfortable' : 'wide');
+  };
+
+  const panelSizeClass = isMinimized
+    ? 'h-auto md:w-[360px]'
+    : panelSize === 'wide'
+      ? 'h-[min(680px,calc(100vh-8rem))] md:w-[520px]'
+      : 'h-[min(550px,calc(100vh-8rem))] md:w-[400px]';
+
   if (!isOpen) {
     return (
       <button
         onClick={toggleChat}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl active:scale-95"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl active:scale-95"
         title="Trợ lý AI"
         id="ai-chat-widget-button"
       >
@@ -103,7 +164,7 @@ export default function ChatWidget() {
 
   return (
     <div
-      className="fixed bottom-24 right-6 z-50 flex h-[550px] w-[400px] flex-col overflow-hidden rounded-2xl border border-gray-200/50 bg-white/90 shadow-2xl backdrop-blur-md transition-all duration-300 animate-in slide-in-from-bottom-5"
+      className={`fixed bottom-24 left-4 right-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-gray-200/50 bg-white/90 shadow-2xl backdrop-blur-md transition-all duration-300 animate-in slide-in-from-bottom-5 md:left-auto md:right-6 ${panelSizeClass}`}
       id="ai-chat-widget-panel"
     >
       {/* Header */}
@@ -133,27 +194,72 @@ export default function ChatWidget() {
             </span>
           </div>
         </div>
-        <button
-          onClick={toggleChat}
-          className="rounded-full p-1 hover:bg-white/10 active:bg-white/20"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2.5}
-            stroke="currentColor"
-            className="h-5 w-5"
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setIsMinimized(value => !value)}
+            className="rounded-full p-1.5 hover:bg-white/10 active:bg-white/20"
+            aria-label={isMinimized ? 'Mở rộng trợ lý AI' : 'Thu gọn trợ lý AI'}
+            title={isMinimized ? 'Mở rộng' : 'Thu gọn'}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="h-4 w-4"
+            >
+              {isMinimized ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75 12 8.25l7.5 7.5" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25 12 15.75l-7.5-7.5" />
+              )}
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={togglePanelSize}
+            className="rounded-full p-1.5 hover:bg-white/10 active:bg-white/20"
+            aria-label={panelSize === 'wide' ? 'Thu nhỏ khung chat' : 'Phóng to khung chat'}
+            title={panelSize === 'wide' ? 'Thu nhỏ' : 'Phóng to'}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.2}
+              stroke="currentColor"
+              className="h-4 w-4"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 9.75V4.5h5.25M19.5 14.25v5.25h-5.25M4.5 4.5l6.75 6.75M19.5 19.5l-6.75-6.75" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={toggleChat}
+            className="rounded-full p-1.5 hover:bg-white/10 active:bg-white/20"
+            aria-label="Đóng trợ lý AI"
+            title="Đóng"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="h-4 w-4"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50"
+        className={`${isMinimized ? 'hidden' : ''} flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50`}
       >
         {messages.map((msg, index) => {
           const isUser = msg.role === 'USER';
@@ -169,7 +275,11 @@ export default function ChatWidget() {
                     : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
                 }`}
               >
-                {msg.content}
+                {isUser ? (
+                  <span className="whitespace-pre-wrap">{msg.content}</span>
+                ) : (
+                  <MarkdownRenderer text={msg.content} />
+                )}
 
                 {/* Structured Products Output */}
                 {msg.products && msg.products.length > 0 && (
@@ -294,7 +404,7 @@ export default function ChatWidget() {
       </div>
 
       {/* Suggestion Chips */}
-      {suggestions.length > 0 && !isStreaming && !pendingConfirmation && (
+      {!isMinimized && suggestions.length > 0 && !isStreaming && !pendingConfirmation && (
         <div className="border-t border-gray-100 bg-gray-50 px-3 py-2">
           <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
             {suggestions.map((sug, sIdx) => (
@@ -311,6 +421,7 @@ export default function ChatWidget() {
       )}
 
       {/* Footer input form */}
+      {!isMinimized && (
       <form onSubmit={handleSend} className="border-t border-gray-100 bg-white p-3 flex items-center space-x-2">
         {isStreaming ? (
           <button
@@ -365,6 +476,7 @@ export default function ChatWidget() {
           </>
         )}
       </form>
+      )}
     </div>
   );
 }

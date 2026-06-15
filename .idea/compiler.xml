@@ -7,25 +7,43 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
       </profile>
+      <profile name="Annotation profile for e2e-tests" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.44/lombok-1.18.44.jar" />
+        </processorPath>
+        <module name="e2e-tests" />
+      </profile>
+      <profile name="Annotation profile for identity-service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.44/lombok-1.18.44.jar" />
+        </processorPath>
+        <module name="identity-service" />
+      </profile>
       <profile name="Annotation profile for FlashSale Parent" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.40/lombok-1.18.40.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.44/lombok-1.18.44.jar" />
         </processorPath>
         <module name="dev-data-runner" />
+        <module name="payment-service" />
         <module name="refund-service" />
+        <module name="search-service" />
+        <module name="api-gateway" />
         <module name="product-service" />
         <module name="chat-service" />
         <module name="common-lib" />
+        <module name="order-service" />
         <module name="discovery-service" />
         <module name="notification-service" />
-        <module name="payment-service" />
-        <module name="search-service" />
-        <module name="api-gateway" />
-        <module name="order-service" />
-        <module name="identity-service" />
         <module name="flashsale-service" />
       </profile>
     </annotationProcessing>
@@ -52,6 +70,7 @@
       <module name="common-lib" options="-parameters" />
       <module name="dev-data-runner" options="-parameters" />
       <module name="discovery-service" options="-parameters" />
+      <module name="e2e-tests" options="-parameters" />
       <module name="flashsale-api" options="" />
       <module name="flashsale-parent" options="-parameters" />
       <module name="flashsale-parent (1)" options="" />

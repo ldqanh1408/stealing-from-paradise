@@ -525,6 +525,45 @@ const MOCK_PAYMENTS = [
   },
 ];
 
+const MOCK_SELLER_STRIPE_ACCOUNTS = [
+  {
+    sellerId: 1,
+    stripeAccountId: 'acct_mock_seller_1',
+    accountStatus: 'ACTIVE',
+    detailsSubmitted: true,
+    chargesEnabled: true,
+    payoutsEnabled: true,
+    onboardingStatus: 'COMPLETE',
+    expressDashboardUrl: 'https://dashboard.stripe.com/test/connect/accounts/acct_mock_seller_1',
+    createdAt: '2026-01-02T09:00:00Z',
+    updatedAt: '2026-01-05T10:30:00Z',
+  },
+  {
+    sellerId: 2,
+    stripeAccountId: 'acct_mock_seller_2',
+    accountStatus: 'PENDING',
+    detailsSubmitted: false,
+    chargesEnabled: false,
+    payoutsEnabled: false,
+    onboardingStatus: 'IN_PROGRESS',
+    expressDashboardUrl: 'https://dashboard.stripe.com/test/connect/accounts/acct_mock_seller_2',
+    createdAt: '2026-01-04T08:00:00Z',
+    updatedAt: '2026-01-04T08:45:00Z',
+  },
+  {
+    sellerId: 3,
+    stripeAccountId: 'acct_mock_seller_3',
+    accountStatus: 'SUSPENDED',
+    detailsSubmitted: true,
+    chargesEnabled: false,
+    payoutsEnabled: false,
+    onboardingStatus: 'SUSPENDED',
+    expressDashboardUrl: 'https://dashboard.stripe.com/test/connect/accounts/acct_mock_seller_3',
+    createdAt: '2026-01-06T11:00:00Z',
+    updatedAt: '2026-01-08T14:15:00Z',
+  },
+];
+
 const MOCK_REFUNDS = [
   {
     refundId: 1,
@@ -942,7 +981,44 @@ const MOCK_FLASH_ITEMS = [
 
 type MockHandler = (config: InternalAxiosRequestConfig) => Promise<any>;
 
+// Wishlist mock state — seed sẵn 1 sản phẩm để demo có dữ liệu.
+const MOCK_WISHLIST = new Set<string>(['1']);
+
 const mockHandlers: MockHandler[] = [
+  // ─── Wishlist ─────────────────────────────────────────────────────────────
+  async ({ method, url, data }) => {
+    if (url === '/wishlist' && method === 'get') {
+      await sleep(250 + Math.random() * 150);
+      const content = MOCK_PRODUCTS.filter((p) => MOCK_WISHLIST.has(p.productId)).map((p) => ({
+        productId: p.productId,
+        productName: p.productName,
+        thumbnailUrl: p.images?.[0] ?? null,
+        minPrice: p.price,
+        productStatus: 'ACTIVE',
+        available: true,
+        addedAt: new Date().toISOString(),
+      }));
+      return { success: true, data: { content, totalElements: content.length, totalPages: 1, last: true }, timestamp: Date.now() };
+    }
+    if (url === '/wishlist/items' && method === 'post') {
+      await sleep(150 + Math.random() * 100);
+      const body = JSON.parse(data || '{}');
+      if (body.productId) MOCK_WISHLIST.add(String(body.productId));
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+    const wishMatch = url?.match(/^\/wishlist\/items\/([\w-]+)$/);
+    if (wishMatch && method === 'delete') {
+      await sleep(150 + Math.random() * 100);
+      MOCK_WISHLIST.delete(wishMatch[1]);
+      return { success: true, data: null, timestamp: Date.now() };
+    }
+    if (wishMatch && method === 'get') {
+      await sleep(100 + Math.random() * 100);
+      return { success: true, data: MOCK_WISHLIST.has(wishMatch[1]), timestamp: Date.now() };
+    }
+    return null;
+  },
+
   // ─── Cart ─────────────────────────────────────────────────────────────────
   async ({ method, url }) => {
     if (url === '/cart' && method === 'get') {
@@ -995,7 +1071,7 @@ const mockHandlers: MockHandler[] = [
         totalAmount: 6_490_000,
         finalAmount: 6_490_000,
         itemsCount: body.itemIds?.length || 1,
-        timeoutAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        timeoutAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         createdAt: now,
       };
       checkoutOrderData[poId] = orderData;
@@ -1157,6 +1233,23 @@ const mockHandlers: MockHandler[] = [
     }
 
     // ─── Order Refunds (buyer) ────────────────────────────────────────────────
+    const refundPresignedMatch = url?.match(/^\/orders\/(\d+)\/refunds\/presigned-url$/);
+    if (refundPresignedMatch && method === 'get') {
+      await sleep(200 + Math.random() * 100);
+      const fileName = params?.file_name || `refund-evidence-${Date.now()}.jpg`;
+      const contentType = params?.content_type || 'image/jpeg';
+      return {
+        success: true,
+        data: {
+          url: `mock://refund-evidence/${refundPresignedMatch[1]}/${Date.now()}-${encodeURIComponent(fileName)}`,
+          fileName,
+          contentType,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        },
+        timestamp: Date.now(),
+      };
+    }
+
     const orderRefundMatch = url?.match(/^\/orders\/(\d+)\/refunds$/);
     if (orderRefundMatch && method === 'post') {
       await sleep(500 + Math.random() * 300);
@@ -1172,6 +1265,7 @@ const mockHandlers: MockHandler[] = [
           status: 'PENDING',
           amount: body.items?.reduce((s: number, it: any) => s + (it.quantity * 2_190_000), 0) || 299_000,
           reason: body.reason || 'Sản phẩm lỗi',
+          evidenceImages: body.evidenceImages || [],
           initiatedBy: 'BUYER',
           items: body.items?.map((it: any) => ({
             orderItemId: it.orderItemId,
@@ -1272,7 +1366,9 @@ const mockHandlers: MockHandler[] = [
       return { success: true, data: payment, timestamp: Date.now() };
     }
 
-    const clientSecretMatch = url?.match(/^\/payments\/parent-order\/(\d+)\/client-secret$/);
+    const clientSecretMatch =
+      url?.match(/^\/payments\/client-secret\/(\d+)$/) ??
+      url?.match(/^\/payments\/parent-order\/(\d+)\/client-secret$/);
     if (clientSecretMatch && method === 'get') {
       await sleep(500 + Math.random() * 200);
       const parentId = parseInt(clientSecretMatch[1]);
@@ -1322,6 +1418,78 @@ const mockHandlers: MockHandler[] = [
 
   // ─── Products ───────────────────────────────────────────────────────────────
   async ({ method, url, params }) => {
+    if (url === '/search/products' && method === 'get') {
+      await sleep(300 + Math.random() * 200);
+      const search = params?.q || params?.search || '';
+      const category = params?.category_id || params?.category;
+      const priceMin = params?.price_min != null ? Number(params.price_min) : undefined;
+      const priceMax = params?.price_max != null ? Number(params.price_max) : undefined;
+      const inStock = params?.in_stock === true || params?.in_stock === 'true';
+      const isFlash = params?.is_flash === true || params?.is_flash === 'true';
+      const page = params?.page ?? 0;
+      const size = params?.size ?? 20;
+      const sort = params?.sort || 'relevance';
+
+      let filtered = MOCK_PRODUCTS;
+      if (search) {
+        filtered = filtered.filter(p =>
+          p.productName.toLowerCase().includes(search.toLowerCase()) ||
+          p.description?.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      if (category) {
+        filtered = filtered.filter(p => p.category?.toLowerCase().includes(String(category).toLowerCase()));
+      }
+      if (priceMin != null && !Number.isNaN(priceMin)) {
+        filtered = filtered.filter(p => (p.price ?? 0) >= priceMin);
+      }
+      if (priceMax != null && !Number.isNaN(priceMax)) {
+        filtered = filtered.filter(p => (p.price ?? 0) <= priceMax);
+      }
+      if (inStock) {
+        filtered = filtered.filter(p => (p.stock ?? 0) > 0);
+      }
+      if (isFlash) {
+        filtered = filtered.filter(p => Boolean((p as any).isFlash));
+      }
+      if (sort === 'price_asc') {
+        filtered = [...filtered].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+      } else if (sort === 'price_desc') {
+        filtered = [...filtered].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+      } else if (sort === 'newest') {
+        filtered = [...filtered].sort((a, b) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''));
+      } else if (sort === 'popular') {
+        filtered = [...filtered].sort((a, b) => (b.reviewsCount ?? 0) - (a.reviewsCount ?? 0));
+      }
+
+      const start = page * size;
+      const content = filtered.slice(start, start + size);
+      return {
+        success: true,
+        data: {
+          totalResults: filtered.length,
+          page,
+          size,
+          totalPages: Math.ceil(filtered.length / size),
+          products: content.map(p => ({
+            productId: p.productId,
+            name: p.productName,
+            sellerId: p.sellerId,
+            sellerName: p.sellerName,
+            categoryId: p.category,
+            categoryName: p.category,
+            priceMin: p.price ?? null,
+            priceMax: p.originalPrice ?? p.price ?? null,
+            images: p.images ?? [],
+            stockAvailable: p.stock ?? 0,
+            isFlash: Boolean((p as any).isFlash),
+            thumbnailUrl: p.images?.[0] ?? '',
+          })),
+        },
+        timestamp: Date.now(),
+      };
+    }
+
     if ((url === '/products' || url === '/search') && method === 'get') {
       await sleep(300 + Math.random() * 200);
       const search = params?.q || params?.search || '';
@@ -1637,6 +1805,19 @@ const mockHandlers: MockHandler[] = [
 
   // ─── Admin Refunds ──────────────────────────────────────────────────────────
   async ({ method, url, params, data }) => {
+    if (url === '/stripe/onboarding/admin/sellers' && method === 'get') {
+      await sleep(250 + Math.random() * 150);
+      const accounts = [...MOCK_SELLER_STRIPE_ACCOUNTS];
+      const summary = {
+        totalSellers: accounts.length,
+        completedSellers: accounts.filter(a => a.onboardingStatus === 'COMPLETE').length,
+        pendingSellers: accounts.filter(a => a.onboardingStatus === 'PENDING').length,
+        inProgressSellers: accounts.filter(a => a.onboardingStatus === 'IN_PROGRESS').length,
+        suspendedSellers: accounts.filter(a => a.onboardingStatus === 'SUSPENDED').length,
+      };
+      return { success: true, data: { summary, accounts }, timestamp: Date.now() };
+    }
+
     if (url === '/admin/refunds' && method === 'get') {
       await sleep(400 + Math.random() * 200);
       const status = params?.status;

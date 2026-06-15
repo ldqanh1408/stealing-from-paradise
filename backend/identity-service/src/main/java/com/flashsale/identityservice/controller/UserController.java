@@ -14,6 +14,7 @@ import com.flashsale.identityservice.dto.response.UserProfileResponse;
 import com.flashsale.identityservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,6 +27,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+
+    @Value("${minio.public-url:http://localhost:9000}")
+    private String minioPublicUrl;
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getCurrentUser(
@@ -138,6 +142,6 @@ public class UserController {
     }
 
     private String buildPresignedPutUrl(String objectKey, String contentType) {
-        return "https://minio.internal/user-avatars/" + objectKey + "?X-Amz-Algorithm=AWS4-HMAC-SHA256";
+        return minioPublicUrl + "/user-avatars/" + objectKey + "?X-Amz-Algorithm=AWS4-HMAC-SHA256";
     }
 }

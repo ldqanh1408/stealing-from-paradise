@@ -1,5 +1,5 @@
 import apiClient from '../lib/axios';
-import type { ApiResponse } from '../types/api';
+import type { ApiResponse, PageResponse } from '../types/api';
 
 // ─── Refund Types ────────────────────────────────────────────────────────────
 
@@ -22,11 +22,15 @@ export interface PartialRefundRequest {
 
 export interface RefundItemResponse {
   orderItemId: number;
+  itemId?: number;
+  productName?: string;
+  imageSnapshot?: string;
   quantity: number;
   refundAmount: number;
   itemReason?: string;
   status: string;
   trackingNumber?: string;
+  returnTrackingNumber?: string;
   returnedAt?: string;
 }
 
@@ -50,6 +54,47 @@ export interface RefundResponse {
   items?: RefundItemResponse[];
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface RefundReturnEvidence {
+  type: string;
+  trackingNumber?: string;
+  recordedAt?: string;
+}
+
+export interface RefundDetailResponse extends RefundResponse {
+  refundCode?: string;
+  causedBy?: 'SELLER' | 'BUYER' | string;
+  trackingNumber?: string;
+  returnEvidence?: RefundReturnEvidence[];
+}
+
+type RefundPageResponse = PageResponse<RefundResponse>;
+
+function normalizeRefundPage(
+  payload: RefundPageResponse | RefundResponse[] | undefined,
+  page = 0,
+  size = 20,
+): RefundPageResponse {
+  if (Array.isArray(payload)) {
+    return {
+      content: payload,
+      page,
+      size,
+      totalElements: payload.length,
+      totalPages: payload.length > 0 ? 1 : 0,
+      last: true,
+    };
+  }
+
+  return {
+    content: payload?.content ?? [],
+    page: payload?.page ?? page,
+    size: payload?.size ?? size,
+    totalElements: payload?.totalElements ?? 0,
+    totalPages: payload?.totalPages ?? 0,
+    last: payload?.last ?? true,
+  };
 }
 
 export interface FullRefundCreatedResponse {
@@ -117,11 +162,11 @@ export const adminRefundApi = {
     page?: number;
     size?: number;
   }) =>
-    apiClient.get<ApiResponse<{ content: RefundResponse[]; totalElements: number; totalPages: number }>>('/admin/refunds', { params }),
+    apiClient.get<ApiResponse<RefundPageResponse>>('/admin/refunds', { params }),
 
   /** Get refund detail */
   getById: (refundId: number) =>
-    apiClient.get<ApiResponse<RefundResponse>>(`/admin/refunds/${refundId}`),
+    apiClient.get<ApiResponse<RefundDetailResponse>>(`/admin/refunds/${refundId}`),
 
   /** Approve a refund */
   approve: (refundId: number, body: AdminRefundApproveRequest) =>
@@ -161,7 +206,15 @@ export const refundApi = {
 
   /** List all buyer's refunds */
   getMyRefunds: (params?: { status?: string; page?: number; size?: number }) =>
-    apiClient.get<ApiResponse<{ content: RefundResponse[]; totalElements: number; totalPages: number }>>('/orders/refunds', { params }),
+    apiClient
+      .get<ApiResponse<RefundPageResponse | RefundResponse[]>>('/orders/refunds', { params })
+      .then(res => ({
+        ...res,
+        data: {
+          ...res.data,
+          data: normalizeRefundPage(res.data.data, params?.page ?? 0, params?.size ?? 20),
+        } as ApiResponse<RefundPageResponse>,
+      })),
 
   /** Get presigned URL for refund evidence upload */
   getRefundPresignedUrl: (orderId: number, fileName: string, contentType: string) =>

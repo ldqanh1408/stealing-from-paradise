@@ -54,7 +54,7 @@ public class RouteConfig {
             .route("product-read", r -> r
                 .path("/api/v1/products/**", "/api/v1/categories/**",
                       "/api/v1/seller/products/**", "/api/v1/seller/variants/**", "/api/v1/seller/inventory/**",
-                      "/api/v1/inventory/**",
+                      "/api/v1/inventory/**", "/api/v1/sellers/me/products", "/api/v1/sellers/me/products/**",
                       "/api/v1/admin/products/**", "/api/v1/admin/categories/**")
                 .and().method(HttpMethod.GET)
                 .filters(f -> f.stripPrefix(1))
@@ -63,7 +63,7 @@ public class RouteConfig {
             .route("product-write", r -> r
                 .path("/api/v1/products/**", "/api/v1/categories/**",
                       "/api/v1/seller/products/**", "/api/v1/seller/variants/**", "/api/v1/seller/inventory/**",
-                      "/api/v1/inventory/**",
+                      "/api/v1/inventory/**", "/api/v1/sellers/me/products", "/api/v1/sellers/me/products/**",
                       "/api/v1/admin/products/**", "/api/v1/admin/categories/**")
                 .and().method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE)
                 .filters(f -> f.stripPrefix(1))
@@ -72,6 +72,12 @@ public class RouteConfig {
             // ===== Cart Service (now part of Product Service — requires JWT) =====
             .route("cart", r -> r
                 .path("/api/v1/cart/**")
+                .filters(f -> f.stripPrefix(1))
+                .uri("lb://product-service"))
+
+            // ===== Wishlist (part of Product Service — requires JWT) =====
+            .route("wishlist", r -> r
+                .path("/api/v1/wishlist/**")
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://product-service"))
 

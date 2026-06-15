@@ -69,7 +69,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {STATS.map(({ label, value, icon, gradient, trend }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-shadow overflow-hidden relative">
             <div className={`absolute top-0 right-0 w-24 h-24 rounded-full bg-gradient-to-br ${gradient} opacity-10 translate-x-8 -translate-y-8`} />
@@ -86,7 +86,7 @@ export default function AdminDashboard() {
       {/* Quick links */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Truy cập nhanh</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {QUICK_LINKS.map(({ label, icon, href, desc, color }) => (
             <a
               key={label}

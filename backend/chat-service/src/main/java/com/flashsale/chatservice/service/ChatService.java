@@ -19,6 +19,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +38,9 @@ public class ChatService {
             - Always respond in Vietnamese (tiếng Việt)
             - Be friendly, concise, and helpful
             - Use available tools to look up real product and order information
-            - For sensitive actions (canceling orders, requesting refunds), always use the system action tool
-              which will ask the user for confirmation before proceeding
+            - For sensitive actions (canceling orders, requesting refunds), always use the system action tool immediately.
+              If the user does not specify a reason, use a default reason (e.g. "Khách hàng yêu cầu qua chat")
+              instead of asking the user for a reason.
             - When showing products, highlight key information: name, price, and availability
             - When showing orders, include status, items, and tracking information
             - If you don't know something, be honest and suggest how the user can find out
@@ -59,7 +61,7 @@ public class ChatService {
     private final OrderQueryTool orderQueryTool;
     private final SystemActionTool systemActionTool;
 
-    public Flux<ServerSentEvent<String>> streamChat(String sessionId, String message, Long userId, String accessToken) {
+    public Flux<ServerSentEvent<String>> streamChat(String sessionId, String message, Long userId, String userEmail, String userRole, String accessToken) {
         return Flux.defer(() -> rateLimiter.tryAcquireChat(userId)
                 .flatMapMany(allowed -> {
             if (!Boolean.TRUE.equals(allowed)) {
@@ -68,6 +70,8 @@ public class ChatService {
 
             ToolContext.setAccessToken(accessToken);
             ToolContext.setUserId(userId);
+            ToolContext.setUserEmail(userEmail);
+            ToolContext.setUserRole(userRole);
 
             return sessionService.getOrCreateSession(sessionId, userId)
                     .flatMapMany(session -> {
@@ -76,17 +80,17 @@ public class ChatService {
                         sessionService.updateSessionActivity(sid).subscribe();
 
                         return messageService.saveUserMessage(sid, message, userId)
-                                .flatMapMany(seqNo -> processConversation(sid, message, userId));
+                                .flatMapMany(seqNo -> processConversation(sid, message, userId, userEmail, userRole, accessToken));
                     })
                     .doFinally(signal -> ToolContext.clear());
         }));
     }
 
-    private Flux<ServerSentEvent<String>> processConversation(String sessionId, String message, Long userId) {
+    private Flux<ServerSentEvent<String>> processConversation(String sessionId, String message, Long userId, String userEmail, String userRole, String accessToken) {
         return messageService.loadRecentHistory(sessionId)
                 .flatMapMany(history -> {
                     List<Message> llmMessages = buildInitialMessages(history, message);
-                    return executeLlmWithTools(sessionId, userId, llmMessages);
+                    return executeLlmWithTools(sessionId, userId, userEmail, userRole, accessToken, llmMessages);
                 });
     }
 
@@ -113,30 +117,46 @@ public class ChatService {
     }
 
     private Flux<ServerSentEvent<String>> executeLlmWithTools(
-            String sessionId, Long userId, List<Message> messages) {
+            String sessionId, Long userId, String userEmail, String userRole, String accessToken, List<Message> messages) {
 
         ChatClient chatClient = ChatClient.create(chatModel);
 
-        try {
-            ChatResponse response = chatClient.prompt()
-                    .messages(messages)
-                    .tools(productSearchTool, orderQueryTool, systemActionTool)
-                    .call()
-                    .chatResponse();
+        return Mono.fromCallable(() -> {
+                    ToolContext.clear();
+                    ToolContext.setAccessToken(accessToken);
+                    ToolContext.setUserId(userId);
+                    ToolContext.setUserEmail(userEmail);
+                    ToolContext.setUserRole(userRole);
+                    ToolContext.setSessionId(sessionId);
 
-            String finalText = response.getResult().getOutput().getText();
+                    try {
+                        ChatResponse response = chatClient.prompt()
+                                .messages(messages)
+                                .tools(productSearchTool, orderQueryTool, systemActionTool)
+                                .call()
+                                .chatResponse();
 
-            return messageService.saveAssistantMessage(sessionId, finalText)
+                        String finalText = response.getResult().getOutput().getText();
+                        return new LlmToolResult(
+                                finalText,
+                                List.copyOf(ToolContext.getEvents()),
+                                ToolContext.isLevel3Pending()
+                        );
+                    } finally {
+                        ToolContext.clear();
+                    }
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(result -> messageService.saveAssistantMessage(sessionId, result.finalText())
                     .flatMapMany(saved -> {
-                        List<ToolContext.ToolEvent> toolEvents = ToolContext.getEvents();
-                        Flux<ServerSentEvent<String>> toolEventFlux = Flux.fromIterable(toolEvents)
+                        Flux<ServerSentEvent<String>> toolEventFlux = Flux.fromIterable(result.toolEvents())
                                 .map(this::mapToolEventToSse);
 
                         Flux<ServerSentEvent<String>> textFlux;
-                        if (ToolContext.isLevel3Pending()) {
+                        if (result.level3Pending()) {
                             textFlux = Flux.empty();
                         } else {
-                            textFlux = streamTextAsDeltas(finalText);
+                            textFlux = streamTextAsDeltas(result.finalText());
                         }
 
                         publishMessageSent(sessionId, userId).subscribe();
@@ -146,11 +166,16 @@ public class ChatService {
                                 textFlux,
                                 Flux.just(doneEvent())
                         );
-                    });
-        } catch (Exception e) {
-            log.error("[ChatService] LLM call failed for session {}", sessionId, e);
-            return Flux.just(errorEvent("AI service error: " + e.getMessage()));
-        }
+                    }))
+                .onErrorResume(e -> {
+                    log.error("[ChatService] LLM call failed for session {}", sessionId, e);
+                    return Flux.just(errorEvent("AI service error: " + e.getMessage()));
+                });
+    }
+
+    private record LlmToolResult(String finalText,
+                                 List<ToolContext.ToolEvent> toolEvents,
+                                 boolean level3Pending) {
     }
 
     private ServerSentEvent<String> mapToolEventToSse(ToolContext.ToolEvent event) {
@@ -221,8 +246,8 @@ public class ChatService {
         return sessionService.closeSession(sessionId, userId);
     }
 
-    public Mono<ChatMessage> confirmAction(String confirmId, boolean confirmed, Long userId) {
-        return actionService.confirmAction(confirmId, confirmed, userId);
+    public Mono<ChatMessage> confirmAction(String confirmId, boolean confirmed, Long userId, String userEmail, String userRole, String accessToken) {
+        return actionService.confirmAction(confirmId, confirmed, userId, userEmail, userRole, accessToken);
     }
 
     public Flux<ChatMessage> getHistory(String sessionId, int pageSize, String before) {
@@ -247,11 +272,11 @@ public class ChatService {
                     "userId", userId,
                     "timestamp", System.currentTimeMillis()
             ));
-            return Mono.fromRunnable(() ->
+            return Mono.<Void>fromRunnable(() ->
             {
                 kafkaTemplate.send(KafkaTopics.AI_CHAT_MESSAGE_SENT, payload);
                 kafkaTemplate.send(KafkaTopics.AI_CHAT_MESSAGE_RECEIVED, receivedPayload);
-            });
+            }).subscribeOn(Schedulers.boundedElastic());
         } catch (JsonProcessingException e) {
             log.warn("[ChatService] Failed to serialize Kafka payload", e);
             return Mono.empty();

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -225,11 +226,34 @@ public class InventoryService {
         for (StockReservation reservation : expiredReservations) {
             try {
                 releaseReservation(reservation.getId());
+                emitReservationExpiredEvent(reservation);
                 log.info("Cleaned up expired reservation: {}", reservation.getId());
             } catch (Exception e) {
                 log.error("Failed to cleanup reservation: {}", reservation.getId(), e);
             }
         }
+    }
+
+    /**
+     * Emits {@code stock.reservation.expired} per
+     * documents/messaging/product-service/KAFKA_EVENTS.md (MVP MUST-HAVE).
+     * Consumers: order-service (auto-cancels PENDING sub-orders of the session),
+     * notification-service (notifies about the expired hold).
+     */
+    private void emitReservationExpiredEvent(StockReservation reservation) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("event_type", KafkaTopics.STOCK_RESERVATION_EXPIRED);
+        payload.put("timestamp", LocalDateTime.now().toString());
+        payload.put("reservation_id", reservation.getId().toString());
+        payload.put("variant_id", reservation.getVariantId() != null ? reservation.getVariantId().toString() : null);
+        payload.put("session_id", reservation.getSessionId());
+        payload.put("quantity", reservation.getQuantity());
+        payload.put("expired_at", reservation.getExpiresAt() != null ? reservation.getExpiresAt().toString() : null);
+
+        String key = reservation.getSessionId() != null
+                ? reservation.getSessionId()
+                : reservation.getId().toString();
+        emitEvent(KafkaTopics.STOCK_RESERVATION_EXPIRED, key, payload);
     }
 
     @Transactional

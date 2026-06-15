@@ -49,7 +49,7 @@ export default function SellerDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {displayStats.map(({ label, value, icon, color, light }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-shadow">
             <div className="flex items-start justify-between mb-4">
@@ -110,7 +110,7 @@ export default function SellerDashboard() {
       {/* Quick actions */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Thao tác nhanh</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {QUICK_ACTIONS.map(({ label, icon, desc, href, color }) => (
             <a
               key={label}

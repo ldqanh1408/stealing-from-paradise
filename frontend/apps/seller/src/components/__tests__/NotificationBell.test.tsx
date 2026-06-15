@@ -23,8 +23,19 @@ const h = vi.hoisted(() => ({
 vi.mock('../../../../../shared/store/notificationStore', () => ({ useNotificationStore: () => h.store }));
 vi.mock('../../../../../shared/store/authStore', () => ({ useAuthStore: () => h.authState }));
 
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+}));
+
 vi.mock('../../../../../shared/lib/axios', () => ({
   handleAuthFailure: vi.fn(),
+}));
+
+// Vitest không set VITE_API_URL nên isMockMode() mặc định true → component rẽ nhánh mock,
+// không bao giờ connect SSE thật. Ép về false để test đường SSE.
+vi.mock('../../../../../shared/api/mock', async (importOriginal) => ({
+  ...(await importOriginal() as any),
+  isMockMode: () => false,
 }));
 
 const originalFetch = global.fetch;
@@ -62,7 +73,7 @@ describe('NotificationBell', () => {
   });
 
   it('connects to SSE, reads stream, parses notification and adds it to store', async () => {
-    h.authState.user = { id: 'user1' };
+    h.authState.user = { userId: 1 };
 
     let controller: ReadableStreamDefaultController | null = null;
     const stream = new ReadableStream({
@@ -109,7 +120,7 @@ describe('NotificationBell', () => {
   });
 
   it('calls handleAuthFailure on 401 response status', async () => {
-    h.authState.user = { id: 'user1' };
+    h.authState.user = { userId: 1 };
 
     const mockResponse = {
       ok: false,
@@ -128,7 +139,7 @@ describe('NotificationBell', () => {
   it('retries SSE connection after 5 seconds on non-401 failure', async () => {
     vi.useFakeTimers();
     try {
-      h.authState.user = { id: 'user1' };
+      h.authState.user = { userId: 1 };
 
       const mockResponse = {
         ok: false,

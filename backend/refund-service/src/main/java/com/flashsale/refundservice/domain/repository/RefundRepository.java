@@ -18,10 +18,10 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
 
     @Query("""
         SELECT r FROM Refund r
-        WHERE (:status IS NULL OR r.status = :status)
-          AND (:type IS NULL OR r.type = :type)
-          AND (:fromDate IS NULL OR r.createdAt >= :fromDate)
-          AND (:toDate IS NULL OR r.createdAt <= :toDate)
+        WHERE (CAST(:status AS string) IS NULL OR r.status = :status)
+          AND (CAST(:type AS string) IS NULL OR r.type = :type)
+          AND (CAST(:fromDate AS timestamp) IS NULL OR r.createdAt >= :fromDate)
+          AND (CAST(:toDate AS timestamp) IS NULL OR r.createdAt <= :toDate)
         ORDER BY r.createdAt DESC
         """)
     Page<Refund> findAllWithFilters(
@@ -35,10 +35,10 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     @Query("""
         SELECT r FROM Refund r
         WHERE r.userId = :userId
-          AND (:status IS NULL OR r.status = :status)
-          AND (:type IS NULL OR r.type = :type)
-          AND (:fromDate IS NULL OR r.createdAt >= :fromDate)
-          AND (:toDate IS NULL OR r.createdAt <= :toDate)
+          AND (CAST(:status AS string) IS NULL OR r.status = :status)
+          AND (CAST(:type AS string) IS NULL OR r.type = :type)
+          AND (CAST(:fromDate AS timestamp) IS NULL OR r.createdAt >= :fromDate)
+          AND (CAST(:toDate AS timestamp) IS NULL OR r.createdAt <= :toDate)
         ORDER BY r.createdAt DESC
         """)
     Page<Refund> findAllByUserIdWithFilters(

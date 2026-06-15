@@ -15,7 +15,7 @@ Groups: auth, admin, catalog, inventory, cart, checkout, order, orderlifecycle, 
         search, notification, chat, webhook, e2e, all
 """
 
-import sys, os, json, time, uuid, hmac, hashlib, threading, traceback, argparse, urllib.request, urllib.error
+import sys, os, json, time, uuid, hmac, hashlib, threading, traceback, argparse, urllib.request, urllib.error, re
 
 # ── Config ──────────────────────────────────────────────────────────────────
 GW   = os.environ.get("GATEWAY", "http://localhost:8080")
@@ -25,6 +25,47 @@ TMO  = int(os.environ.get("E2E_TIMEOUT", "120"))
 POLL = int(os.environ.get("E2E_POLL", "2"))
 
 API_VERSION = "2024-06-20"  # matches stripe-java 26.1.0
+
+# ── Dynamic IDs ─────────────────────────────────────────────────────────────
+E2E_PRODUCT_ID = None
+E2E_VARIANT_ID = None
+
+def init_dynamic_ids():
+    global E2E_PRODUCT_ID, E2E_VARIANT_ID
+    if E2E_PRODUCT_ID and E2E_VARIANT_ID:
+        return E2E_PRODUCT_ID, E2E_VARIANT_ID
+
+    # 1. Fetch products
+    s, r = api("GET", "/api/v1/products?page=0&size=10")
+    if s != 200:
+        raise RuntimeError(f"Failed to fetch products for E2E dynamic ID initialization: status={s}, response={r}")
+    
+    content = get_field(r, "content")
+    if not content or not isinstance(content, list):
+        raise RuntimeError(f"Empty product listing in E2E dynamic ID initialization: response={r}")
+
+    # Iterate products to find one with variants
+    for prod in content:
+        pid = prod.get("id") or prod.get("productId")
+        if not pid:
+            continue
+        # Get product details
+        s2, r2 = api("GET", f"/api/v1/products/{pid}")
+        if s2 != 200:
+            continue
+        # Find variants
+        variants = get_field(r2, "variants") or r2.get("variants") or r2.get("data", {}).get("variants")
+        if not variants or not isinstance(variants, list):
+            continue
+        for v in variants:
+            vid = v.get("id") or v.get("variantId")
+            if vid:
+                E2E_PRODUCT_ID = pid
+                E2E_VARIANT_ID = vid
+                print(f"[Dynamic ID Init] Found E2E_PRODUCT_ID={E2E_PRODUCT_ID}, E2E_VARIANT_ID={E2E_VARIANT_ID}")
+                return E2E_PRODUCT_ID, E2E_VARIANT_ID
+
+    raise RuntimeError("No orderable product variant found in the database. Ensure dev seed data is loaded!")
 
 # ── HTTP ────────────────────────────────────────────────────────────────────
 def api(method, path, token=None, body=None, extra_headers=None):
@@ -301,14 +342,17 @@ def t_admin_lock_user():
 
 def t_admin_category_flow():
     t = login("admin")
+    suffix = uuid.uuid4().hex[:6]
+    name1 = f"E2E Test Cat {suffix}"
+    name2 = f"E2E Test Cat Updated {suffix}"
     # Create
-    s, r = api("POST", "/api/v1/admin/categories", t, body={"name": "E2E Test Cat", "parentId": None})
+    s, r = api("POST", "/api/v1/admin/categories", t, body={"name": name1, "parentId": None})
     check_status(s, (200, 201), "create category: ")
     cid = get_field(r, "id") or get_field(get_field(r, "data"), "id")
     check_not_none(cid, "category ID")
     ok(f"Created category: {cid}")
     # Update
-    s2, r2 = api("PUT", f"/api/v1/admin/categories/{cid}", t, body={"name": "E2E Test Cat Updated"})
+    s2, r2 = api("PUT", f"/api/v1/admin/categories/{cid}", t, body={"name": name2})
     check_status(s2, 200, "update category: ")
     ok(f"Updated category: {s2}")
     # Delete
@@ -329,7 +373,8 @@ def t_catalog_products():
     ok(f"Products: {len(content)}")
 
 def t_catalog_product_detail():
-    s, r = api("GET", "/api/v1/products/0b8e36ff-4b51-4d2b-b6c2-9b96373fafc0")
+    init_dynamic_ids()
+    s, r = api("GET", f"/api/v1/products/{E2E_PRODUCT_ID}")
     check_status(s, 200, "product detail: ")
     n = get_field(r, "name")
     check_not_none(n)
@@ -393,6 +438,24 @@ def t_catalog_seller_create_product():
     vid = get_field(r2, "variantId") or get_field(get_field(r2, "data"), "id") or get_field(get_field(r2, "data"), "variantId")
     ok(f"Created variant: {vid}")
 
+    # Request presigned URL
+    s_presigned, r_presigned = api("GET", f"/api/v1/products/{pid}/presigned-url?filename=image.jpg", t)
+    check_status(s_presigned, 200, "get presigned-url: ")
+    img_data = get_field(r_presigned, "data") or r_presigned
+    img_id = get_field(img_data, "imageId")
+    check_not_none(img_id, "image ID from presigned-url")
+    ok(f"Got presigned URL image ID: {img_id}")
+
+    # Register image
+    img_url = f"http://localhost:9000/product-images/products/techworld/{pid}/{img_id}.jpg"
+    s_img, r_img = api("POST", f"/api/v1/products/{pid}/images", t, body={
+        "imageId": img_id,
+        "url": img_url,
+        "sortOrder": 0
+    })
+    check_status(s_img, 201, "register image: ")
+    ok("Registered product image")
+
     # Submit
     s3, _ = api("POST", f"/api/v1/seller/products/{pid}/submit", t, body={})
     check_status(s3, 200, "submit: ")
@@ -421,7 +484,7 @@ def t_inventory_check():
     t = login("techworld")
     s, r = api("GET", "/api/v1/inventory/SKU-MAGSAFE", t)
     check_status(s, 200, "inventory check: ")
-    qty = get_field(r, "stockQuantity") or get_field(r, "quantity")
+    qty = get_field(r, "stockAvailable") or get_field(r, "stockTotal") or get_field(r, "stockQuantity") or get_field(r, "quantity")
     check_not_none(qty, "stock quantity")
     ok(f"Inventory SKU-MAGSAFE: {qty}")
 
@@ -433,7 +496,7 @@ def t_inventory_restock():
 
 def t_inventory_adjust():
     t = login("techworld")
-    s, r = api("POST", "/api/v1/seller/inventory/adjust", t, body={"skuCode": "SKU-MAGSAFE", "quantity": -2, "reason": "E2E adjust"})
+    s, r = api("POST", "/api/v1/seller/inventory/adjust?skuCode=SKU-MAGSAFE", t, body={"delta": -2, "reason": "MANUAL"})
     check_status(s, 200, "inventory adjust: ")
     ok(f"Adjust SKU-MAGSAFE: {s}")
 
@@ -450,7 +513,8 @@ def t_inventory_logs():
 
 def t_cart_flow():
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     # Clear
     s, _ = api("DELETE", "/api/v1/cart", t)
@@ -496,7 +560,8 @@ def t_cart_flow():
 
 def t_checkout_preview():
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
     # Clear + add
     api("DELETE", "/api/v1/cart", t)
     api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
@@ -511,7 +576,8 @@ def t_checkout_preview():
 
 def t_checkout_submit():
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
     api("DELETE", "/api/v1/cart", t)
     api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
     # Preview
@@ -589,11 +655,11 @@ def t_order_tracking():
         return
     oid = None
     for o in orders:
-        if o.get("status") == "PENDING":
+        if o.get("status") == "PAID":
             oid = o.get("orderId") or o.get("id")
             break
     if not oid:
-        warn("No PENDING seller order found")
+        warn("No PAID seller order found")
         return
     s2, r2 = api("PUT", f"/api/v1/orders/{oid}/tracking", t, body={"trackingNumber": "E2E-TRK-001"})
     check_status(s2, 200, "tracking: ")
@@ -609,11 +675,11 @@ def t_order_confirm_received():
         return
     oid = None
     for o in orders:
-        if o.get("status") in ("DELIVERED", "SHIPPING"):
+        if o.get("status") == "SHIPPING":
             oid = o.get("orderId") or o.get("id")
             break
     if not oid:
-        warn("No DELIVERED or SHIPPING order found")
+        warn("No SHIPPING order found")
         return
     s2, r2 = api("POST", f"/api/v1/orders/{oid}/confirm-received", t, body={})
     check_status(s2, 200, "confirm received: ")
@@ -903,6 +969,96 @@ def t_chat_sessions():
     else:
         info(f"Create session: {s} (AI service may be down)")
 
+def t_e2e_ai_cancel_order():
+    """UC-11.3 + AI: Cancel order via AI Chatbot and verify confirmation flow"""
+    # 1. Login as buyer
+    t = login("minhhoa")
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
+    xuid = {"X-User-Id": "6", "X-User-Role": "BUYER", "X-User-Email": "minhhoa@gmail.com"}
+
+    # 2. Create a fresh order via checkout
+    api("DELETE", "/api/v1/cart", t)
+    api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
+    s, r = api("POST", "/api/v1/cart/checkout/preview", t, body={"itemIds": [f"6:{vid}"]})
+    check_status(s, 200)
+    pt = get_field(r, "previewToken")
+    check_not_none(pt)
+    sa, ra = api("GET", "/api/v1/users/me/addresses", t)
+    check_status(sa, 200)
+    addrs = get_field(ra, "data")
+    aid = (addrs[0].get("address_id") if isinstance(addrs, list) else get_field(addrs, "address_id")) if addrs else None
+    check_not_none(aid)
+
+    # Snapshot max orderId
+    so, ro = api("GET", "/api/v1/orders?page=0&size=100", t)
+    pre_max = 0
+    if so == 200:
+        c = get_field(ro, "content")
+        if c and isinstance(c, list):
+            pre_max = max((o.get("parentOrderId") or 0 for o in c), default=0)
+
+    # Submit checkout
+    s, r = api("POST", "/api/v1/cart/checkout/submit", t, body={"previewToken": pt, "addressId": aid})
+    check_status(s, 200)
+
+    # Find the new order ID
+    def find_new():
+        ss, rr = api("GET", "/api/v1/orders?page=0&size=100", t)
+        if ss != 200: return None
+        cc = get_field(rr, "content")
+        if not cc or not isinstance(cc, list): return None
+        for o in cc:
+            if (o.get("parentOrderId") or 0) > pre_max: return o.get("orderId") or o.get("id")
+        return None
+    oid = poll("new order ID for AI cancel", find_new, timeout=60)
+    check_not_none(oid)
+    ok(f"Created order {oid} for AI cancel test")
+
+    # 3. Create an AI chat session
+    s, r = api("POST", "/api/ai/sessions", t, body={}, extra_headers=xuid)
+    check_status(s, (200, 201))
+    sid = get_field(r, "id") or get_field(get_field(r, "data"), "id")
+    check_not_none(sid)
+    ok(f"Chat session: {sid}")
+
+    # 4. Chat with AI to request cancellation
+    message = f"Hủy giúp tôi đơn hàng FE-ORD-PAID-{oid}"
+    info(f"Sending message: {message}")
+    chat_headers = xuid.copy()
+    chat_headers["Accept"] = "text/event-stream"
+    s, r = api("POST", "/api/ai/chat", t, body={"sessionId": sid, "message": message}, extra_headers=chat_headers)
+    check_status(s, 200)
+    
+    # The response should be SSE text. Let's find confirmId in it.
+    raw_sse = str(r)
+    # Search for "confirmId":"..." in the SSE data
+    confirm_match = re.search(r'"confirmId"\s*:\s*"([^"]+)"', raw_sse)
+    if not confirm_match:
+        raise RuntimeError(f"Could not find confirmId in SSE response: {raw_sse}")
+    
+    confirm_id = confirm_match.group(1)
+    ok(f"Found confirmId: {confirm_id}")
+
+    # 5. Call /api/ai/confirm to execute the action
+    info(f"Confirming action: {confirm_id}")
+    s_conf, r_conf = api("POST", "/api/ai/confirm", t, body={"confirmId": confirm_id, "confirmed": True}, extra_headers=xuid)
+    check_status(s_conf, 200)
+    ok("AI confirm request completed successfully")
+
+    # 6. Verify that the order status is indeed CANCELLED
+    def check_order_cancelled():
+        ss, rr = api("GET", f"/api/v1/orders/{oid}", t)
+        if ss != 200: return False
+        status = get_field(rr, "status") or get_field(get_field(rr, "data"), "status")
+        return status == "CANCELLED"
+    
+    poll("order CANCELLED via AI", check_order_cancelled, timeout=30)
+    ok("Order cancelled status verified")
+
+    # Clean up session
+    api("DELETE", f"/api/ai/sessions/{sid}", t, extra_headers=xuid)
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SECTION: WEBHOOK SECURITY
 # ══════════════════════════════════════════════════════════════════════════════
@@ -954,7 +1110,8 @@ def t_webhook_account_updated():
 def t_e2e_checkout_payment_success():
     """UC-11.1: Checkout → PaymentIntent.succeeded → orders PAID"""
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     # Clear + add to cart
     api("DELETE", "/api/v1/cart", t)
@@ -1039,7 +1196,8 @@ def t_e2e_checkout_payment_success():
 def t_e2e_payment_failed():
     """UC-11.2: payment_intent.payment_failed → orders CANCELLED"""
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     api("DELETE", "/api/v1/cart", t)
     api("POST", "/api/v1/cart/items", t, body={"variantId": vid, "quantity": 1})
@@ -1432,7 +1590,8 @@ def t_e2e_publish_search_reindex():
 def t_e2e_buyer_cancel_order():
     """UC-11.3: Buyer cancels PENDING order, verify transaction CANCELLED"""
     t = login("minhhoa")
-    vid = "c5803c7d-2d5c-4178-b579-7266a15ca9ff"
+    init_dynamic_ids()
+    vid = E2E_VARIANT_ID
 
     # Create a fresh order via checkout
     api("DELETE", "/api/v1/cart", t)
@@ -1489,7 +1648,7 @@ def t_e2e_refund_approve_flow():
     """UC-11.4: Admin approve refund after buyer request (full lifecycle)"""
     t = login("minhhoa")
     at = login("admin")
-    s, r = api("GET", "/api/v1/orders?page=0&size=5", t)
+    s, r = api("GET", "/api/v1/orders?page=0&size=50", t)
     check_status(s, 200)
     orders = get_field(r, "content")
     if not orders or not isinstance(orders, list) or len(orders) == 0:
@@ -1497,11 +1656,52 @@ def t_e2e_refund_approve_flow():
         return
     oid = None
     for o in orders:
-        if o.get("status") in ("PAID", "DELIVERED"):
-            oid = o.get("orderId") or o.get("id")
+        status = o.get("status")
+        candidate_id = o.get("orderId") or o.get("id")
+        
+        # Check if candidate has active refund request
+        ref_s, ref_r = api("GET", f"/api/v1/orders/{candidate_id}/refunds", t)
+        if ref_s == 200:
+            refs = get_field(ref_r, "data") or []
+            if refs:
+                continue # Skip if already has refund requests
+                
+        if status == "DELIVERED":
+            oid = candidate_id
             break
+        elif status == "PAID":
+            seller_id = o.get("sellerId")
+            seller_username = {
+                1: "techworld",
+                2: "fashionhub",
+                3: "gadgetpro",
+                4: "homeliving",
+                5: "sportoutdoor"
+            }.get(seller_id)
+            if not seller_username:
+                continue
+                
+            info(f"Transitioning PAID order {candidate_id} to DELIVERED via seller {seller_username}...")
+            # Login as seller to update tracking
+            st = login(seller_username)
+            s_track, _ = api("PUT", f"/api/v1/orders/{candidate_id}/tracking", st, body={
+                "trackingNumber": f"TRK-{uuid.uuid4().hex[:8].upper()}"
+            })
+            if s_track != 200:
+                warn(f"Failed to update tracking for order {candidate_id}: {s_track}")
+                continue
+                
+            # Confirm received to mark as DELIVERED
+            s_recv, _ = api("POST", f"/api/v1/orders/{candidate_id}/confirm-received", t, body={})
+            if s_recv != 200:
+                warn(f"Failed to confirm received for order {candidate_id}: {s_recv}")
+                continue
+                
+            oid = candidate_id
+            break
+
     if not oid:
-        warn("No PAID/DELIVERED order for refund test")
+        warn("No suitable PAID or DELIVERED order found for refund test")
         return
     # Get items
     s, r = api("GET", f"/api/v1/orders/{oid}", t)
@@ -1521,19 +1721,27 @@ def t_e2e_refund_approve_flow():
         "evidenceImages": []})
     check_status(s, (200, 201), "request refund: ")
     ok(f"Refund requested on order {oid}")
-    # Find refund ID
-    sid, rid = api("GET", f"/api/v1/orders/{oid}/refunds", t)
-    if sid == 200:
-        refs = get_field(rid, "data") or []
-        if isinstance(refs, list) and len(refs) > 0:
-            rfid = refs[-1].get("refundId") or refs[-1].get("id")
-            if rfid:
-                # Admin approve
-                sap, _ = api("POST", f"/api/v1/admin/refunds/{rfid}/approve", at, body={"adminNote": "E2E approve"})
-                info(f"Admin approve refund {rfid}: {sap}")
-                if sap == 200:
-                    ok("Refund approved by admin")
-                    return
+    # Find refund ID with polling (since Kafka processing is async)
+    def find_refund():
+        sid, rid = api("GET", f"/api/v1/orders/{oid}/refunds", t)
+        if sid == 200:
+            refs = get_field(rid, "data") or []
+            if isinstance(refs, list) and len(refs) > 0:
+                return refs[-1].get("refundId") or refs[-1].get("id")
+        return None
+
+    try:
+        rfid = poll("refund ID", find_refund, timeout=120)
+        ok(f"Found refund ID: {rfid}")
+        # Admin approve
+        sap, _ = api("POST", f"/api/v1/admin/refunds/{rfid}/approve", at, body={"adminNote": "E2E approve"})
+        info(f"Admin approve refund {rfid}: {sap}")
+        if sap in (200, 201):
+            ok("Refund approved by admin")
+            return
+    except TimeoutError:
+        warn("Timed out waiting for refund ID to appear")
+        
     warn("Could not complete refund approve flow")
 
 def t_e2e_publish_search_reindex():
@@ -1565,6 +1773,18 @@ def t_e2e_publish_search_reindex():
     # Variant
     vc = f"SEARCH-{uuid.uuid4().hex[:8].upper()}"
     api("POST", f"/api/v1/seller/products/{pid}/variants", st, body={"variantCode": vc, "variantName": vc, "price": 100000, "stockQuantity": 10})
+    # Image
+    s_presigned, r_presigned = api("GET", f"/api/v1/products/{pid}/presigned-url?filename=image.jpg", st)
+    if s_presigned == 200:
+        img_data = get_field(r_presigned, "data") or r_presigned
+        img_id = get_field(img_data, "imageId")
+        if img_id:
+            img_url = f"http://localhost:9000/product-images/products/techworld/{pid}/{img_id}.jpg"
+            api("POST", f"/api/v1/products/{pid}/images", st, body={
+                "imageId": img_id,
+                "url": img_url,
+                "sortOrder": 0
+            })
     # Submit + approve + publish
     api("POST", f"/api/v1/seller/products/{pid}/submit", st, body={})
     api("POST", f"/api/v1/admin/products/{pid}/approve", at, body={})
@@ -1693,6 +1913,7 @@ GROUPS = {
         ("checkout_payment_success", t_e2e_checkout_payment_success),
         ("payment_failed_cancelled", t_e2e_payment_failed),
         ("buyer_cancel_order", t_e2e_buyer_cancel_order),
+        ("ai_cancel_order", t_e2e_ai_cancel_order),
         ("stripe_onboarding_flow", t_e2e_stripe_onboarding_flow),
         ("parallel_onboarding", t_e2e_parallel_onboarding),
         ("transfer_webhook", t_e2e_transfer_webhook),

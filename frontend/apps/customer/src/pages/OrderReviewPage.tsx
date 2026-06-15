@@ -4,8 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { cartApi, type CartChangeDetail, type CheckoutPreviewResponse } from '@shared/api/cart.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
+import { orderApi, type ParentOrderDetail } from '@shared/api/order.api';
+import { Skeleton } from '@shared/components/ui';
+import CheckoutStepper from '@/components/CheckoutStepper';
+import { buildCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const REASON_LABELS: Record<string, string> = {
   PRICE_CHANGED: 'Giá đã thay đổi',
@@ -14,6 +19,47 @@ const REASON_LABELS: Record<string, string> = {
   VARIANT_UNAVAILABLE: 'Sản phẩm không còn khả dụng',
   VARIANT_INACTIVE: 'Sản phẩm đã ngừng bán',
 };
+
+async function getMaxParentOrderId(): Promise<number> {
+  try {
+    const { data } = await orderApi.getOrders({ page: 0, size: 100 });
+    const orders = data.data?.content ?? [];
+    return orders.reduce((max, order) => Math.max(max, order.parentOrderId ?? 0), 0);
+  } catch (_) {
+    return 0;
+  }
+}
+
+async function waitForParentOrder(
+  parentOrderId: number | undefined,
+  minParentOrderId: number,
+): Promise<ParentOrderDetail> {
+  let currentParentOrderId = parentOrderId;
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!currentParentOrderId) {
+      const { data } = await orderApi.getOrders({ page: 0, size: 100 });
+      const orders = data.data?.content ?? [];
+      currentParentOrderId = orders.reduce((max, order) => {
+        const candidate = order.parentOrderId ?? 0;
+        return candidate > minParentOrderId ? Math.max(max, candidate) : max;
+      }, 0);
+    }
+
+    if (currentParentOrderId) {
+      try {
+        const { data } = await orderApi.getParentOrder(currentParentOrderId);
+        if (data.data) return data.data;
+      } catch (_) {
+        // Order-service may need another tick after checkout submit is accepted.
+      }
+    }
+
+    await sleep(1000);
+  }
+
+  throw new Error('ORDER_NOT_READY');
+}
 
 // ─── Address Form Modal ────────────────────────────────────────────────────────
 function AddressFormModal({
@@ -443,7 +489,7 @@ export default function OrderReviewPage() {
   const [cartChanges, setCartChanges] = useState<CartChangeDetail[]>([]);
   const [refreshLoading, setRefreshLoading] = useState(false);
 
-  const selectedItemIds = (location.state?.selectedItemIds || []) as number[];
+  const selectedItemIds = (location.state?.selectedItemIds || []) as string[];
 
   // Check for price changes on cart load
   useEffect(() => {
@@ -452,7 +498,7 @@ export default function OrderReviewPage() {
       cart.sellers.forEach(seller => {
         seller.items.forEach(item => {
           changedItems.push({
-            variantId: String(item.cartItemId),
+            variantId: item.variantId,
             skuCode: item.skuCode,
             productName: item.productName,
             reason: 'PRICE_CHANGED',
@@ -555,11 +601,12 @@ export default function OrderReviewPage() {
 
   // Step 2: Submit → create order via preview token
   const handleProceedToPayment = async () => {
-    if (!previewToken || !selectedAddressId) return;
+    if (!previewToken || !selectedAddressId || !previewData) return;
     const addr = addresses.find(a => a.addressId === selectedAddressId);
     setIsProcessing(true);
     setApiError(null);
     try {
+      const maxParentOrderIdBefore = await getMaxParentOrderId();
       const { data } = await cartApi.checkoutSubmit(
         previewToken,
         selectedAddressId,
@@ -568,19 +615,16 @@ export default function OrderReviewPage() {
         addr?.fullAddress,
       );
       if (data.data) {
-        sessionStorage.setItem('pending_checkout', JSON.stringify({
-          parentOrderId: data.data.parentOrderId,
-          totalAmount: data.data.totalAmount,
-          totalItems: data.data.totalItems,
-          _paymentMethod: paymentMethod,
-        }));
+        const parentOrder = await waitForParentOrder(data.data.parentOrderId, maxParentOrderIdBefore);
+        const orderData = buildCheckoutPaymentData(data.data, previewData, parentOrder);
+        sessionStorage.setItem('pending_checkout', JSON.stringify(orderData));
         if (paymentMethod === 'cod') {
           navigate('/checkout/result?status=success', {
-            state: { parentOrderId: data.data.parentOrderId, method: 'COD' },
+            state: { parentOrderId: orderData.parentOrderId, method: 'COD', orderData },
           });
         } else {
           navigate('/checkout/payment', {
-            state: { parentOrderId: data.data.parentOrderId },
+            state: { orderData, parentOrderId: orderData.parentOrderId },
           });
         }
       }
@@ -600,6 +644,7 @@ export default function OrderReviewPage() {
       setApiError(
         errData?.message ||
         err?.response?.data?.message ||
+        (err?.message === 'ORDER_NOT_READY' ? 'Đơn hàng đang được tạo. Vui lòng thử lại sau vài giây.' : null) ||
         'Lỗi tạo đơn hàng'
       );
     } finally {
@@ -612,6 +657,8 @@ export default function OrderReviewPage() {
   return (
     <div className="bg-gray-50 min-h-screen py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <CheckoutStepper currentStep="review" className="mb-6" />
+
         {/* Cart change warning banner (shown on page load if cart has changes) */}
         {cartChanges.length > 0 && step === 'address' && (
           <CartChangeBanner
@@ -678,9 +725,17 @@ export default function OrderReviewPage() {
             </div>
 
             {addrsLoading && (
-              <div className="text-center py-12 text-gray-400">
-                <div className="text-3xl mb-2">⏳</div>
-                Đang tải địa chỉ...
+              <div className="space-y-3 mb-8">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="flex items-start p-4 border-2 border-gray-100 rounded-xl bg-white">
+                    <Skeleton className="w-5 h-5 mt-1 rounded-full shrink-0" />
+                    <div className="ml-4 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                    <Skeleton className="h-8 w-20 rounded-lg shrink-0" />
+                  </div>
+                ))}
               </div>
             )}
 
@@ -858,8 +913,24 @@ export default function OrderReviewPage() {
                   <div className="space-y-3">
                     {sellerGroup.items.map((item) => (
                       <div key={item.variantId} className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-xl shrink-0">
-                          🛍️
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-xl shrink-0 overflow-hidden">
+                          {item.imageUrl ? (
+                            <>
+                              <img
+                                src={item.imageUrl}
+                                alt={item.productName}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(event) => {
+                                  event.currentTarget.classList.add('hidden');
+                                  event.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                              <span className="hidden" aria-hidden="true">🛍️</span>
+                            </>
+                          ) : (
+                            <span aria-hidden="true">🛍️</span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{item.productName}</p>

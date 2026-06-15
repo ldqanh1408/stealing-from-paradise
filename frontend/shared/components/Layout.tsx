@@ -1,23 +1,45 @@
-import Navbar, { type NavLink } from './Navbar';
+import Navbar from './Navbar';
 import Footer from './Footer';
+import BottomTabBar from './BottomTabBar';
+import type { NavItem, NavGroup } from './navConfig';
 
 interface LayoutProps {
   children: React.ReactNode;
   appName: string;
-  /** Always-visible nav links */
-  links?: NavLink[];
-  /** Nav links visible only when authenticated */
-  authLinks?: NavLink[];
+  /** Top-priority destinations shown inline on the desktop bar. */
+  primaryItems?: NavItem[];
+  /** Secondary destinations grouped inside the account dropdown. */
+  menuGroups?: NavGroup[];
+  /** Mobile bottom-tab destinations (customer app). When set, a bottom tab bar renders. */
+  bottomTabItems?: NavItem[];
+  showSearch?: boolean;
+  showCart?: boolean;
 }
 
-export default function Layout({ children, appName, links, authLinks }: LayoutProps) {
+export default function Layout({
+  children,
+  appName,
+  primaryItems,
+  menuGroups,
+  bottomTabItems,
+  showSearch,
+  showCart,
+}: LayoutProps) {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar appName={appName} links={links} authLinks={authLinks} />
-      <main className="flex-1">
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Navbar
+        appName={appName}
+        primaryItems={primaryItems}
+        menuGroups={menuGroups}
+        showSearch={showSearch}
+        showCart={showCart}
+      />
+      {/* Pad the bottom on mobile so the fixed tab bar never covers content. */}
+      <main className={`flex-1 ${bottomTabItems ? 'pb-16 md:pb-0' : ''}`}>
         {children}
       </main>
       <Footer appName={appName} />
+      {bottomTabItems && <BottomTabBar items={bottomTabItems} />}
     </div>
   );
 }

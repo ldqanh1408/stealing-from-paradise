@@ -104,7 +104,12 @@ describe('sellerApi — inventory', () => {
   it('adjustInventory → POST /seller/inventory/adjust with body', async () => {
     const body = { skuCode: 'SKU1', delta: -3, reason: 'Hỏng' };
     await sellerApi.adjustInventory(body);
-    expect(client.post).toHaveBeenCalledWith('/seller/inventory/adjust', body);
+    expect(client.post).toHaveBeenCalledWith('/seller/inventory/adjust', {
+      delta: -3,
+      reason: 'MANUAL',
+    }, {
+      params: { skuCode: 'SKU1' },
+    });
   });
 
   it('getInventoryLogs → GET /seller/inventory/{sku}/logs', async () => {
@@ -115,15 +120,15 @@ describe('sellerApi — inventory', () => {
   it('restockInventory → PUT /inventory/{sku}/restock with body', async () => {
     const body = { quantity: 50, reason: 'Nhập hàng' };
     await sellerApi.restockInventory('SKU1', body);
-    expect(client.put).toHaveBeenCalledWith('/inventory/SKU1/restock', body);
+    expect(client.put).toHaveBeenCalledWith('/inventory/SKU1/restock', { quantity: 50 });
   });
 });
 
 describe('sellerApi — images & earnings', () => {
-  it('getPresignedUrl → GET /products/{id}/presigned-url with fileName & contentType params', async () => {
+  it('getPresignedUrl → GET /products/{id}/presigned-url with filename & contentType params', async () => {
     await sellerApi.getPresignedUrl('p1', 'a.png', 'image/png');
     expect(client.get).toHaveBeenCalledWith('/products/p1/presigned-url', {
-      params: { fileName: 'a.png', contentType: 'image/png' },
+      params: { filename: 'a.png', contentType: 'image/png' },
     });
   });
 
