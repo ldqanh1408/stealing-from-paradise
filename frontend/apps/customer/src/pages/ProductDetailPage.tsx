@@ -9,6 +9,13 @@ import { cartApi } from '@shared/api/cart.api';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
+function formatAttributeValue(value: unknown): string {
+  if (value == null) return '—';
+  if (Array.isArray(value)) return value.map(v => formatAttributeValue(v)).join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
@@ -208,7 +215,7 @@ export default function ProductDetailPage() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
               {product.sellerName && (
                 <p className="text-sm text-gray-500">
-                  Bán bởi <span className="font-semibold text-gray-700">{product.sellerName}</span>
+                  Được bán bởi <span className="font-semibold text-gray-700">{product.sellerName}</span>
                 </p>
               )}
             </div>
@@ -358,6 +365,23 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Attributes (key | value) — render only when product has any */}
+        {product.attributes && Object.keys(product.attributes).length > 0 && (
+          <div className="mt-12 bg-white rounded-2xl border border-gray-100 p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Thông tin sản phẩm</h2>
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-y-3 gap-x-4 text-sm">
+              {Object.entries(product.attributes).map(([key, value]) => (
+                <div key={key} className="contents">
+                  <dt className="col-span-1 text-gray-500 capitalize">{key}</dt>
+                  <dd className="col-span-2 text-gray-900 font-medium break-words">
+                    {formatAttributeValue(value)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
 
         {/* Description */}
         {product.description && (

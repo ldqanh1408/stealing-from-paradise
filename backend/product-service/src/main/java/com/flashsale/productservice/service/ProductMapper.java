@@ -42,9 +42,9 @@ public class ProductMapper {
                     .orElse(null);
         }
 
-        String sellerName = product.getSellerId() != null
-                ? "Seller " + product.getSellerId()
-                : null;
+        String sellerName = product.getSellerName() != null && !product.getSellerName().isBlank()
+                ? product.getSellerName()
+                : (product.getSellerId() != null ? "Seller " + product.getSellerId() : null);
 
         return ProductResponse.builder()
                 .id(product.getId())
