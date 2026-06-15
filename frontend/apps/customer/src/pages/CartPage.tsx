@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '@shared/store/cartStore';
+import type { CartChangeDetail } from '@shared/api/cart.api';
 import type { CartItem } from '@shared/api/cart.api';
 import { Skeleton } from '@shared/components/ui';
 import CheckoutStepper from '@/components/CheckoutStepper';
@@ -10,6 +11,66 @@ const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 function isFlashExpired(iso?: string | null) {
   if (!iso) return false;
   return new Date(iso).getTime() < Date.now();
+}
+
+function CartChangeBanner({
+  details,
+  onRefresh,
+  isLoading,
+}: {
+  details: CartChangeDetail[];
+  onRefresh: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6">
+      <div className="flex items-start gap-3">
+        <div className="text-2xl shrink-0">⚠️</div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-orange-800 mb-1">Dữ liệu giỏ hàng đã thay đổi</h3>
+          <p className="text-sm text-orange-700 mb-3">
+            Một số sản phẩm trong giỏ hàng có thông tin đã thay đổi. Vui lòng làm mới để cập nhật giá và thông tin mới nhất.
+          </p>
+          <div className="space-y-2">
+            {details.map((d, i) => (
+              <div key={i} className="bg-white/70 rounded-xl p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-gray-900 truncate min-w-0">
+                    {d.productName || d.skuCode || d.variantId}
+                  </p>
+                  <p className="text-orange-600 font-medium shrink-0">
+                    {d.reason === 'PRICE_CHANGED' ? 'Giá đã thay đổi' : d.reason}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="mt-3 flex items-center gap-2 px-4 py-2 bg-orange-200 hover:bg-orange-300 text-orange-800 font-semibold text-sm rounded-xl transition-colors disabled:opacity-50"
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Đang làm mới...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Làm mới giỏ hàng
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CartPage() {
@@ -23,20 +84,18 @@ export default function CartPage() {
   const [quantityError, setQuantityError] = useState<string | null>(null);
 
   const getMaxQty = (item: CartItem) => {
-    if (item.maxQuantityPerUser) {
-      return Math.min(item.maxQuantityPerUser, item.stockAvailable);
-    }
     return item.stockAvailable;
   };
 
   const handleIncrease = (item: CartItem) => {
+    const vid = item.variantId ?? String(item.cartItemId);
     const max = getMaxQty(item);
     if (item.quantity >= max) {
-      setQuantityError(item.cartItemId);
+      setQuantityError(vid);
       setTimeout(() => setQuantityError(null), 2000);
       return;
     }
-    updateQuantity(item.cartItemId, item.quantity + 1);
+    updateQuantity(vid, item.quantity + 1);
   };
 
   const getTotal = () => {
@@ -44,7 +103,8 @@ export default function CartPage() {
     let total = 0;
     cart.sellers.forEach(seller => {
       seller.items.forEach(item => {
-        if (selectedItems.has(item.cartItemId)) {
+        const key = item.variantId ?? String(item.cartItemId);
+        if (selectedItems.has(key)) {
           const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
           total += price * item.quantity;
         }
@@ -58,7 +118,8 @@ export default function CartPage() {
     return cart.sellers
       .map(seller => {
         const sellerTotal = seller.items.reduce((sum, item) => {
-          if (selectedItems.has(item.cartItemId)) {
+          const key = item.variantId ?? String(item.cartItemId);
+          if (selectedItems.has(key)) {
             const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
             return sum + price * item.quantity;
           }
@@ -69,12 +130,12 @@ export default function CartPage() {
       .filter(s => s.total > 0);
   };
 
-  const toggleItemSelection = (itemId: string) => {
+  const toggleItemSelection = (itemKey: string) => {
     const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
+    if (newSelected.has(itemKey)) {
+      newSelected.delete(itemKey);
     } else {
-      newSelected.add(itemId);
+      newSelected.add(itemKey);
     }
     setSelectedItems(newSelected);
   };
@@ -87,7 +148,7 @@ export default function CartPage() {
       const all = new Set<string>();
       cart.sellers.forEach(seller => {
         seller.items.forEach(item => {
-          all.add(item.cartItemId);
+          all.add(item.variantId ?? String(item.cartItemId));
         });
       });
       setSelectedItems(all);
@@ -97,6 +158,40 @@ export default function CartPage() {
   const getItemCount = () => {
     if (!cart?.sellers) return 0;
     return cart.sellers.reduce((sum, seller) => sum + seller.items.length, 0);
+  };
+
+  // ─── Price-change detection ────────────────────────────────────────────────
+  // Backend's CartService.getCart auto-updates the snapshot on read AND sets
+  // cart.hasPriceChanges=true when any item's variant price differs from the
+  // snapshot. We only need to detect that flag and surface a banner; we do NOT
+  // need to recompute differences client-side.
+  const cartChanges = useMemo<CartChangeDetail[]>(() => {
+    if (!cart?.hasPriceChanges || !cart.sellers) return [];
+    const list: CartChangeDetail[] = [];
+    cart.sellers.forEach((seller) => {
+      seller.items.forEach((item) => {
+        list.push({
+          variantId: item.variantId,
+          skuCode: item.skuCode,
+          productName: item.productName,
+          reason: 'PRICE_CHANGED',
+          currentValue: fmt(item.unitPrice),
+          expectedValue: fmt(item.unitPrice),
+        });
+      });
+    });
+    return list;
+  }, [cart]);
+
+  const [refreshLoading, setRefreshLoading] = useState(false);
+
+  const handleRefreshCart = async () => {
+    setRefreshLoading(true);
+    try {
+      await fetchCart();
+    } finally {
+      setRefreshLoading(false);
+    }
   };
 
   if (isLoading && !cart) {
@@ -144,6 +239,16 @@ export default function CartPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         Giỏ hàng ({getItemCount()} sản phẩm)
       </h1>
+
+      {/* Price-change banner — shown when backend reports hasPriceChanges=true */}
+      {cartChanges.length > 0 && (
+        <CartChangeBanner
+          details={cartChanges}
+          onRefresh={handleRefreshCart}
+          isLoading={refreshLoading}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
@@ -173,13 +278,13 @@ export default function CartPage() {
                     const overStock = item.quantity > item.stockAvailable;
 
                     return (
-                      <div key={item.cartItemId} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
+                      <div key={item.variantId ?? String(item.cartItemId)} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
                         isExpired ? 'border-red-200 bg-red-50/30' : item.isFlash ? 'border-orange-200 bg-orange-50/20' : 'border-gray-100'
                       }`}>
                         <input
                           type="checkbox"
-                          checked={selectedItems.has(item.cartItemId)}
-                          onChange={() => toggleItemSelection(item.cartItemId)}
+                          checked={selectedItems.has(item.variantId ?? String(item.cartItemId))}
+                          onChange={() => toggleItemSelection(item.variantId ?? String(item.cartItemId))}
                           className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
                         />
                         <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0 overflow-hidden">
@@ -244,7 +349,7 @@ export default function CartPage() {
                         <div className="flex flex-col items-center gap-1 shrink-0">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
+                              onClick={() => updateQuantity(item.variantId ?? String(item.cartItemId), Math.max(1, item.quantity - 1))}
                               disabled={item.quantity <= 1}
                               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600 font-bold"
                             >
@@ -258,12 +363,12 @@ export default function CartPage() {
                               +
                             </button>
                           </div>
-                          {quantityError === item.cartItemId && (
+                          {quantityError === (item.variantId ?? String(item.cartItemId)) && (
                             <p className="text-xs text-red-500 whitespace-nowrap">Đã đạt số lượng tối đa</p>
                           )}
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.cartItemId)}
+                          onClick={() => removeFromCart(item.variantId ?? String(item.cartItemId))}
                           className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -232,15 +232,19 @@ public class VariantService {
     }
 
     private VariantResponse toVariantResponse(ProductVariant variant) {
+        boolean isFlash = variant.getOriginalPrice() != null
+                && variant.getPrice().compareTo(variant.getOriginalPrice()) < 0;
+
         return VariantResponse.builder()
                 .id(variant.getId())
                 .productId(variant.getProductId())
-                .variantCode(variant.getVariantCode())
+                .skuCode(variant.getVariantCode())
                 .variantName(variant.getVariantName())
                 .variantAttributes(deserializeAttributes(variant.getVariantAttributes()))
                 .price(variant.getPrice())
                 .originalPrice(variant.getOriginalPrice())
                 .stockQuantity(variant.getStockQuantity())
+                .isFlash(isFlash)
                 .status(variant.getStatus().name())
                 .imageUrl(variant.getImageUrl())
                 .version(variant.getVersion())

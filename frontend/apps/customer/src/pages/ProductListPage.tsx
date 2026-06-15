@@ -176,8 +176,8 @@ export default function ProductListPage() {
 
   const handleAddToCart = async (product: ProductDetail) => {
     try {
-      // List items come from the search service and carry no variants, so we
-      // fetch the full product to learn its variants before adding to the cart.
+      // List items come from the search service and may not carry variants, so
+      // we fetch the full product to learn its variants before adding to the cart.
       let variants = product.variants;
       if (!variants?.length) {
         const detail = await productApi.getProductById(product.productId).then(r => r.data.data);
@@ -189,7 +189,7 @@ export default function ProductListPage() {
         navigate(`/products/${product.productId}`);
         return;
       }
-      await addToCart(variants[0].variantId, 1, undefined);
+      await addToCart(variants[0].skuCode, 1, undefined);
       navigate('/cart');
     } catch (err: any) {
       notify.error(err?.response?.data?.message || 'Không thể thêm sản phẩm vào giỏ hàng');
@@ -503,7 +503,7 @@ export default function ProductListPage() {
           <div className="text-center py-20">
             <span className="text-5xl block mb-4">🔍</span>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Không tìm thấy sản phẩm</h3>
-            <p className="text-gray-500">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+            <p className="text-gray-500">Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm.</p>
           </div>
         )}
 

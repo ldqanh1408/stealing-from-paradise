@@ -5,7 +5,11 @@ export interface ProductVariant {
   variantId: string;
   skuCode: string;
   variantName: string;
-  stock: number;
+  stockQuantity: number;
+  stock?: number;
+  isFlash: boolean;
+  price?: number;
+  originalPrice?: number;
 }
 
 /** Matches backend ProductResponse: GET /products/{productId} */
@@ -15,63 +19,21 @@ export interface ProductDetail {
   sellerName?: string;
   name: string;
   description?: string;
-  price?: number;
-  originalPrice?: number;
   categoryId?: string;
   categoryName?: string;
   categorySlug?: string;
   attributes?: Record<string, unknown>;
   images?: string[];
-  isFlash?: boolean;
   status?: string;
   rejectReason?: string;
-  stockAvailable: number;
+  price?: number;
+  originalPrice?: number;
+  stockAvailable?: number;
   variants?: ProductVariant[];
   rating?: number;
   reviewsCount?: number;
   createdAt?: string;
   updatedAt?: string;
-}
-
-/** Matches backend ProductCard (used in product grids from search service) */
-export interface ProductListItem {
-  productId: string;
-  sellerId: number;
-  sellerName?: string;
-  name: string;
-  price?: number;
-  originalPrice?: number;
-  categoryName?: string;
-  images?: string[];
-  stock?: number;
-  rating?: number;
-  reviewsCount?: number;
-  isFlash?: boolean;
-  createdAt?: string;
-}
-
-/** Backend SearchService ProductCard shape */
-interface SearchProductCard {
-  productId: string;
-  name: string;
-  sellerId: number;
-  sellerName: string;
-  categoryId: string;
-  categoryName: string;
-  priceMin: number | null;
-  priceMax: number | null;
-  images: string[];
-  stockAvailable: number;
-  isFlash: boolean;
-  thumbnailUrl: string;
-}
-
-interface SearchResponse {
-  totalResults: number;
-  page: number;
-  size: number;
-  totalPages: number;
-  products: SearchProductCard[];
 }
 
 /** Backend product-service ProductResponse shape: GET /products/{productId} */
@@ -119,24 +81,68 @@ function mapProductDetail(raw: RawProductResponse): ProductDetail {
     sellerId: raw.sellerId,
     name: raw.name,
     description: raw.description,
-    price: cheapest?.price,
-    originalPrice: cheapest?.originalPrice,
     categoryId: raw.categoryId,
     categoryName: raw.categoryName,
     attributes: raw.attributes,
     images,
     status: raw.status,
     rejectReason: raw.rejectReason,
-    stockAvailable: activeVariants.reduce((sum, v) => sum + (v.stockQuantity ?? 0), 0),
+    price: cheapest?.price,
+    originalPrice: cheapest?.originalPrice,
     variants: activeVariants.map(v => ({
       variantId: v.id,
       skuCode: v.variantCode,
       variantName: v.variantName,
+      stockQuantity: v.stockQuantity ?? 0,
       stock: v.stockQuantity ?? 0,
+      isFlash: false,
+      price: v.price,
+      originalPrice: v.originalPrice,
     })),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
+}
+
+/** Matches backend ProductCard (used in product grids from search service) */
+export interface ProductListItem {
+  productId: string;
+  sellerId: number;
+  sellerName?: string;
+  name: string;
+  price?: number;
+  originalPrice?: number;
+  categoryName?: string;
+  images?: string[];
+  stock?: number;
+  rating?: number;
+  reviewsCount?: number;
+  isFlash?: boolean;
+  createdAt?: string;
+}
+
+/** Backend SearchService ProductCard shape */
+interface SearchProductCard {
+  productId: string;
+  name: string;
+  sellerId: number;
+  sellerName: string;
+  categoryId: string;
+  categoryName: string;
+  priceMin: number | null;
+  priceMax: number | null;
+  images: string[];
+  stockAvailable: number;
+  isFlash: boolean;
+  thumbnailUrl: string;
+}
+
+interface SearchResponse {
+  totalResults: number;
+  page: number;
+  size: number;
+  totalPages: number;
+  products: SearchProductCard[];
 }
 
 function mapProductCard(card: SearchProductCard): ProductListItem {

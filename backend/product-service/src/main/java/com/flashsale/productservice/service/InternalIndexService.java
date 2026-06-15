@@ -96,7 +96,9 @@ public class InternalIndexService {
         fields.put("categorySlugPath", buildCategorySlugPath(category, categoriesById));
         fields.put("productAttributes", parseJsonToMap(product.getAttributes()));
         fields.put("thumbnailUrl", thumbnailUrl);
-        fields.put("sellerName", product.getSellerId() != null ? "Seller " + product.getSellerId() : null);
+        fields.put("sellerName", product.getSellerName() != null && !product.getSellerName().isBlank()
+                ? product.getSellerName()
+                : (product.getSellerId() != null ? "Seller " + product.getSellerId() : null));
         fields.put("productStatus", product.getStatus() != null ? product.getStatus().name() : null);
         fields.entrySet().removeIf(entry -> entry.getValue() == null);
         return fields;
@@ -183,7 +185,9 @@ public class InternalIndexService {
                     .isActive(true)
                     .thumbnailUrl(thumbnailByProduct.get(p.getId()))
                     .skuImageUrl(v.getImageUrl())
-                    .sellerName(p.getSellerId() != null ? "Seller " + p.getSellerId() : null)
+                    .sellerName(p.getSellerName() != null && !p.getSellerName().isBlank()
+                            ? p.getSellerName()
+                            : (p.getSellerId() != null ? "Seller " + p.getSellerId() : null))
                     .sortId(sortCursor++)
                     .build());
         }

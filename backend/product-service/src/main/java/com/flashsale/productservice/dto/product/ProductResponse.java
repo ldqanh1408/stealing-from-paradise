@@ -1,6 +1,5 @@
 package com.flashsale.productservice.dto.product;
 
-import com.flashsale.productservice.dto.image.ImageResponse;
 import com.flashsale.productservice.dto.variant.VariantResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,10 +24,11 @@ public class ProductResponse {
     private UUID categoryId;
     private String categoryName;
     private Long sellerId;
+    private String sellerName;
     private String status;
     private Map<String, Object> attributes;
     private List<VariantResponse> variants;
-    private List<ImageResponse> images;
+    private List<String> images;
     private String rejectReason;
     private Integer rejectCount;
     private LocalDateTime createdAt;

@@ -65,6 +65,10 @@ public class ProductCommandService {
                 .categoryId(request.getCategoryId())
                 .attributes(productMapper.serializeAttributes(request.getAttributes()))
                 .sellerId(user.getId())
+                // UserDetailsImpl chỉ expose username/email (không có fullName) — để null
+                // và để SellerInfoConsumer backfill từ Kafka (seller.registered).
+                // Frontend fallback "Seller #{id}" hiển thị tạm thời trong vài giây.
+                .sellerName(null)
                 .status(ProductStatus.DRAFT)
                 .rejectCount(0)
                 .build();

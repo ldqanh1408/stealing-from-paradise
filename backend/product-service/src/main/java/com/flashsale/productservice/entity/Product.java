@@ -38,6 +38,14 @@ public class Product {
     @Column(name = "seller_id")
     private Long sellerId;
 
+    /**
+     * Denormalized display name of the seller (synced from identity-service via
+     * SellerInfoConsumer listening on {@code seller.registered} and
+     * {@code account.updated} topics).
+     */
+    @Column(name = "seller_name", length = 200)
+    private String sellerName;
+
     @Column(name = "name", nullable = false, length = 200)
     private String name;
 
