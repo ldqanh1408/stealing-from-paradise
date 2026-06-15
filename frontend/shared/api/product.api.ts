@@ -26,6 +26,9 @@ export interface ProductDetail {
   images?: string[];
   status?: string;
   rejectReason?: string;
+  price?: number;
+  originalPrice?: number;
+  stockAvailable?: number;
   variants?: ProductVariant[];
   rating?: number;
   reviewsCount?: number;
