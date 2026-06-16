@@ -9,7 +9,7 @@ import com.flashsale.searchservice.service.SearchQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -47,7 +47,6 @@ public class SearchController {
     }
 
     @PostMapping("/reindex")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> triggerReindex() {
         ReindexService.ReindexStatus status = reindexService.triggerReindex();
 
@@ -67,7 +66,6 @@ public class SearchController {
     }
 
     @GetMapping("/reindex/status")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ReindexResponse>> getReindexStatus() {
         ReindexService.ReindexStatus status = reindexService.getStatus();
         ReindexResponse response = ReindexResponse.builder()

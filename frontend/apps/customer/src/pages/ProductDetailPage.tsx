@@ -37,6 +37,14 @@ export default function ProductDetailPage() {
     retry: 1,
   });
 
+  // Auto-select first in-stock variant when product loads
+  useEffect(() => {
+    if (product?.variants && product.variants.length > 0) {
+      const firstInStock = product.variants.findIndex(v => v.stockQuantity > 0);
+      setSelectedVariantIndex(firstInStock >= 0 ? firstInStock : 0);
+    }
+  }, [product]);
+
   const { data: addresses = [] } = useQuery({
     queryKey: ['addresses'],
     queryFn: async () => {

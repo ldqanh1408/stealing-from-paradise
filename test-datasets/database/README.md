@@ -21,6 +21,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 Script se seed:
 
 - Postgres: `identity`, `product`, `orders`, `payment`, `refund`, `flashsale`
+  - `frontend-postgres-seed.sql` — dataset chinh (ID 900xxx)
+  - `frontend-supplement-seed.sql` — dataset bo sung (ID 901xxx)
 - Mongo: `fs_notification.mg_notifications`, `fs_chat.*`
 - Elasticsearch: index/alias `skus` cho `/api/v1/search/products`
 
@@ -47,17 +49,23 @@ ID range `900xxx` la cua dataset nay.
 | Area | Fixture |
 | --- | --- |
 | Identity / Addresses | `fe_buyer` 3 địa chỉ (default + 2 backup) cho flow chọn địa chỉ checkout; `fe_seller` 2 địa chỉ (warehouse + return center) |
+| **Wishlist** | `fe_buyer` đã thả tim 3 sản phẩm: Phone, AirPods, USB-C Hub |
+| **Cart multi-seller** | Cart `fe_buyer` có thêm item từ seller `fe_seller` (MacBook Air) — test multi-seller checkout |
+| **Multi-variant product** | `FE Premium T-Shirt Multi-Color` với 3 variants Black / White / Navy — test product detail variant selector |
+| **Out-of-stock ACTIVE** | `FE Limited Edition Headphone (Sold Out)` — stock=0, status=ACTIVE, test "Hết hàng" display |
 | Catalog/search | `FE Phone Pro Camera Kit`, `FE MacBook Air M3 Demo`, `FE AirPods Flash Combo`, `FE USB-C Hub 8-in-1`, `FE Out Of Stock Headphone` |
 | Seller product workflow | `FE Draft Smart Lamp`, `FE Pending Review Backpack`, `FE Rejected Sample Bag`, `FE Approved Robot Vacuum`, `FE Inactive Desk Setup` |
-| Cart | `fe_buyer` co san 2 item: phone + USB-C hub |
+| Cart | `fe_buyer` co san 2 item: phone + USB-C hub (+ supplement: MacBook Air) |
 | Orders | `900101..900109` cover `PENDING`, `PAID`, `SHIPPING`, `DELIVERED`, `CANCELLED`, `PARTIALLY_REFUNDED`, `REFUNDED`, `RETURNED` |
 | Payment | Transaction `900101` la `PENDING` co `client_secret`; cac order khac cover paid/refunded/failed |
 | Seller payouts | Transfers cover `AWAITING_DELIVERY`, `RETURN_WINDOW`, `READY_FOR_PAYOUT`, `REFUNDED`, `SKIPPED`, `PAID_OUT` |
 | Seller Stripe onboarding | Seller `900002` ACTIVE (đủ charges/payouts); Admin `900003` REQUIREMENTS_DUE (chưa hoàn thành KYC) |
 | Refund admin | Refunds `900201..900204` cover `PENDING`, `COMPLETED`, `REJECTED`, `PROCESSING` |
 | Flash sale | Sessions `900001` live, `900002` upcoming, `900003` ended; reminders cho cả 3 session |
-| Notifications | Buyer/seller/admin unread + read notifications, bao gồm `PRODUCT_SUBMITTED` cho seller |
-| AI chat | Active, closed, and pending-confirmation chat sessions; tool call logs with `search_products` and `get_refund_status` |
+| **Stock reservation** | `fe_buyer` có 1 reservation ACTIVE cho đơn PENDING — test cleanup flow |
+| Notifications | Buyer (2 unread + 3 read), Seller (2 unread + 1 read), Admin (1 unread + 1 read) |
+| **Chat** | `fe_buyer` có 1 chat session ACTIVE với 3 messages hỏi về đơn SHIPPING |
+| **ES search supplement** | Search supplement cần chạy reindex sau khi seed để ES có dữ liệu mới |
 
 ## Frontend smoke flow
 

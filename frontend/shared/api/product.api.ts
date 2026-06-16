@@ -40,7 +40,8 @@ export interface ProductDetail {
 interface RawVariantResponse {
   id: string;
   productId: string;
-  variantCode: string;
+  /** Backend VariantResponse serializes variantCode as "skuCode" (@see VariantResponse.java) */
+  skuCode: string;
   variantName: string;
   variantAttributes?: Record<string, unknown>;
   price: number;
@@ -61,10 +62,12 @@ interface RawProductResponse {
   status?: string;
   attributes?: Record<string, unknown>;
   variants?: RawVariantResponse[];
-  images?: { url: string; sortOrder?: number; variantId?: string | null }[];
+  /** Backend returns string[] (urls); mock may return object[] backward compat */
+  images?: string[] | { url: string; sortOrder?: number; variantId?: string | null }[];
   rejectReason?: string;
   createdAt?: string;
   updatedAt?: string;
+  fsItemId?: number;
 }
 
 function mapProductDetail(raw: RawProductResponse): ProductDetail {
@@ -72,10 +75,15 @@ function mapProductDetail(raw: RawProductResponse): ProductDetail {
   const cheapest = activeVariants.length
     ? activeVariants.reduce((min, v) => (v.price < min.price ? v : min))
     : undefined;
-  const images = (raw.images ?? [])
-    .slice()
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .map(img => img.url);
+  // Backend returns images as string[] (urls via List<String> in ProductResponse).
+  // Frontend also accepts object[] for mock data backward compat.
+  const rawImages = raw.images ?? [];
+  const images: string[] = rawImages.length > 0 && typeof rawImages[0] === 'string'
+    ? (rawImages as string[])
+    : (rawImages as { url: string; sortOrder?: number }[])
+        .slice()
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map(img => img.url);
   return {
     productId: raw.id,
     sellerId: raw.sellerId,
@@ -91,7 +99,7 @@ function mapProductDetail(raw: RawProductResponse): ProductDetail {
     originalPrice: cheapest?.originalPrice,
     variants: activeVariants.map(v => ({
       variantId: v.id,
-      skuCode: v.variantCode,
+      skuCode: v.skuCode,
       variantName: v.variantName,
       stockQuantity: v.stockQuantity ?? 0,
       stock: v.stockQuantity ?? 0,
@@ -115,6 +123,7 @@ export interface ProductListItem {
   categoryName?: string;
   images?: string[];
   stock?: number;
+  stockAvailable?: number;
   rating?: number;
   reviewsCount?: number;
   isFlash?: boolean;
@@ -156,6 +165,7 @@ function mapProductCard(card: SearchProductCard): ProductListItem {
     categoryName: card.categoryName,
     images: card.images,
     stock: card.stockAvailable,
+    stockAvailable: card.stockAvailable,
     isFlash: card.isFlash,
   };
 }

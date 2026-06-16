@@ -23,21 +23,21 @@ public class CartController {
     private final InventoryService inventoryService;
 
     @GetMapping("/cart")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ApiResponse<CartResponse>> getCart(
             @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
         return ResponseEntity.ok(cartService.getCart(user));
     }
 
     @DeleteMapping("/cart")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ApiResponse<Void>> clearCart(
             @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
         return ResponseEntity.ok(cartService.clearCart(user));
     }
 
     @PostMapping("/cart/items")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ApiResponse<CartResponse>> addItem(
             @Valid @RequestBody AddCartItemRequest request,
             @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
@@ -45,7 +45,7 @@ public class CartController {
     }
 
     @PutMapping("/cart/items/{variantId}")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ApiResponse<CartResponse>> updateItem(
             @PathVariable UUID variantId,
             @Valid @RequestBody UpdateCartItemRequest request,
@@ -54,7 +54,7 @@ public class CartController {
     }
 
     @DeleteMapping("/cart/items/{variantId}")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ApiResponse<CartResponse>> removeItem(
             @PathVariable UUID variantId,
             @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {
@@ -62,7 +62,7 @@ public class CartController {
     }
 
     @PostMapping("/inventory/{variantId}/reserve")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ApiResponse<ReservationResponse>> reserveStock(
             @PathVariable UUID variantId,
             @RequestParam int quantity,
@@ -75,7 +75,7 @@ public class CartController {
     }
 
     @PostMapping("/inventory/reservations/{reservationId}/release")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER', 'SELLER')")
     public ResponseEntity<ApiResponse<Void>> releaseReservation(
             @PathVariable UUID reservationId,
             @AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user) {

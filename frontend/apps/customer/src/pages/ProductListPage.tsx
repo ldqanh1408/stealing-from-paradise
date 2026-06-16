@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCartStore } from '@shared/store/cartStore';
+import { useSearchParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
 import { flashSaleApi } from '@shared/api/flashSale.api';
-import { notify } from '@shared/lib/toast';
 import ProductCard from '@/components/ProductCard';
 
 const SORT_OPTIONS = [
@@ -36,10 +34,7 @@ function mapSort(value: string) {
 }
 
 export default function ProductListPage() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const { addToCart } = useCartStore();
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
@@ -135,35 +130,6 @@ export default function ProductListPage() {
 
   const products: ProductDetail[] = (data as any)?.content ?? (Array.isArray(data) ? data : []);
   const totalPages = (data as any)?.totalPages ?? 1;
-
-  const handleAddToCart = async (product: ProductDetail) => {
-    try {
-      // List items come from the search service and may not carry variants, so
-      // we fetch the full product to learn its variants before adding to the cart.
-      let variants = product.variants;
-      if (!variants?.length) {
-        const detail = await productApi.getProductById(product.productId).then(r => r.data.data);
-        variants = detail?.variants;
-      }
-      if (!variants?.length) return;
-      // Multiple variants need a choice — send the user to the detail page.
-      if (variants.length > 1) {
-        navigate(`/products/${product.productId}`);
-        return;
-      }
-      await addToCart(variants[0].skuCode, 1, undefined);
-      navigate('/cart');
-    } catch (err: any) {
-      // Search index can drift ahead of the product catalog (stale fixtures, removed listings):
-      // surface a friendly message and refresh the list so the ghost card disappears.
-      if (err?.response?.status === 404) {
-        notify.error('Sản phẩm không còn khả dụng. Đang làm mới danh sách…');
-        queryClient.invalidateQueries({ queryKey: ['products'] });
-        return;
-      }
-      notify.error(err?.response?.data?.message || 'Không thể thêm sản phẩm vào giỏ hàng');
-    }
-  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -447,7 +413,7 @@ export default function ProductListPage() {
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
               {products.map(p => (
-                <ProductCard key={p.productId} product={p} onAddToCart={handleAddToCart} />
+                <ProductCard key={p.productId} product={p} />
               ))}
             </div>
 

@@ -1,4 +1,4 @@
-import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+﻿import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
 // ─── Mock API implementations ────────────────────────────────────────────────
 
@@ -24,136 +24,208 @@ const MOCK_ADDRESSES = [
 ];
 
 const MOCK_CART = {
-  sellers: [
+  customerId: 1,
+  items: [
     {
+      variantId: 'v1',
+      variantCode: 'SONY-WH-1000XM5-BK',
+      variantName: 'Đen / Chính hãng',
+      productName: 'Tai nghe Sony WH-1000XM5',
+      priceSnapshot: 6_490_000,
+      currentPrice: 6_490_000,
+      priceChanged: false,
+      quantity: 1,
+      stockAvailable: 15,
+      variantImageSnapshot: 'https://placehold.co/400x400/1a1a2e/FFF?text=Sony+XM5',
+      subtotal: 6_490_000,
+      outOfStock: false,
+      unavailable: false,
+      insufficientStock: false,
       sellerId: 1,
-      sellerName: 'Shop Sony',
-      items: [
-        {
-          cartItemId: 1,
-          skuCode: 'SONY-WH-1000XM5-BK',
-          productId: '1',
-          productName: 'Tai nghe Sony WH-1000XM5',
-          variantName: 'Đen / Chính hãng',
-          unitPrice: 6_490_000,
-          quantity: 1,
-          stockAvailable: 15,
-          isFlash: false,
-          subtotal: 6_490_000,
-        },
-        {
-          cartItemId: 2,
-          skuCode: 'KEY-K2-WHITE',
-          productId: '2',
-          productName: 'Bàn phím cơ Keychron K2',
-          variantName: 'Trắng / Hot-swap',
-          unitPrice: 2_190_000,
-          quantity: 2,
-          stockAvailable: 8,
-          isFlash: false,
-          subtotal: 4_380_000,
-        },
-      ],
-      sellerSubtotal: 10_870_000,
     },
     {
+      variantId: 'v3',
+      variantCode: 'KEY-K2-WHITE',
+      variantName: 'Trắng / Hot-swap',
+      productName: 'Bàn phím cơ Keychron K2',
+      priceSnapshot: 2_190_000,
+      currentPrice: 2_190_000,
+      priceChanged: false,
+      quantity: 2,
+      stockAvailable: 8,
+      variantImageSnapshot: 'https://placehold.co/400x400/2d2d44/FFF?text=Keychron+K2',
+      subtotal: 4_380_000,
+      outOfStock: false,
+      unavailable: false,
+      insufficientStock: false,
+      sellerId: 1,
+    },
+    {
+      variantId: 'v5',
+      variantCode: 'UQ-TSHIRT-M',
+      variantName: 'Xanh dương / Size M',
+      productName: 'Áo thun Uniqlo DRY-EX',
+      priceSnapshot: 299_000,
+      currentPrice: 299_000,
+      priceChanged: false,
+      quantity: 1,
+      stockAvailable: 20,
+      variantImageSnapshot: 'https://placehold.co/400x400/e63946/FFF?text=Uniqlo',
+      subtotal: 299_000,
+      outOfStock: false,
+      unavailable: false,
+      insufficientStock: false,
       sellerId: 2,
-      sellerName: 'Uniqlo Vietnam',
-      items: [
-        {
-          cartItemId: 3,
-          skuCode: 'UQ-TSHIRT-M',
-          productId: '3',
-          productName: 'Áo thun Uniqlo DRY-EX',
-          variantName: 'Xanh dương / Size M',
-          unitPrice: 299_000,
-          quantity: 1,
-          stockAvailable: 20,
-          isFlash: false,
-          subtotal: 299_000,
-        },
-      ],
-      sellerSubtotal: 299_000,
     },
   ],
   totalItems: 4,
   subtotal: 11_169_000,
+  hasPriceChanges: false,
+  groupedBySeller: {
+    "1": [
+      {
+        variantId: 'v1',
+        variantCode: 'SONY-WH-1000XM5-BK',
+        variantName: 'Đen / Chính hãng',
+        productName: 'Tai nghe Sony WH-1000XM5',
+        priceSnapshot: 6_490_000,
+        currentPrice: 6_490_000,
+        priceChanged: false,
+        quantity: 1,
+        stockAvailable: 15,
+        variantImageSnapshot: 'https://placehold.co/400x400/1a1a2e/FFF?text=Sony+XM5',
+        subtotal: 6_490_000,
+        outOfStock: false,
+        unavailable: false,
+        insufficientStock: false,
+        sellerId: 1,
+      },
+      {
+        variantId: 'v3',
+        variantCode: 'KEY-K2-WHITE',
+        variantName: 'Trắng / Hot-swap',
+        productName: 'Bàn phím cơ Keychron K2',
+        priceSnapshot: 2_190_000,
+        currentPrice: 2_190_000,
+        priceChanged: false,
+        quantity: 2,
+        stockAvailable: 8,
+        variantImageSnapshot: 'https://placehold.co/400x400/2d2d44/FFF?text=Keychron+K2',
+        subtotal: 4_380_000,
+        outOfStock: false,
+        unavailable: false,
+        insufficientStock: false,
+        sellerId: 1,
+      },
+    ],
+    "2": [
+      {
+        variantId: 'v5',
+        variantCode: 'UQ-TSHIRT-M',
+        variantName: 'Xanh dương / Size M',
+        productName: 'Áo thun Uniqlo DRY-EX',
+        priceSnapshot: 299_000,
+        currentPrice: 299_000,
+        priceChanged: false,
+        quantity: 1,
+        stockAvailable: 20,
+        variantImageSnapshot: 'https://placehold.co/400x400/e63946/FFF?text=Uniqlo',
+        subtotal: 299_000,
+        outOfStock: false,
+        unavailable: false,
+        insufficientStock: false,
+        sellerId: 2,
+      },
+    ],
+  },
 };
 
 const MOCK_PRODUCTS = [
   {
-    productId: '1',
-    sellerId: 1,
-    sellerName: 'Shop Sony',
-    productName: 'Tai nghe Sony WH-1000XM5',
+    id: '1',
+    name: 'Tai nghe Sony WH-1000XM5',
     description: 'Tai nghe chống ồn tốt nhất thế giới, pin 30h.',
     price: 6_490_000,
     originalPrice: 7_990_000,
     category: 'Thiết bị âm thanh',
+    categoryId: 'cat_4',
+    categoryName: 'Thiết bị âm thanh',
+    sellerId: 1,
+    sellerName: 'Shop Sony',
     variants: [
-      { skuCode: 'SONY-WH-1000XM5-BK', variantName: 'Đen / Chính hãng', stock: 15 },
-      { skuCode: 'SONY-WH-1000XM5-WH', variantName: 'Trắng / Chính hãng', stock: 8 },
+      { id: 'v1', productId: '1', variantCode: 'SONY-WH-1000XM5-BK', variantName: 'Đen / Chính hãng', price: 6_490_000, originalPrice: 7_990_000, stockQuantity: 15, status: 'ACTIVE' },
+      { id: 'v2', productId: '1', variantCode: 'SONY-WH-1000XM5-WH', variantName: 'Trắng / Chính hãng', price: 6_490_000, originalPrice: 7_990_000, stockQuantity: 8, status: 'ACTIVE' },
     ],
     images: ['https://placehold.co/400x400/1a1a2e/FFF?text=Sony+XM5'],
     stock: 23,
     rating: 4.9,
     reviewsCount: 2341,
+    status: 'ACTIVE',
     createdAt: '2024-01-01T00:00:00Z',
   },
   {
-    productId: '2',
-    sellerId: 1,
-    sellerName: 'Shop Sony',
-    productName: 'Bàn phím cơ Keychron K2',
+    id: '2',
+    name: 'Bàn phím cơ Keychron K2',
     description: 'Bàn phím cơ không dây 75%, switch Gateron.',
     price: 2_190_000,
     originalPrice: 2_490_000,
     category: 'Bàn phím',
+    categoryId: 'cat_1',
+    categoryName: 'Bàn phím',
+    sellerId: 1,
+    sellerName: 'Shop Sony',
     variants: [
-      { skuCode: 'KEY-K2-WHITE', variantName: 'Trắng / Hot-swap', stock: 8 },
-      { skuCode: 'KEY-K2-BLACK', variantName: 'Đen / Hot-swap', stock: 12 },
+      { id: 'v3', productId: '2', variantCode: 'KEY-K2-WHITE', variantName: 'Trắng / Hot-swap', price: 2_190_000, originalPrice: 2_490_000, stockQuantity: 8, status: 'ACTIVE' },
+      { id: 'v4', productId: '2', variantCode: 'KEY-K2-BLACK', variantName: 'Đen / Hot-swap', price: 2_190_000, originalPrice: 2_490_000, stockQuantity: 12, status: 'ACTIVE' },
     ],
     images: ['https://placehold.co/400x400/2d2d44/FFF?text=Keychron+K2'],
     stock: 20,
     rating: 4.7,
     reviewsCount: 876,
+    status: 'ACTIVE',
     createdAt: '2024-01-05T00:00:00Z',
   },
   {
-    productId: '3',
-    sellerId: 2,
-    sellerName: 'Uniqlo Vietnam',
-    productName: 'Áo thun Uniqlo DRY-EX',
+    id: '3',
+    name: 'Áo thun Uniqlo DRY-EX',
     description: 'Áo thun thể thao nam, vải nhanh khô.',
     price: 299_000,
     originalPrice: 399_000,
     category: 'Thời trang nam',
+    categoryId: 'cat_2',
+    categoryName: 'Thời trang nam',
+    sellerId: 2,
+    sellerName: 'Uniqlo Vietnam',
     variants: [
-      { skuCode: 'UQ-TSHIRT-M', variantName: 'Xanh dương / Size M', stock: 20 },
-      { skuCode: 'UQ-TSHIRT-L', variantName: 'Đỏ / Size L', stock: 15 },
+      { id: 'v5', productId: '3', variantCode: 'UQ-TSHIRT-M', variantName: 'Xanh dương / Size M', price: 299_000, originalPrice: 399_000, stockQuantity: 20, status: 'ACTIVE' },
+      { id: 'v6', productId: '3', variantCode: 'UQ-TSHIRT-L', variantName: 'Đỏ / Size L', price: 299_000, originalPrice: 399_000, stockQuantity: 15, status: 'ACTIVE' },
     ],
     images: ['https://placehold.co/400x400/e63946/FFF?text=Uniqlo'],
     stock: 35,
     rating: 4.5,
     reviewsCount: 421,
+    status: 'ACTIVE',
     createdAt: '2024-01-10T00:00:00Z',
   },
   {
-    productId: '4',
-    sellerId: 3,
-    sellerName: 'Apple Store VN',
-    productName: 'AirPods Pro 2',
+    id: '4',
+    name: 'AirPods Pro 2',
     description: 'Tai nghe không dây chống ồn chủ động.',
     price: 5_990_000,
     originalPrice: 6_990_000,
     category: 'Thiết bị âm thanh',
+    categoryId: 'cat_4',
+    categoryName: 'Thiết bị âm thanh',
+    sellerId: 3,
+    sellerName: 'Apple Store VN',
     variants: [
-      { skuCode: 'APP-AIRPODS-PRO2', variantName: 'Trắng / Chính hãng', stock: 30 },
+      { id: 'v7', productId: '4', variantCode: 'APP-AIRPODS-PRO2', variantName: 'Trắng / Chính hãng', price: 5_990_000, originalPrice: 6_990_000, stockQuantity: 30, status: 'ACTIVE' },
     ],
     images: ['https://placehold.co/400x400/f8f9fa/333?text=AirPods'],
     stock: 30,
     rating: 4.8,
     reviewsCount: 3421,
+    status: 'ACTIVE',
     createdAt: '2024-01-15T00:00:00Z',
   },
 ];
@@ -992,9 +1064,9 @@ const mockHandlers: MockHandler[] = [
   async ({ method, url, data }) => {
     if (url === '/wishlist' && method === 'get') {
       await sleep(250 + Math.random() * 150);
-      const content = MOCK_PRODUCTS.filter((p) => MOCK_WISHLIST.has(p.productId)).map((p) => ({
-        productId: p.productId,
-        productName: p.productName,
+      const content = MOCK_PRODUCTS.filter((p) => MOCK_WISHLIST.has(p.id)).map((p) => ({
+        productId: p.id,
+        productName: p.name,
         thumbnailUrl: p.images?.[0] ?? null,
         minPrice: p.price,
         productStatus: 'ACTIVE',
@@ -1023,7 +1095,7 @@ const mockHandlers: MockHandler[] = [
   },
 
   // ─── Cart ─────────────────────────────────────────────────────────────────
-  async ({ method, url }) => {
+  async ({ method, url, data }) => {
     if (url === '/cart' && method === 'get') {
       await sleep(300 + Math.random() * 200);
       return { success: true, data: MOCK_CART, timestamp: Date.now() };
@@ -1034,14 +1106,108 @@ const mockHandlers: MockHandler[] = [
     }
     if (url?.startsWith('/cart/items') && method === 'post') {
       await sleep(200 + Math.random() * 100);
-      return { success: true, data: { cartItemId: Date.now(), skuCode: 'MOCK-SKU', productName: 'Sản phẩm mới', variantName: 'Mặc định', unitPrice: 999_000, quantity: 1, stockAvailable: 50, isFlash: false }, timestamp: Date.now() };
+      const body = JSON.parse(data || '{}');
+      const variantId = body.variantId || body.skuCode || 'MOCK-SKU';
+      const qty = body.quantity || 1;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(variantId);
+
+      // Look up the product/variant from mock products
+      const product = MOCK_PRODUCTS.find(p =>
+        p.variants?.some(v => v.variantCode === variantId || v.id === variantId)
+      );
+      const variant = product?.variants?.find(
+        v => v.variantCode === variantId || v.id === variantId
+      );
+      const price = variant?.price ?? 999_000;
+      const sellerId = product?.sellerId ?? 0;
+      const variantCode = variant?.variantCode ?? variantId;
+      const variantName = variant?.variantName ?? 'Mặc định';
+      const productName = product?.name ?? 'Sản phẩm mới';
+      const image = product?.images?.[0] ?? null;
+
+      // Check if item already exists in MOCK_CART.items → increment quantity
+      const existingItem = MOCK_CART.items.find(
+        i => i.variantCode === variantId || i.variantId === variantId
+      );
+      if (existingItem) {
+        existingItem.quantity += qty;
+        existingItem.subtotal = existingItem.priceSnapshot * existingItem.quantity;
+      } else {
+        MOCK_CART.items.push({
+          variantId: variant?.id ?? String(Date.now()),
+          variantCode,
+          variantName,
+          productName,
+          priceSnapshot: price,
+          currentPrice: price,
+          priceChanged: false,
+          quantity: qty,
+          stockAvailable: variant?.stockQuantity ?? 50,
+          variantImageSnapshot: image,
+          subtotal: price * qty,
+          outOfStock: false,
+          unavailable: false,
+          insufficientStock: false,
+          sellerId,
+        });
+      }
+
+      // Rebuild groupedBySeller
+      const grouped: Record<string, typeof MOCK_CART.items> = {};
+      for (const item of MOCK_CART.items) {
+        const key = String(item.sellerId ?? 0);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+      }
+      MOCK_CART.groupedBySeller = grouped;
+
+      // Recalculate totals
+      MOCK_CART.totalItems = MOCK_CART.items.reduce((sum, i) => sum + i.quantity, 0);
+      MOCK_CART.subtotal = MOCK_CART.items.reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+
+      // Return the full updated cart (mirrors real backend behaviour)
+      return { success: true, data: MOCK_CART, timestamp: Date.now() };
     }
-    if (url?.match(/^\/cart\/items\/\d+$/) && method === 'put') {
+    if (url?.match(/^\/cart\/items\/[\w-]+$/) && method === 'put') {
       await sleep(200 + Math.random() * 100);
-      return { success: true, data: { cartItemId: parseInt(url!.split('/').pop()!), skuCode: 'MOCK-SKU', productName: 'Sản phẩm', variantName: 'Mặc định', unitPrice: 999_000, quantity: 1, stockAvailable: 50, isFlash: false }, timestamp: Date.now() };
+      const variantId = url!.split('/').pop()!;
+      const body = JSON.parse(data || '{}');
+      const newQty = body.quantity;
+
+      const item = MOCK_CART.items.find(i => i.variantId === variantId || i.variantCode === variantId);
+      if (item) {
+        item.quantity = newQty;
+        item.subtotal = item.priceSnapshot * newQty;
+        // Rebuild groupedBySeller and totals
+        const grouped: Record<string, typeof MOCK_CART.items> = {};
+        for (const it of MOCK_CART.items) {
+          const key = String(it.sellerId ?? 0);
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(it);
+        }
+        MOCK_CART.groupedBySeller = grouped;
+        MOCK_CART.totalItems = MOCK_CART.items.reduce((sum, i) => sum + i.quantity, 0);
+        MOCK_CART.subtotal = MOCK_CART.items.reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+      }
+      return { success: true, data: MOCK_CART, timestamp: Date.now() };
     }
-    if (url?.match(/^\/cart\/items\/\d+$/) && method === 'delete') {
+    if (url?.match(/^\/cart\/items\/[\w-]+$/) && method === 'delete') {
       await sleep(200 + Math.random() * 100);
+      const variantId = url!.split('/').pop()!;
+      const idx = MOCK_CART.items.findIndex(i => i.variantId === variantId || i.variantCode === variantId);
+      if (idx >= 0) MOCK_CART.items.splice(idx, 1);
+
+      // Rebuild groupedBySeller and totals
+      const grouped: Record<string, typeof MOCK_CART.items> = {};
+      for (const it of MOCK_CART.items) {
+        const key = String(it.sellerId ?? 0);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(it);
+      }
+      MOCK_CART.groupedBySeller = grouped;
+      MOCK_CART.totalItems = MOCK_CART.items.reduce((sum, i) => sum + i.quantity, 0);
+      MOCK_CART.subtotal = MOCK_CART.items.reduce((sum, i) => sum + (i.subtotal ?? 0), 0);
+
       return { success: true, data: null, timestamp: Date.now() };
     }
     return null;
@@ -1446,12 +1612,12 @@ const mockHandlers: MockHandler[] = [
       let filtered = MOCK_PRODUCTS;
       if (search) {
         filtered = filtered.filter(p =>
-          p.productName.toLowerCase().includes(search.toLowerCase()) ||
+          p.name.toLowerCase().includes(search.toLowerCase()) ||
           p.description?.toLowerCase().includes(search.toLowerCase())
         );
       }
       if (category) {
-        filtered = filtered.filter(p => p.category?.toLowerCase().includes(String(category).toLowerCase()));
+        filtered = filtered.filter(p => p.categoryName?.toLowerCase().includes(String(category).toLowerCase()));
       }
       if (priceMin != null && !Number.isNaN(priceMin)) {
         filtered = filtered.filter(p => (p.price ?? 0) >= priceMin);
@@ -1463,7 +1629,7 @@ const mockHandlers: MockHandler[] = [
         filtered = filtered.filter(p => (p.stock ?? 0) > 0);
       }
       if (isFlash) {
-        filtered = filtered.filter(p => Boolean((p as any).isFlash));
+        filtered = filtered.filter(p => (p.originalPrice ?? 0) > (p.price ?? 0));
       }
       if (sort === 'price_asc') {
         filtered = [...filtered].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
@@ -1485,12 +1651,12 @@ const mockHandlers: MockHandler[] = [
           size,
           totalPages: Math.ceil(filtered.length / size),
           products: content.map(p => ({
-            productId: p.productId,
-            name: p.productName,
+            productId: p.id,
+            name: p.name,
             sellerId: p.sellerId,
             sellerName: p.sellerName,
-            categoryId: p.category,
-            categoryName: p.category,
+            categoryId: p.categoryName,
+            categoryName: p.categoryName,
             priceMin: p.price ?? null,
             priceMax: p.originalPrice ?? p.price ?? null,
             images: p.images ?? [],
@@ -1508,8 +1674,8 @@ const mockHandlers: MockHandler[] = [
       const search = params?.q || params?.search || '';
       const category = params?.category;
       let filtered = MOCK_PRODUCTS;
-      if (search) filtered = filtered.filter(p => p.productName.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase()));
-      if (category) filtered = filtered.filter(p => p.category === category);
+      if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.description?.toLowerCase().includes(search.toLowerCase()));
+      if (category) filtered = filtered.filter(p => p.categoryName === category);
       return {
         success: true,
         data: { content: filtered, totalElements: filtered.length, totalPages: 1, last: true },
@@ -1519,7 +1685,7 @@ const mockHandlers: MockHandler[] = [
     const productMatch = url?.match(/^\/products\/([^/]+)$/);
     if (productMatch && method === 'get') {
       await sleep(200 + Math.random() * 100);
-      const product = MOCK_PRODUCTS.find(p => p.productId === productMatch[1]);
+      const product = MOCK_PRODUCTS.find(p => p.id === productMatch[1]);
       if (!product) throw { response: { status: 404, data: { message: 'Product not found' } } };
       return { success: true, data: product, timestamp: Date.now() };
     }
@@ -2046,3 +2212,7 @@ export function installMockInterceptor(apiClient: AxiosInstance) {
     return config;
   });
 }
+
+
+
+

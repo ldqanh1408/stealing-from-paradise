@@ -13,6 +13,7 @@ $ProgressPreference = "SilentlyContinue"
 
 $seedDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $postgresSeed = Join-Path $seedDir "frontend-postgres-seed.sql"
+$postgresSupplement = Join-Path $seedDir "frontend-supplement-seed.sql"
 $mongoSeed = Join-Path $seedDir "frontend-mongo-seed.js"
 $esIndex = Join-Path $seedDir "frontend-elasticsearch-index.json"
 $esBulk = Join-Path $seedDir "frontend-elasticsearch-bulk.ndjson"
@@ -39,6 +40,11 @@ if (-not $SkipPostgres) {
   Copy-ToContainer -Source $postgresSeed -Container $PostgresContainer -Target "/tmp/frontend-postgres-seed.sql"
   $pgCommand = 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "' + $PostgresDatabase + '" -f /tmp/frontend-postgres-seed.sql'
   docker exec $PostgresContainer sh -lc $pgCommand
+
+  Write-Host "[seed] Applying Postgres supplement seed..."
+  Copy-ToContainer -Source $postgresSupplement -Container $PostgresContainer -Target "/tmp/frontend-supplement-seed.sql"
+  $pgSupplementCommand = 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "' + $PostgresDatabase + '" -f /tmp/frontend-supplement-seed.sql'
+  docker exec $PostgresContainer sh -lc $pgSupplementCommand
 }
 
 if (-not $SkipMongo) {
@@ -59,10 +65,10 @@ if (-not $SkipElasticsearch) {
     }
 
     if (-not $exists) {
-      curl.exe -s -X PUT "$ElasticUrl/skus" -H "Content-Type: application/json" -d "@$esIndex" > NUL
+      curl.exe -s -X PUT "$ElasticUrl/skus" -H "Content-Type: application/json" -d "@$esIndex" | Out-Null
     }
 
-    curl.exe -s -X POST "$ElasticUrl/_bulk?refresh=true" -H "Content-Type: application/x-ndjson" --data-binary "@$esBulk" > NUL
+    curl.exe -s -X POST "$ElasticUrl/_bulk?refresh=true" -H "Content-Type: application/x-ndjson" --data-binary "@$esBulk" | Out-Null
   } catch {
     Write-Warning "Elasticsearch seed was skipped/failed: $($_.Exception.Message)"
     Write-Warning "Postgres product data is still seeded. Run search-service reindex or rerun this script when Elasticsearch is available."

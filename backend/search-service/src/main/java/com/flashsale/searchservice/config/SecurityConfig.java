@@ -53,8 +53,8 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/v1/search/products").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/search/products/suggest").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/v1/search/reindex").authenticated()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/search/reindex/status").authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/search/reindex").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/search/reindex/status").permitAll()
                     .anyRequest().permitAll()
             )
             .addFilterBefore(jwtTokenDecoderFilter, UsernamePasswordAuthenticationFilter.class);
