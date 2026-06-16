@@ -17,6 +17,7 @@ public class SessionResponse {
     private String status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private LocalDateTime registrationDeadline;
     private Long secondsRemaining;
     private boolean isEnded;
     private LocalDateTime createdAt;

@@ -175,10 +175,9 @@ export interface VariantBySku {
 export const productApi = {
   /**
    * List products via search service (the only product listing endpoint).
-   * Params: category → category_id, search → q
+   * Params: search → q
    */
   getProducts: async (params?: {
-    category?: string;
     search?: string;
     priceMin?: number;
     priceMax?: number;
@@ -191,7 +190,6 @@ export const productApi = {
     const res = await apiClient.get<ApiResponse<SearchResponse>>('/search/products', {
       params: {
         q: params?.search || undefined,
-        category_id: params?.category || undefined,
         price_min: params?.priceMin,
         price_max: params?.priceMax,
         in_stock: params?.inStock,
@@ -239,7 +237,6 @@ export const productApi = {
 
   /** Search products (delegates to search service) */
   searchProducts: (query: string, params?: {
-    category?: string;
     priceMin?: number;
     priceMax?: number;
     inStock?: boolean;
@@ -251,7 +248,6 @@ export const productApi = {
     apiClient.get<ApiResponse<SearchResponse>>('/search/products', {
       params: {
         q: query,
-        category_id: params?.category || undefined,
         price_min: params?.priceMin,
         price_max: params?.priceMax,
         in_stock: params?.inStock,

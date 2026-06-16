@@ -15,7 +15,6 @@ public class SearchQueryService {
 
     public SearchResponse search(
             String q,
-            String categoryId,
             Double priceMin,
             Double priceMax,
             Boolean inStock,
@@ -36,10 +35,10 @@ public class SearchQueryService {
 
         Boolean effectiveInStock = inStock != null ? inStock : true;
 
-        log.info("Search: q='{}', category={}, price=[{}-{}], inStock={}, isFlash={}, sort={}, page={}, size={}",
-                q, categoryId, priceMin, priceMax, effectiveInStock, isFlash, sort, page, size);
+        log.info("Search: q='{}', price=[{}-{}], inStock={}, isFlash={}, sort={}, page={}, size={}",
+                q, priceMin, priceMax, effectiveInStock, isFlash, sort, page, size);
 
-        return esService.search(q, categoryId, priceMin, priceMax, effectiveInStock, isFlash, sort, page, size);
+        return esService.search(q, priceMin, priceMax, effectiveInStock, isFlash, sort, page, size);
     }
 
     public SuggestResponse suggest(String q, int size) {

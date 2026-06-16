@@ -1,14 +1,15 @@
 package com.flashsale.flashsaleservice.controller;
 
 import com.flashsale.commonlib.dto.ApiResponse;
-import com.flashsale.commonlib.security.UserDetailsImpl;
 import com.flashsale.flashsaleservice.dto.request.*;
-import com.flashsale.flashsaleservice.dto.response.*;
+import com.flashsale.flashsaleservice.dto.response.FlashSaleItemResponse;
+import com.flashsale.flashsaleservice.dto.response.SessionDetailResponse;
+import com.flashsale.flashsaleservice.dto.response.SessionListResponse;
+import com.flashsale.flashsaleservice.dto.response.SessionResponse;
 import com.flashsale.flashsaleservice.service.FlashSaleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -66,21 +67,11 @@ public class FlashSaleController {
                 .then(Mono.just(ApiResponse.success(null, "Session deleted")));
     }
 
-    @PostMapping("/{sessionId}/buy")
-    @PreAuthorize("hasRole('BUYER')")
-    public Mono<ApiResponse<BuyResponse>> buyFlashSaleItem(
-            @PathVariable Long sessionId,
-            @AuthenticationPrincipal UserDetailsImpl user,
-            @Valid @RequestBody BuyRequest request) {
-        return flashSaleService.buyFlashSaleItem(sessionId, user.getId(), request)
-                .map(ApiResponse::success);
-    }
-
     @PostMapping("/{sessionId}/items")
     @PreAuthorize("hasRole('SELLER')")
     public Mono<ApiResponse<FlashSaleItemResponse>> createFlashSaleItem(
             @PathVariable Long sessionId,
-            @AuthenticationPrincipal UserDetailsImpl user,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.flashsale.commonlib.security.UserDetailsImpl user,
             @Valid @RequestBody CreateFlashSaleItemRequest request) {
         return flashSaleService.createFlashSaleItem(sessionId, user.getId(), request)
                 .map(ApiResponse::success);
@@ -104,23 +95,5 @@ public class FlashSaleController {
             @Valid @RequestBody RejectItemRequest request) {
         return flashSaleService.rejectItem(sessionId, itemId, request)
                 .map(ApiResponse::success);
-    }
-
-    @PostMapping("/{sessionId}/reminders")
-    @PreAuthorize("hasRole('BUYER')")
-    public Mono<ApiResponse<Void>> setReminder(
-            @PathVariable Long sessionId,
-            @AuthenticationPrincipal UserDetailsImpl user) {
-        return flashSaleService.setReminder(sessionId, user.getId())
-                .then(Mono.just(ApiResponse.success(null, "Reminder set")));
-    }
-
-    @DeleteMapping("/{sessionId}/reminders")
-    @PreAuthorize("hasRole('BUYER')")
-    public Mono<ApiResponse<Void>> removeReminder(
-            @PathVariable Long sessionId,
-            @AuthenticationPrincipal UserDetailsImpl user) {
-        return flashSaleService.removeReminder(sessionId, user.getId())
-                .then(Mono.just(ApiResponse.success(null, "Reminder removed")));
     }
 }

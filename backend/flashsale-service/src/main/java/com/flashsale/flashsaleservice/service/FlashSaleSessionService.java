@@ -42,6 +42,8 @@ public class FlashSaleSessionService {
     private final ObjectMapper objectMapper;
     private final FlashSaleItemMapper itemMapper;
     private final WebClient webClient;
+    private final FlashSaleTimeValidator timeValidator;
+    private final int defaultRegistrationWindowMinutes;
 
     @Autowired
     public FlashSaleSessionService(
@@ -51,13 +53,17 @@ public class FlashSaleSessionService {
             KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
             FlashSaleItemMapper itemMapper,
-            @Value("${product-service.url:http://localhost:8084}") String productServiceUrl) {
+            FlashSaleTimeValidator timeValidator,
+            @Value("${product-service.url:http://localhost:8084}") String productServiceUrl,
+            @Value("${flashsale.default-registration-window-minutes:30}") int defaultRegistrationWindowMinutes) {
         this.sessionRepo = sessionRepo;
         this.itemRepo = itemRepo;
         this.redisTemplate = redisTemplate;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.itemMapper = itemMapper;
+        this.timeValidator = timeValidator;
+        this.defaultRegistrationWindowMinutes = defaultRegistrationWindowMinutes;
         this.webClient = WebClient.builder()
                 .baseUrl(productServiceUrl != null && !productServiceUrl.trim().isEmpty() ? productServiceUrl : "http://localhost:8084")
                 .build();
@@ -104,7 +110,7 @@ public class FlashSaleSessionService {
                     if (variantInfo != null) {
                         item.setProductName((String) variantInfo.get("productName"));
                         item.setImageUrl((String) variantInfo.get("imageUrl"));
-                        
+
                         Object origPriceObj = variantInfo.get("originalPrice");
                         if (origPriceObj != null) {
                             item.setOriginalPrice(new BigDecimal(origPriceObj.toString()));
@@ -130,10 +136,18 @@ public class FlashSaleSessionService {
     }
 
     public Mono<SessionResponse> createSession(CreateSessionRequest req) {
+        timeValidator.validate(req.getStartTime(), req.getEndTime());
+
+        int regWindowMin = req.getRegistrationWindowMinutes() != null
+                ? req.getRegistrationWindowMinutes()
+                : defaultRegistrationWindowMinutes;
+        LocalDateTime regDeadline = req.getStartTime().minusMinutes(regWindowMin);
+
         FlashSaleSession session = FlashSaleSession.builder()
                 .name(req.getName())
                 .startTime(req.getStartTime())
                 .endTime(req.getEndTime())
+                .registrationDeadline(regDeadline)
                 .status("UPCOMING")
                 .build();
         return sessionRepo.save(session)
@@ -143,26 +157,37 @@ public class FlashSaleSessionService {
     }
 
     private Mono<Void> registerSessionTriggers(FlashSaleSession session) {
-        String key = "flash_sale:triggers";
-        Mono<Boolean> startTrigger = Mono.just(false);
-        Mono<Boolean> endTrigger = Mono.just(false);
+        String key = FlashSaleSessionStateService.ZSET_TRIGGERS_KEY;
+        Mono<Boolean> startTrig = Mono.just(false);
+        Mono<Boolean> endTrig = Mono.just(false);
+        Mono<Boolean> closeRegTrig = Mono.just(false);
 
         if (session.getStartTime() != null) {
             double score = session.getStartTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            startTrigger = redisTemplate.opsForZSet().add(key, "start:" + session.getId(), score);
+            startTrig = redisTemplate.opsForZSet().add(key, "start:" + session.getId(), score);
         }
         if (session.getEndTime() != null) {
             double score = session.getEndTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            endTrigger = redisTemplate.opsForZSet().add(key, "end:" + session.getId(), score);
+            endTrig = redisTemplate.opsForZSet().add(key, "end:" + session.getId(), score);
+        }
+        if (session.getRegistrationDeadline() != null) {
+            double score = session.getRegistrationDeadline().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            closeRegTrig = redisTemplate.opsForZSet().add(key, "close_reg:" + session.getId(), score);
         }
 
-        return Mono.when(startTrigger, endTrigger)
-                .doOnError(e -> log.warn("Failed to register Redis ZSET triggers for flashSaleSessionId={}: {}",
+        return Mono.when(startTrig, endTrig, closeRegTrig)
+                .doOnError(e -> log.warn("Failed to register ZSET triggers for flashSaleSessionId={}: {}",
                         session.getId(), e.getMessage()))
                 .onErrorResume(e -> Mono.empty())
                 .then();
     }
 
+    /**
+     * @deprecated Topic flash_sale.session_created has no consumer (2026-06-16).
+     *             Kept temporarily for backwards compatibility / future audit consumers.
+     *             Remove once confirmed no event source needs it.
+     */
+    @Deprecated
     private void publishSessionCreatedEvent(FlashSaleSession session) {
         try {
             Map<String, Object> event = new LinkedHashMap<>();
@@ -179,17 +204,6 @@ public class FlashSaleSessionService {
         } catch (Exception e) {
             log.error("Failed to publish session created event", e);
         }
-    }
-
-    public Flux<SessionResponse> getAdminSessions(String status, int page, int size) {
-        Flux<FlashSaleSession> sessionsFlux = (status != null && !status.isEmpty())
-                ? sessionRepo.findByStatus(status)
-                : sessionRepo.findAll();
-
-        return sessionsFlux
-                .skip((long) page * size)
-                .take(size)
-                .map(this::toSessionResponse);
     }
 
     public Mono<SessionResponse> updateSession(Long sessionId, UpdateSessionRequest req) {
@@ -229,6 +243,7 @@ public class FlashSaleSessionService {
                 .status(s.getStatus())
                 .startTime(s.getStartTime())
                 .endTime(s.getEndTime())
+                .registrationDeadline(s.getRegistrationDeadline())
                 .secondsRemaining(secondsRemaining)
                 .isEnded(isEnded)
                 .createdAt(s.getCreatedAt())

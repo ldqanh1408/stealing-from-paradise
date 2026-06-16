@@ -3,33 +3,14 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
-import { categoryApi } from '@shared/api/category.api';
 import { flashSaleApi } from '@shared/api/flashSale.api';
 import { notify } from '@shared/lib/toast';
 import ProductCard from '@/components/ProductCard';
-
-// The "All" chip is always first. Real categories are loaded from the backend.
-// The search service filters by category *slug* (not UUID), so chip values are slugs.
-const ALL_CATEGORY = { value: '', label: 'Tất cả' };
-
-// Emoji for the Shopee-style category strip, matched by keyword in the slug/name.
-function categoryEmoji(value: string, label: string): string {
-  const key = `${value} ${label}`.toLowerCase();
-  if (/electron|phone|laptop|audio|tablet/.test(key)) return '📱';
-  if (/home|living|kitchen|furnit/.test(key)) return '🏠';
-  if (/sport|outdoor/.test(key)) return '⚽';
-  if (/fashion|cloth|wear|shoe/.test(key)) return '👕';
-  if (/accessor/.test(key)) return '🎧';
-  if (value === '') return '🛍️';
-  return '🏷️';
-}
 
 const SORT_OPTIONS = [
   { value: '', label: 'Mặc định' },
   { value: 'price_asc', label: 'Giá: Thấp → Cao' },
   { value: 'price_desc', label: 'Giá: Cao → Thấp' },
-  { value: 'newest', label: 'Mới nhất' },
-  { value: 'bestseller', label: 'Bán chạy' },
 ];
 
 const PRICE_RANGES = [
@@ -50,8 +31,6 @@ function mapSort(value: string) {
   switch (value) {
     case 'price_asc': return 'price_asc';
     case 'price_desc': return 'price_desc';
-    case 'newest': return 'newest';
-    case 'bestseller': return 'popular';
     default: return undefined;
   }
 }
@@ -61,7 +40,6 @@ export default function ProductListPage() {
   const [searchParams] = useSearchParams();
   const { addToCart } = useCartStore();
 
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
   const [page, setPage] = useState(0);
@@ -128,22 +106,6 @@ export default function ProductListPage() {
 
   const selectedPriceRange = PRICE_RANGES[priceRange];
 
-  const { data: categoryData } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => categoryApi.getCategories().then(r => r.data.data ?? []),
-    staleTime: 1000 * 60 * 10,
-  });
-
-  // QA fixture categories (slugs prefixed fe-/e2e-) are seeded for end-to-end
-  // tests, not real catalog — hide them from shoppers.
-  const isFixtureCategory = (slug: string) => /^(fe|e2e)-/.test(slug);
-  const categories = [
-    ALL_CATEGORY,
-    ...(categoryData ?? [])
-      .filter(c => !isFixtureCategory(c.slug))
-      .map(c => ({ value: c.slug, label: c.name })),
-  ];
-
   // Live flash-sale session powers the homepage teaser (backend uses "LIVE").
   const { data: flashSessions } = useQuery({
     queryKey: ['flash-sessions'],
@@ -155,10 +117,9 @@ export default function ProductListPage() {
   );
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['products', selectedCategory, page, searchQuery, sort, priceRange, stockFilter, flashOnly],
+    queryKey: ['products', page, searchQuery, sort, priceRange, stockFilter, flashOnly],
     queryFn: () =>
       productApi.getProducts({
-        category: selectedCategory || undefined,
         search: searchQuery || undefined,
         priceMin: selectedPriceRange.min,
         priceMax: selectedPriceRange.max,
@@ -204,7 +165,6 @@ export default function ProductListPage() {
   };
 
   const activeFiltersCount = [
-    selectedCategory !== '',
     sort !== '',
     priceRange !== 0,
     stockFilter !== 'in_stock',
@@ -298,9 +258,8 @@ export default function ProductListPage() {
           </Link>
         )}
 
-        {/* Category strip — Shopee-style icon cards */}
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-gray-700">Danh mục</h2>
+        {/* Filter toggle */}
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={() => setShowFilters(f => !f)}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-gray-300 hover:text-gray-900 transition-colors shrink-0"
@@ -315,32 +274,6 @@ export default function ProductListPage() {
               </span>
             )}
           </button>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-2 mb-4 scrollbar-none">
-          {categories.map(cat => (
-            <button
-              key={cat.value}
-              onClick={() => { setSelectedCategory(cat.value); setPage(0); }}
-              className="shrink-0 w-[88px] flex flex-col items-center gap-2 group"
-            >
-              <span
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl border transition-all ${
-                  selectedCategory === cat.value
-                    ? 'bg-blue-600 border-blue-600 shadow-md scale-105'
-                    : 'bg-white border-gray-100 group-hover:border-blue-300 group-hover:shadow-sm'
-                }`}
-              >
-                {categoryEmoji(cat.value, cat.label)}
-              </span>
-              <span
-                className={`text-xs text-center leading-tight line-clamp-2 ${
-                  selectedCategory === cat.value ? 'text-blue-600 font-semibold' : 'text-gray-600'
-                }`}
-              >
-                {cat.label}
-              </span>
-            </button>
-          ))}
         </div>
 
         {/* Advanced filter panel */}
@@ -420,12 +353,6 @@ export default function ProductListPage() {
             {activeFiltersCount > 0 && (
               <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                 <span className="text-xs text-gray-500">Đang lọc:</span>
-                {selectedCategory && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
-                    {categories.find(c => c.value === selectedCategory)?.label}
-                    <button onClick={() => { setSelectedCategory(''); setPage(0); }} className="hover:text-blue-900 ml-0.5">×</button>
-                  </span>
-                )}
                 {sort && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
                     {SORT_OPTIONS.find(s => s.value === sort)?.label}
@@ -451,7 +378,7 @@ export default function ProductListPage() {
                   </span>
                 )}
                 <button
-                  onClick={() => { setSelectedCategory(''); setSort(''); setPriceRange(0); setStockFilter('in_stock'); setFlashOnly(false); setPage(0); }}
+                  onClick={() => { setSort(''); setPriceRange(0); setStockFilter('in_stock'); setFlashOnly(false); setPage(0); }}
                   className="text-xs text-red-500 hover:text-red-700 font-medium ml-1"
                 >
                   Xóa tất cả
@@ -465,7 +392,7 @@ export default function ProductListPage() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-base font-semibold text-gray-900">
             {searchQuery ? `Kết quả tìm kiếm cho "${searchQuery}"` : 'Gợi ý hôm nay'}
-            {(selectedCategory || sort || priceRange !== 0 || stockFilter !== 'in_stock' || flashOnly) && (
+            {(sort || priceRange !== 0 || stockFilter !== 'in_stock' || flashOnly) && (
               <span className="ml-1 text-sm font-normal text-gray-500">— đã lọc</span>
             )}
           </p>
