@@ -29,7 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class FlashSaleItemService {
 

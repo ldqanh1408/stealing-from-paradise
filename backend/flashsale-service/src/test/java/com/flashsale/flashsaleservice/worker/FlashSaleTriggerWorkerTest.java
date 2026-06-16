@@ -1,6 +1,7 @@
 package com.flashsale.flashsaleservice.worker;
 
 import com.flashsale.flashsaleservice.service.FlashSaleSessionStateService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,6 +15,7 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
@@ -28,6 +30,15 @@ class FlashSaleTriggerWorkerTest {
 
     @InjectMocks
     private FlashSaleTriggerWorker worker;
+
+    @BeforeEach
+    void setUp() {
+        // stateService returns Mono; stub with empty so production code's .block()
+        // doesn't NPE on the default Mockito null return for Mono methods.
+        lenient().when(stateService.activate(anyLong())).thenReturn(Mono.empty());
+        lenient().when(stateService.end(anyLong())).thenReturn(Mono.empty());
+        lenient().when(stateService.closeRegistration(anyLong())).thenReturn(Mono.empty());
+    }
 
     @Test
     @SuppressWarnings("unchecked")
