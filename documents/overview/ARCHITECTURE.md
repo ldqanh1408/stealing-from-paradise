@@ -1,320 +1,141 @@
-## System Architecture
-Service: platform
+# System Architecture
+**Service:** platform (stealing-from-paradise)  
+**Verified against code:** 2026-06-16
 
-### Service Registry
+## Service Registry
 
-| ID | Service | Port | Database | Pattern | Responsibility |
-|----|---------|------|----------|---------|----------------|
-| SVC-001 | api-gateway | 8080 | — | Spring Cloud Gateway | JWT RS256 validation, routing, rate limiting |
-| SVC-002 | discovery-service | 8761 | — | Eureka | Service registry & health |
-| SVC-003 | identity-service | 8081 | PostgreSQL | JPA | Auth, JWT, users, addresses |
-| SVC-004 | payment-service | 8082 | PostgreSQL | JPA + Kafka | Stripe Connect, multi-vendor splits |
-| SVC-005 | order-service | 8083 | PostgreSQL + Axon | CQRS/ES + Saga | Checkout, order lifecycle, RTS |
-| SVC-006 | product-service | 8084 | PostgreSQL | Traditional | Catalog, variants, cart, images (MinIO) |
-| SVC-007 | flashsale-service | 8086 | PostgreSQL + Redis | Reactive + Kafka | Flash sale sessions, price promotion |
-| SVC-008 | search-service | 8087 | Elasticsearch + Redis | Traditional | Full-text search, VN text analysis |
-| SVC-009 | notification-service | 8092 | MongoDB | Traditional | SSE real-time notifications |
-| SVC-010 | ai-chat-service | 8093 | MongoDB | Traditional | AI chat, tool calls, human-in-the-loop |
-| SVC-011 | refund-service | 8094 | PostgreSQL | JPA | Admin refund approval, buyer requests, RTS automatic refunds |
+| ID | Service | Port | DB | Pattern | Trách nhiệm |
+|----|---------|------|----|---------|-------------|
+| SVC-001 | api-gateway | 8080 | Redis | Spring Cloud Gateway (WebFlux) | Routing, JWT HS256 validate, rate-limit |
+| SVC-002 | discovery-service | 8761 | — | Netflix Eureka | Service registry & health |
+| SVC-003 | identity-service | 8081 | PostgreSQL + Redis | JPA | Auth, JWT, users, addresses |
+| SVC-004 | payment-service | 8082 | PostgreSQL + Kafka | JPA | Stripe Connect, multi-vendor split, payouts |
+| SVC-005 | order-service | 8083 | PostgreSQL + Axon | **CQRS / Event Sourcing + Saga** | Checkout, order lifecycle, RTS |
+| SVC-006 | product-service | 8084 | PostgreSQL + MinIO + Redis | JPA | Catalog, variants, cart, ảnh, admin review |
+| SVC-007 | flashsale-service | 8086 | PostgreSQL (R2DBC) + Redis | **Reactive (WebFlux)** + Kafka | Session lifecycle, atomic decrement |
+| SVC-008 | search-service | 8087 | Elasticsearch + Redis | CQRS read | Tìm kiếm tiếng Việt SKU-first |
+| SVC-009 | notification-service | 8092 | MongoDB + Redis | Reactive + **SSE** | Đẩy thông báo real-time |
+| SVC-010 | chat-service | 8093 | MongoDB + Redis | Reactive + **Spring AI** | Trợ lý AI, tool calling, HITL |
+| SVC-011 | refund-service | 8094 | PostgreSQL + Kafka | JPA | Admin refund review, RTS auto refund |
 
-### Infrastructure Map
+Plus `common-lib` (shared DTO/JWT/Kafka constants/`OutboxPoller`) and `dev-data-runner` (seed dev data).
 
-| Component | Port | Used By | Purpose |
+## Infrastructure Map
+
+| Component | Port | Dùng bởi | Mục đích |
 |-----------|------|---------|---------|
-| PostgreSQL | 5432 | identity, payment, order, flashsale, product, refund | Primary relational store |
-| MongoDB | 27017 | notification, ai-chat | Document store |
-| Redis | 6379 | api-gateway, identity, product, flashsale, search, notification, ai-chat | JWT blocklist, reservation/session state, rate limits, cache |
-| Elasticsearch | 9200 | search | Full-text product index |
-| MinIO | 9000/9001 | product | Object storage (product images) |
-| Kafka | 9092 | all services | Async event streaming (58 Kafka topics: 44 event + 14 request-reply) |
-| Axon Server | 8024/8124 | order-service | Event store + saga/event handling |
+| PostgreSQL | 5432 | identity, payment, order, flashsale, product, refund | OLTP ACID |
+| MongoDB | 27017 | notification, chat | Document store |
+| Redis | 6379 | api-gateway, identity, product, flashsale, search, notification, chat | JWT blocklist, reservation/session state, rate-limit, atomic counter, pub/sub |
+| Elasticsearch | 9200 | search | Full-text index `skus` |
+| MinIO | 9000/9001 | product, refund | Object storage (S3-compatible) — ảnh sản phẩm, evidence refund |
+| Kafka | 9092 | tất cả service | Event streaming + request-reply |
+| Axon Server | 8024 UI / 8124 gRPC | order | Event store + command/query bus |
 
-### Frontend Apps
+## Frontend Apps
 
-| App | Port | Stack |
-|-----|------|-------|
-| Customer | 3000 | React 19 + Vite + TypeScript |
-| Seller | 3001 | React 19 + Vite + TypeScript |
-| Admin | 3002 | React 19 + Vite + TypeScript |
+| App | Port | Stack | Layout |
+|-----|------|-------|--------|
+| Customer | 3000 | React 19 + Vite + TS + TanStack Query + Zustand + Tailwind + Stripe.js | `Layout + BottomTabBar` |
+| Seller | 3001 | Như Customer | `SidebarLayout` |
+| Admin | 3002 | Như Customer (không Stripe) | `SidebarLayout` |
 
-### Technology Stack
+Shared: `frontend/shared/` — UI primitives, icons (no icon lib), hooks, toast wrapper (`sonner` → `notify.*`), Axios interceptors.
 
-| Layer | Technologies |
-|-------|-------------|
-| Backend | Java 25 LTS, Spring Boot 4.0.4, Spring Cloud 2025.1.1, Axon Framework 4.13.0 |
-| Databases | PostgreSQL 15.4, MongoDB 6.0, Redis 7.2, Elasticsearch 8.10 |
-| Messaging | Kafka 7.4.0, Axon Server |
-| Frontend | React 19, Vite 6.0, TypeScript, Tailwind CSS, Zustand, React Query |
-| DevOps | Docker, Docker Compose, Nginx, Eureka |
+## Tech Stack
 
-### Key Features
+| Layer | Versions |
+|-------|----------|
+| Backend | Java 25 LTS · Spring Boot 4.0.4 · Spring Cloud 2025.1.1 · Axon 4.13.0 · Spring AI 2.0.0-M6 |
+| Reactive | Spring WebFlux · Reactor · R2DBC |
+| Persistence | PostgreSQL 15.4 · MongoDB 6.0.8 · Redis 7.2.1 · Elasticsearch 8.10.2 · MinIO · Axon Server |
+| Messaging | Apache Kafka (Confluent 7.4.0) + Zookeeper |
+| Frontend | React 19 · Vite 6 · TypeScript 5.6 · TanStack Query 5.62 · Zustand 5 · Tailwind 3.4 · Axios 1.7 · Stripe.js 5.5 |
+| DevOps | Docker Compose · Nginx |
+| Observability | Spring Actuator · Micrometer + Prometheus registry (tracing chưa cấu hình) |
 
-- Multi-vendor marketplace with 3 roles (Customer, Seller, Admin)
-- Flash sales with price promotion and session scheduling
-- Stripe Connect for multi-vendor payments with automatic transfers
-- Real-time SSE notifications
-- Full-text search with Elasticsearch (Vietnamese text analysis)
-- Return To Sender (RTS) refund workflow
-- AI Chat Support (multi-turn, tool calls, human-in-the-loop)
-- 11 implemented scheduled backend jobs plus MongoDB TTL retention
-- 58 Kafka topics (44 event + 14 request-reply)
-- Axon CQRS/Saga orchestration in order-service
+## Cross-cutting
 
----
+| Concern | Cách triển khai |
+|---------|-----------------|
+| Auth | identity-service issue JWT HS256, gateway validate, refresh token Redis TTL 7d |
+| Rate-limit | Token bucket Redis ở gateway + chat-service endpoint |
+| Scheduler safety | `@SchedulerLock` (ShedLock) bao quanh mọi `@Scheduled` — an toàn scale-out |
+| Distributed transaction | Axon Saga (`OrderProcessingSaga`, `ParentOrderPaymentSaga`) cho checkout đa service |
+| Inter-service sync | REST qua gateway (Sync), Kafka event 46 topic (Async), Kafka request-reply 5 pair (Sync-like) |
+| Observability | `/actuator/health`, `/actuator/prometheus`; tracing (OpenTelemetry/Zipkin) chưa wire |
 
-## AI Chat Service -- Technical Architecture
+## Architecture Diagram
 
-> Source: `docs/services/ai-chat-service/01_technical_module.md`
-
-### AI Orchestrator Layers
-
-```
-Frontend / Chat UI
-        |  (JWT + message)
-API Gateway
-        |
-AI Orchestrator (Spring AI)     <->  PageIndex (vector search)
-        |  (JWT delegation)
-Core Services (Order, Product, Account...)
-```
-
-| Layer | Role |
-|-------|------|
-| Layer 1 -- Frontend | Send message + JWT, render SSE stream, display Product Card / Order Card |
-| Layer 2 -- AI Orchestrator | Validate JWT, rate limit, manage ChatClient, dispatch Tool calls |
-| Layer 3 -- PageIndex | Vector search for products and system features |
-| Layer 4 -- Core Services | Existing system, AI calls via existing APIs, no modification |
-| Layer 5 -- Security | JWT validation, Rate limiting, Human-in-the-loop (Level 3) |
-
-### Tool Risk Classification
-
-| Level | Action Type | Requirement | Example Tools |
-|-------|------------|-------------|---------------|
-| Level 1 | Read general info | No special auth | `searchProducts`, `searchFaq` |
-| Level 2 | Read personal data | Valid JWT required | `getOrderDetail`, `getUserProfile` |
-| Level 3 | Modify/delete data | JWT + Human confirmation | `cancelOrder`, `deleteAccount` |
-
-### PageIndex -- 1 Billion Product Pipeline
-
-```
-1 billion products
-      |  ANN vector search (~50ms)
-Top-100 candidates
-      |  Business filter (in_stock, active, correct category)
-Top-20 results
-      |  AI rerank + intent match
-3-5 products displayed in chat
-```
-
-### Results Per Intent
-
-| Intent | Example Query | PageIndex top-K | Display | Batch "See More" |
-|--------|---------------|-----------------|---------|-------------------|
-| Vague | "Find me a shirt" | 50 | 3 (after clarify) | 3 |
-| Specific | "White t-shirt M < 200k" | 20 | 3-5 | 5 |
-| Compare | "A vs B which is better" | 10 | 2-3 | None |
-
-> Cache buffer: Store 20 products in Redis TTL 10 min. "See More" pops from Redis, no PageIndex re-query.
-
-### Spring AI Configuration
-
-```yaml
-spring:
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      chat:
-        options:
-          model: gpt-4o
-          temperature: 0.1
-          max-tokens: 2048
-
-pageindex:
-  api-key: ${PAGEINDEX_API_KEY}
-  index-id:
-    product: ${PAGEINDEX_PRODUCT_INDEX}
-    feature: ${PAGEINDEX_FEATURE_INDEX}
+```mermaid
+flowchart TB
+    subgraph Client
+        C1[Customer SPA]
+        C2[Seller SPA]
+        C3[Admin SPA]
+    end
+    subgraph Edge
+        NX[Nginx]
+        GW[API Gateway :8080]
+        EU[Eureka :8761]
+    end
+    subgraph Services
+        ID[identity :8081]
+        PA[payment :8082]
+        OR[order :8083]
+        PR[product :8084]
+        FS[flashsale :8086]
+        SR[search :8087]
+        NT[notification :8092]
+        CH[chat :8093]
+        RF[refund :8094]
+    end
+    subgraph Bus
+        K[Kafka :9092]
+        AX[Axon Server]
+    end
+    subgraph Storage
+        PG[(PostgreSQL)]
+        MG[(MongoDB)]
+        RD[(Redis)]
+        ES[(Elasticsearch)]
+        MN[(MinIO)]
+    end
+    C1 & C2 & C3 --> NX --> GW
+    GW <--> EU
+    GW --> ID & PA & OR & PR & FS & SR & NT & CH & RF
+    OR <--> AX
+    ID & PA & OR & PR & FS & SR & NT & CH & RF -.-> K
+    ID & PA & OR & PR & FS & RF --> PG
+    NT & CH --> MG
+    GW & ID & PR & FS & SR & NT & CH --> RD
+    SR --> ES
+    PR & RF --> MN
 ```
 
-### System Prompt Template
+## Key Architectural Decisions
+| # | Quyết định | Lý do |
+|---|-----------|------|
+| 1 | Microservices 11 service, DB riêng | Scale theo domain, cô lập lỗi, deploy độc lập |
+| 2 | CQRS/ES chỉ ở `order-service` | Tránh over-engineer; chỉ Order cần audit + replay |
+| 3 | Axon + Kafka song song | Axon: domain event aggregate · Kafka: integration cross-service |
+| 4 | Saga orchestration (không choreography) | Dễ debug, có saga coordinator nhìn rõ state |
+| 5 | Reactive chỉ ở flashsale/notification/chat | Reactive đắt khi nghiệp vụ vốn blocking; bật virtual thread đủ cho phần còn lại |
+| 6 | Polyglot persistence | Mỗi workload có DB phù hợp |
+| 7 | Stripe Connect Express | Tránh tự build KYC + multi-vendor payout |
+| 8 | Spring AI + Tool Calling + HITL | Standardize tool API, swap LLM dễ |
+| 9 | 3 SPA tách biệt | Bảo mật, hiệu năng, team autonomy |
+| 10 | SSE thay vì WebSocket | Đủ cho push thông báo, đơn giản |
+| 11 | Redis atomic cho flash sale | Throughput cao, latency thấp |
+| 12 | Elasticsearch SKU-first + field collapsing | Listing hiển thị SKU đại diện qua inner_hits |
 
-```
-You are [BOT NAME], virtual assistant of [COMPANY NAME].
-
-## Core Rules
-1. NEVER fabricate information. If unknown -> "I don't have information about this issue".
-2. ALWAYS use Tools to look up instead of answering from general knowledge.
-3. DO NOT perform data-modifying actions without confirmation.
-4. If question out of scope -> politely decline.
-
-## Style
-- Short, friendly, professional
-
-## User Context
-- userId: {userId} | Name: {userName} | Time: {currentTime}
-```
-
-### Tool Definition Checklist
-
-| Element | Required? |
-|---------|-----------|
-| When to use | Mandatory |
-| When NOT to use | Mandatory |
-| Example trigger phrases | Recommended |
-| Confirmation warning | Mandatory for Level 3 |
-| Parameter format | Recommended |
-
-### Project Structure
-
-```
-com.yourcompany.ai
-+-- config/
-|   +-- SpringAiConfig.java          # ChatClient bean, model config
-|   +-- PageIndexConfig.java         # PageIndex client bean
-|   +-- SecurityConfig.java          # JWT filter, rate limit
-+-- controller/
-|   +-- ChatController.java          # POST /api/ai/chat (SSE)
-|   +-- SessionController.java       # POST/DELETE /api/ai/sessions
-|   +-- ConfirmController.java       # POST /api/ai/confirm
-+-- service/
-|   +-- ChatService.java             # Orchestration logic
-|   +-- PageIndexService.java        # Vector search wrapper
-|   +-- ConfirmationService.java     # Human-in-the-loop
-+-- tools/
-|   +-- ProductSearchTool.java       # @Tool risk_level=1
-|   +-- OrderQueryTool.java          # @Tool risk_level=2
-|   +-- SystemActionTool.java        # @Tool risk_level=3
-+-- model/
-    +-- ChatRequest.java
-    +-- ChatResponse.java
-```
-
-### Redis Keys
-
-| Key | TTL | Purpose |
-|-----|-----|---------|
-| `rate:{userId}` | 60s | Rate limit counter (20 req/min) |
-| `tool:rate:{userId}` | 60s | Tool call rate limit (10/min) |
-| `ctx:{sessionId}` | 30 min | Cache 20 recent messages, avoid DB query per request |
-| `pending:{confirmId}` | 5 min | Fast lookup for confirm button (< 5ms) |
-| `buf:{sessionId}` | 10 min | Buffer 20 products from PageIndex for "See More" |
-| `tool:cache:{hash}` | 60s | Cache Level 1 tool results |
-
-### Elasticsearch -- Product Search
-
-**Index:** `skus` -- SKU-first with field collapsing by `product_id`
-
-| Parameter | Value | Reason |
-|-----------|-------|--------|
-| `max_result_window` | 10,000 | ES hard limit |
-| Page size | 40 products/page | Max 250 pages |
-| `track_total_hits` | 10,000 | Count up to 10k then stop, show "10,000+ products" |
-| Tiebreaker | `sort_id: asc` | Mandatory with all sort options for stable ordering |
-
-### Vietnamese Text Analysis
-
-| Problem | Solution |
-|---------|----------|
-| No-diacritic typing: "ao thun" | `asciifolding` filter with `preserve_original: true` |
-| Spelling errors: "ao thunn" | `fuzziness: AUTO` in query |
-| Synonyms | Synonym filter with file `synonyms/vi_product.txt` |
-| Recommended plugin | `elasticsearch-plugin install analysis-icu` |
-
-### Database: MongoDB Collection Schemas
-
-**chat_sessions**
-```json
-{
-  "_id": "ObjectId",
-  "user_id": "Long",
-  "status": "String (ACTIVE | CLOSED | EXPIRED)",
-  "context_summary": "String",
-  "created_at": "Date",
-  "updated_at": "Date",
-  "closed_at": "Date"
-}
-```
-
-**chat_messages**
-```json
-{
-  "_id": "ObjectId",
-  "session_id": "ObjectId (ref: chat_sessions)",
-  "role": "String (USER | ASSISTANT | TOOL_CALL | TOOL_RESULT)",
-  "content": "String",
-  "tool_name": "String (TOOL_CALL/TOOL_RESULT only)",
-  "sequence_no": "Int (compound unique with session_id)",
-  "tokens_used": "Int (ASSISTANT only)",
-  "created_at": "Date"
-}
-```
-
-**pending_confirmations**
-```json
-{
-  "_id": "ObjectId",
-  "session_id": "ObjectId (ref: chat_sessions)",
-  "user_id": "Long",
-  "tool_name": "String",
-  "tool_arguments": "Object",
-  "summary": "String",
-  "status": "String (PENDING | CONFIRMED | REJECTED | EXPIRED)",
-  "action": "String (CANCEL_ORDER | UPDATE_PROFILE | DELETE_ACCOUNT | CUSTOM)",
-  "expires_at": "Date (TTL index: 5 min)",
-  "created_at": "Date",
-  "resolved_at": "Date"
-}
-```
-
-**tool_call_logs**
-```json
-{
-  "_id": "ObjectId",
-  "session_id": "ObjectId (ref: chat_sessions)",
-  "message_id": "ObjectId (ref: chat_messages)",
-  "user_id": "Long",
-  "tool_name": "String",
-  "arguments": "Object",
-  "result": "Object",
-  "status": "String (SUCCESS | FAILED | BLOCKED | TIMEOUT)",
-  "latency_ms": "Int",
-  "error_code": "String",
-  "error_message": "String",
-  "created_at": "Date"
-}
-```
-
-### Message Flow: 4 Records per Turn
-
-```
-#1  role=USER        -> "Where is order ORD-2024-00892?"
-#2  role=TOOL_CALL   -> {"name":"getOrderDetail","args":{...}}
-#3  role=TOOL_RESULT -> {"status":"SHIPPED","eta":"2026-05-05"}
-#4  role=ASSISTANT   -> "Order is being delivered, estimated 05/05..."
-```
-
-`sequence_no` is mandatory -- timestamp not reliable (multiple records at same ms).
-
-### SSE Streaming Events
-
-| Event Type | When | Frontend Action |
-|------------|------|-----------------|
-| `delta` | LLM generates token | Append text to chat bubble |
-| `tool_start` | AI begins tool call | Show "Fetching data..." |
-| `tool_done` | Tool completed | Hide status indicator |
-| `products` | Search results returned | Render Product Card grid |
-| `order` | Order lookup result | Render Order Card with timeline |
-| `confirmation_required` | Level 3 action pending | Render [Confirm] / [Cancel] buttons |
-| `done` | Stream complete | Show final state, tokensUsed |
-| `error` | Error during processing | Show error message, close stream |
-
-### Rate Limiting
-
-| Endpoint | Limit | Window | Redis Key |
-|----------|-------|--------|-----------|
-| POST /chat | 20 req/min/user | 60s | `rate:{userId}` |
-| Tool calls | 10 req/min/user | 60s | `tool:rate:{userId}` |
-| POST /confirm | 10 req/min/user | 60s | -- |
-| All others | 60 req/min/user | 60s | -- |
-
-Rate limit exceeded -> HTTP 429 + `X-RateLimit-Reset` header.
+## Related Docs
+- [overview/FLOWS.md](FLOWS.md) — Sơ đồ luồng cross-service (sequence/state)
+- [../messaging/KAFKA_CATALOG.md](../messaging/KAFKA_CATALOG.md) — Catalog topic, đối chiếu `KafkaTopics.java`
+- [../messaging/KAFKA_REQUEST_REPLY.md](../messaging/KAFKA_REQUEST_REPLY.md) — 5 pair request-reply
+- [../operations/CRONJOBS.md](../operations/CRONJOBS.md) — Schedulers + ShedLock
+- [../operations/API_URLS.md](../operations/API_URLS.md) — Endpoint catalog
+- [../operations/ENVIRONMENT_VARIABLES.md](../operations/ENVIRONMENT_VARIABLES.md) — Env vars
+- [../operations/RUNNING_GUIDE.md](../operations/RUNNING_GUIDE.md) — Hướng dẫn chạy
+- [../flows/README.md](../flows/README.md) — Per-service business flows
+- [../database-entities.md](../database-entities.md) — Schema DB (authoritative)

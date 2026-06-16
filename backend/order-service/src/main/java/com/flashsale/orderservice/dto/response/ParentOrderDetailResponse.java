@@ -12,6 +12,8 @@ import java.util.List;
 public class ParentOrderDetailResponse {
 
     private Long parentOrderId;
+    private String orderCode;
+    private String status;
     private Long customerId;
     private BigDecimal totalAmt;
     private BigDecimal finalAmt;

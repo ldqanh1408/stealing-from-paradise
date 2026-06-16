@@ -14,6 +14,7 @@ public class CheckoutSubOrderResponse {
     private Long orderId;
     private String orderCode;
     private Long sellerId;
+    private String sellerName;
     private BigDecimal totalAmt;
     private BigDecimal finalAmt;
     private String status;

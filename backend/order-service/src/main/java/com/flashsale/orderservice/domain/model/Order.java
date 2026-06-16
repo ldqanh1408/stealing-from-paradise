@@ -34,6 +34,9 @@ public class Order {
     @Column(name = "seller_id", nullable = false)
     private Long sellerId;
 
+    @Column(name = "seller_name")
+    private String sellerName;
+
     @Column(name = "order_code", unique = true, nullable = false)
     private String orderCode;
 

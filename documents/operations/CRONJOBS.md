@@ -1,56 +1,59 @@
 # Cronjobs Reference
-Service: platform
-Updated: 2026-06-09
+**Verified against code:** 2026-06-16  
+**Source of truth:** `@Scheduled` + `@SchedulerLock` in `backend/*-service/src/main/java`
 
 ## Design Principles
+| Principle | Applied as |
+|-----------|------------|
+| Service Ownership | Mỗi job chạy trong service sở hữu dữ liệu chính |
+| Idempotent | Job có thể chạy lại nhiều lần mà không nhân đôi side-effect |
+| Event Bridge | Job thay đổi state cross-service publish Kafka event |
+| Distributed-safe | **Tất cả scheduler bọc `@SchedulerLock` (ShedLock)** để an toàn khi scale-out |
+| Retention | Audit/payment lưu trữ; notification dùng MongoDB TTL |
 
-| Principle | Description |
-|-----------|-------------|
-| Service Ownership | Each job runs in the service that owns the primary data. |
-| Idempotent | Jobs can run repeatedly without duplicating business effects. |
-| Event Bridge | Jobs that change cross-service state publish Kafka events. |
-| Retention | Financial/audit records are retained; user notifications use MongoDB TTL. |
-| Operational Safety | Heavy cleanup runs outside peak hours where possible. |
+## Implemented Schedulers
 
-## Implemented Scheduled Jobs
-
-Source of truth: Java `@Scheduled` annotations in `backend/*-service/src/main/java`.
-
-| Job | Schedule | Service | Class | Responsibility | Status |
-|-----|----------|---------|-------|----------------|--------|
-| JOB-01 | `fixedDelay=${flashsale.session-scheduler.delay-ms:60000}` | flashsale-service | `FlashSaleSessionScheduler` | Move flash sale sessions through UPCOMING/ACTIVE/ENDED and publish session lifecycle events. | IMPLEMENTED |
-| JOB-08 | `${flashsale.scheduler.cleanup-cron:0 0 3 * * *}` | flashsale-service | `FlashSaleMaintenanceScheduler` | Clean up soft-deleted flash sale sessions after retention. | IMPLEMENTED |
-| JOB-21 | `${flashsale.scheduler.reconcile-cron:0 0 4 * * *}` | flashsale-service | `FlashSaleMaintenanceScheduler` | Reconcile post-flash-sale item stock from Redis/JPA state. | IMPLEMENTED |
-| JOB-07 | `${product.scheduler.stale-cart-cron:0 0 */2 * * *}` | product-service | `ProductCleanupScheduler` | Remove stale cart items. | IMPLEMENTED |
-| JOB-10 | `${product.scheduler.hard-delete-cron:0 0 3 * * SUN}` | product-service | `ProductCleanupScheduler` | Hard-delete products after soft-delete retention. | IMPLEMENTED |
-| JOB-16 | `${product.scheduler.auto-hide-cron:0 0 2 * * *}` | product-service | `ProductCleanupScheduler` | Auto-hide rejected products after retention. | IMPLEMENTED |
-| JOB-13 | `${order.scheduler.auto-cancel-cron:0 */10 * * * *}` | order-service | `OrderLifecycleScheduler` | Auto-cancel stale pending parent orders and publish `order.auto_cancelled`. | IMPLEMENTED |
-| JOB-22 | `${order.scheduler.auto-deliver-cron:0 0 */6 * * *}` | order-service | `OrderLifecycleScheduler` | Auto-deliver stale shipping orders and publish order delivery events. | IMPLEMENTED |
-| JOB-15 | `${payment.scheduler.onboarding-url-cron:0 0 * * * *}` | payment-service | `StripeOnboardingUrlScheduler` | Nullify expired Stripe onboarding URLs. | IMPLEMENTED |
-| JOB-23 | `0 */5 * * * *` | payment-service | `PayoutScheduler` | Process seller payouts after the return window. | IMPLEMENTED |
-| RES-01 | `${reservation.cleanup.interval-ms:180000}` | product-service | `ReservationCleanupScheduler` | Expire stock reservations and publish `stock.reservation.expired`. | IMPLEMENTED |
+| ID | Service | Class | Schedule | Lock | Responsibility |
+|----|---------|-------|----------|------|----------------|
+| JOB-01 | flashsale-service | `FlashSaleSessionScheduler` | `fixedDelay ${flashsale.session-scheduler.delay-ms:60000}` | `flashsale-session-tick` (1m / 1s) | Đẩy session UPCOMING→ACTIVE→ENDED, publish `flash_sale.session_started` / `flash_sale.session_ended` (kèm `flashItems[]`) |
+| JOB-08 | flashsale-service | `FlashSaleMaintenanceScheduler.cleanupSoftDeleted` | cron `0 0 3 * * *` | `flashsale-cleanup-soft-deleted` (10m) | Dọn session soft-deleted hết retention |
+| JOB-21 | flashsale-service | `FlashSaleMaintenanceScheduler.reconcileStock` | cron `0 0 4 * * *` | `flashsale-reconcile-stock` (10m) | Đối soát tồn flash giữa Redis ↔ JPA sau khi session kết thúc |
+| JOB-13 | order-service | `OrderLifecycleScheduler.autoCancelStale` | cron `0 */10 * * * *` | `order-auto-cancel-stale` (5m) | Tự hủy đơn `PENDING` quá hạn, publish `order.auto_cancelled` |
+| JOB-22 | order-service | `OrderLifecycleScheduler.autoDeliverStale` | cron `0 0 */6 * * *` | `order-auto-deliver-stale` (10m) | Tự đánh dấu DELIVERED cho đơn SHIPPING quá hạn an toàn |
+| JOB-15 | payment-service | `StripeOnboardingUrlScheduler` | cron `0 0 * * * *` | `payment-nullify-expired-onboarding-urls` (10m) | Vô hiệu hóa URL onboarding Stripe đã hết hạn |
+| JOB-23 | payment-service | `PayoutScheduler.processEligiblePayouts` | cron `${payout.schedule.cron:0 */5 * * * *}` | `payment-process-eligible-payouts` (4m) | Giải ngân các `seller_transfers` đủ điều kiện sau return window |
+| JOB-07 | product-service | `ProductCleanupScheduler.cleanupStaleCarts` | cron `0 0 */2 * * *` | `product-cleanup-stale-carts` (10m) | Xóa cart item bỏ hoang |
+| JOB-10 | product-service | `ProductCleanupScheduler.hardDeleteSoftDeleted` | cron `0 0 3 * * SUN` | `product-hard-delete-soft-deleted` (15m) | Hard-delete sản phẩm sau hạn retention |
+| JOB-16 | product-service | `ProductCleanupScheduler.autoHideRejected` | cron `0 0 2 * * *` | `product-auto-hide-rejected` (10m) | Ẩn sản phẩm bị reject sau retention |
+| RES-01 | product-service | `ReservationCleanupScheduler` | `fixedRate 180000ms` | `product-cleanup-expired-reservations` (2m) | Hết hạn `stock_reservation`, publish `stock.reservation.expired` |
+| OUT-01 | common-lib (opt-in) | `OutboxPoller` | `fixedDelay ${flashsale.infra.outbox.poll-ms:2000}` | `outbox-poller` (1m) | Poll outbox table và publish ra Kafka (chỉ active khi service bật outbox) |
 
 ## Native TTL / Non-Cron Retention
+| ID | Mechanism | Store | Purpose |
+|----|-----------|-------|---------|
+| TTL-NOTIF | MongoDB TTL index trên `mg_notifications.created_at` | notification-service | Xóa thông báo sau 90 ngày |
+| TTL-CHAT-CONF | MongoDB TTL trên `pending_confirmations.expires_at` | chat-service | Hết hạn pending Level-3 sau 5 phút |
+| TTL-RESERV | Cột `expires_at` + cron `RES-01` | product-service | TTL 15 phút cho reservation, xử lý bởi cron, không phải DB TTL |
 
-| ID | Mechanism | Store | Responsibility | Status |
-|----|-----------|-------|----------------|--------|
-| JOB-09 | MongoDB TTL index | `mg_notifications.created_at` | Delete notifications after 90 days. | IMPLEMENTED |
+## Removed / Deferred (clarified)
+| Item | Trạng thái thực tế |
+|------|-------------------|
+| ShedLock cleanup JOB | **Không cần** — ShedLock dùng JDBC table `shedlock` tự dọn lock hết hạn |
+| JOB-04 / 05 / 06 Outbox publisher / cleanup / DLQ | `OutboxPoller` có trong common-lib (OUT-01) nhưng các service hiện publish Kafka trực tiếp — chưa bật outbox table cho hầu hết service |
+| Worker service jobs (legacy) | Worker service không còn — trách nhiệm chia về order/payment/notification |
 
-## Deferred Jobs
+## Retention Policy Summary
+| Domain | Retention | Cơ chế |
+|--------|-----------|--------|
+| notifications | 90 ngày | Mongo TTL |
+| pending confirmations | 5 phút | Mongo TTL |
+| flash sale soft-deletes | Theo retention config | `FlashSaleMaintenanceScheduler` |
+| product soft-deletes | Theo retention config | `ProductCleanupScheduler` |
+| stripe onboarding URLs | TTL theo Stripe | `StripeOnboardingUrlScheduler` |
+| stock reservation | 15 phút (mặc định) | `ReservationCleanupScheduler` |
+| transactions / refunds / seller_transfers | Giữ vĩnh viễn | Compliance & audit |
 
-| Job | Description | Reason |
-|-----|-------------|--------|
-| JOB-04 | Outbox event publisher | Outbox pattern is deferred; current services publish Kafka directly. |
-| JOB-05 | Outbox event cleanup | Depends on JOB-04/outbox tables. |
-| JOB-06 | Failed event cleanup | Depends on deferred failed-event/DLQ audit tables. |
-| JOB-12 | ShedLock stale-lock cleanup | ShedLock is not currently part of the implemented scheduler stack. |
-
-## Retention Policies
-
-| Domain | Retention | Use Case |
-|--------|-----------|----------|
-| notifications | 90 days | MongoDB TTL auto-delete. |
-| flash sale soft-deletes | 30 days | Cleanup by `FlashSaleMaintenanceScheduler`. |
-| product soft-deletes | 90 days | Cleanup by `ProductCleanupScheduler`. |
-| seller transfers | retained | Financial reconciliation and payout audit. |
-| transactions/refunds | retained | Payment compliance and support audit. |
+## Notes
+- **ShedLock is the active distributed-lock layer.** Tất cả `@Scheduled` đều có `@SchedulerLock` — an toàn khi service scale > 1 replica.
+- **Outbox pattern** đã có infrastructure (`OutboxPoller`, `infra/outbox` package) nhưng chưa được bật cho production flow chính; nếu cần tăng độ tin cậy publish → bật outbox cho service cụ thể.
+- **Lock-name convention:** `<service>-<short-purpose>`, `lockAtMostFor` rộng hơn run-time tối đa của job, `lockAtLeastFor` ngắn để tránh re-trigger ngay.

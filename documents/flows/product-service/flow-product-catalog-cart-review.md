@@ -1,76 +1,133 @@
-# Business Flow: Product Catalog, Cart, Checkout, and Review
-Scope: `product-service` with search/order cross-service edges
+# Flow: Product Catalog, Cart, Checkout & Admin Review
+**Primary service:** `product-service`  
+**Verified against code:** 2026-06-16
 
-### Use Case Coverage
+## 1. Mục đích
+Cung cấp dữ liệu **catalog đọc** (category, product detail), **catalog ghi** (CRUD sản phẩm/biến thể/ảnh), **giỏ hàng** và **checkout submit** (đặt trước tồn kho, phát `order.checkout_submitted`). Đồng thời điều phối **luồng admin duyệt sản phẩm** với cơ chế 3-strike.
 
-| Use case | Status against current code | Evidence | Notes |
-|----------|-----------------------------|----------|-------|
-| UC-PRODUCT-001: Browse Catalog | Implemented with search-service split | `CategoryController.getCategoryTree` line 21, `ProductController.getProduct` line 39 | Product listing is handled by search-service; product-service owns detail/category reads. |
-| UC-PRODUCT-002: Manage Categories | Implemented | `AdminCategoryController` lines 27, 35, 43; `CategoryService` lines 58, 84, 131 | Category updates publish category events. |
-| UC-PRODUCT-003: Create Product | Implemented | `ProductController.createProduct` line 45, `ProductService.createProduct` line 56 | Seller product listing and soft delete are also implemented. |
-| UC-PRODUCT-004: Manage Variants | Implemented | `ProductController` lines 79, 89, 96, 105; `VariantService` lines 51, 104, 168 | Variant price/stock events are emitted. |
-| UC-PRODUCT-005: Upload Images | Implemented | `ProductController` lines 137, 146, 156, 163; `ImageService` lines 53, 103, 144 | Uses presigned upload URL plus DB image registration. |
-| UC-PRODUCT-006: Manage Stock | Implemented | `InventoryController` lines 28, 34, 43; `InventoryService` lines 40, 49, 85 | Inventory log endpoint exists but returns a placeholder list. |
-| UC-PRODUCT-007: Reserve Stock | Implemented | `CartController.reserveStock` line 66, `InventoryService.reserveStock` line 136, `CheckoutSubmitService.submit` line 43 | Checkout submit reserves stock and publishes `order.checkout_submitted`. |
-| UC-PRODUCT-008: View Cart | Implemented | `CartController.getCart` line 27, `CartService.getCart` line 33 | Cart is loaded for current customer. |
-| UC-PRODUCT-009: Add to Cart | Implemented | `CartController.addItem` line 41, `CartService.addItem` line 49 | Validates variant and quantity. |
-| UC-PRODUCT-010: Update Cart Item | Implemented | `CartController.updateItem` line 49, `CartService.updateItem` line 90 | Revalidates quantity. |
-| UC-PRODUCT-011: Remove from Cart | Implemented | `CartController.removeItem` line 58, `CartController.clearCart` line 34 | Supports item removal and cart clear. |
-| UC-PRODUCT-012: Submit Product Review | Implemented | `ProductController.submitForReview` line 113, `ProductService.submitForReview` line 175 | Publish/unpublish are implemented; resubmit lockout is enforced when `rejectCount >= 3`. |
-| UC-PRODUCT-013: List Pending Products | Implemented | `AdminProductController.getPendingProducts` line 28, `ProductService.getPendingProducts` line 279 | Admin review queue. |
-| UC-PRODUCT-014: Approve Product | Implemented | `AdminProductController.approveProduct` line 36, `ProductService.approveProduct` line 299 | Publishes `product.approved`. |
-| UC-PRODUCT-015: Reject Product | Implemented | `AdminProductController.rejectProduct` line 43, `ProductService.rejectProduct` line 332 | Reject returns the updated `ProductResponse`, persists reason/count/status, and publishes `product.rejected`. |
+## 2. Actors & Trigger
+| Actor | Hành động |
+|-------|----------|
+| Buyer | Browse category & product, manage cart, submit checkout |
+| Seller | Create/update product, variants, images, submit for review |
+| Admin | List pending, approve / reject products |
 
-### Sequence Diagram
+## 3. Public Endpoints (service-internal `/v1`)
+| Method | Path | Handler |
+|--------|------|---------|
+| GET | `/categories` (+ tree) | `CategoryController.getCategoryTree` |
+| GET | `/products/{id}` | `ProductController.getProduct` |
+| POST / PUT / DELETE | `/products` (+ `{id}`) | `ProductController` create/update/soft-delete |
+| POST | `/products/{id}/submit` | `ProductController.submitForReview` |
+| POST / PATCH / DELETE | `/products/{id}/variants` (+ id) | `ProductController` variant CRUD |
+| POST | `/products/{id}/images/presigned-url` | `ProductController` |
+| POST / PUT | `/products/{id}/images` (+ id) | `ProductController` |
+| GET / POST / PUT / DELETE | `/cart` (+ `/items`, `/items/{id}`) | `CartController` |
+| POST | `/cart/checkout/preview` | `CartController.preview` |
+| POST | `/cart/checkout/submit` | `CartController.submit` → `CheckoutSubmitService.submit` |
+| POST | `/cart/{cartId}/reserve` | `CartController.reserveStock` |
+| GET / POST | `/admin/products/pending` / `{id}/approve` / `{id}/reject` | `AdminProductController` |
+| GET / POST | `/admin/categories` etc. | `AdminCategoryController` |
 
+## 4. Kafka Topics
+| Direction | Topic | Producer / Consumer |
+|-----------|-------|---------------------|
+| → produce | `product.pending_review` | Seller submits |
+| → produce | `product.approved` / `product.rejected` | Admin decision |
+| → produce | `variant.price_updated` / `variant.stock_updated` | Variant mutation |
+| → produce | `category.created` / `category.updated` | Category mutation |
+| → produce | `cart.item_added` (analytics) | Add to cart |
+| → produce | `order.checkout_submitted` | Checkout submit |
+| ← consume | `order.cancelled` | Release reservation, restore stock |
+| ← consume | `order.paid` | Convert reservation → consumed |
+| ← consume | `flash_sale.session_started/ended` | `FlashSaleEventHandler` apply/reset flash price |
+| ↔ reply | `search.index_data.request/response` | Provide product snapshot for search reindex |
+
+## 5. Sequence Diagram
 ```mermaid
 sequenceDiagram
     actor Buyer
     actor Seller
     actor Admin
-    participant Product as Product Service
-    participant Redis as Redis
-    participant Kafka as Kafka
-    participant Search as Search Service
-    participant Order as Order Service
+    participant PR as product-service
+    participant K as Kafka
+    participant SR as search-service
+    participant OR as order-service
+    participant FS as flashsale-service
 
-    Buyer->>Product: GET /v1/categories and /v1/products/{id}
-    Product-->>Buyer: Category tree and product detail
-    Buyer->>Search: GET /v1/search/products for listing/filtering
-    Search-->>Buyer: SearchResponse
-
-    Seller->>Product: POST /v1/products
-    Product->>Product: Create DRAFT product
-    Seller->>Product: Add variants and images
-    Product->>Kafka: variant.price_updated / variant.stock_updated
-    Seller->>Product: POST /v1/seller/products/{id}/submit
-    Product->>Kafka: product.pending_review
-
-    Admin->>Product: GET /v1/admin/products/pending
-    alt Approve
-        Admin->>Product: POST /v1/admin/products/{id}/approve
-        Product->>Kafka: product.approved
-    else Reject
-        Admin->>Product: POST /v1/admin/products/{id}/reject
-        Product->>Kafka: product.rejected
-        Product-->>Admin: ProductResponse
+    rect rgb(245,250,255)
+    Note over Buyer,PR: Browse + cart
+    Buyer->>PR: GET /v1/categories , /v1/products/{id}
+    PR-->>Buyer: tree + detail
+    Buyer->>PR: POST /v1/cart/items
     end
-    Kafka->>Search: ProductEventConsumer updates index
 
-    Buyer->>Product: POST /v1/cart/items
-    Product->>Product: Add/update cart item
-    Buyer->>Product: POST /v1/cart/checkout/preview
-    Product->>Redis: Cache preview token
-    Buyer->>Product: POST /v1/cart/checkout/submit
-    Product->>Product: Reserve stock
-    Product->>Kafka: order.checkout_submitted
-    Kafka->>Order: CheckoutSubmittedConsumer creates order
+    rect rgb(250,250,235)
+    Note over Seller,PR: Seller product lifecycle
+    Seller->>PR: POST /v1/products (DRAFT)
+    Seller->>PR: variants + images
+    PR->>K: variant.price_updated / variant.stock_updated
+    Seller->>PR: POST /v1/products/{id}/submit
+    PR->>K: product.pending_review
+    Admin->>PR: GET /v1/admin/products/pending
+    alt approve
+        Admin->>PR: POST /v1/admin/products/{id}/approve
+        PR->>K: product.approved
+    else reject (rejectCount++)
+        Admin->>PR: POST /v1/admin/products/{id}/reject
+        PR->>K: product.rejected
+    end
+    K->>SR: ProductEventConsumer → index
+    end
+
+    rect rgb(250,255,250)
+    Note over Buyer,OR: Checkout submit
+    Buyer->>PR: POST /v1/cart/checkout/preview
+    Buyer->>PR: POST /v1/cart/checkout/submit
+    PR->>PR: reserve stock (TTL 15m)
+    PR->>K: order.checkout_submitted
+    K->>OR: CheckoutSubmittedConsumer
+    end
+
+    rect rgb(255,248,240)
+    Note over FS,PR: Flash price sync
+    FS->>K: flash_sale.session_started / ended (flashItems)
+    K->>PR: FlashSaleEventHandler apply/reset
+    end
 ```
 
-### Implementation Notes
+## 6. State Transitions — `product.status`
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT : create
+    DRAFT --> PENDING : submitForReview
+    PENDING --> APPROVED : admin approve
+    PENDING --> REJECTED : admin reject (rejectCount++)
+    REJECTED --> PENDING : seller resubmit (if rejectCount < 3)
+    APPROVED --> ACTIVE : seller publish / activate
+    ACTIVE --> OUT_OF_STOCK : stock = 0
+    OUT_OF_STOCK --> ACTIVE : stock replenished
+    ACTIVE --> INACTIVE : seller hide
+    INACTIVE --> ACTIVE : seller re-list
+    REJECTED --> [*] : rejectCount >= 3 (locked)
+```
 
-| Concern | Current behavior |
-|---------|------------------|
-| Inventory logs | Inventory log endpoint currently returns an empty placeholder; stock mutations themselves are implemented. |
-| Reject response | Admin reject now returns the updated product summary body. |
-| Resubmit lockout | The 3-strike resubmit lockout is implemented in `submitForReview`, not as a seller-account lock. |
+## 7. Implementation Map
+| UC | Code reference |
+|----|----------------|
+| UC-PRODUCT-001 Browse | `CategoryController.getCategoryTree`, `ProductController.getProduct`; listing via `search-service` |
+| UC-PRODUCT-002 Manage Categories | `AdminCategoryController` + `CategoryService.create/update/delete` |
+| UC-PRODUCT-003 Create Product | `ProductController.createProduct` (~L45), `ProductService.createProduct` (~L56) |
+| UC-PRODUCT-004 Manage Variants | `VariantService.create/update/delete` |
+| UC-PRODUCT-005 Upload Images | `ImageService` + `ProductController` presigned URL |
+| UC-PRODUCT-006 Manage Stock | `InventoryService.adjust/get` (log endpoint is placeholder) |
+| UC-PRODUCT-007 Reserve Stock | `InventoryService.reserveStock` (~L136), `CheckoutSubmitService.submit` (~L43) |
+| UC-PRODUCT-008..011 Cart | `CartController` + `CartService` |
+| UC-PRODUCT-012 Submit for Review | `ProductService.submitForReview` (~L175); enforces 3-strike lockout |
+| UC-PRODUCT-013..015 Admin Review | `AdminProductController` + `ProductService.approve/reject` |
+
+## 8. Notes & Caveats
+- **Inventory log** endpoint currently returns an empty placeholder; mutations themselves are real.
+- **3-strike resubmit** is enforced in `submitForReview` (not as a seller-account lock).
+- **Listing** is delegated to `search-service`; product-service only owns detail + category read.
+- **Reject response** returns the updated `ProductResponse` body, not 204.

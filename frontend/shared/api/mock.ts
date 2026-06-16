@@ -829,6 +829,9 @@ let checkoutOrderData: Record<number, {
   createdAt: string;
 }> = {};
 
+// Track mock payment "started" time to simulate success after a delay
+let mockPaymentStartedAt: Record<number, number> = {};
+
 // ─── Categories Mock Data ──────────────────────────────────────────────────
 export const MOCK_CATEGORIES = [
   { id: 'cat_1', name: 'Thiết bị điện tử', slug: 'thiet-bi-dien-tu', description: 'Điện thoại, Laptop, Máy tính bảng', parentId: null, productCount: 15 },
@@ -1075,6 +1078,7 @@ const mockHandlers: MockHandler[] = [
         createdAt: now,
       };
       checkoutOrderData[poId] = orderData;
+      mockPaymentStartedAt[poId] = Date.now(); // start mock payment timer
       return { success: true, data: orderData, timestamp: Date.now() };
     }
 
@@ -1116,12 +1120,15 @@ const mockHandlers: MockHandler[] = [
       // If there's a pending checkout, return it
       if (checkoutOrderData[parentId]) {
         const cd = checkoutOrderData[parentId];
+        const startedAt = mockPaymentStartedAt[parentId] || 0;
+        const isPaid = Date.now() - startedAt > 3000;
+        const orderStatus = isPaid ? 'PAID' : 'PENDING';
         return {
           success: true,
           data: {
             parentOrderId: parentId,
             orderCode: cd.orderCode,
-            status: 'PENDING',
+            status: orderStatus,
             totalAmt: cd.totalAmount,
             finalAmt: cd.finalAmount,
             shippingAddress: MOCK_ADDRESSES[0],
@@ -1129,6 +1136,7 @@ const mockHandlers: MockHandler[] = [
               ...o,
               sellerId: 1,
               sellerName: 'Shop Sony',
+              status: orderStatus,
               buyerId: 1,
               buyerName: 'Nguyễn Văn A',
               shippingAddress: MOCK_ADDRESSES[0],
@@ -1342,8 +1350,13 @@ const mockHandlers: MockHandler[] = [
     if (parentOrderMatch && method === 'get') {
       await sleep(300 + Math.random() * 100);
       const parentId = parseInt(parentOrderMatch[1]);
-      // Return pending checkout data if exists
+      // Return pending checkout data if exists — simulate transition to SUCCESS after delay
       if (checkoutOrderData[parentId]) {
+        const startedAt = mockPaymentStartedAt[parentId] || 0;
+        const elapsed = Date.now() - startedAt;
+        // After 3 seconds, simulate payment success
+        const isSuccess = elapsed > 3000;
+        const remainingSeconds = isSuccess ? null : Math.max(1, Math.ceil((3000 - elapsed) / 1000));
         return {
           success: true,
           data: {
@@ -1351,12 +1364,12 @@ const mockHandlers: MockHandler[] = [
             parentOrderId: parentId,
             amount: checkoutOrderData[parentId].finalAmount,
             method: 'stripe',
-            status: 'PENDING',
+            status: isSuccess ? 'SUCCESS' : 'PENDING',
             stripePiId: `pi_mock_${parentId}`,
             applicationFee: Math.round(checkoutOrderData[parentId].finalAmount * 0.03),
             transRef: `TXN-MOCK-${parentId}`,
-            paidAt: null,
-            remainingSeconds: 542,
+            paidAt: isSuccess ? new Date(Date.now() - 2000).toISOString() : null,
+            remainingSeconds: remainingSeconds,
           },
           timestamp: Date.now(),
         };
@@ -2026,7 +2039,7 @@ export function installMockInterceptor(apiClient: AxiosInstance) {
       method: config.method?.toLowerCase() || 'get',
       url: config.url?.replace(config.baseURL || '', '') || '',
       params: config.params,
-      data: config.data,
+      data: typeof config.data === 'object' && config.data !== null ? JSON.stringify(config.data) : config.data,
     };
 
     for (const handler of mockHandlers) {

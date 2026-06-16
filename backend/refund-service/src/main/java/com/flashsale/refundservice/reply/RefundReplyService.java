@@ -11,6 +11,9 @@ import com.flashsale.refundservice.domain.repository.RefundRepository;
 import com.flashsale.refundservice.domain.repository.TransactionRepository;
 import com.flashsale.refundservice.support.RefundMapper;
 import com.flashsale.refundservice.support.RefundTypeConverter;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MinioClient;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +25,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,12 +43,19 @@ public class RefundReplyService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final RefundTypeConverter typeConverter;
     private final ObjectMapper objectMapper;
+    private final MinioClient minioClient;
 
     @Value("${minio.url:http://localhost:9000}")
     private String minioUrl;
 
     @Value("${minio.public-url:http://localhost:9000}")
     private String minioPublicUrl;
+
+    @Value("${minio.bucket:refund-evidences}")
+    private String bucket;
+
+    @Value("${minio.presigned-ttl-minutes:15}")
+    private int presignedTtlMinutes;
 
     public void onOrderRefundsRequest(String message) {
         String correlationId = null;
@@ -163,21 +172,25 @@ public class RefundReplyService {
             String ext = dot > 0 ? fileName.substring(dot) : ".jpg";
             String objectKey = "refunds/" + orderId + "/" + UUID.randomUUID() + ext;
 
-            String presignedUrl = minioPublicUrl + "/refund-evidences/" + objectKey
-                    + "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
-                    + "&X-Amz-Credential=minioadmin%2F" + java.time.LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) 
-                    + "%2Fus-east-1%2Fs3%2Faws4_request"
-                    + "&X-Amz-Date=" + java.time.format.DateTimeFormatter.ISO_INSTANT.format(Instant.now())
-                    + "&X-Amz-Expires=900"
-                    + "&X-Amz-SignedHeaders=host"
-                    + "&X-Amz-Signature=mock_sig_refund_" + UUID.randomUUID().toString().replace("-", "");
+            int ttlSeconds = presignedTtlMinutes * 60;
+            String signedUrl = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.PUT)
+                            .bucket(bucket)
+                            .object(objectKey)
+                            .expiry(ttlSeconds)
+                            .build()
+            );
+            // Swap the internal Docker hostname for the browser-reachable one so the
+            // signed URL (which signs the host header) stays valid for the buyer's browser.
+            String presignedUrl = signedUrl.replace(minioUrl, minioPublicUrl);
 
             Map<String, Object> response = new HashMap<>();
             response.put("correlation_id", correlationId);
             response.put("url", presignedUrl);
             response.put("fileName", objectKey);
             response.put("contentType", contentType);
-            response.put("expiresAt", Instant.now().plusSeconds(900).toString());
+            response.put("expiresAt", Instant.now().plusSeconds(ttlSeconds).toString());
 
             kafkaTemplate.send(KafkaTopics.ORDER_REFUND_PRESIGNED_URL_RESPONSE, correlationId, typeConverter.toJson(response));
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
 import { categoryApi } from '@shared/api/category.api';
@@ -58,6 +58,7 @@ function mapSort(value: string) {
 
 export default function ProductListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { addToCart } = useCartStore();
 
@@ -192,6 +193,13 @@ export default function ProductListPage() {
       await addToCart(variants[0].variantId, 1, undefined);
       navigate('/cart');
     } catch (err: any) {
+      // Search index can drift ahead of the product catalog (stale fixtures, removed listings):
+      // surface a friendly message and refresh the list so the ghost card disappears.
+      if (err?.response?.status === 404) {
+        notify.error('Sản phẩm không còn khả dụng. Đang làm mới danh sách…');
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        return;
+      }
       notify.error(err?.response?.data?.message || 'Không thể thêm sản phẩm vào giỏ hàng');
     }
   };

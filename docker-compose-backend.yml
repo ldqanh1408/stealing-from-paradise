@@ -137,6 +137,11 @@ services:
       - STRIPE_PLATFORM_FEE_PERCENTAGE=${STRIPE_PLATFORM_FEE_PERCENTAGE}
       - AXON_SERVER=${AXON_SERVER}
       - JWT_SECRET=${JWT_SECRET}
+      - MINIO_URL=${MINIO_URL}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET_REFUND=${MINIO_BUCKET_REFUND:-refund-evidences}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_REFUND}
     depends_on:
@@ -144,6 +149,7 @@ services:
       kafka: { condition: service_started }
       axonserver: { condition: service_started }
       kafka-init: { condition: service_completed_successfully }
+      minio: { condition: service_started }
     networks: [*network]
 
   order-service:
@@ -256,6 +262,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_SEARCH}
+      - SEARCH_HIDDEN_CATEGORY_PREFIXES=${SEARCH_HIDDEN_CATEGORY_PREFIXES:-}
     depends_on:
       elasticsearch: { condition: service_started }
       kafka: { condition: service_started }

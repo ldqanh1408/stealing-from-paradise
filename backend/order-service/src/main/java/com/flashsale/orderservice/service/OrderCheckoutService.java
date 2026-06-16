@@ -94,9 +94,12 @@ public class OrderCheckoutService {
                     .map(i -> i.getPriceSnapshot().multiply(BigDecimal.valueOf(i.getQuantity())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            String sellerName = sellerItems.get(0).getSellerName();
+
             Order order = Order.builder()
                     .parentOrderId(parentOrder.getId())
                     .sellerId(sellerId)
+                    .sellerName(sellerName)
                     .orderCode("OR-TEMP-" + java.util.UUID.randomUUID())  // unique placeholder, prevents unique-constraint collision
                     .customerId(userId)
                     .totalAmt(sellerTotal)
@@ -149,6 +152,7 @@ public class OrderCheckoutService {
                     .orderId(order.getId())
                     .orderCode(orderCode)
                     .sellerId(sellerId)
+                    .sellerName(sellerName)
                     .totalAmt(sellerTotal)
                     .finalAmt(order.getFinalAmt())
                     .status("PENDING")

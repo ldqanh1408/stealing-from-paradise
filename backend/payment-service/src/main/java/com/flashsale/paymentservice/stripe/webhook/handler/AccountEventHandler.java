@@ -7,6 +7,7 @@ import com.flashsale.paymentservice.domain.model.SellerStripeAccount;
 import com.flashsale.paymentservice.domain.repository.SellerStripeAccountRepository;
 import com.flashsale.paymentservice.stripe.webhook.StripeEventHandler;
 import com.flashsale.paymentservice.support.KafkaPublisher;
+import com.flashsale.paymentservice.support.StripeEvents;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
 import com.stripe.param.AccountLinkCreateParams;
@@ -43,7 +44,7 @@ public class AccountEventHandler implements StripeEventHandler {
     }
 
     private void handleAccountUpdated(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Account account)) return;
 
         sellerStripeAccountRepository.findByStripeAccountId(account.getId()).ifPresent(seller -> {
@@ -130,7 +131,7 @@ public class AccountEventHandler implements StripeEventHandler {
     }
 
     private void handleExternalAccountChanged(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (stripeObject == null) return;
 
         String accountId = null;

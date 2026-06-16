@@ -4,6 +4,7 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.paymentservice.domain.repository.TransactionRepository;
 import com.flashsale.paymentservice.stripe.webhook.StripeEventHandler;
 import com.flashsale.paymentservice.support.KafkaPublisher;
+import com.flashsale.paymentservice.support.StripeEvents;
 import com.flashsale.paymentservice.support.StripeMetadata;
 import com.stripe.model.Charge;
 import com.stripe.model.Event;
@@ -38,7 +39,7 @@ public class ChargeEventHandler implements StripeEventHandler {
     }
 
     private void handleChargeSucceeded(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Charge charge)) return;
 
         Long parentOrderId = StripeMetadata.extractParentOrderId(charge.getMetadata());
@@ -54,7 +55,7 @@ public class ChargeEventHandler implements StripeEventHandler {
     }
 
     private void handleChargeFailed(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Charge charge)) return;
 
         Long parentOrderId = StripeMetadata.extractParentOrderId(charge.getMetadata());
@@ -76,7 +77,7 @@ public class ChargeEventHandler implements StripeEventHandler {
     }
 
     private void handleChargeRefunded(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Charge charge)) return;
 
         kafkaPublisher.publish(KafkaTopics.REFUND_STRIPE_AUTO, charge.getId(), Map.of(

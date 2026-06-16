@@ -82,6 +82,7 @@ public class CheckoutSubmittedConsumer {
         info.setVariantId(getString(item, "variant_id"));
         info.setProductName(getString(item, "product_name"));
         info.setImageUrl(getString(item, "image_url"));
+        info.setSellerName(getString(item, "seller_name"));
 
         Long sellerId = toLong(item.get("seller_id"));
         info.setSellerId(sellerId != null ? sellerId : 0L);

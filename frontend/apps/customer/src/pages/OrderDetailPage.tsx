@@ -50,6 +50,12 @@ type EvidenceImage = {
   name: string;
 };
 
+function normalizeMinioUrl(url: string) {
+  return url
+    .replace('//minio:9000', '//localhost:9000')
+    .replace('//fs-minio:9000', '//localhost:9000');
+}
+
 function getPublicEvidenceUrl(uploadUrl: string) {
   return uploadUrl.split('?')[0];
 }
@@ -68,7 +74,8 @@ async function uploadRefundEvidence(orderId: number, file: File): Promise<Eviden
     };
   }
 
-  const uploadRes = await fetch(presigned.url, {
+  const uploadUrl = normalizeMinioUrl(presigned.url);
+  const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': file.type || presigned.contentType || 'image/jpeg' },
     body: file,
@@ -79,7 +86,7 @@ async function uploadRefundEvidence(orderId: number, file: File): Promise<Eviden
   }
 
   return {
-    url: getPublicEvidenceUrl(presigned.url),
+    url: normalizeMinioUrl(getPublicEvidenceUrl(presigned.url)),
     name: file.name,
   };
 }
@@ -672,6 +679,13 @@ export default function OrderDetailPage() {
     queryFn: () => orderApi.getParentOrder(id).then(r => r.data.data),
     enabled: !isNaN(id),
     retry: 1,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return 5000;
+      // Poll while any sub-order is PENDING (payment may still be processing)
+      const hasPending = data.orders?.some(o => o.status === 'PENDING') || data.status === 'PENDING';
+      return hasPending ? 5000 : false;
+    },
   });
 
   const { data: paymentData, dataUpdatedAt: paymentDataUpdatedAt } = useQuery({
@@ -679,6 +693,13 @@ export default function OrderDetailPage() {
     queryFn: () => paymentApi.getPayment(id).then(r => r.data.data),
     enabled: !isNaN(id),
     retry: 1,
+    refetchInterval: (query) => {
+      const payment = query.state.data;
+      if (!payment) return 3000;
+      // Poll while payment is PENDING (waiting for Stripe webhook)
+      if (payment.status === 'PENDING') return 3000;
+      return false;
+    },
   });
 
   const [showCancel, setShowCancel] = useState<Order | null>(null);
@@ -732,7 +753,9 @@ export default function OrderDetailPage() {
   }
 
   const parent = orderData;
-  const isPaymentPending = (paymentData?.status === 'PENDING' || parent.status === 'PENDING') && paymentData?.status !== 'SUCCESS';
+  const isPaymentPending = !paymentData
+    ? parent.status === 'PENDING'
+    : (paymentData.status === 'PENDING' || parent.status === 'PENDING') && paymentData.status !== 'SUCCESS';
   const paymentDeadlineFromApi = paymentData?.status === 'PENDING' && typeof paymentData.remainingSeconds === 'number'
     ? paymentDataUpdatedAt + paymentData.remainingSeconds * 1000
     : null;

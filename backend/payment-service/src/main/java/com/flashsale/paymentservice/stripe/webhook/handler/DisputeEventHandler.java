@@ -3,6 +3,7 @@ package com.flashsale.paymentservice.stripe.webhook.handler;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.paymentservice.stripe.webhook.StripeEventHandler;
 import com.flashsale.paymentservice.support.KafkaPublisher;
+import com.flashsale.paymentservice.support.StripeEvents;
 import com.stripe.model.Dispute;
 import com.stripe.model.Event;
 import com.stripe.model.StripeObject;
@@ -31,7 +32,7 @@ public class DisputeEventHandler implements StripeEventHandler {
     }
 
     private void handleDisputeCreated(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Dispute dispute)) return;
 
         kafkaPublisher.publish(KafkaTopics.STRIPE_DISPUTE_CREATED, dispute.getId(), Map.of(
@@ -48,7 +49,7 @@ public class DisputeEventHandler implements StripeEventHandler {
     }
 
     private void handleDisputeClosed(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Dispute dispute)) return;
 
         kafkaPublisher.publish(KafkaTopics.STRIPE_DISPUTE_CLOSED, dispute.getId(), Map.of(

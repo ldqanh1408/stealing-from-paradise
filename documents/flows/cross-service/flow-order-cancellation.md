@@ -1,65 +1,92 @@
-# Business Flow: Order Cancellation
-Scope: Cross-service (`order-service`, `product-service`, `refund-service`, `payment-service`, `notification-service`)
+# Flow: Order Cancellation (Cross-service)
+**Services involved:** `order-service` (owner), `product-service`, `payment-service`, `refund-service`, `notification-service`  
+**Verified against code:** 2026-06-16
 
-### Use Case Coverage
+## 1. Mục đích
+Hủy đơn hàng do **buyer** hoặc **seller** khởi tạo, bao gồm side-effect: **giải phóng tồn kho** (product), **hủy PaymentIntent đang pending** (payment), và **tự động hoàn tiền** nếu đơn đã PAID (refund).
 
-| Use case | Status against current code | Evidence | Notes |
-|----------|-----------------------------|----------|-------|
-| UC-ORDER-003: Cancel Order (Buyer) | Implemented | `OrderController.cancelOrder` line 120, `OrderService.cancelOrder` line 282 | Buyer can cancel `PENDING` or unshipped `PAID` orders. Paid cancellation starts an automatic full-refund request. |
-| UC-ORDER-008: Cancel Order (Seller) | Implemented | `OrderService.cancelOrder` line 282, `OrderService.publishAutoFullRefundRequested` line 353, `OrderProcessingSaga` line 190 | Seller can cancel an unshipped `PAID` order with a reason of at least 10 characters. |
+## 2. Actors & Trigger
+| Actor | Điều kiện |
+|-------|----------|
+| Buyer | Đơn `PENDING` hoặc `PAID` chưa có tracking |
+| Seller | Đơn `PAID` chưa ship, kèm `reason` ≥ 10 ký tự |
 
-### Sequence Diagram
+## 3. Public Endpoint
+| Method | Path | Handler |
+|--------|------|---------|
+| POST | `/v1/orders/{orderId}/cancel` | `OrderController.cancelOrder` (L120) → `OrderService.cancelOrder` (~L282) |
 
+Header: `X-User-Role` (BUYER / SELLER), body: `CancelOrderRequest { reason }`.
+
+## 4. Kafka Topics
+| Direction | Topic | Notes |
+|-----------|-------|-------|
+| → produce | `order.cancelled` | Always (Axon Saga emits) |
+| → produce | `seller.order_cancelled` | Only when seller-initiated (enriched payload) |
+| → produce | `refund.full_requested` (auto_process=true) | Only when cancelling a `PAID` order |
+| ← consume (downstream) | `order.cancelled` | by product / payment / notification |
+| ← consume (downstream) | `refund.full_requested` | by refund-service |
+
+## 5. Sequence Diagram
 ```mermaid
 sequenceDiagram
     actor User as Buyer or Seller
     participant GW as API Gateway
-    participant OS as Order Service
-    participant Saga as Order Processing Saga
-    participant Kafka as Kafka
-    participant Product as Product Service
-    participant Refund as Refund Service
-    participant Payment as Payment Service
-    participant Notif as Notification Service
+    participant OR as order-service
+    participant Saga as OrderProcessingSaga
+    participant K as Kafka
+    participant PR as product-service
+    participant PA as payment-service
+    participant RF as refund-service
+    participant NT as notification-service
 
     User->>GW: POST /api/v1/orders/{orderId}/cancel
-    GW->>OS: Route to /v1/orders/{orderId}/cancel
-    OS->>OS: Load order and verify user is buyer or seller
-    OS->>OS: Validate cancellable state
-    alt Valid cancellation
-        OS->>OS: Set status = CANCELLED and save cancel reason
-        OS->>Saga: Publish OrderCancelledEvent
-        Saga->>Kafka: order.cancelled
-        opt Cancelled by seller
-            Saga->>Kafka: seller.order_cancelled
+    GW->>OR: /v1/orders/{orderId}/cancel
+    OR->>OR: load order, verify owner, validate state
+
+    alt invalid (state / role / tracking present)
+        OR-->>User: 403 or ORDER_NOT_CANCELLABLE
+    else valid
+        OR->>OR: status = CANCELLED + cancel_reason
+        OR->>Saga: OrderCancelledEvent
+        Saga->>K: order.cancelled
+        opt seller-initiated
+            Saga->>K: seller.order_cancelled
         end
-        opt Cancelled order was PAID
-            OS->>Kafka: refund.full_requested auto_process=true
-            Kafka->>Refund: Create and execute full Stripe refund
+        opt was PAID
+            OR->>K: refund.full_requested (auto_process=true)
+            K->>RF: create + Stripe refund
         end
-        par Release product-side state
-            Kafka->>Product: Consume order.cancelled
-            Product->>Product: Release reservation and restore stock
-        and Cancel pending payment intent when applicable
-            Kafka->>Payment: Consume order.cancelled
-            Payment->>Payment: Cancel Stripe PaymentIntent when still pending
-        and Notify users
-            Kafka->>Notif: Consume order.cancelled / seller.order_cancelled / refund events
-            Notif-->>User: SSE notification when connected
+        par fan-out
+            K->>PR: release reservation, restore stock
+        and
+            K->>PA: cancel pending PaymentIntent (if any)
+        and
+            K->>NT: SSE notify buyer + seller
         end
-        OS-->>User: 200 CancelOrderResponse
-    else Invalid state or unauthorized
-        OS-->>User: 403 or ORDER_NOT_CANCELLABLE
+        OR-->>User: 200 CancelOrderResponse
     end
 ```
 
-### Implementation Notes
+## 6. State Rules
+| Initiator | Allowed `orders.status` | Other constraints |
+|-----------|------------------------|-------------------|
+| Buyer | `PENDING`, `PAID` | `PAID` must not have `tracking_number` |
+| Seller | `PAID` | Not yet shipped, `reason.length() ≥ 10` |
 
-| Concern | Current behavior |
-|---------|------------------|
-| HTTP contract | `POST /v1/orders/{orderId}/cancel` receives `CancelOrderRequest` and reads `X-User-Role`. |
-| Buyer state rule | Buyer can cancel `PENDING` or `PAID`; `PAID` must not have tracking. |
-| Seller state rule | Seller can cancel only `PAID` before shipping and must provide a reason of at least 10 characters. |
-| Event bridge | `OrderProcessingSaga` publishes `order.cancelled`; seller cancellations also publish enriched `seller.order_cancelled`. |
-| Paid refund side effect | `order-service` publishes `refund.full_requested` with `auto_process=true`; `refund-service` creates and attempts the Stripe refund. |
-| Pending payment side effect | `payment-service` still consumes `order.cancelled` for pending PaymentIntent cancellation. |
+## 7. Implementation Map
+| Concern | Code reference |
+|---------|----------------|
+| HTTP entry | `OrderController.cancelOrder` (L120) |
+| Domain rules | `OrderService.cancelOrder` (~L282), `publishAutoFullRefundRequested` (~L353) |
+| Saga emit | `OrderProcessingSaga` (~L190) |
+| Stock release | `product-service` Kafka consumer for `order.cancelled` |
+| Payment intent cancel | `payment-service` Kafka consumer for `order.cancelled` |
+| Refund auto path | `refund-service.RefundService.onRefundFullRequested` (~L355) |
+| Notification fan-out | `notification-service` Order/Payment/Refund consumers |
+
+## 8. Notes & Caveats
+- **Seller cancellation enriches** event with `seller.order_cancelled` to help notification template differentiate.
+- **`auto_process=true`** flag tells refund-service to skip admin review for cancellation-driven refunds.
+- **Pending PaymentIntent cancellation** is a no-op if Stripe webhook had already moved it to `succeeded` — payment-service guards on current status.
+- **No distributed transaction** — each side-effect is best-effort with retries; `order.cancelled` is the single source of truth.

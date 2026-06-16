@@ -78,6 +78,13 @@
             <version>26.1.0</version>
         </dependency>
 
+        <!-- MinIO: S3-compatible presigned URLs for refund evidence uploads -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.6.0</version>
+        </dependency>
+
         <!-- Kafka -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>

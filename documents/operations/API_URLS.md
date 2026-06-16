@@ -1,265 +1,176 @@
 # API Endpoints Reference
+**Verified against code:** 2026-06-16  
+**Gateway prefix:** `/api/v1/...` → stripPrefix(1) → service nội bộ `/v1/...`  
+**Exception:** chat-service dùng prefix `/ai/...` (không có `/v1`).
 
-> **Source**: documents/operations/API_URLS.md
-> **Generated**: 2026-05-10
-> **Base path**: `/api/v1` -- Gateway stripPrefix(1) -- `/{service}:{port}`
-
----
+> Mỗi bảng dưới đây liệt kê **path nội bộ** của service. Public path = `/api` + nội bộ path.
 
 ## Identity Service (`identity-service:8081`)
-
 ### Public
-
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /auth/register | Register |
-| POST | /auth/login | Login, returns JWT |
-| POST | /auth/refresh | Refresh token |
+| POST | `/v1/auth/register` | Register buyer |
+| POST | `/v1/auth/login` | Trả JWT access + refresh |
+| POST | `/v1/auth/refresh` | Refresh access token |
+| POST | `/v1/auth/seller/register` | Đăng ký kèm role SELLER |
 
 ### JWT Required
-
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /auth/logout | Revoke token |
-| GET | /users/me | My profile |
-| PUT | /users/me | Update profile |
-| GET | /users/me/avatar/presigned-url | Upload avatar |
-| GET | /users/me/addresses | My addresses |
-| POST | /users/me/addresses | Add address |
-| PUT | /users/me/addresses/{addressId} | Edit address |
-| DELETE | /users/me/addresses/{addressId} | Delete address |
+| POST | `/v1/auth/logout` | Blacklist token |
+| GET / PUT | `/v1/users/me` | Profile |
+| POST | `/v1/users/me/seller` | Role upgrade thành SELLER |
+| GET | `/v1/users/me/avatar-presigned` | Presigned URL avatar MinIO |
+| GET / POST | `/v1/users/me/addresses` | List / add |
+| PUT / DELETE | `/v1/users/me/addresses/{addressId}` | Edit / delete |
 
-### Admin (JWT + ADMIN)
-
+### Admin
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /admin/users | List users |
-
----
+| GET | `/v1/admin/users` | List users (filter, paging) |
 
 ## Product Service (`product-service:8084`)
-
 ### Public
-
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /products | Product list |
-| GET | /products/{productId} | Product detail |
-| GET | /categories | Category list |
+| GET | `/v1/categories` (+ `/tree`) | Category tree |
+| GET | `/v1/products/{productId}` | Product detail (listing → search-service) |
 
-### JWT Required
-
+### Buyer (JWT)
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /cart | View cart |
-| POST | /cart/items | Add to cart |
-| PUT | /cart/items/{itemId} | Update quantity |
-| DELETE | /cart/items/{itemId} | Remove item |
-| DELETE | /cart | Clear cart |
-| GET | /inventory/{skuCode} | Stock check |
+| GET | `/v1/cart` | Giỏ hàng |
+| POST / PUT / DELETE | `/v1/cart/items` (+ `{itemId}`) | Add / update / remove |
+| DELETE | `/v1/cart` | Clear |
+| POST | `/v1/cart/checkout/preview` | Preview total |
+| POST | `/v1/cart/checkout/submit` | Reserve stock + emit `order.checkout_submitted` |
+| POST | `/v1/cart/{cartId}/reserve` | Reservation thủ công |
 
 ### Seller (JWT + SELLER)
-
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /products | Create product |
-| PUT | /products/{productId} | Edit product |
-| DELETE | /products/{productId} | Soft-delete |
-| GET | /products/{productId}/presigned-url | Upload image |
-| GET | /sellers/me/products | My products |
-| GET | /seller/products/{productId}/variants | Variant list |
-| POST | /seller/products/{productId}/variants | Add variant |
-| PUT | /seller/variants/{variantId} | Edit variant |
-| DELETE | /seller/variants/{variantId} | Delete variant |
-| POST | /seller/products/{productId}/submit | Submit for review |
-| POST | /seller/products/{productId}/publish | Publish |
-| POST | /seller/products/{productId}/unpublish | Unpublish |
-| PUT | /inventory/{skuCode}/restock | Restock |
-| POST | /seller/inventory/adjust | Adjust inventory |
-| GET | /seller/inventory/{skuCode}/logs | Inventory log |
+| POST / PUT / DELETE | `/v1/products` (+ `{id}`) | CRUD + soft-delete |
+| POST | `/v1/products/{id}/submit` | Submit for review (enforce 3-strike) |
+| POST / PATCH / DELETE | `/v1/products/{id}/variants` (+ `{vid}`) | Variant CRUD |
+| POST | `/v1/products/{id}/images/presigned-url` | Upload URL |
+| POST / PUT | `/v1/products/{id}/images` (+ `{iid}`) | Image registration |
 
 ### Admin (JWT + ADMIN)
-
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /admin/products/pending | Pending products |
-| POST | /admin/products/{productId}/approve | Approve |
-| POST | /admin/products/{productId}/reject | Reject |
-| POST | /admin/categories | Create category |
-| PUT | /admin/categories/{categoryId} | Edit category |
-| DELETE | /admin/categories/{categoryId} | Delete category |
-
----
+| GET | `/v1/admin/products/pending` | Queue FIFO duyệt |
+| POST | `/v1/admin/products/{id}/approve` | Publish `product.approved` |
+| POST | `/v1/admin/products/{id}/reject` | Publish `product.rejected` + reason |
+| GET / POST | `/v1/admin/categories` + CRUD | Category management |
 
 ## Order Service (`order-service:8083`)
+Tất cả endpoint mount tại `@RequestMapping("/v1")`.
 
-### Buyer (JWT + BUYER)
-
+### Buyer (JWT)
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /orders/checkout | Deprecated; returns 501. Use product-service `/v1/cart/checkout/submit` |
-| GET | /orders | My orders |
-| GET | /orders/{orderId} | Order detail |
-| GET | /orders/parent/{parentOrderId} | Parent order detail |
-| POST | /orders/{orderId}/cancel | Cancel order |
-| POST | /orders/{orderId}/confirm-received | Confirm delivery |
-| POST | /orders/{orderId}/return-to-sender | Return to sender |
-| POST | /orders/{orderId}/refunds | Partial refund |
-| POST | /orders/parent/{parentOrderId}/refund | Full refund |
-| POST | /orders/parent/{parentOrderId}/refunds/partial | Multi-seller partial |
-| GET | /orders/parent/{parentOrderId}/refund | Full refund status |
-| GET | /orders/refunds | Refund requests |
-| GET | /orders/{orderId}/refunds | Order refund history |
-| GET | /orders/{orderId}/refunds/{refundId} | Refund detail |
-| GET | /orders/{orderId}/refunds/presigned-url | Upload evidence |
+| GET | `/v1/orders` | List buyer orders |
+| GET | `/v1/orders/{orderId}` | Detail |
+| GET | `/v1/orders/parent/{poid}` | Detail parent order |
+| POST | `/v1/orders/{orderId}/cancel` | Buyer hoặc seller cancel |
+| POST | `/v1/orders/{orderId}/confirm-received` | Mark DELIVERED |
+| POST | `/v1/orders/{orderId}/refunds` (multipart) | Buyer partial refund |
+| POST | `/v1/orders/parent/{poid}/refund` | Buyer full refund |
+| POST | `/v1/orders/parent/{poid}/refunds/partial` | Partial trên parent |
+| GET | `/v1/orders/{orderId}/refunds` (+`{rid}`) | List / detail refund |
+| GET | `/v1/orders/{orderId}/refunds/presigned-url` | Upload evidence |
+| GET | `/v1/orders/refunds` | Buyer all refunds |
+| GET | `/v1/orders/parent/{poid}/refund` | Refund summary trên parent |
 
 ### Seller (JWT + SELLER)
-
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /orders/{orderId} | Order detail |
-| GET | /sellers/me/orders | My orders |
-| PUT | /orders/{orderId}/tracking | Update tracking number |
-| GET | /orders/{orderId}/refunds | Refund history |
-
-### Admin (JWT + ADMIN)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | /orders/parent/{parentOrderId} | Parent order detail |
-| GET | /orders/parent/{parentOrderId}/refund | Refund status |
-| GET | /orders/{orderId}/refunds | Refund history |
-
----
+| PUT | `/v1/orders/{orderId}/tracking` | Set tracking → SHIPPING |
+| POST | `/v1/orders/{orderId}/return-to-sender` (multipart) | Seller RTS |
+| GET | `/v1/sellers/me/orders` | List seller orders |
+| GET | `/v1/sellers/me/dashboard` | Dashboard KPI |
 
 ## Payment Service (`payment-service:8082`)
-
-### Public
-
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /stripe/webhooks | Stripe webhook (Stripe signature) |
-
-### Seller (JWT + SELLER)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| POST | /stripe/onboarding/start | Start KYC |
-| GET | /stripe/onboarding/status | KYC status |
-| POST | /stripe/onboarding/refresh-link | Refresh link |
-| GET | /seller/payments/transfers | Transfer history |
-| GET | /seller/payments/balance | Available balance |
-
-### Buyer/Admin (JWT)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | /payments/parent-order/{parentOrderId} | Payment status |
-| GET | /payments/by-intent/{stripePaymentIntentId} | Lookup by PaymentIntent |
-
----
+| GET | `/v1/payments/parent-order/{poid}` | Lookup transaction (chứa clientSecret + status) |
+| GET | `/v1/payments/client-secret/{poid}` | Lấy clientSecret riêng |
+| POST | `/v1/stripe/webhooks` | **Webhook Stripe** (verify signature) |
+| POST | `/v1/stripe/onboarding/start` | Bắt đầu / resume onboarding |
+| GET | `/v1/stripe/onboarding/status` | Trạng thái (gọi Stripe live, fallback DB) |
+| POST | `/v1/stripe/onboarding/refresh-link` | Tạo URL mới khi hết hạn |
+| GET | `/v1/stripe/onboarding/admin/sellers` | Admin overview |
+| GET | `/v1/seller/payments/earnings` | Doanh thu |
+| GET | `/v1/seller/payments/transfers` | Lịch sử transfers |
+| GET | `/v1/seller/payments/balance` | Pending vs available |
+| GET | `/v1/seller/payments/stripe-dashboard` | URL Stripe Express Dashboard |
 
 ## Refund Service (`refund-service:8094`)
-
-### Admin (JWT + ADMIN)
-
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /admin/refunds | Pending refunds |
-| POST | /admin/refunds/{refundId}/approve | Approve refund |
-| POST | /admin/refunds/{refundId}/reject | Reject refund |
+| GET | `/v1/admin/refunds` (+ filters) | List |
+| GET | `/v1/admin/refunds/{refundId}` | Detail |
+| POST | `/v1/admin/refunds/{refundId}/approve` | Admin duyệt → Stripe refund |
+| POST | `/v1/admin/refunds/{refundId}/reject` | Admin từ chối |
 
----
+> Không có public `POST /refunds` — entry tạo refund duy nhất là qua `order-service` endpoints (xem mục Order Service).
 
 ## Flash Sale Service (`flashsale-service:8086`)
-
-### Public
-
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | /flash-sale/sessions | Session list |
-| GET | /flash-sale/sessions/{sessionId} | Session detail + items |
-
-### Buyer (JWT + BUYER)
+Tất cả endpoint mount tại `@RequestMapping("/v1/flash-sales")`.
 
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | /flash-sale/sessions/{sessionId}/buy | Purchase flash item |
-
-### Seller (JWT + SELLER)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| POST | /flash-sale/sessions/{sessionId}/items | Register product |
-
-### Admin (JWT + ADMIN)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| POST | /flash-sale/sessions | Create session |
-| GET | /admin/flash-sale/sessions | All sessions |
-| PUT | /admin/flash-sale/sessions/{sessionId} | Edit session |
-| DELETE | /admin/flash-sale/sessions/{sessionId} | Delete session |
-
----
+| GET | `/v1/flash-sales` (+ `/active`, `/{sid}`) | List / active / detail |
+| POST | `/v1/flash-sales` | Admin create session |
+| PUT / DELETE | `/v1/flash-sales/{sid}` | Update / soft-delete |
+| POST | `/v1/flash-sales/{sid}/buy` | Buyer mua (atomic decrement Redis) |
+| POST | `/v1/flash-sales/{sid}/items` | Seller register item (auto-approved) |
+| POST | `/v1/flash-sales/{sid}/items/{iid}/approve` | Admin approve (legacy) |
+| POST | `/v1/flash-sales/{sid}/items/{iid}/reject` | Admin reject (legacy) |
+| POST / DELETE | `/v1/flash-sales/{sid}/reminders` | Reminder subscribe / unsubscribe |
 
 ## Search Service (`search-service:8087`)
-
-### Public
-
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /search/products | Full-text search |
-| GET | /search/products/suggest | Autocomplete |
-
----
+| GET | `/v1/search/products?q=&category_id=&sort=&page=&size=` | Listing search VN |
+| GET | `/v1/search/products/suggest?q=` | Suggester |
+| POST | `/v1/search/reindex` | Admin trigger full reindex |
+| GET | `/v1/search/reindex/status` | Trạng thái reindex |
 
 ## Notification Service (`notification-service:8092`)
+| Method | Path | Notes |
+|--------|------|-------|
+| GET (SSE) | `/v1/notifications/stream` | Đăng ký SSE (hỗ trợ `Last-Event-ID`) |
+| GET | `/v1/notifications` (+ `page`, `size`) | History |
+| GET | `/v1/notifications/unread-count` | Số chưa đọc |
+| PUT / PATCH | `/v1/notifications/{notifId}/read` | Mark one read |
+| PUT / PATCH | `/v1/notifications/read-all` | Mark all read |
 
-### JWT Required
+## Chat Service (`chat-service:8093`)
+> Prefix `/ai/...` (không có `/v1`).
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | /notifications/stream | SSE real-time stream |
-| GET | /notifications | Notification list |
-| PATCH | /notifications/{notifId}/read | Mark as read |
-| PATCH | /notifications/read-all | Mark all as read |
-| GET | /notifications/unread-count | Unread count |
+| POST (SSE) | `/ai/chat` | Stream chat response |
+| GET | `/ai/chat/history` | Message history theo session |
+| POST | `/ai/sessions` | Tạo session |
+| GET | `/ai/sessions` | List active sessions |
+| DELETE | `/ai/sessions/{sessionId}` | Close session |
+| POST | `/ai/confirm` | Resolve pending Level-3 confirmation |
+| GET | `/ai/suggest` | Suggest prompt |
 
----
+## Common Conventions
+| Concern | Quy ước |
+|---------|---------|
+| Auth header | `Authorization: Bearer <jwt>` |
+| Role check | Hai cách: `@PreAuthorize("hasRole('...')")` ở handler, hoặc `X-User-Role` header forward từ gateway |
+| User context | `X-User-Id` được gateway gắn sau khi validate JWT |
+| Pagination | `?page=0&size=20` (zero-based) |
+| Error format | Body: `{ "code": "AUTH_002", "message": "..." }` — code mapping ở `GlobalExceptionHandler` |
+| Idempotency | Endpoint thay đổi state (cancel, refund) chấp nhận retry cùng request id |
 
-## AI Chat Service (`ai-chat-service:8093`)
-
-> Base path: `/api/ai` -- Gateway routes to `ai-chat-service`
-
-### Public (Optional JWT)
-
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | /api/ai/suggest | Quick question suggestions |
-
-### JWT Required
-
-| Method | Path | Notes |
-|--------|------|-------|
-| POST | /api/ai/chat | Chat streaming (SSE) |
-| GET | /api/ai/chat/history | Conversation history |
-| POST | /api/ai/sessions | Create new session |
-| DELETE | /api/ai/sessions/{sessionId} | Close session |
-| POST | /api/ai/confirm | Confirm/reject Level 3 action |
-
----
-
-## Summary by Role
-
-| Service | Public | JWT | Seller | Buyer | Admin | Total |
-|---------|--------|-----|--------|-------|-------|-------|
-| Identity | 3 | 12 | -- | -- | 3 | 18 |
-| Product | 3 | 5 | 16 | -- | 6 | 30 |
-| Order | 0 | -- | 4 | 15 | 3 | 22 |
-| Payment | 1 | 2 | 5 | -- | 3 | 11 |
-| Flash Sale | 2 | 1 | 1 | 2 | 6 | 12 |
-| Search | 2 | -- | -- | -- | -- | 2 |
-| Notification | -- | 5 | -- | -- | -- | 5 |
-| AI Chat | 1 | 5 | -- | -- | -- | 6 |
-| **Total** | **12** | **29** | **26** | **17** | **27** | **111** |
+## Notes
+- **Gateway routes** đăng ký theo `serviceId` Eureka. Khi đổi base path service phải đồng bộ gateway route config.
+- **`/v1/stripe/webhooks`** là path duy nhất Stripe gọi vào — đừng đổi.
+- **`AuthorizationDeniedException`** map sang `403 AUTH_002` (không còn 500 SYS_001).
+- **Chat endpoint** không qua `/v1` vì giữ format tài liệu nội bộ AI; gateway cần map riêng nếu đưa ra public.

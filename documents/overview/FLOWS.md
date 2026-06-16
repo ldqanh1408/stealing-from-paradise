@@ -1,342 +1,287 @@
-﻿# Cross-Service Flow Diagrams
+# Cross-Service Flow Diagrams
+**Verified against code:** 2026-06-16
 
-> Generated: 2026-05-10
-> Source: `docs/services/flashsale-service/flashsale_service_flow.md`, `docs/services/product-service/product_service_flow.md`, KAFKA_EVENTS.md files
+> Đây là tổng hợp **các luồng nghiệp vụ trọng yếu** ở cấp cross-service, dùng Mermaid. Chi tiết per-service xem [../flows/](../flows/README.md).
 
----
+## 1. Flash Sale Lifecycle
 
-## 1. Flash Sale Lifecycle Flow
-
-### 1.1 Session Creation (Admin)
-
+### 1.1 Tạo session (Admin)
 ```mermaid
 sequenceDiagram
     actor Admin
-    participant FS as Flash Sale Service
+    participant FS as flashsale-service
     participant PG as PostgreSQL
-    participant Redis
+    participant R as Redis
+    participant K as Kafka
 
-    Admin->>FS: POST /flash-sales (name, start_time, end_time, discount)
-    FS->>FS: Validate end_time > start_time
-    FS->>FS: Validate 0 < discount <= 100
-    FS->>FS: Calculate registration_deadline = start_time - 15min
+    Admin->>FS: POST /v1/flash-sales
+    FS->>FS: validate end > start, 0 < discount ≤ 100
+    FS->>FS: tính registration_deadline = start - 15m
     FS->>PG: INSERT fs_sessions (status=UPCOMING)
-    FS->>Redis: ZADD flash_sale:triggers <start_ms> session_start
-    FS->>Redis: ZADD flash_sale:triggers <end_ms> session_end
-    FS-->>Admin: 201 Created (session object)
+    FS->>R: ZADD flash_sale:triggers (start_ms, end_ms)
+    FS->>K: flash_sale.session_created
+    FS-->>Admin: 201 Created
 ```
 
-### 1.2 Seller Product Registration
-
+### 1.2 Seller đăng ký sản phẩm (auto-approve)
 ```mermaid
 sequenceDiagram
     actor Seller
-    participant FS as Flash Sale Service
-    participant PS as Product Service
+    participant FS as flashsale-service
     participant PG as PostgreSQL
+    participant K as Kafka
 
-    Seller->>FS: POST /flash-sales/{id}/items (product_id)
-    FS->>FS: Validate session.status = UPCOMING
-    FS->>FS: Validate NOW() < registration_deadline
-    FS->>PS: Verify product belongs to seller
-    PS-->>FS: OK (owner confirmed)
-    FS->>PG: INSERT fs_items (session_id, product_id, discount_applied)
+    Seller->>FS: POST /v1/flash-sales/{sid}/items
+    FS->>FS: validate session UPCOMING & < registration_deadline
+    FS->>PG: INSERT fs_items (status=APPROVED)
+    FS->>K: flash_sale.item_registered
     FS-->>Seller: 201 Created (auto-approved)
 ```
 
-### 1.3 Session Auto-Transition (Redis ZSET Worker)
+### 1.3 Scheduler chuyển trạng thái
+```mermaid
+sequenceDiagram
+    participant SCH as FlashSaleSessionScheduler
+    participant PG as PostgreSQL
+    participant K as Kafka
+    participant PR as product-service
+    participant SR as search-service
+
+    Note over SCH: fixedDelay 60s (ShedLock)
+    SCH->>PG: query session due start/end
+    alt session start_time đến
+        SCH->>PG: status = ACTIVE
+        SCH->>K: flash_sale.session_started (flashItems[])
+        K->>PR: FlashSaleEventHandler apply flash price
+        K->>SR: cập nhật giá / has_discount
+    else session end_time đến
+        SCH->>PG: status = ENDED
+        SCH->>K: flash_sale.session_ended (flashItems[])
+        K->>PR: reset price
+        K->>SR: refresh index
+    end
+```
+
+### 1.4 Buyer mua
+```mermaid
+sequenceDiagram
+    actor Buyer
+    participant FS as flashsale-service
+    participant R as Redis
+    participant ID as identity-service
+    participant K as Kafka
+    participant OR as order-service
+
+    Buyer->>FS: POST /v1/flash-sales/{sid}/buy
+    FS->>R: Lua DECRBY fs:stock:{itemId}
+    alt còn hàng
+        FS->>K: order.address.request
+        K->>ID: AddressKafkaConsumer
+        ID->>K: order.address.response
+        K->>FS: onAddressResponse
+        FS->>K: order.checkout_submitted
+        K->>OR: CheckoutSubmittedConsumer → create order
+    else hết hàng
+        FS->>R: INCRBY rollback
+        FS-->>Buyer: 409 SOLD_OUT
+    end
+```
+
+## 2. Checkout Saga (Cross-Service)
 
 ```mermaid
 sequenceDiagram
-    participant Worker as Redis Worker
-    participant Redis
-    participant FS as Flash Sale Service
-    participant PG as PostgreSQL
-    participant Kafka
-    participant PS as Product Service
-    participant SS as Search Service
+    actor Buyer
+    participant PR as product-service
+    participant K as Kafka
+    participant OR as order-service
+    participant Saga as Axon Saga
+    participant PA as payment-service
+    participant STR as Stripe
+    participant NT as notification-service
 
-    loop Every 100ms
-        Worker->>Redis: ZRANGEBYSCORE flash_sale:triggers -inf <now> LIMIT 0 10
-        alt Trigger found (session_start)
-            Worker->>Redis: ZREM flash_sale:triggers <trigger> (atomic)
-            Worker->>PG: UPDATE fs_sessions SET status=ACTIVE
-            Worker->>Kafka: flash_sale.session_started
-            Kafka->>PS: Consume event
-            PS->>PS: Query fs_items, calculate flash_price per SKU
-            PS->>Kafka: flash_sale.price_sync (action=activate)
-            Kafka->>SS: Consume, update ES with flash prices
-        else Trigger found (session_end)
-            Worker->>Redis: ZREM flash_sale:triggers <trigger> (atomic)
-            Worker->>PG: UPDATE fs_sessions SET status=ENDED
-            Worker->>Kafka: flash_sale.session_ended
-            Kafka->>PS: Consume event, reset prices
-            PS->>Kafka: flash_sale.price_sync (action=deactivate)
-            Kafka->>SS: Consume, reset ES prices to original
+    Buyer->>PR: POST /v1/cart/checkout/submit
+    PR->>PR: reserveStock (TTL 15m)
+    PR->>K: order.checkout_submitted
+    K->>OR: CheckoutSubmittedConsumer
+    OR->>OR: create parent + per-seller sub-orders
+    Saga->>K: order.created
+    Saga->>K: payment.requested
+    K->>PA: onPaymentRequested
+    PA->>STR: PaymentIntent.create
+    PA-->>Buyer: clientSecret (qua GET /v1/payments/parent-order/{poid})
+    Buyer->>STR: confirm via Stripe Elements
+    STR->>PA: webhook payment_intent.succeeded
+    PA->>K: payment.success
+    K->>OR: PaymentKafkaEventBridge.onPaymentSuccess
+    OR->>K: order.paid
+    K->>PR: convert reservation → consumed
+    K->>NT: SSE thông báo buyer
+```
+
+## 3. Order Cancellation (đa nguồn khởi)
+```mermaid
+sequenceDiagram
+    actor U as Buyer hoặc Seller
+    participant OR as order-service
+    participant K as Kafka
+    participant PR as product-service
+    participant PA as payment-service
+    participant RF as refund-service
+    participant NT as notification-service
+
+    U->>OR: POST /v1/orders/{id}/cancel
+    OR->>OR: validate state + role
+    OR->>K: order.cancelled
+    opt seller initiated
+        OR->>K: seller.order_cancelled
+    end
+    opt was PAID
+        OR->>K: refund.full_requested (auto_process=true)
+        K->>RF: tạo + chạy Stripe refund
+    end
+    par fan-out
+        K->>PR: release reservation, restore stock
+    and
+        K->>PA: cancel pending PaymentIntent (nếu còn)
+    and
+        K->>NT: SSE notify
+    end
+```
+
+## 4. Refund (3 đường khởi)
+```mermaid
+sequenceDiagram
+    actor Buyer
+    actor Seller
+    actor Admin
+    participant OR as order-service
+    participant K as Kafka
+    participant RF as refund-service
+    participant STR as Stripe
+    participant NT as notification-service
+
+    alt Buyer partial
+        Buyer->>OR: POST /v1/orders/{id}/refunds (multipart)
+        OR->>K: refund.requested
+    else Buyer full
+        Buyer->>OR: POST /v1/orders/parent/{poid}/refund
+        OR->>K: refund.full_requested
+    else Seller RTS
+        Seller->>OR: POST /v1/orders/{id}/return-to-sender
+        OR->>K: order.returned
+        K->>RF: onOrderReturnedRts → Stripe refund
+        RF->>K: refund.rts_completed
+    end
+
+    K->>RF: tạo PENDING refunds + refund_items
+    RF->>K: refund.created
+
+    Admin->>RF: POST /v1/admin/refunds/{id}/approve
+    RF->>STR: Refund.create
+    RF->>K: refund.admin_approved
+    par
+        K->>OR: mark PARTIALLY_REFUNDED / REFUNDED
+    and
+        K->>NT: SSE buyer
+    end
+```
+
+## 5. Stripe Connect Onboarding
+```mermaid
+sequenceDiagram
+    actor Seller
+    participant PA as payment-service
+    participant STR as Stripe
+    participant K as Kafka
+    participant NT as notification-service
+
+    Seller->>PA: POST /v1/stripe/onboarding/start
+    PA->>STR: Account.create (Express)
+    PA->>STR: AccountLink.create
+    PA-->>Seller: onboarding_url
+
+    Seller->>STR: hoàn tất form Stripe
+    STR->>PA: webhook account.updated
+    PA->>PA: sync charges_enabled / payouts_enabled
+    opt requirements.currently_due
+        PA->>K: seller.stripe_requirement
+        K->>NT: SSE seller
+    end
+```
+
+## 6. Payout (Delayed)
+```mermaid
+sequenceDiagram
+    participant K as Kafka
+    participant PA as payment-service
+    participant SCH as PayoutScheduler
+    participant STR as Stripe
+    participant NT as notification-service
+
+    K->>PA: order.delivered
+    PA->>PA: seller_transfers AWAITING_DELIVERY → RETURN_WINDOW
+
+    loop every 5m (ShedLock)
+        SCH->>PA: tìm RETURN_WINDOW past payout_eligible_at
+        PA->>STR: Transfer.create
+        alt OK
+            PA->>PA: PAID
+            PA->>K: seller.transfer_paid_out + payout.processed + transfer.completed
+            K->>NT: SSE seller
+        else fail
+            PA->>PA: FAILED + retry++
         end
     end
 ```
 
-### 1.4 Redis Trigger Latency Comparison
-
-| Method | Max Latency | Precision |
-|--------|-------------|-----------|
-| Cron 1 min | 60,000ms | +/- 30s |
-| Redis Trigger (sleep 100ms) | 100ms | +/- 50ms |
-| Redis Blocking BZPOPMIN | 0ms | Exact |
-
----
-
-## 2. Product Checkout Flow
-
-### 2.1 Browse Catalog
-
+## 7. Notification Stream
 ```mermaid
 sequenceDiagram
-    actor Customer
-    participant PS as Product Service
-    participant PG as PostgreSQL
-    participant ES as Elasticsearch
+    actor Client
+    participant NT as notification-service
+    participant Sink as Reactor Sink
+    participant MG as MongoDB
+    participant K as Kafka
 
-    Customer->>PS: GET /products?category=X&sort=price
-    PS->>ES: Search query with filters
-    ES-->>PS: Product listing (SKU-first, field-collapsed)
-    PS-->>Customer: Paginated product cards (min price, thumbnail)
-```
-
-### 2.2 Product Detail with Variant Selection
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant PS as Product Service
-    participant PG as PostgreSQL
-
-    Customer->>PS: GET /products/{id}
-    PS->>PG: SELECT product + variants + images
-    PS-->>Customer: Product detail, variant matrix, gallery
-    Customer->>Customer: Select color/size combination
-    Note over Customer: Frontend maps variant_attributes to specific variant
-    Customer->>Customer: Shows variant-specific price, stock, image
-```
-
-### 2.3 Add to Cart
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant PS as Product Service
-    participant PG as PostgreSQL
-    participant Kafka
-
-    Customer->>PS: POST /cart/items (variant_id, quantity)
-    PS->>PG: Check product_variant.stock_quantity >= quantity
-    alt Stock insufficient
-        PS-->>Customer: 422 Insufficient stock
-    else Stock OK
-        PS->>PG: UPSERT cart_item (price_snapshot = current price)
-        PS-->>Customer: 200 Cart updated
+    Client->>NT: GET /v1/notifications/stream (Last-Event-ID?)
+    opt với Last-Event-ID
+        NT->>MG: resolve id → ts, replay history > ts
+        NT-->>Client: replay events
     end
+    NT->>Sink: getOrCreateSink(userId)
+    K->>NT: domain event
+    NT->>MG: persist mg_notifications
+    NT->>Sink: emitToUser
+    Sink-->>Client: SSE { id, event, data }
 ```
 
-### 2.4 View Cart (Lazy Evaluation)
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant PS as Product Service
-    participant PG as PostgreSQL
-
-    Customer->>PS: GET /cart
-    PS->>PG: SELECT cart_items WHERE cart_id = customer's cart
-    PS->>PG: Batch SELECT product_variants for all cart items
-    loop Each cart item
-        PS->>PS: Compare price_snapshot vs current price
-        PS->>PS: Check stock_quantity
-        PS->>PS: Check variant.status
-    end
-    PS-->>Customer: Cart with flags: price_changed, out_of_stock, unavailable
-```
-
-### 2.5 Checkout Preview
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant PS as Product Service
-    participant Redis
-
-    Customer->>PS: POST /v1/cart/checkout/preview (item_ids[])
-    PS->>PS: Validate ALL items (price, stock, status)
-    alt Any validation fails
-        PS-->>Customer: 409 Conflict (per-item details)
-    else All valid
-        PS->>Redis: SET preview_token TTL 10min
-        PS-->>Customer: 200 (preview_token, expires_at, items summary)
-    end
-```
-
-### 2.6 Place Order (Checkout Submit)
-
-```mermaid
-sequenceDiagram
-    actor Customer
-    participant PS as Product Service
-    participant Redis
-    participant OS as Order Service
-    participant PayS as Payment Service
-
-    Note over Customer,PayS: Step 1: Checkout Preview
-    Customer->>PS: POST /v1/cart/checkout/preview (item_ids[])
-    PS->>PS: Validate ALL items (price, stock, variant)
-    alt Validation fails
-        PS-->>Customer: 409 Conflict (per-item details)
-    else All valid
-        PS->>Redis: SET preview_token TTL 10min
-        PS-->>Customer: 200 (preview_token, expires_at)
-    end
-
-    Note over Customer,PayS: Step 2: Checkout Submit
-    Customer->>PS: POST /v1/cart/checkout/submit (preview_token, address_snapshot)
-    PS->>PS: Validate preview_token (Redis)
-    PS->>PS: Re-validate stock for ALL items
-    PS->>Redis: Reserve stock (DECR + stock_reservation PENDING)
-    PS->>Redis: SET checkout:session:{sessionId} TTL 15min
-    PS->>OS: Kafka: order.checkout_submitted (session_id, items, address)
-    PS-->>Customer: 200 (session_id, total)
-
-    Note over Customer,PayS: Step 3: Order Creation + Saga
-    OS->>OS: Create ParentOrder + N sub-orders
-    OS->>PayS: Create payment intent
-    PayS-->>OS: Payment intent created
-    OS-->>Customer: Order confirmed (pending payment)
-
-    Note over Customer,PayS: Step 4: Payment Resolution
-    alt Payment success
-        PayS->>OS: payment.success
-        OS->>PayS: Kafka: order.paid
-        OS->>OS: Update order PAID
-        PayS->>PS: Kafka: order.paid
-        PS->>PS: confirmReservation() â†’ CONFIRMED
-    else Payment failed
-        PayS->>OS: payment.failed
-        OS->>PayS: Kafka: order.payment_failed
-        OS->>OS: Update order CANCELLED
-        PayS->>PS: Kafka: order.payment_failed
-        PS->>PS: releaseReservation() â†’ RELEASED
-    end
-```
-
-### 2.7 Payment Resolution
-
-```mermaid
-sequenceDiagram
-    participant Stripe
-    participant PayS as Payment Service
-    participant Kafka
-    participant OS as Order Service
-    participant PS as Product Service
-
-    Stripe->>PayS: Webhook payment_intent.succeeded
-    PayS->>Kafka: payment.success
-    Kafka->>OS: Consume â†’ update orders PAID
-    Kafka->>PayS: order.paid
-    PayS->>PS: Consume â†’ confirmReservation()
-
-    alt Payment fails
-        Stripe->>PayS: Webhook payment_intent.payment_failed
-        PayS->>Kafka: payment.failed
-        Kafka->>OS: Consume â†’ update orders CANCELLED
-        Kafka->>PayS: order.payment_failed
-        PayS->>PS: Consume â†’ releaseReservation()
-    end
-```
-
----
-
-## 3. Order Lifecycle Flow
-
-### 3.1 Full Order States
-
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING_PAYMENT: Checkout initiated
-    PENDING_PAYMENT --> PAID: payment.success
-    PENDING_PAYMENT --> CANCELLED: payment.failed / timeout
-    PAID --> SHIPPING: Seller ships
-    SHIPPING --> DELIVERED: Buyer confirms receipt
-    DELIVERED --> RETURNED: RTS flow
-    RETURNED --> REFUNDED: Refund processed
-```
-
-### 3.2 Return To Sender (RTS) Flow
-
-```mermaid
-sequenceDiagram
-    actor Seller
-    participant OS as Order Service
-    participant Kafka
-    participant RefS as Refund Service
-    participant PS as Product Service
-
-    Seller->>OS: POST /orders/{id}/return-to-sender (tracking, carrier)
-    OS->>OS: Update order status
-    OS->>Kafka: order.returned
-    Kafka->>RefS: Auto-create full refund
-    Kafka->>PS: Restore stock (INCR Redis, UPDATE DB)
-    Kafka->>RefS: Process Stripe refund (pre-payout / transfer reversal)
-```
-
----
-
-## 4. Product Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> active: Seller creates product
-    active --> out_of_stock: All variants reach stock=0
-    out_of_stock --> active: Any variant restocked
-    active --> inactive: Seller unpublishes
-    inactive --> active: Seller publishes
-    out_of_stock --> inactive: Seller unpublishes
-```
-
----
-
-## 5. AI Chat Message Flow
-
+## 8. AI Chat — Tool Calling + HITL
 ```mermaid
 sequenceDiagram
     actor User
-    participant AC as AI Chat Service
-    participant Redis
-    participant LLM
-    participant Tool as Core Services
+    participant CH as chat-service
+    participant LLM as Spring AI ChatClient
+    participant T as Tools (L1/L2/L3)
+    participant MG as MongoDB
+    participant CORE as core service
 
-    User->>AC: POST /chat (message) via SSE
-    AC->>Redis: Check rate limit (rate:{userId})
-    AC->>AC: INSERT chat_messages (role=USER)
-    AC->>LLM: Send message + context
-    LLM-->>AC: Tool call decision
-    alt No tool needed
-        LLM-->>AC: Stream tokens (delta events)
-    else Tool needed (Muc 1/2)
-        AC->>Tool: Execute tool (e.g., getOrderDetail)
-        Tool-->>AC: Result
-        AC->>AC: INSERT (TOOL_CALL, TOOL_RESULT)
-        AC->>LLM: Send tool result
-        LLM-->>AC: Stream tokens (delta events)
-    else Tool needed (Muc 3)
-        AC->>AC: INSERT pending_confirmation
-        AC->>Redis: SET pending:{confirmId} (TTL 5min)
-        AC-->>User: confirmation_required event
-        User->>AC: POST /confirm (token, action)
-        AC->>Tool: Execute confirmed action
-        Tool-->>AC: Result
-        AC-->>User: Stream result via SSE
+    User->>CH: POST /ai/chat (SSE)
+    CH->>LLM: stream(messages + tools)
+    LLM-->>CH: token delta → SSE delta
+    LLM->>T: tool_call
+    alt L1/L2
+        T-->>CH: result
+    else L3 sensitive
+        T->>MG: pending_confirmations TTL 5m
+        CH-->>User: SSE confirmation_required
+        User->>CH: POST /ai/confirm
+        CH->>CORE: execute confirmed action
     end
-    AC-->>User: done event (messageId, tokensUsed)
+    CH-->>User: SSE done
 ```
 
----
-
+## Related
+- Detailed per-service flows: [../flows/](../flows/README.md)
+- Kafka catalog: [../messaging/KAFKA_CATALOG.md](../messaging/KAFKA_CATALOG.md)
+- Architecture overview: [ARCHITECTURE.md](ARCHITECTURE.md)

@@ -15,6 +15,7 @@ export default function ImageUploader({ productId, images, onChange }: { product
         if (!file.type.startsWith('image/')) continue;
         const { data: resp } = await sellerApi.getPresignedUrl(productId, file.name, file.type);
         const result = resp.data;
+        if (!result) throw new Error('Missing presigned URL response');
         await fetch(result.presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
         newImages.push(result.objectUrl);
       }

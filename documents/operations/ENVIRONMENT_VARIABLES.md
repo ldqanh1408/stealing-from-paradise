@@ -1,330 +1,167 @@
-﻿# Environment Variables Reference
-
-> **Source**: documents/operations/ENVIRONMENT_VARIABLES.md (v5.5)
-> **Generated**: 2026-05-10
-> **Service**: platform
-
-All environment variables needed to run the system. Fill these into your `.env` file.
-
----
+# Environment Variables Reference
+**Verified against code:** 2026-06-16  
+**Source:** `application.yaml` mỗi service + `.env` root.
 
 ## Quick Setup Checklist
-
 | # | Item | Notes |
 |---|------|-------|
-| 1 | POSTGRES credentials | DB user, password, database name |
-| 2 | MONGO credentials | Root username, password, init database |
-| 3 | REDIS password | Optional, for auth-enabled Redis |
-| 4 | MINIO credentials | Access key + secret key |
-| 5 | JWT_SECRET | RS256 private key or symmetric secret |
-| 6 | STRIPE_SECRET_KEY | Stripe secret key |
-| 7 | STRIPE_WEBHOOK_SECRET | Webhook signing secret |
-| 8 | STRIPE_PUBLISHABLE_KEY | Frontend-only |
-
----
+| 1 | PostgreSQL credentials | shared user cho identity, payment, order, flashsale, product, refund |
+| 2 | MongoDB credentials | shared cho notification, chat |
+| 3 | Redis password | optional, để dev không cần |
+| 4 | MinIO credentials | access key + secret key |
+| 5 | JWT_SECRET | base64 ≥ 256-bit |
+| 6 | STRIPE_SECRET_KEY | `sk_test_…` cho dev, `sk_live_…` cho prod |
+| 7 | STRIPE_WEBHOOK_SECRET | `whsec_…` để verify signature |
+| 8 | STRIPE_PUBLISHABLE_KEY | frontend env riêng (`VITE_STRIPE_PUBLISHABLE_KEY`) |
+| 9 | SPRING_AI_OPENAI_API_KEY | bắt buộc cho chat-service |
 
 ## Infrastructure
 
 ### PostgreSQL
-
-| Variable | Default | Used By | Notes |
-|----------|---------|---------|-------|
-| `POSTGRES_USER` | `flashsale` | identity, payment, order, flashsale, product | DB username |
-| `POSTGRES_PASSWORD` | (set securely) | same services | DB password |
-| `POSTGRES_DB` | `flashsale` | docker container init | Database name |
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `POSTGRES_USER` | `flashsale` | identity, payment, order, flashsale, product, refund |
+| `POSTGRES_PASSWORD` | (đặt strong) | như trên |
+| `POSTGRES_DB` | `flashsale` | init container |
 
 ### MongoDB
-
-| Variable | Default | Used By | Notes |
-|----------|---------|---------|-------|
-| `MONGO_INITDB_ROOT_USERNAME` | `admin` | notification, ai-chat | Root user |
-| `MONGO_INITDB_ROOT_PASSWORD` | (set securely) | notification, ai-chat | Root password |
-| `MONGO_INITDB_DATABASE` | `flashsale` | docker init | Initial database |
-| `MONGO_USER` | `admin` | notification, ai-chat | MongoDB username |
-| `MONGO_PASSWORD` | (set securely) | notification, ai-chat | MongoDB password |
-| `MONGO_DATABASE` | `flashsale` | notification, ai-chat | MongoDB database name |
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `MONGO_INITDB_ROOT_USERNAME` | `admin` | docker init |
+| `MONGO_INITDB_ROOT_PASSWORD` | (đặt strong) | docker init |
+| `MONGO_INITDB_DATABASE` | `flashsale` | docker init |
+| `MONGO_USER` | `admin` | notification, chat |
+| `MONGO_PASSWORD` | (đặt strong) | notification, chat |
+| `MONGO_DATABASE` | `flashsale` | notification, chat |
 
 ### Redis
-
-| Variable | Default | Used By | Notes |
-|----------|---------|---------|-------|
-| `REDIS_HOST` | `redis` | api-gateway, identity, flashsale | Redis hostname |
-| `REDIS_PASSWORD` | (optional) | same services | If auth enabled |
-| `REDIS_PORT` | `6379` | same services | Default port |
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `REDIS_HOST` | `redis` | gateway, identity, product, flashsale, search, notification, chat |
+| `REDIS_PORT` | `6379` | như trên |
+| `REDIS_PASSWORD` | (optional) | như trên |
 
 ### Elasticsearch
-
-| Variable | Default | Used By | Notes |
-|----------|---------|---------|-------|
-| `ELASTIC_URI` | `http://elasticsearch:9200` | search-service | Full URI |
-| `ELASTIC_USERNAME` | `elastic` | search-service | x-pack username (post-MVP, optional in dev) |
-| `ELASTIC_PASSWORD` | (optional in dev) | search-service | x-pack password (post-MVP, required in production) |
-| `ES_JAVA_OPTS` | `-Xms512m -Xmx512m` | elasticsearch container | Heap size |
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `ELASTIC_URI` | `http://elasticsearch:9200` | search |
+| `ELASTIC_USERNAME` | `elastic` | search |
+| `ELASTIC_PASSWORD` | (set in prod) | search |
 
 ### MinIO
-
-| Variable | Default | Used By | Notes |
-|----------|---------|---------|-------|
-| `MINIO_URL` | `http://minio:9000` | product-service | S3-compatible endpoint |
-| `MINIO_ACCESS_KEY` | (set securely) | product-service | Access key ID |
-| `MINIO_SECRET_KEY` | (set securely) | product-service | Secret access key |
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `MINIO_ENDPOINT` | `http://minio:9000` | product, refund |
+| `MINIO_ACCESS_KEY` | (set) | product, refund |
+| `MINIO_SECRET_KEY` | (set) | product, refund |
+| `MINIO_BUCKET_PRODUCT` | `products-media` | product |
+| `MINIO_BUCKET_REFUND` | `refund-evidence` | refund |
 
 ### Kafka
-
-| Variable | Default | Used By | Notes |
-|----------|---------|---------|-------|
-| `KAFKA_SERVER` | `kafka:9092` | all backend services | Bootstrap server |
-| `KAFKA_BROKER_ID` | `1` | kafka container | Broker ID |
-| `KAFKA_ZOOKEEPER_CONNECT` | `zookeeper:2181` | kafka container | ZK connection |
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `KAFKA_BOOTSTRAP_SERVERS` | `kafka:9092` | tất cả service |
+| `KAFKA_SCHEMA_REGISTRY_URL` | (optional) | nếu dùng schema registry |
 
 ### Axon Server
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `AXON_AXONSERVER_SERVERS` | `axonserver:8124` | order-service |
+| `AXON_AXONSERVER_CONTEXT` | `default` | order-service |
 
-| Variable | Default | Used By | Notes |
-|----------|---------|---------|-------|
-| `AXON_SERVER` | `axonserver:8124` | order-service | gRPC port |
-| `AXONIQ_AXONSERVER_STANDALONE` | `true` | axonserver container | Standalone mode |
-| `AXONIQ_AXONSERVER_DEVMODE_ENABLED` | `true` | axonserver container | Dev mode |
+## Cross-cutting
 
----
+### JWT / Security
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `JWT_SECRET` | (256-bit) | identity (issue), gateway (validate) |
+| `JWT_ACCESS_TTL` | `15m` | identity |
+| `JWT_REFRESH_TTL` | `7d` | identity |
 
-## Backend Services
+### Gateway Rate-limit (Redis token bucket)
+| Variable | Default | Notes |
+|----------|---------|------|
+| `GATEWAY_RATELIMIT_REPLENISH_RATE` | `100` | tokens/sec |
+| `GATEWAY_RATELIMIT_BURST_CAPACITY` | `200` | burst |
 
-### api-gateway (:8080)
+### Eureka
+| Variable | Default | Dùng bởi |
+|----------|---------|---------|
+| `EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE` | `http://discovery-service:8761/eureka/` | mọi service |
 
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | Service registry |
-| `SERVER_BIND` | `0.0.0.0` | Bind address |
-| `REDIS_HOST` | `redis` | JWT blocklist cache |
-| `JWT_SECRET` | (RS256 public key or secret) | Token validation |
-| `JWT_EXPIRATION` | `900000` | ms -- 15 minutes |
+## Service-specific
 
-### identity-service (:8081)
+### identity-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `IDENTITY_BCRYPT_COST` | `10` | password hashing cost |
 
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `DB_HOST` | `postgres` | PostgreSQL hostname |
-| `POSTGRES_USER` | `flashsale` | |
-| `POSTGRES_PASSWORD` | (set securely) | |
-| `REDIS_HOST` | `redis` | JWT blocklist + session |
-| `JWT_SECRET` | (private key for RS256 signing) | Must match api-gateway |
-| `JWT_EXPIRATION` | `900000` | ms -- access token |
-| `REFRESH_TOKEN_EXPIRATION` | `604800000` | ms -- 7 days |
+### product-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `PRODUCT_RESERVATION_TTL_MINUTES` | `15` | TTL stock reservation |
+| `PRODUCT_SCHEDULER_STALE_CART_CRON` | `0 0 */2 * * *` | stale cart cron |
+| `PRODUCT_SCHEDULER_HARD_DELETE_CRON` | `0 0 3 * * SUN` | hard-delete soft-deleted |
+| `PRODUCT_SCHEDULER_AUTO_HIDE_CRON` | `0 0 2 * * *` | auto-hide rejected |
+| `RESERVATION_CLEANUP_INTERVAL_MS` | `180000` | fixedRate cron |
 
-### payment-service (:8082)
+### order-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `ORDER_SCHEDULER_AUTO_CANCEL_CRON` | `0 */10 * * * *` | auto-cancel pending |
+| `ORDER_SCHEDULER_AUTO_DELIVER_CRON` | `0 0 */6 * * *` | auto-deliver shipping |
+| `ORDER_PAYMENT_TIMEOUT_MINUTES` | `15` | dùng cho auto-cancel |
 
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `DB_HOST` | `postgres` | |
-| `POSTGRES_USER` | `flashsale` | |
-| `POSTGRES_PASSWORD` | (set securely) | |
-| `KAFKA_SERVER` | `kafka:9092` | |
-| `STRIPE_SECRET_KEY` | `sk_live_...` | Sensitive |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Sensitive |
-| `STRIPE_PLATFORM_FEE_PERCENTAGE` | `0.05` | Platform fee rate (5%) |
+### payment-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `STRIPE_SECRET_KEY` | (set) | API key |
+| `STRIPE_WEBHOOK_SECRET` | (set) | signature verify |
+| `STRIPE_PLATFORM_FEE_BPS` | `500` | platform fee (5%) |
+| `PAYOUT_SCHEDULE_CRON` | `0 */5 * * * *` | payout scheduler |
+| `PAYMENT_SCHEDULER_ONBOARDING_URL_CRON` | `0 0 * * * *` | URL onboarding cleanup |
+| `PAYMENT_RETURN_WINDOW_HOURS` | `72` | thời gian giữ trước khi payout |
 
-### order-service (:8083)
+### flashsale-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `FLASHSALE_SESSION_SCHEDULER_DELAY_MS` | `60000` | scheduler tick |
+| `FLASHSALE_SCHEDULER_CLEANUP_CRON` | `0 0 3 * * *` | cleanup soft-deleted |
+| `FLASHSALE_SCHEDULER_RECONCILE_CRON` | `0 0 4 * * *` | reconcile stock |
+| `FLASHSALE_REGISTRATION_LEAD_MINUTES` | `15` | trước start_time |
 
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `DB_HOST` | `postgres` | |
-| `POSTGRES_USER` | `flashsale` | |
-| `POSTGRES_PASSWORD` | (set securely) | |
-| `KAFKA_SERVER` | `kafka:9092` | |
-| `AXON_SERVER` | `axonserver:8124` | Order saga/event store |
-| `JWT_SECRET` | (same as identity-service) | For internal JWT decode |
+### search-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `SEARCH_INDEX_NAME` | `skus` | ES alias |
+| `SEARCH_HIDDEN_CATEGORY_PREFIXES` | `fe-,e2e-` | ẩn fixture categories |
+| `SEARCH_REINDEX_PAGE_SIZE` | `500` | bulk index page size |
 
-### flashsale-service (:8086)
+### notification-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `NOTIFICATION_TTL_DAYS` | `90` | MongoDB TTL |
+| `SSE_HEARTBEAT_SECONDS` | `15` | keep-alive |
 
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `DB_HOST` | `postgres` | |
-| `POSTGRES_USER` | `flashsale` | |
-| `POSTGRES_PASSWORD` | (set securely) | |
-| `REDIS_HOST` | `redis` | Session triggers and state management |
-| `KAFKA_SERVER` | `kafka:9092` | |
+### chat-service
+| Variable | Default | Notes |
+|----------|---------|------|
+| `SPRING_AI_OPENAI_API_KEY` | (set) | OpenAI compatible |
+| `SPRING_AI_OPENAI_BASE_URL` | `https://api.deepseek.com` (có thể đổi `https://api.openai.com`) | base URL |
+| `SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL` | `deepseek-chat` (có thể đổi `gpt-4o-mini`) | model name |
+| `CHAT_RATE_USER_PER_MIN` | `20` | chat rate-limit |
+| `CHAT_RATE_TOOL_PER_MIN` | `10` | tool call rate-limit |
+| `CHAT_PENDING_TTL_MINUTES` | `5` | Mongo TTL `pending_confirmations` |
 
-### product-service (:8084)
+## Frontend (Vite — file `.env` trong mỗi app)
+| Variable | Default | Notes |
+|----------|---------|------|
+| `VITE_API_BASE_URL` | `http://localhost:8080/api` | gateway URL |
+| `VITE_SSE_URL` | `http://localhost:8080/api/v1/notifications/stream` | SSE endpoint |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | `pk_test_…` | customer + seller apps |
 
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `DB_HOST` | `postgres` | PostgreSQL hostname (catalog + cart) |
-| `POSTGRES_USER` | `flashsale` | |
-| `POSTGRES_PASSWORD` | (set securely) | |
-| `KAFKA_SERVER` | `kafka:9092` | |
-| `MINIO_URL` | `http://minio:9000` | Image storage |
-| `MINIO_ACCESS_KEY` | (set securely) | |
-| `MINIO_SECRET_KEY` | (set securely) | |
-
-### search-service (:8087)
-
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `ELASTIC_URI` | `http://elasticsearch:9200` | |
-| `KAFKA_SERVER` | `kafka:9092` | |
-
-### notification-service (:8092)
-
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `MONGO_HOST` | `mongo` | notification, ai-chat | MongoDB hostname |
-| `MONGO_INITDB_ROOT_USERNAME` | `admin` | |
-| `MONGO_INITDB_ROOT_PASSWORD` | (set securely) | |
-| `REDIS_HOST` | `redis` | SSE connection tracking |
-| `KAFKA_SERVER` | `kafka:9092` | |
-
-### ai-chat-service (:8093)
-
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | |
-| `MONGO_HOST` | `mongo` | |
-| `MONGO_USER` | `admin` | |
-| `MONGO_PASSWORD` | (set securely) | |
-| `MONGO_DATABASE` | `flashsale` | |
-| `REDIS_HOST` | `redis` | Session context + rate limiting |
-| `OPENAI_API_KEY` | (set securely) | OpenAI API key |
-| `OPENAI_MODEL` | `gpt-4o` | OpenAI model name |
-| `PAGEINDEX_ENDPOINT` | (set securely) | PageIndex RAG endpoint URL |
-| `KAFKA_SERVER` | `kafka:9092` | |
-
-### refund-service (:8094)
-
-| Variable | Default / Example | Notes |
-|----------|-------------------|-------|
-| `PORT_REFUND` | `8094` | Service port |
-| `EUREKA_URI` | `http://discovery-service:8761/eureka` | Eureka registry zone |
-| `DB_HOST` | `postgres` | PostgreSQL hostname |
-| `DB_NAME` | `flashsale_platform` | Relational database name |
-| `POSTGRES_USER` | `flashsale` | PostgreSQL username |
-| `POSTGRES_PASSWORD` | (set securely) | PostgreSQL password |
-| `KAFKA_SERVER` | `kafka:9092` | Message broker bootstrap |
-| `STRIPE_SECRET_KEY` | (same as payment-service) | Stripe Secret Key |
-| `STRIPE_WEBHOOK_SECRET` | (same as payment-service) | Stripe Webhook Secret |
-| `STRIPE_PLATFORM_FEE_PERCENTAGE` | `5.0` | Commission rate percentage |
-
----
-
-## Frontend Apps
-
-All 3 apps share the same variable set, injected at build time (Vite).
-
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `VITE_BACKEND_MODE` | `proxy` / `direct` | `proxy` = via nginx, `direct` = call directly |
-| `VITE_PROXY_TARGET` | `http://api-gateway:8080` | Target when using Vite proxy |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | `pk_live_...` | Public key -- safe to expose in browser |
-
-> `VITE_STRIPE_PUBLISHABLE_KEY` is a public key. Never put `STRIPE_SECRET_KEY` in frontend code.
-
----
-
-## Nginx Reverse Proxy
-
-| Variable | Example | Notes |
-|----------|---------|-------|
-| `NGINX_PORT` | `80` | Listen port |
-| `GATEWAY_HOST` | `api-gateway` | API Gateway hostname |
-| `GATEWAY_PORT` | `8080` | API Gateway port |
-| `CUSTOMER_HOST` | `customer-app` | Customer SPA container |
-| `CUSTOMER_PORT` | `3000` | |
-| `SELLER_HOST` | `seller-app` | Seller SPA container |
-| `SELLER_PORT` | `3001` | |
-| `ADMIN_HOST` | `admin-app` | Admin SPA container |
-| `ADMIN_PORT` | `3002` | |
-
----
-
-## Security Notes
-
-### Secrets that MUST be changed before production
-
-| Variable | Risk if unchanged |
-|----------|-------------------|
-| `POSTGRES_PASSWORD` | Database breach |
-| `MONGO_INITDB_ROOT_PASSWORD` | Database breach |
-| `JWT_SECRET` | JWT forgery, auth bypass |
-| `STRIPE_SECRET_KEY` | Financial fraud |
-| `STRIPE_WEBHOOK_SECRET` | Fake webhook injection |
-| `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | File storage breach |
-| `REDIS_PASSWORD` | Cache poisoning |
-
-### JWT_SECRET sharing
-
-`JWT_SECRET` must be identical across:
-- `identity-service` (signs tokens)
-- `api-gateway` (validates tokens)
-- `order-service` (decodes user id from internal requests)
-
-If using RS256: identity-service holds the **private key**, api-gateway and order-service use the **public key**.
-
-### Stripe Platform Fee
-
-`STRIPE_PLATFORM_FEE_PERCENTAGE=0.05` = platform takes 5% per transaction. Changing this affects new transactions immediately (not retroactive).
-
----
-
-## .env Template
-
-```env
-# --- Infrastructure ---
-POSTGRES_USER=flashsale
-POSTGRES_PASSWORD=CHANGE_ME
-POSTGRES_DB=flashsale
-
-MONGO_INITDB_ROOT_USERNAME=admin
-MONGO_INITDB_ROOT_PASSWORD=CHANGE_ME
-MONGO_INITDB_DATABASE=flashsale
-
-REDIS_HOST=redis
-REDIS_PASSWORD=
-
-ELASTIC_URI=http://elasticsearch:9200
-ELASTIC_USERNAME=elastic
-ELASTIC_PASSWORD=
-ES_JAVA_OPTS=-Xms512m -Xmx512m
-
-MINIO_URL=http://minio:9000
-MINIO_ACCESS_KEY=CHANGE_ME
-MINIO_SECRET_KEY=CHANGE_ME
-
-KAFKA_SERVER=kafka:9092
-AXON_SERVER=axonserver:8124
-EUREKA_URI=http://discovery-service:8761/eureka
-
-# --- JWT ---
-JWT_SECRET=CHANGE_ME_VERY_LONG_SECRET
-JWT_EXPIRATION=900000
-REFRESH_TOKEN_EXPIRATION=604800000
-
-# --- Stripe ---
-STRIPE_SECRET_KEY=sk_test_CHANGE_ME
-STRIPE_WEBHOOK_SECRET=whsec_CHANGE_ME
-STRIPE_PLATFORM_FEE_PERCENTAGE=0.05
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_CHANGE_ME
-
-# --- Refund ---
-PORT_REFUND=8094
-
-# --- Frontend ---
-VITE_BACKEND_MODE=proxy
-VITE_PROXY_TARGET=http://api-gateway:8080
-
-# --- Nginx ---
-NGINX_PORT=80
-GATEWAY_HOST=api-gateway
-GATEWAY_PORT=8080
-CUSTOMER_HOST=customer-app
-CUSTOMER_PORT=3000
-SELLER_HOST=seller-app
-SELLER_PORT=3001
-ADMIN_HOST=admin-app
-ADMIN_PORT=3002
-```
+## Notes
+- **Gateway uses HS256** — `JWT_SECRET` phải giống hệt ở identity-service + gateway.
+- **Stripe key cặp** (secret + webhook + publishable) phải cùng một Stripe account.
+- **DeepSeek vs OpenAI** swap bằng env, không đổi code. Lưu ý `model` phải hợp lệ với provider tương ứng.
+- **Override cron** qua env var đã được set placeholder `${...:default}` trong `@Scheduled` — không cần code change.

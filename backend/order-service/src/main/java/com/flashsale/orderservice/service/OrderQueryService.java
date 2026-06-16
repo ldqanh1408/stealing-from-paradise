@@ -96,8 +96,18 @@ public class OrderQueryService {
                 .map(OrderSummaryResponse::from)
                 .collect(Collectors.toList());
 
+        // Derive orderCode: use sessionId if available, else generate from parentOrderId
+        String orderCode = parentOrder.getSessionId() != null && !parentOrder.getSessionId().isBlank()
+                ? parentOrder.getSessionId()
+                : "PO-" + parentOrder.getId();
+
+        // Derive status: PENDING if any sub-order is PENDING, else most advanced
+        String status = deriveParentStatus(subOrders);
+
         return ParentOrderDetailResponse.builder()
                 .parentOrderId(parentOrder.getId())
+                .orderCode(orderCode)
+                .status(status)
                 .customerId(parentOrder.getCustomerId())
                 .totalAmt(parentOrder.getTotalAmt())
                 .finalAmt(parentOrder.getFinalAmt())
@@ -135,6 +145,32 @@ public class OrderQueryService {
                 .revenueMonth(revenueMonth != null ? revenueMonth : BigDecimal.ZERO)
                 .activeProducts(0)      // requires product-service integration
                 .build();
+    }
+
+    /**
+     * Derive parent order status from sub-orders.
+     * PENDING if any sub-order is still PENDING; otherwise use the "most advanced" status.
+     */
+    private String deriveParentStatus(List<OrderSummaryResponse> subOrders) {
+        if (subOrders == null || subOrders.isEmpty()) return "PENDING";
+
+        boolean anyPending = false;
+        for (OrderSummaryResponse o : subOrders) {
+            if ("PENDING".equals(o.getStatus())) {
+                anyPending = true;
+                break;
+            }
+        }
+        if (anyPending) return "PENDING";
+
+        // Priority: CANCELLED → PAID → SHIPPING → DELIVERED → REFUNDED → PARTIALLY_REFUNDED → RETURNED
+        for (String s : java.util.List.of("CANCELLED", "RETURNED", "REFUNDED", "PARTIALLY_REFUNDED",
+                "DELIVERED", "SHIPPING", "PAID")) {
+            for (OrderSummaryResponse o : subOrders) {
+                if (s.equals(o.getStatus())) return s;
+            }
+        }
+        return subOrders.get(0).getStatus();
     }
 
     @SuppressWarnings("unchecked")

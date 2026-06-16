@@ -72,16 +72,19 @@ export function handleAuthFailure() {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    if (isNetworkError(error) || (error as any)?.isMockResponse) {
+    if ((error as any)?.isMockResponse) {
+      return (error as any).response;
+    }
+    if (isNetworkError(error)) {
       return Promise.reject(error);
     }
 
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    const status = error.response?.status;
-    const errorCode = (error.response?.data as any)?.errorCode;
+    const originalRequest = error?.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const status = error?.response?.status;
+    const errorCode = (error?.response?.data as any)?.errorCode;
 
     // Bỏ qua nếu là request liên quan đến auth (đăng nhập, đăng ký, refresh, logout) để tránh loop hoặc reload trang khi gõ sai mật khẩu
-    const isAuthRequest = originalRequest.url?.includes('/auth/');
+    const isAuthRequest = originalRequest?.url?.includes('/auth/');
     if (isAuthRequest) {
       return Promise.reject(error);
     }

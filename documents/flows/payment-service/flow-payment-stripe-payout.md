@@ -1,59 +1,114 @@
-# Business Flow: Payment, Stripe Webhooks, and Seller Payouts
-Scope: `payment-service`
+# Flow: Payment, Stripe Webhooks & Seller Payout
+**Primary service:** `payment-service`  
+**Verified against code:** 2026-06-16
 
-### Use Case Coverage
+## 1. Mục đích
+Tạo `PaymentIntent` Stripe khi nhận `payment.requested`, xử lý webhook, và **giải ngân chậm** (delayed payout) cho seller sau khi đơn được giao và qua **return window** (cửa sổ hoàn trả).
 
-| Use case | Status against current code | Evidence | Notes |
-|----------|-----------------------------|----------|-------|
-| UC-PAYMENT-001: Onboard Stripe Account | Implemented | `StripeOnboardingController.startOnboarding` line 31, `StripeOnboardingService.startOnboarding` line 34 | Includes status and refresh-link endpoints. |
-| UC-PAYMENT-002: Process Payment | Implemented | `PaymentService.onPaymentRequested` line 562, `PaymentController.getTransactionByParentOrder` line 30 | Payment creation is event-driven. Lookup endpoint is `/v1/payments/parent-order/{parentOrderId}`. |
-| UC-PAYMENT-003: Handle Stripe Webhook | Implemented | `PaymentController.handleStripeWebhook` line 52, `PaymentService.handleWebhook` line 124 | Endpoint is `/v1/stripe/webhooks`. |
-| UC-PAYMENT-007: Transfer to Seller | Implemented | `PaymentService.onOrderDelivered` line 682, `PayoutScheduler.processEligiblePayouts` line 61, `PayoutScheduler.publishPayoutEvent` line 160 | Delayed payout is implemented and successful payouts publish `transfer.completed` in addition to existing seller transfer events. |
-| UC-PAYMENT-008: View Transfers | Implemented | `SellerPaymentsController.getSellerTransfers` line 42, `SellerPaymentsController.getSellerBalance` line 59, `SellerPaymentsService.getSellerTransfers` line 87 | Seller transfer history, balance, earnings, and Stripe dashboard endpoints are available. |
+## 2. Actors & Trigger
+| Actor | Hành động |
+|-------|----------|
+| Order-service (Saga) | Publish `payment.requested` sau khi tạo order |
+| Buyer | Lấy `clientSecret` để confirm Stripe Elements |
+| Stripe | Gửi webhook `payment_intent.succeeded`, `charge.refunded`, `account.updated` |
+| PayoutScheduler | Tìm seller-transfer đủ điều kiện và chuyển khoản |
+| Seller | Xem earnings / transfers / balance / Stripe dashboard |
 
-### Sequence Diagram
+## 3. Public Endpoints
+| Method | Path | Handler |
+|--------|------|---------|
+| GET | `/v1/payments/parent-order/{parentOrderId}` | `PaymentController.getTransactionByParentOrder` (L32) |
+| GET | `/v1/payments/client-secret/{parentOrderId}` | `PaymentController.getClientSecret` (L49) |
+| POST | `/v1/stripe/webhooks` | `PaymentController.handleStripeWebhook` (L84) |
+| POST | `/v1/stripe/onboarding/start` | `StripeOnboardingController.startOnboarding` (L30) |
+| GET | `/v1/stripe/onboarding/status` | `getStatus` (L46) |
+| POST | `/v1/stripe/onboarding/refresh-link` | `refreshLink` (L60) |
+| GET | `/v1/stripe/onboarding/admin/sellers` | Admin overview (L74) |
+| GET | `/v1/seller/payments/earnings` | `SellerPaymentsController.getEarnings` (L32) |
+| GET | `/v1/seller/payments/transfers` | `getSellerTransfers` (L42) |
+| GET | `/v1/seller/payments/balance` | `getSellerBalance` (L59) |
+| GET | `/v1/seller/payments/stripe-dashboard` | `getStripeDashboard` (L73) |
 
+## 4. Kafka Topics
+| Direction | Topic | Notes |
+|-----------|-------|-------|
+| ← consume | `payment.requested` | Create PaymentIntent + pending seller transfers |
+| → produce | `payment.success` / `payment.failed` | After Stripe webhook |
+| ← consume | `order.delivered` | Move seller transfers AWAITING_DELIVERY → RETURN_WINDOW |
+| ← consume | `order.cancelled` | Cancel pending PaymentIntent |
+| → produce | `seller.transfer_paid_out`, `payout.processed`, `transfer.completed` | After payout |
+| → produce | `seller.stripe_requirement` | When Stripe webhook reports `requirements.currently_due` |
+| → produce | `stripe.account_suspended` | Account update with restricted state |
+
+## 5. Sequence Diagram
 ```mermaid
 sequenceDiagram
     actor Buyer
     actor Seller
-    participant Order as Order Service
-    participant Kafka as Kafka
-    participant Pay as Payment Service
-    participant Stripe as Stripe API
-    participant Scheduler as Payout Scheduler
-    participant Notif as Notification Service
+    participant OR as order-service
+    participant K as Kafka
+    participant PA as payment-service
+    participant STR as Stripe
+    participant SCH as PayoutScheduler
+    participant NT as notification-service
 
-    Order->>Kafka: payment.requested
-    Kafka->>Pay: onPaymentRequested
-    Pay->>Stripe: PaymentIntent.create
-    Pay->>Pay: Insert transaction and pending seller transfers
-    Buyer->>Pay: GET /v1/payments/parent-order/{parentOrderId}
-    Pay-->>Buyer: clientSecret, status, remaining seconds
+    OR->>K: payment.requested
+    K->>PA: onPaymentRequested
+    PA->>STR: PaymentIntent.create
+    PA->>PA: insert transaction + pending seller_transfers
+    Buyer->>PA: GET /v1/payments/parent-order/{poid}
+    PA-->>Buyer: clientSecret + status
 
-    Stripe->>Pay: POST /v1/stripe/webhooks payment_intent.succeeded
-    Pay->>Pay: Mark transaction SUCCESS
-    Pay->>Kafka: payment.success
-    Kafka->>Order: PaymentKafkaEventBridge.onPaymentSuccess
+    STR->>PA: POST /v1/stripe/webhooks (payment_intent.succeeded)
+    PA->>PA: transactions.status = SUCCESS
+    PA->>K: payment.success
+    K->>OR: PaymentKafkaEventBridge → mark PAID
 
-    Kafka->>Pay: order.delivered
-    Pay->>Pay: SellerTransfer AWAITING_DELIVERY -> RETURN_WINDOW
-    Scheduler->>Pay: Every 5 minutes find eligible RETURN_WINDOW transfers
-    Pay->>Stripe: Transfer.create to seller connected account
-    Pay->>Pay: Mark PAID_OUT or FAILED
-    Pay->>Kafka: seller.transfer_paid_out, payout.processed, transfer.completed
-    Kafka->>Notif: Notify seller
+    K->>PA: order.delivered
+    PA->>PA: seller_transfers AWAITING_DELIVERY → RETURN_WINDOW
 
-    Seller->>Pay: GET /v1/seller/payments/earnings
-    Seller->>Pay: GET /v1/seller/payments/transfers
-    Seller->>Pay: GET /v1/seller/payments/balance
-    Seller->>Pay: GET /v1/seller/payments/stripe-dashboard
+    loop every 5m
+        SCH->>PA: find RETURN_WINDOW transfers past payout_eligible_at
+        PA->>STR: Transfer.create (destination=seller acct)
+        alt success
+            PA->>PA: PAID
+            PA->>K: seller.transfer_paid_out + payout.processed + transfer.completed
+            K->>NT: notify seller
+        else failure
+            PA->>PA: FAILED + retry_count++
+        end
+    end
+
+    Seller->>PA: GET /v1/seller/payments/(earnings|transfers|balance|stripe-dashboard)
 ```
 
-### Implementation Notes
+## 6. State Transitions — `seller_transfers.status`
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : insert on payment.requested
+    PENDING --> AWAITING_DELIVERY : payment.success
+    AWAITING_DELIVERY --> RETURN_WINDOW : order.delivered
+    RETURN_WINDOW --> ELIGIBLE : return window expired
+    ELIGIBLE --> IN_TRANSIT : scheduler picks
+    IN_TRANSIT --> PAID : Stripe transfer ok
+    IN_TRANSIT --> FAILED : Stripe error
+    FAILED --> RETRYING : retry_count < max
+    RETRYING --> IN_TRANSIT
+    FAILED --> [*] : exhausted retries
+    PAID --> [*]
+```
 
-| Concern | Current behavior |
-|---------|------------------|
-| Transfer event compatibility | `seller.transfer.paid_out` and `payout.processed` remain; `transfer.completed` is also emitted for the documented contract. |
-| Balance calculation | Pending balance uses pending/awaiting-delivery/return-window/ready-for-payout states; paid-out transfers count as available. |
-| Webhook route | Implemented route is `/v1/stripe/webhooks`; gateway docs should preserve that final route. |
+## 7. Implementation Map
+| UC | Code reference |
+|----|----------------|
+| UC-PAYMENT-001 Onboard Stripe | `StripeOnboardingController.startOnboarding` (L30), service `startOnboarding` (~L34) |
+| UC-PAYMENT-002 Process Payment | `PaymentService.onPaymentRequested` (~L562), lookup `/v1/payments/parent-order/{poid}` (L32) |
+| UC-PAYMENT-003 Handle Webhook | `PaymentController.handleStripeWebhook` (L84), `PaymentService.handleWebhook` (~L124) |
+| UC-PAYMENT-007 Transfer to Seller | `PaymentService.onOrderDelivered` (~L682), `PayoutScheduler.processEligiblePayouts` (~L61), `publishPayoutEvent` (~L160) |
+| UC-PAYMENT-008 View Transfers | `SellerPaymentsController.getSellerTransfers` (L42), `getSellerBalance` (L59) |
+
+## 8. Notes & Caveats
+- **Webhook route is `/v1/stripe/webhooks`** (plural). Gateway maps `/api/v1/stripe/webhooks` to it.
+- **3 transfer events** published on success (`seller.transfer_paid_out`, `payout.processed`, `transfer.completed`) for backward compat with consumers from different doc generations.
+- **Balance calculation** counts pending/awaiting-delivery/return-window/eligible as pending; only `PAID` counts as available.
+- **Dev fallback:** when Stripe is unreachable in dev, `StripeOnboardingService` may create a mock `acct_mock_*` account.

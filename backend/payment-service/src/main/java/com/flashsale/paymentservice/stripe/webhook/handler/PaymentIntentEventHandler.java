@@ -5,6 +5,7 @@ import com.flashsale.paymentservice.domain.repository.TransactionRepository;
 import com.flashsale.paymentservice.service.SellerTransferService;
 import com.flashsale.paymentservice.stripe.webhook.StripeEventHandler;
 import com.flashsale.paymentservice.support.KafkaPublisher;
+import com.flashsale.paymentservice.support.StripeEvents;
 import com.flashsale.paymentservice.support.StripeMetadata;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
@@ -40,7 +41,7 @@ public class PaymentIntentEventHandler implements StripeEventHandler {
     }
 
     private void handlePaymentIntentSucceeded(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof PaymentIntent pi)) return;
 
         Long parentOrderId = StripeMetadata.extractParentOrderId(pi.getMetadata());
@@ -73,7 +74,7 @@ public class PaymentIntentEventHandler implements StripeEventHandler {
     }
 
     private void handlePaymentIntentFailed(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof PaymentIntent pi)) return;
 
         transactionRepository.findByParentOrderId(StripeMetadata.extractParentOrderId(pi.getMetadata()))
@@ -91,7 +92,7 @@ public class PaymentIntentEventHandler implements StripeEventHandler {
     }
 
     private void handlePaymentIntentCanceled(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof PaymentIntent pi)) return;
 
         Long parentOrderId = StripeMetadata.extractParentOrderId(pi.getMetadata());

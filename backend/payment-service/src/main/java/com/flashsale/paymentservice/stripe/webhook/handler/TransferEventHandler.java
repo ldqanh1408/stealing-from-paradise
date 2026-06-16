@@ -4,6 +4,7 @@ import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.paymentservice.domain.repository.SellerTransferRepository;
 import com.flashsale.paymentservice.stripe.webhook.StripeEventHandler;
 import com.flashsale.paymentservice.support.KafkaPublisher;
+import com.flashsale.paymentservice.support.StripeEvents;
 import com.flashsale.paymentservice.support.StripeMetadata;
 import com.stripe.model.Event;
 import com.stripe.model.StripeObject;
@@ -37,7 +38,7 @@ public class TransferEventHandler implements StripeEventHandler {
     }
 
     private void handleTransferCreated(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Transfer transfer)) return;
 
         Long orderId = StripeMetadata.extractOrderId(transfer.getMetadata());
@@ -52,7 +53,7 @@ public class TransferEventHandler implements StripeEventHandler {
     }
 
     private void handleTransferUpdated(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Transfer transfer)) return;
 
         Long orderId = StripeMetadata.extractOrderId(transfer.getMetadata());
@@ -68,7 +69,7 @@ public class TransferEventHandler implements StripeEventHandler {
     }
 
     private void handleTransferReversed(Event event) {
-        StripeObject stripeObject = event.getDataObjectDeserializer().getObject().orElse(null);
+        StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Transfer transfer)) return;
 
         Long orderId = StripeMetadata.extractOrderId(transfer.getMetadata());

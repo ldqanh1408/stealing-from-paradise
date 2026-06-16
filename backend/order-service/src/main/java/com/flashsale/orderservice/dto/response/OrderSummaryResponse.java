@@ -16,6 +16,7 @@ public class OrderSummaryResponse {
     private Long parentOrderId;
     private String orderCode;
     private Long sellerId;
+    private String sellerName;
     private String status;
     private BigDecimal totalAmt;
     private BigDecimal finalAmt;
@@ -30,6 +31,7 @@ public class OrderSummaryResponse {
                 .parentOrderId(order.getParentOrderId())
                 .orderCode(order.getOrderCode())
                 .sellerId(order.getSellerId())
+                .sellerName(order.getSellerName())
                 .status(order.getStatus())
                 .totalAmt(order.getTotalAmt())
                 .finalAmt(order.getFinalAmt())

@@ -1,54 +1,107 @@
-﻿# Business Flow: Refund Admin Review
-Scope: `refund-service`
+# Flow: Refund Admin Review
+**Primary service:** `refund-service`  
+**Verified against code:** 2026-06-16
 
-### Use Case Coverage
+## 1. Mục đích
+Lưu trữ và xử lý các yêu cầu hoàn tiền: tạo refund từ event Kafka (do `order-service` phát), cho admin **duyệt / từ chối**, gọi **Stripe Refund API**, và phát event downstream cho `order-service` / `notification-service`.
 
-| Use case | Status against current code | Evidence | Notes |
-|----------|-----------------------------|----------|-------|
-| UC-REFUND-001: Create Refund | Implemented through Kafka consumers | `RefundService.onRefundRequested` line 264, `onRefundFullRequested` line 355, `onOrderReturnedRts` line 419 | Creation is not exposed as a public refund-service REST endpoint. |
-| UC-REFUND-002: Approve Refund | Implemented | `AdminRefundController.approveRefund` line 55, `RefundService.approveRefund` line 153 | Calls Stripe refund and publishes `refund.admin_approved`. |
-| UC-REFUND-003: Reject Refund | Implemented | `AdminRefundController.rejectRefund` line 67, `RefundService.rejectRefund` line 223 | Publishes `refund.rejected`. |
+> **Lưu ý kiến trúc:** `refund-service` **không** expose public `POST /refunds`. Mọi entry là qua Kafka, để giữ một nguồn quy tắc duy nhất ở `order-service`.
 
-### Sequence Diagram
+## 2. Actors & Trigger
+| Actor | Hành động |
+|-------|----------|
+| Order-service | Publish `refund.requested` / `refund.full_requested` / `order.returned_rts` |
+| Admin | List / detail / approve / reject refund |
 
+## 3. Public Endpoints (Admin only — service-internal `/v1/admin/refunds`)
+| Method | Path | Handler |
+|--------|------|---------|
+| GET | `/` (+ filters) | `AdminRefundController.list` (L28) |
+| GET | `/{refundId}` | `AdminRefundController.detail` (L43) |
+| POST | `/{refundId}/approve` | `AdminRefundController.approveRefund` (L53) |
+| POST | `/{refundId}/reject` | `AdminRefundController.rejectRefund` (L65) |
+
+## 4. Kafka Topics
+| Direction | Topic | Notes |
+|-----------|-------|-------|
+| ← consume | `refund.requested` | Buyer-initiated partial refund |
+| ← consume | `refund.full_requested` | Order-cancel auto refund (with `auto_process=true`) |
+| ← consume | `order.returned_rts` | Seller RTS — bypass admin |
+| → produce | `refund.created` | After PENDING records inserted |
+| → produce | `refund.admin_approved` | After successful Stripe refund |
+| → produce | `refund.rejected` | Admin reject |
+| → produce | `refund.rts_completed` | RTS auto path |
+
+## 5. Sequence Diagram
 ```mermaid
 sequenceDiagram
     actor Admin
-    participant Kafka as Kafka
-    participant Refund as Refund Service
+    participant K as Kafka
+    participant RF as refund-service
     participant DB as PostgreSQL
-    participant Stripe as Stripe API
-    participant Order as Order Service
-    participant Notif as Notification Service
+    participant STR as Stripe
+    participant OR as order-service
+    participant NT as notification-service
 
-    Kafka->>Refund: refund.requested or refund.full_requested
-    Refund->>DB: Insert PENDING refund records
-    Refund->>Kafka: refund.created
+    rect rgb(245,250,255)
+    Note over K,RF: Inbound creation
+    K->>RF: refund.requested / refund.full_requested
+    RF->>DB: insert refunds + refund_items (PENDING)
+    RF->>K: refund.created
+    opt auto_process=true
+        RF->>STR: Refund.create
+        RF->>DB: SUCCESS + refund_ref
+        RF->>K: refund.admin_approved
+    end
+    end
 
-    Admin->>Refund: GET /v1/admin/refunds
-    Refund->>DB: List with filters
-    Admin->>Refund: GET /v1/admin/refunds/{refundId}
-    Refund->>DB: Load refund and refund items
-
+    rect rgb(248,255,248)
+    Note over Admin,RF: Admin review
+    Admin->>RF: GET /v1/admin/refunds (filters)
+    Admin->>RF: GET /v1/admin/refunds/{id}
     alt Approve
-        Admin->>Refund: POST /v1/admin/refunds/{refundId}/approve
-        Refund->>DB: Validate PENDING refund
-        Refund->>Stripe: Refund.create
-        Refund->>DB: status = SUCCESS, refund_ref = Stripe refund id
-        Refund->>Kafka: refund.admin_approved
-        Kafka->>Order: Update order refund state
-        Kafka->>Notif: Notify buyer
+        Admin->>RF: POST /v1/admin/refunds/{id}/approve
+        RF->>DB: verify PENDING
+        RF->>STR: Refund.create(payment_intent, amount)
+        RF->>DB: SUCCESS + refund_ref
+        RF->>K: refund.admin_approved
     else Reject
-        Admin->>Refund: POST /v1/admin/refunds/{refundId}/reject
-        Refund->>DB: status = REJECTED
-        Refund->>Kafka: refund.rejected
-        Kafka->>Notif: Notify buyer
+        Admin->>RF: POST /v1/admin/refunds/{id}/reject
+        RF->>DB: REJECTED + reject_reason
+        RF->>K: refund.rejected
+    end
+    end
+
+    rect rgb(255,250,235)
+    Note over K,NT: Downstream fanout
+    K->>OR: PaymentKafkaEventBridge.onRefundApproved
+    OR->>OR: mark PARTIALLY_REFUNDED / REFUNDED
+    K->>NT: PaymentEventConsumer.onRefundAdminApproved
+    NT-->>Admin: (optional) SSE
     end
 ```
 
-### Implementation Notes
+## 6. State Transitions — `refunds.status`
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : Kafka consumer creates record
+    PENDING --> SUCCESS : Stripe refund ok
+    PENDING --> FAILED : Stripe error
+    PENDING --> REJECTED : admin reject
+    FAILED --> SUCCESS : retry by admin
+    SUCCESS --> [*]
+    REJECTED --> [*]
+```
 
-| Concern | Current behavior |
-|-----|--------|
-| Direct `POST /refunds` is intentionally not exposed by refund-service. | Client refund initiation should go through order-service endpoints. |
-| `RefundService` owns transfer reversal logic; payment-service does not consume `refund.admin_approved` in current code. | Cross-service flow docs should avoid claiming payment-service performs this listener step. |
+## 7. Implementation Map
+| UC | Code reference |
+|----|----------------|
+| UC-REFUND-001 Create Refund | `RefundService.onRefundRequested` (~L264), `onRefundFullRequested` (~L355), `onOrderReturnedRts` (~L419) — no public REST entry |
+| UC-REFUND-002 Approve | `AdminRefundController.approveRefund` (L53), `RefundService.approveRefund` (~L153) |
+| UC-REFUND-003 Reject | `AdminRefundController.rejectRefund` (L65), `RefundService.rejectRefund` (~L223) |
+
+## 8. Notes & Caveats
+- **`refund-service` owns transfer-reversal logic** (against `seller_transfers`); `payment-service` does **not** consume `refund.admin_approved` in current code. Any doc that says otherwise is stale.
+- **Stripe PaymentIntent ID** is extracted from `transactions.raw_response` JSONB rather than stored as a column.
+- **Refund items currently lack `productName` / image** — fix tracked separately (DB + DTO change in refund-service).
+- **RTS path** writes the same tables but skips admin approval; the inbound event signals success once Stripe call returns.
