@@ -72,7 +72,6 @@ public class EsSearcher {
 
     public SearchResponse search(
             String q,
-            String categoryId,
             Double priceMin,
             Double priceMax,
             Boolean inStock,
@@ -85,11 +84,6 @@ public class EsSearcher {
             List<Query> filterQueries = new ArrayList<>();
             filterQueries.add(TermQuery.of(t -> t.field("isActive").value(true))._toQuery());
 
-            if (categoryId != null && !categoryId.isBlank()) {
-                Query categoryById = TermQuery.of(t -> t.field("categoryId").value(categoryId))._toQuery();
-                Query categoryBySlug = TermQuery.of(t -> t.field("categorySlugPath").value(categoryId))._toQuery();
-                filterQueries.add(BoolQuery.of(b -> b.should(categoryById).should(categoryBySlug).minimumShouldMatch("1"))._toQuery());
-            }
             if (priceMin != null) {
                 filterQueries.add(RangeQuery.of(r -> r.number(n -> n.field("price").gte(priceMin)))._toQuery());
             }

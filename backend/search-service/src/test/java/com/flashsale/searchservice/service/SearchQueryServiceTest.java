@@ -24,60 +24,60 @@ class SearchQueryServiceTest {
     @Test
     void searchShouldCapSizeAtMax40() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, null, "relevance", 0, 100);
+        searchQueryService.search("test", null, null, null, null, "relevance", 0, 100);
 
-        verify(esService).search(eq("test"), isNull(), isNull(), isNull(),
+        verify(esService).search(eq("test"), isNull(), isNull(),
                 eq(true), isNull(), eq("relevance"), eq(0), eq(40));
     }
 
     @Test
     void searchShouldDefaultInStockToTrue() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, null, "relevance", 0, 20);
+        searchQueryService.search("test", null, null, null, null, "relevance", 0, 20);
 
-        verify(esService).search(eq("test"), isNull(), isNull(), isNull(),
+        verify(esService).search(eq("test"), isNull(), isNull(),
                 eq(true), isNull(), eq("relevance"), eq(0), eq(20));
     }
 
     @Test
     void searchShouldPassInStockFalseWhenExplicitlySet() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, false, null, "relevance", 0, 20);
+        searchQueryService.search("test", null, null, false, null, "relevance", 0, 20);
 
-        verify(esService).search(eq("test"), isNull(), isNull(), isNull(),
+        verify(esService).search(eq("test"), isNull(), isNull(),
                 eq(false), isNull(), eq("relevance"), eq(0), eq(20));
     }
 
     @Test
     void searchShouldClampNegativePageToZero() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, null, "relevance", -5, 20);
+        searchQueryService.search("test", null, null, null, null, "relevance", -5, 20);
 
-        verify(esService).search(anyString(), isNull(), isNull(), isNull(),
+        verify(esService).search(anyString(), isNull(), isNull(),
                 anyBoolean(), isNull(), anyString(), eq(0), anyInt());
     }
 
     @Test
     void searchShouldClampSizeBelowOneTo20() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, null, "relevance", 0, 0);
+        searchQueryService.search("test", null, null, null, null, "relevance", 0, 0);
 
-        verify(esService).search(anyString(), isNull(), isNull(), isNull(),
+        verify(esService).search(anyString(), isNull(), isNull(),
                 anyBoolean(), isNull(), anyString(), anyInt(), eq(20));
     }
 

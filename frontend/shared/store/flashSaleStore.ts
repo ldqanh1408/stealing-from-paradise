@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import {
   flashSaleApi,
   type FlashSaleSession,
-  type FlashSaleItem,
 } from '../api/flashSale.api';
 import type { PageResponse } from '../types/api';
 
@@ -16,12 +15,6 @@ interface FlashSaleState {
 
   fetchSessions: (params?: { status?: string; page?: number; size?: number }) => Promise<void>;
   fetchSession: (sessionId: number) => Promise<void>;
-  buyFlashSaleItem: (
-    sessionId: number,
-    fsItemId: number,
-    quantity: number,
-    addressId: number,
-  ) => Promise<{ sessionId: number; fsItemId: number; skuCode: string; flashPrice: number; quantity: number; totalAmount: number; purchasedAt: string }>;
   clearCurrentSession: () => void;
   getActiveSessions: () => FlashSaleSession[];
   getUpcomingSessions: () => FlashSaleSession[];
@@ -72,21 +65,6 @@ export const useFlashSaleStore = create<FlashSaleState>((set, get) => ({
         error: err?.response?.data?.message || 'Failed to fetch flash sale session',
         isLoading: false,
       });
-    }
-  },
-
-  buyFlashSaleItem: async (sessionId, fsItemId, quantity, addressId) => {
-    set({ isLoading: true, error: null });
-    try {
-      const { data } = await flashSaleApi.buy(sessionId, fsItemId, quantity, addressId);
-      set({ isLoading: false });
-      return data.data!;
-    } catch (err: any) {
-      set({
-        error: err?.response?.data?.message || 'Failed to purchase flash sale item',
-        isLoading: false,
-      });
-      throw err;
     }
   },
 

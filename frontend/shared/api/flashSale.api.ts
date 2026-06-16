@@ -120,14 +120,7 @@ export const flashSaleApi = {
     };
   },
 
-  /** Buy a flash sale item */
-  buy: (sessionId: number, fsItemId: number, quantity: number, addressId: number) =>
-    apiClient.post<ApiResponse<{ sessionId: number; fsItemId: number; skuCode: string; flashPrice: number; quantity: number; totalAmount: number; purchasedAt: string }>>(
-      `/flash-sales/${sessionId}/buy`,
-      { fsItemId, quantity, addressId }
-    ),
-
   /** Create a flash sale session (admin) */
-  createSession: (data: { name: string; startTime: string; endTime: string; description?: string }) =>
+  createSession: (data: { name: string; startTime: string; endTime: string; description?: string; registrationWindowMinutes?: number }) =>
     apiClient.post<ApiResponse<BackendSession>>('/flash-sales', data),
 };

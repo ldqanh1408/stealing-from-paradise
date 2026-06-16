@@ -14,13 +14,16 @@ import com.flashsale.productservice.repository.ProductVariantRepository;
 import com.flashsale.productservice.repository.StockReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,11 +34,18 @@ public class InventoryService {
 
     private static final int RESERVATION_TTL_MINUTES = 15;
 
+    public static final long REDIS_OK = 1L;
+    public static final long REDIS_INSUFFICIENT = 0L;
+    public static final long REDIS_NOT_FOUND = -1L;
+
     private final ProductVariantRepository variantRepository;
     private final StockReservationRepository reservationRepository;
     private final ProductRepository productRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final StockCacheService stockCacheService;
+    private final DefaultRedisScript<Long> stockDecrementScript;
+    private final DefaultRedisScript<Long> stockIncrementScript;
 
     @Transactional(readOnly = true)
     public ApiResponse<InventoryResponse> getInventory(String variantCode) {
@@ -48,7 +58,8 @@ public class InventoryService {
 
     @Transactional
     public ApiResponse<InventoryResponse> restock(String variantCode, int quantity, UserDetailsImpl user) {
-        ProductVariant variant = variantRepository.findByVariantCodeWithPessimisticLock(variantCode)
+        ProductVariant variant = variantRepository.findByVariantCode(variantCode)
+                .filter(v -> v.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
         Product product = productRepository.findById(variant.getProductId())
@@ -63,7 +74,9 @@ public class InventoryService {
         if (variant.getStatus() == VariantStatus.OUT_OF_STOCK && variant.getStockQuantity() > 0) {
             variant.setStatus(VariantStatus.ACTIVE);
         }
-        variantRepository.save(variant);
+        variant = variantRepository.saveAndFlush(variant);
+
+        stockCacheService.setStock(variant.getId(), variant.getStockQuantity());
 
         recomputeProductStatus(variant.getProductId());
 
@@ -115,6 +128,7 @@ public class InventoryService {
         }
 
         variant = variantRepository.saveAndFlush(variant);
+        stockCacheService.setStock(variant.getId(), variant.getStockQuantity());
 
         recomputeProductStatus(variant.getProductId());
 
@@ -139,12 +153,31 @@ public class InventoryService {
             throw new AppException(ErrorCode.BAD_REQUEST, "Quantity must be positive");
         }
 
-        ProductVariant variant = variantRepository.findByIdWithPessimisticLock(variantId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
-
-        if (variant.getStockQuantity() < quantity) {
+        Long redisStatus = tryRedisDecrement(variantId, quantity);
+        if (redisStatus == null || redisStatus == REDIS_NOT_FOUND) {
+            Integer loaded = stockCacheService.loadAndCache(variantId);
+            if (loaded == null) {
+                throw new AppException(ErrorCode.NOT_FOUND, "Variant not found");
+            }
+            redisStatus = tryRedisDecrement(variantId, quantity);
+        }
+        if (redisStatus == null) {
+            throw new AppException(ErrorCode.INTERNAL_ERROR, "Redis unavailable, cannot reserve stock");
+        }
+        if (redisStatus == REDIS_INSUFFICIENT) {
             throw new AppException(ErrorCode.INSUFFICIENT_STOCK,
-                    String.format("Requested %d, available %d", quantity, variant.getStockQuantity()));
+                    String.format("Requested %d, not enough stock", quantity));
+        }
+        if (redisStatus != REDIS_OK) {
+            throw new AppException(ErrorCode.INTERNAL_ERROR, "Unexpected Redis status: " + redisStatus);
+        }
+
+        registerRedisCompensation(variantId, quantity);
+
+        int updated = variantRepository.decrementIfEnough(variantId, quantity);
+        if (updated == 0) {
+            log.warn("DB stock drift for variant {}: Redis OK but DB CAS failed (will compensate)", variantId);
+            throw new AppException(ErrorCode.CONFLICT, "Stock out of sync, please retry");
         }
 
         StockReservation reservation = StockReservation.builder()
@@ -154,16 +187,20 @@ public class InventoryService {
                 .status(ReservationStatus.PENDING)
                 .expiresAt(LocalDateTime.now().plusMinutes(RESERVATION_TTL_MINUTES))
                 .build();
-
         reservation = reservationRepository.save(reservation);
 
-        variant.setStockQuantity(variant.getStockQuantity() - quantity);
-        if (variant.getStockQuantity() <= 0) {
+        ProductVariant variant = variantRepository.findById(variantId).orElse(null);
+        if (variant != null
+                && variant.getStockQuantity() <= 0
+                && variant.getStatus() != VariantStatus.OUT_OF_STOCK
+                && variant.getStatus() != VariantStatus.INACTIVE) {
             variant.setStatus(VariantStatus.OUT_OF_STOCK);
+            variantRepository.save(variant);
         }
-        variantRepository.save(variant);
 
-        recomputeProductStatus(variant.getProductId());
+        if (variant != null) {
+            recomputeProductStatus(variant.getProductId());
+        }
 
         return ApiResponse.success(toReservationResponse(reservation));
     }
@@ -180,26 +217,35 @@ public class InventoryService {
         reservation.setStatus(ReservationStatus.RELEASED);
         reservationRepository.save(reservation);
 
-        ProductVariant variant = variantRepository.findByIdWithPessimisticLock(reservation.getVariantId())
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
+        UUID variantId = reservation.getVariantId();
+        int quantity = reservation.getQuantity();
 
-        variant.setStockQuantity(variant.getStockQuantity() + reservation.getQuantity());
-        if (variant.getStatus() == VariantStatus.OUT_OF_STOCK && variant.getStockQuantity() > 0) {
-            variant.setStatus(VariantStatus.ACTIVE);
+        tryRedisIncrement(variantId, quantity);
+        registerRedisCompensation(variantId, -quantity);
+
+        int updated = variantRepository.incrementBy(variantId, quantity);
+        if (updated == 0) {
+            log.warn("Failed to increment stock in DB for variant {} (not found or deleted)", variantId);
         }
-        variantRepository.save(variant);
 
-        emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
-                Map.ofEntries(
-                        Map.entry("variantId", variant.getId()),
-                        Map.entry("productId", variant.getProductId()),
-                        Map.entry("stockQuantity", variant.getStockQuantity()),
-                        Map.entry("status", variant.getStatus().name()),
-                        Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
-                        Map.entry("timestamp", LocalDateTime.now().toString())
-                ));
+        ProductVariant variant = variantRepository.findById(variantId).orElse(null);
+        if (variant != null) {
+            if (variant.getStatus() == VariantStatus.OUT_OF_STOCK && variant.getStockQuantity() > 0) {
+                variant.setStatus(VariantStatus.ACTIVE);
+                variantRepository.save(variant);
+            }
 
-        recomputeProductStatus(variant.getProductId());
+            emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
+                    Map.ofEntries(
+                            Map.entry("variantId", variant.getId()),
+                            Map.entry("productId", variant.getProductId()),
+                            Map.entry("stockQuantity", variant.getStockQuantity()),
+                            Map.entry("status", variant.getStatus().name()),
+                            Map.entry("stockStatus", getVariantStockStatus(variant.getStatus())),
+                            Map.entry("timestamp", LocalDateTime.now().toString())
+                    ));
+            recomputeProductStatus(variant.getProductId());
+        }
 
         return ApiResponse.success(null);
     }
@@ -258,7 +304,8 @@ public class InventoryService {
 
     @Transactional
     public void restoreStockOnReturn(UUID variantId, int quantity) {
-        ProductVariant variant = variantRepository.findByIdWithPessimisticLock(variantId)
+        ProductVariant variant = variantRepository.findById(variantId)
+                .filter(v -> v.getDeletedAt() == null)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Variant not found"));
 
         variant.setStockQuantity(variant.getStockQuantity() + quantity);
@@ -266,6 +313,8 @@ public class InventoryService {
             variant.setStatus(VariantStatus.ACTIVE);
         }
         variantRepository.save(variant);
+
+        stockCacheService.setStock(variant.getId(), variant.getStockQuantity());
 
         emitEvent(KafkaTopics.VARIANT_STOCK_UPDATED, variant.getId().toString(),
                 Map.ofEntries(
@@ -306,6 +355,50 @@ public class InventoryService {
                     product.setStatus(ProductStatus.OUT_OF_STOCK);
                 }
                 productRepository.save(product);
+            }
+        });
+    }
+
+    private Long tryRedisDecrement(UUID variantId, int quantity) {
+        try {
+            return stockCacheService.getRedisTemplate().execute(
+                    stockDecrementScript,
+                    List.of(stockCacheService.key(variantId)),
+                    String.valueOf(quantity));
+        } catch (Exception e) {
+            log.error("Redis decrement failed for variant {}", variantId, e);
+            return null;
+        }
+    }
+
+    private void tryRedisIncrement(UUID variantId, int quantity) {
+        try {
+            stockCacheService.getRedisTemplate().execute(
+                    stockIncrementScript,
+                    List.of(stockCacheService.key(variantId)),
+                    String.valueOf(quantity));
+        } catch (Exception e) {
+            log.error("Redis increment failed for variant {}", variantId, e);
+        }
+    }
+
+    private void registerRedisCompensation(UUID variantId, int quantity) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            log.warn("No active transaction - Redis compensation for variant {} will not be registered", variantId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) {
+                    log.info("Transaction rolled back, compensating Redis: variantId={}, qty={}",
+                            variantId, quantity);
+                    if (quantity >= 0) {
+                        tryRedisIncrement(variantId, quantity);
+                    } else {
+                        tryRedisDecrement(variantId, -quantity);
+                    }
+                }
             }
         });
     }

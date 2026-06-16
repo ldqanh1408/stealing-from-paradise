@@ -32,6 +32,9 @@ public class FlashSaleSession {
     @Column("end_time")
     private LocalDateTime endTime;
 
+    @Column("registration_deadline")
+    private LocalDateTime registrationDeadline;
+
     @Default
     @Column("status")
     private String status = "UPCOMING";
