@@ -11,14 +11,18 @@ import com.flashsale.productservice.entity.*;
 import com.flashsale.productservice.repository.ProductRepository;
 import com.flashsale.productservice.repository.ProductVariantRepository;
 import com.flashsale.productservice.repository.StockReservationRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -42,9 +46,38 @@ class InventoryServiceTest {
     private KafkaTemplate<String, String> kafkaTemplate;
     @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private StockCacheService stockCacheService;
+    @Mock
+    private StringRedisTemplate redisTemplate;
+    @Mock
+    private ValueOperations<String, String> valueOperations;
+    @Mock
+    private DefaultRedisScript<Long> stockDecrementScript;
+    @Mock
+    private DefaultRedisScript<Long> stockIncrementScript;
 
-    @InjectMocks
     private InventoryService inventoryService;
+
+    @BeforeEach
+    void setUp() {
+        inventoryService = new InventoryService(
+                variantRepository,
+                reservationRepository,
+                productRepository,
+                kafkaTemplate,
+                objectMapper,
+                stockCacheService,
+                stockDecrementScript,
+                stockIncrementScript);
+    }
+
+    private void stubRedisDecrementSuccess(UUID variantId) {
+        when(stockCacheService.getRedisTemplate()).thenReturn(redisTemplate);
+        when(stockCacheService.key(variantId)).thenReturn("stock:available:" + variantId);
+        when(redisTemplate.execute(eq(stockDecrementScript), anyList(), any(Object[].class)))
+                .thenReturn(InventoryService.REDIS_OK);
+    }
 
     @Test
     void getInventoryShouldReturnResponseForValidVariant() {
@@ -86,14 +119,12 @@ class InventoryServiceTest {
     }
 
     @Test
-    void reserveStockShouldThrowWhenInsufficientStock() {
+    void reserveStockShouldThrowWhenRedisInsufficient() {
         UUID variantId = UUID.randomUUID();
-        ProductVariant variant = ProductVariant.builder()
-                .id(variantId)
-                .stockQuantity(5)
-                .build();
-        when(variantRepository.findByIdWithPessimisticLock(variantId))
-                .thenReturn(Optional.of(variant));
+        when(stockCacheService.getRedisTemplate()).thenReturn(redisTemplate);
+        when(stockCacheService.key(variantId)).thenReturn("stock:available:" + variantId);
+        when(redisTemplate.execute(eq(stockDecrementScript), anyList(), any(Object[].class)))
+                .thenReturn(InventoryService.REDIS_INSUFFICIENT);
 
         AppException ex = assertThrows(AppException.class,
                 () -> inventoryService.reserveStock(variantId, 10, "session-1"));
@@ -101,18 +132,35 @@ class InventoryServiceTest {
     }
 
     @Test
-    void reserveStockShouldSucceedAndDeductStock() throws Exception {
+    void reserveStockShouldThrowWhenRedisCacheMissAndVariantNotFound() {
         UUID variantId = UUID.randomUUID();
-        ProductVariant variant = ProductVariant.builder()
-                .id(variantId)
-                .variantCode("SKU-001")
-                .productId(UUID.randomUUID())
-                .stockQuantity(50)
-                .status(VariantStatus.ACTIVE)
-                .price(new BigDecimal("100"))
-                .build();
-        when(variantRepository.findByIdWithPessimisticLock(variantId))
-                .thenReturn(Optional.of(variant));
+        when(stockCacheService.getRedisTemplate()).thenReturn(redisTemplate);
+        when(stockCacheService.key(variantId)).thenReturn("stock:available:" + variantId);
+        when(redisTemplate.execute(eq(stockDecrementScript), anyList(), any(Object[].class)))
+                .thenReturn(InventoryService.REDIS_NOT_FOUND);
+        when(stockCacheService.loadAndCache(variantId)).thenReturn(null);
+
+        AppException ex = assertThrows(AppException.class,
+                () -> inventoryService.reserveStock(variantId, 10, "session-1"));
+        assertEquals(ErrorCode.NOT_FOUND, ex.getErrorCode());
+    }
+
+    @Test
+    void reserveStockShouldThrowWhenDbCasFails() {
+        UUID variantId = UUID.randomUUID();
+        stubRedisDecrementSuccess(variantId);
+        when(variantRepository.decrementIfEnough(variantId, 3)).thenReturn(0);
+
+        AppException ex = assertThrows(AppException.class,
+                () -> inventoryService.reserveStock(variantId, 3, "session-1"));
+        assertEquals(ErrorCode.CONFLICT, ex.getErrorCode());
+    }
+
+    @Test
+    void reserveStockShouldSucceedAndInsertReservation() {
+        UUID variantId = UUID.randomUUID();
+        stubRedisDecrementSuccess(variantId);
+
         UUID reservationId = UUID.randomUUID();
         StockReservation savedReservation = StockReservation.builder()
                 .id(reservationId)
@@ -121,8 +169,19 @@ class InventoryServiceTest {
                 .quantity(3)
                 .status(ReservationStatus.PENDING)
                 .build();
-        when(reservationRepository.save(any(StockReservation.class)))
-                .thenReturn(savedReservation);
+        when(variantRepository.decrementIfEnough(variantId, 3)).thenReturn(1);
+        when(reservationRepository.save(any(StockReservation.class))).thenReturn(savedReservation);
+
+        ProductVariant updatedVariant = ProductVariant.builder()
+                .id(variantId)
+                .productId(UUID.randomUUID())
+                .stockQuantity(47)
+                .status(VariantStatus.ACTIVE)
+                .build();
+        when(variantRepository.findById(variantId)).thenReturn(Optional.of(updatedVariant));
+        when(variantRepository.findByProductIdAndDeletedAtIsNull(updatedVariant.getProductId()))
+                .thenReturn(java.util.List.of(updatedVariant));
+        when(productRepository.findById(updatedVariant.getProductId())).thenReturn(Optional.empty());
 
         ApiResponse<ReservationResponse> response =
                 inventoryService.reserveStock(variantId, 3, "session-1");
@@ -130,7 +189,7 @@ class InventoryServiceTest {
         assertNotNull(response.getData());
         assertEquals(3, response.getData().getQuantity());
         assertEquals(ReservationStatus.PENDING.name(), response.getData().getStatus());
-        assertEquals(47, variant.getStockQuantity());
+        verify(reservationRepository).save(any(StockReservation.class));
     }
 
     @Test
@@ -219,21 +278,31 @@ class InventoryServiceTest {
                 .build();
         when(reservationRepository.findById(reservationId))
                 .thenReturn(Optional.of(reservation));
+
+        when(stockCacheService.getRedisTemplate()).thenReturn(redisTemplate);
+        when(stockCacheService.key(variantId)).thenReturn("stock:available:" + variantId);
+        when(redisTemplate.execute(eq(stockIncrementScript), anyList(), any(Object[].class)))
+                .thenReturn(50L);
+        when(variantRepository.incrementBy(variantId, 5)).thenReturn(1);
+
         ProductVariant variant = ProductVariant.builder()
                 .id(variantId)
                 .productId(UUID.randomUUID())
-                .stockQuantity(45)
-                .status(VariantStatus.OUT_OF_STOCK)
+                .stockQuantity(50)
+                .status(VariantStatus.ACTIVE)
                 .build();
-        when(variantRepository.findByIdWithPessimisticLock(variantId))
-                .thenReturn(Optional.of(variant));
+        when(variantRepository.findById(variantId)).thenReturn(Optional.of(variant));
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        when(variantRepository.findByProductIdAndDeletedAtIsNull(variant.getProductId()))
+                .thenReturn(java.util.List.of(variant));
+        when(productRepository.findById(variant.getProductId())).thenReturn(Optional.empty());
 
         ApiResponse<Void> response = inventoryService.releaseReservation(reservationId);
 
         assertNotNull(response);
-        assertEquals(50, variant.getStockQuantity());
-        assertEquals(VariantStatus.ACTIVE, variant.getStatus());
+        assertEquals(ReservationStatus.RELEASED, reservation.getStatus());
+        verify(variantRepository).incrementBy(variantId, 5);
+        verify(redisTemplate).execute(eq(stockIncrementScript), anyList(), any(Object[].class));
     }
 
     @Test
@@ -249,5 +318,48 @@ class InventoryServiceTest {
         AppException ex = assertThrows(AppException.class,
                 () -> inventoryService.confirmReservation(reservationId));
         assertEquals(ErrorCode.BAD_REQUEST, ex.getErrorCode());
+    }
+
+    @Test
+    void confirmReservationShouldMarkAsConfirmed() {
+        UUID reservationId = UUID.randomUUID();
+        StockReservation reservation = StockReservation.builder()
+                .id(reservationId)
+                .status(ReservationStatus.PENDING)
+                .build();
+        when(reservationRepository.findById(reservationId))
+                .thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(StockReservation.class))).thenReturn(reservation);
+
+        ApiResponse<Void> response = inventoryService.confirmReservation(reservationId);
+
+        assertNotNull(response);
+        assertEquals(ReservationStatus.CONFIRMED, reservation.getStatus());
+        verify(redisTemplate, never()).execute(eq(stockDecrementScript), anyList(), any(Object[].class));
+        verify(redisTemplate, never()).execute(eq(stockIncrementScript), anyList(), any(Object[].class));
+    }
+
+    @Test
+    void warmUpShouldSetAllVariantsInRedis() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(stockCacheService.getRedisTemplate()).thenReturn(redisTemplate);
+
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+        when(stockCacheService.key(id1)).thenReturn("stock:available:" + id1);
+        when(stockCacheService.key(id2)).thenReturn("stock:available:" + id2);
+
+        java.util.List<ProductVariant> variants = java.util.List.of(
+                ProductVariant.builder().id(id1).stockQuantity(10).build(),
+                ProductVariant.builder().id(id2).stockQuantity(20).build()
+        );
+        when(variantRepository.findAll()).thenReturn(variants);
+
+        com.flashsale.productservice.service.StockCacheService realCacheService =
+                new com.flashsale.productservice.service.StockCacheService(redisTemplate, variantRepository);
+        realCacheService.warmUp();
+
+        verify(valueOperations).set("stock:available:" + id1, "10");
+        verify(valueOperations).set("stock:available:" + id2, "20");
     }
 }

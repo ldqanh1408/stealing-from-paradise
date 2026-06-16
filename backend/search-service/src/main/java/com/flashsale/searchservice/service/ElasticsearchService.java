@@ -38,7 +38,6 @@ public class ElasticsearchService {
 
     public SearchResponse search(
             String q,
-            String categoryId,
             Double priceMin,
             Double priceMax,
             Boolean inStock,
@@ -47,7 +46,7 @@ public class ElasticsearchService {
             int page,
             int size
     ) {
-        return searcher.search(q, categoryId, priceMin, priceMax, inStock, isFlash, sort, page, size);
+        return searcher.search(q, priceMin, priceMax, inStock, isFlash, sort, page, size);
     }
 
     public SuggestResponse suggest(String q, int size) {

@@ -1,5 +1,7 @@
 package com.flashsale.flashsaleservice.dto.request;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -22,4 +24,8 @@ public class CreateSessionRequest {
 
     @NotNull
     private LocalDateTime endTime;
+
+    @Min(0)
+    @Max(720)
+    private Integer registrationWindowMinutes;
 }

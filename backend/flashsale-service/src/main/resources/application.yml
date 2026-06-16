@@ -64,4 +64,10 @@ flashsale:
   infra:
     dlq:
       enabled: true
+  default-registration-window-minutes: 30
+  trigger-worker:
+    delay-ms: 2000
+  reconcile:
+    delay-ms: 300000
+    threshold-minutes: 1
 

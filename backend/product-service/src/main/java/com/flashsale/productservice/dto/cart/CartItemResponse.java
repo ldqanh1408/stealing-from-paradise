@@ -18,15 +18,16 @@ public class CartItemResponse {
     private UUID variantId;
     private String variantCode;
     private String variantName;
+    private String productName;
     private BigDecimal priceSnapshot;
     private BigDecimal currentPrice;
     private Boolean priceChanged;
     private Integer quantity;
+    private Integer stockAvailable;
     private String variantImageSnapshot;
     private BigDecimal subtotal;
     private Boolean outOfStock;
     private Boolean unavailable;
     private Boolean insufficientStock;
-    private Integer stockAvailable;
     private Long sellerId;
 }

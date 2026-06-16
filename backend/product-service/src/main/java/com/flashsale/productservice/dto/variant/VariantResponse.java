@@ -18,12 +18,13 @@ public class VariantResponse {
 
     private UUID id;
     private UUID productId;
-    private String variantCode;
+    private String skuCode;
     private String variantName;
     private Map<String, Object> variantAttributes;
     private BigDecimal price;
     private BigDecimal originalPrice;
     private Integer stockQuantity;
+    private Boolean isFlash;
     private String status;
     private String imageUrl;
     private Integer version;

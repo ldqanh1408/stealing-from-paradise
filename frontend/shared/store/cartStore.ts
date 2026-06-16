@@ -7,7 +7,7 @@ interface CartState {
   error: string | null;
 
   fetchCart: () => Promise<void>;
-  addToCart: (variantId: string, quantity: number, fsItemId?: number) => Promise<void>;
+  addToCart: (variantIdOrSku: string, quantity: number, fsItemId?: number) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -129,15 +129,15 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addToCart: async (variantId, quantity, fsItemId) => {
+  addToCart: async (variantIdOrSku, quantity, fsItemId) => {
     const previousCart = get().cart;
     set({
-      cart: previousCart ? addCartItem(previousCart, variantId, quantity, fsItemId) : previousCart,
+      cart: previousCart ? addCartItem(previousCart, variantIdOrSku, quantity, fsItemId) : previousCart,
       isLoading: true,
       error: null,
     });
     try {
-      await cartApi.addItem(variantId, quantity, fsItemId);
+      await cartApi.addItem(variantIdOrSku, quantity, fsItemId);
       await get().fetchCart();
     } catch (err: any) {
       set({

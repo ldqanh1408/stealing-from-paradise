@@ -5,6 +5,7 @@ import com.flashsale.productservice.entity.ProductStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -82,4 +83,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     List<Product> findAllByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
             ProductStatus status, LocalDateTime cutoff);
+
+    // ─── Seller info denormalization (synced via SellerInfoConsumer) ──────────
+    @Modifying
+    @Query("UPDATE Product p SET p.sellerName = :sellerName WHERE p.sellerId = :sellerId AND p.deletedAt IS NULL")
+    int updateSellerNameForAllProducts(@Param("sellerId") Long sellerId, @Param("sellerName") String sellerName);
 }

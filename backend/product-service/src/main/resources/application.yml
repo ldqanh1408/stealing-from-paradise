@@ -104,8 +104,18 @@ eureka:
 
 reservation:
   cleanup:
-    interval-ms: 180000
+    interval-ms: 300000
   ttl-minutes: 15
+
+# Stock cache config: Redis Lua is now the hot path for race-condition-free
+# stock reservation at checkout. The DB remains the source of truth.
+stock:
+  cache:
+    key-prefix: "stock:available:"
+  reconciliation:
+    enabled: true
+    interval-ms: 300000
+    sample-size: 1000
 
 kafka:
   topics:

@@ -9,6 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 
 $seedDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $postgresSeed = Join-Path $seedDir "frontend-postgres-seed.sql"
@@ -50,24 +51,18 @@ if (-not $SkipMongo) {
 if (-not $SkipElasticsearch) {
   Write-Host "[seed] Applying Elasticsearch search index seed at ${ElasticUrl}..."
   try {
+    # Check if index exists using curl.exe
     $exists = $false
-    try {
-      Invoke-WebRequest -Method Head -Uri "$ElasticUrl/skus" -TimeoutSec 3 | Out-Null
+    $statusCode = curl.exe -s -o NUL -w "%{http_code}" "$ElasticUrl/skus"
+    if ($statusCode -eq "200") {
       $exists = $true
-    } catch {
-      $statusCode = $_.Exception.Response.StatusCode.value__
-      if ($statusCode -eq 404) {
-        $exists = $false
-      } else {
-        throw
-      }
     }
 
     if (-not $exists) {
-      Invoke-RestMethod -Method Put -Uri "$ElasticUrl/skus" -ContentType "application/json" -InFile $esIndex | Out-Null
+      curl.exe -s -X PUT "$ElasticUrl/skus" -H "Content-Type: application/json" -d "@$esIndex" > NUL
     }
 
-    Invoke-RestMethod -Method Post -Uri "$ElasticUrl/_bulk?refresh=true" -ContentType "application/x-ndjson" -InFile $esBulk | Out-Null
+    curl.exe -s -X POST "$ElasticUrl/_bulk?refresh=true" -H "Content-Type: application/x-ndjson" --data-binary "@$esBulk" > NUL
   } catch {
     Write-Warning "Elasticsearch seed was skipped/failed: $($_.Exception.Message)"
     Write-Warning "Postgres product data is still seeded. Run search-service reindex or rerun this script when Elasticsearch is available."

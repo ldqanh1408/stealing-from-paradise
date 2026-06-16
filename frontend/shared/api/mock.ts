@@ -1785,34 +1785,6 @@ const mockHandlers: MockHandler[] = [
       return { success: true, data: null, timestamp: Date.now() };
     }
 
-    // POST /flash-sales/{sessionId}/buy — buy flash sale item
-    const buyMatch = url?.match(/^\/flash-sales\/(\d+)\/buy$/);
-    if (buyMatch && method === 'post') {
-      await sleep(500 + Math.random() * 300);
-      const sessionId = parseInt(buyMatch[1]);
-      const body = JSON.parse(data || '{}');
-      const item = MOCK_FLASH_ITEMS.find(i => i.id === body.fsItemId && i.sessionId === sessionId);
-      if (!item) throw { response: { status: 404, data: { message: 'Item not found' } } };
-      if (item.status === 'SOLD_OUT') throw { response: { status: 400, data: { message: 'Sản phẩm đã hết hàng' } } };
-      const qty = body.quantity || 1;
-      if (qty > (item.flashStock - item.soldQty)) throw { response: { status: 400, data: { message: 'Không đủ số lượng' } } };
-      item.soldQty += qty;
-      if (item.soldQty >= item.flashStock) item.status = 'SOLD_OUT';
-      return {
-        success: true,
-        data: {
-          sessionId,
-          fsItemId: body.fsItemId,
-          skuCode: item.skuCode,
-          flashPrice: item.flashPrice,
-          quantity: qty,
-          totalAmount: item.flashPrice * qty,
-          purchasedAt: new Date().toISOString(),
-        },
-        timestamp: Date.now(),
-      };
-    }
-
     return null;
   },
 

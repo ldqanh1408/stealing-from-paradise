@@ -23,8 +23,6 @@ public class SearchController {
     @GetMapping("/products")
     public ResponseEntity<ApiResponse<SearchResponse>> searchProducts(
             @RequestParam(required = false) String q,
-            @RequestParam(name = "category_id", required = false) String categoryId,
-            @RequestParam(name = "category", required = false) String category,
             @RequestParam(name = "price_min", required = false) Double priceMin,
             @RequestParam(name = "price_max", required = false) Double priceMax,
             @RequestParam(name = "in_stock", required = false, defaultValue = "true") Boolean inStock,
@@ -33,9 +31,8 @@ public class SearchController {
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "20") int size
     ) {
-        String effectiveCategory = categoryId != null && !categoryId.isBlank() ? categoryId : category;
         SearchResponse response = searchQueryService.search(
-                q, effectiveCategory, priceMin, priceMax, inStock, isFlash, sort, page, size
+                q, priceMin, priceMax, inStock, isFlash, sort, page, size
         );
         return ResponseEntity.ok(ApiResponse.success(response));
     }

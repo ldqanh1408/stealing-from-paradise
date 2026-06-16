@@ -38,6 +38,75 @@ export interface Cart {
   hasPriceChanges?: boolean;
 }
 
+// ─── Backend product-service cart shapes ───────────────────────────────────────
+
+interface RawCartItemResponse {
+  variantId: string;
+  variantCode?: string | null;
+  variantName?: string | null;
+  productName?: string | null;
+  priceSnapshot: number;
+  currentPrice?: number | null;
+  priceChanged?: boolean;
+  quantity: number;
+  variantImageSnapshot?: string | null;
+  subtotal?: number;
+  outOfStock?: boolean;
+  unavailable?: boolean;
+  insufficientStock?: boolean;
+  stockAvailable?: number | null;
+  sellerId?: number | null;
+}
+
+interface RawCartResponse {
+  customerId: number;
+  items: RawCartItemResponse[];
+  totalItems: number;
+  subtotal: number;
+  hasPriceChanges?: boolean;
+  groupedBySeller?: Record<string, RawCartItemResponse[]>;
+}
+
+function mapCartItem(raw: RawCartItemResponse, customerId: number): CartItem {
+  return {
+    cartItemId: `${customerId}:${raw.variantId}`,
+    variantId: raw.variantId,
+    skuCode: raw.variantCode ?? '',
+    productName: raw.productName ?? raw.variantName ?? '',
+    variantName: raw.variantName ?? '',
+    image: raw.variantImageSnapshot ?? undefined,
+    unitPrice: raw.currentPrice ?? raw.priceSnapshot,
+    quantity: raw.quantity,
+    stockAvailable: raw.unavailable
+      ? 0
+      : raw.stockAvailable ?? (raw.outOfStock ? 0 : raw.quantity),
+    isFlash: false,
+    subtotal: raw.subtotal,
+  };
+}
+
+function mapCart(raw: RawCartResponse): Cart {
+  const grouped = raw.groupedBySeller && Object.keys(raw.groupedBySeller).length > 0
+    ? raw.groupedBySeller
+    : { 0: raw.items ?? [] };
+  const sellers: CartSeller[] = Object.entries(grouped).map(([sellerId, items]) => ({
+    sellerId: Number(sellerId),
+    sellerName: `Người bán #${sellerId}`,
+    items: (items ?? []).map(i => mapCartItem(i, raw.customerId)),
+    sellerSubtotal: (items ?? []).reduce((sum, i) => sum + (i.subtotal ?? 0), 0),
+  }));
+  return {
+    userId: raw.customerId,
+    sellers,
+    totalItems: raw.totalItems ?? 0,
+    subtotal: raw.subtotal ?? 0,
+    hasPriceChanges: raw.hasPriceChanges,
+  };
+}
+
+/** Extract the variant UUID from an opaque "customerId:variantId" item key */
+const variantIdOf = (itemId: string) => itemId.includes(':') ? itemId.split(':')[1] : itemId;
+
 // ─── Checkout Preview / Submit ──────────────────────────────────────────────────
 
 export interface CartChangeDetail {
@@ -94,76 +163,7 @@ export interface CheckoutSubmitResponse {
   message: string;
 }
 
-// ─── Backend product-service cart shapes ───────────────────────────────────────
-
-interface RawCartItemResponse {
-  variantId: string;
-  variantCode?: string | null;
-  variantName?: string | null;
-  priceSnapshot: number;
-  currentPrice?: number | null;
-  priceChanged?: boolean;
-  quantity: number;
-  variantImageSnapshot?: string | null;
-  subtotal?: number;
-  outOfStock?: boolean;
-  unavailable?: boolean;
-  insufficientStock?: boolean;
-  stockAvailable?: number | null;
-  sellerId?: number | null;
-}
-
-interface RawCartResponse {
-  customerId: number;
-  items: RawCartItemResponse[];
-  totalItems: number;
-  subtotal: number;
-  hasPriceChanges?: boolean;
-  groupedBySeller?: Record<string, RawCartItemResponse[]>;
-}
-
-function mapCartItem(raw: RawCartItemResponse, customerId: number): CartItem {
-  return {
-    cartItemId: `${customerId}:${raw.variantId}`,
-    variantId: raw.variantId,
-    skuCode: raw.variantCode ?? '',
-    productName: raw.variantName ?? '',
-    variantName: raw.variantName ?? '',
-    image: raw.variantImageSnapshot ?? undefined,
-    unitPrice: raw.currentPrice ?? raw.priceSnapshot,
-    quantity: raw.quantity,
-    stockAvailable: raw.unavailable
-      ? 0
-      : raw.stockAvailable ?? (raw.outOfStock ? 0 : raw.quantity),
-    isFlash: false,
-    subtotal: raw.subtotal,
-  };
-}
-
-function mapCart(raw: RawCartResponse): Cart {
-  const grouped = raw.groupedBySeller && Object.keys(raw.groupedBySeller).length > 0
-    ? raw.groupedBySeller
-    : { 0: raw.items ?? [] };
-  const sellers: CartSeller[] = Object.entries(grouped).map(([sellerId, items]) => ({
-    sellerId: Number(sellerId),
-    sellerName: `Người bán #${sellerId}`,
-    items: (items ?? []).map(i => mapCartItem(i, raw.customerId)),
-    sellerSubtotal: (items ?? []).reduce((sum, i) => sum + (i.subtotal ?? 0), 0),
-  }));
-  return {
-    userId: raw.customerId,
-    sellers,
-    totalItems: raw.totalItems ?? 0,
-    subtotal: raw.subtotal ?? 0,
-    hasPriceChanges: raw.hasPriceChanges,
-  };
-}
-
-/** Extract the variant UUID from an opaque "customerId:variantId" item key */
-const variantIdOf = (itemId: string) => itemId.includes(':') ? itemId.split(':')[1] : itemId;
-
 export const cartApi = {
-  // Get current cart
   getCart: () =>
     apiClient.get<ApiResponse<RawCartResponse>>('/cart').then(res => ({
       ...res,
@@ -192,21 +192,15 @@ export const cartApi = {
   removeItem: (itemId: string) =>
     apiClient.delete<ApiResponse<void>>(`/cart/items/${variantIdOf(itemId)}`),
 
-  // Clear entire cart
   clearCart: () =>
     apiClient.delete<ApiResponse<void>>('/cart'),
 
-  // Checkout preview — validates stock/price, returns preview token or error details
   checkoutPreview: (itemIds: string[]) =>
     apiClient.post<ApiResponse<CheckoutPreviewResponse>>('/cart/checkout/preview', { itemIds }),
 
-  // Checkout submit — uses preview token, creates order
-  checkoutSubmit: (previewToken: string, addressId: number, provinceId?: number, districtId?: number, fullAddress?: string) =>
+  checkoutSubmit: (previewToken: string, addressId: number) =>
     apiClient.post<ApiResponse<CheckoutSubmitResponse>>('/cart/checkout/submit', {
       previewToken,
       addressId,
-      provinceId,
-      districtId,
-      fullAddress,
     }),
 };
