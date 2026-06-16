@@ -269,7 +269,7 @@ export default function ProductFormModal({
           confirmLabel="Xóa"
           danger
           loading={deleteVariantMut.isPending}
-          onConfirm={() => deleteVariantMut.mutate(deletingVariant.variantId)}
+          onConfirm={() => deleteVariantMut.mutate(deletingVariant.id)}
           onCancel={() => setDeletingVariant(null)}
         />
       )}

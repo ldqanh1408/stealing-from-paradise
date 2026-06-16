@@ -26,7 +26,7 @@ export default function VariantModal({
     mutationFn: () => {
       const data = { skuCode: sku.trim(), variantName: name.trim(), price: Number(price), stock: Number(stock) };
       return initial
-        ? sellerApi.updateVariant(initial.variantId, data)
+        ? sellerApi.updateVariant(initial.id, data)
         : sellerApi.createVariant(productId, data);
     },
     onSuccess: () => { setDone(true); timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200); },

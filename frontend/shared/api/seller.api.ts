@@ -55,7 +55,7 @@ export interface SellerTransferItem {
 
 /** Product variant response */
 export interface SellerVariant {
-  variantId: string;
+  id: string;
   skuCode: string;
   variantName: string;
   price: number;

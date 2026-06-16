@@ -12,7 +12,7 @@ vi.mock('@shared/api/seller.api', () => ({
   },
 }));
 
-const variant = { variantId: 'v1', skuCode: 'SKU1', variantName: 'Đỏ', price: 1000, stock: 10 };
+const variant = { id: 'v1', skuCode: 'SKU1', variantName: 'Đỏ', price: 1000, stock: 10 };
 
 function renderPanel(variants: any[] = [variant]) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
