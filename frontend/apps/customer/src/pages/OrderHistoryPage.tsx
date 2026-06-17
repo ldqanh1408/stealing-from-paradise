@@ -1,22 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { orderApi, type OrderSummary, type OrderStatus } from '@shared/api/order.api';
-import { paymentApi } from '@shared/api/payment.api';
 import { Badge, Button, Card, Container, EmptyState, PageHeader, Skeleton, cn, type BadgeProps } from '@shared/components/ui';
 import { Icon } from '@shared/components/icons';
-import {
-  formatPaymentCountdown,
-  getPaymentDeadlineAt,
-  getPaymentRemainingSeconds,
-  type CheckoutPaymentData,
-} from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
-  { value: 'PENDING', label: 'Chờ thanh toán' },
   { value: 'PAID', label: 'Đã thanh toán' },
   { value: 'SHIPPING', label: 'Đang giao' },
   { value: 'DELIVERED', label: 'Đã nhận' },
@@ -26,8 +18,8 @@ const STATUS_FILTERS: { value: OrderStatus | 'ALL'; label: string }[] = [
   { value: 'RETURNED', label: 'Hoàn hàng' },
 ];
 
-const STATUS_META: Record<OrderStatus, { label: string; tone: BadgeProps['tone']; helper: string }> = {
-  PENDING: { label: 'Chờ thanh toán', tone: 'warning', helper: 'Hoàn tất thanh toán trước khi đơn tự huỷ' },
+const STATUS_META: Record<string, { label: string; tone: BadgeProps['tone']; helper: string }> = {
+  PENDING: { label: 'Đang xử lý', tone: 'neutral', helper: 'Đơn hàng đang được xử lý' },
   PAID: { label: 'Đã thanh toán', tone: 'info', helper: 'Đang chuẩn bị giao hàng' },
   SHIPPING: { label: 'Đang giao', tone: 'brand', helper: 'Đơn đang trên đường giao' },
   DELIVERED: { label: 'Đã nhận', tone: 'success', helper: 'Đã giao thành công' },
@@ -96,19 +88,13 @@ function OrderThumb({ order }: { order: OrderSummary }) {
 function OrderCard({
   order,
   onOpen,
-  onPay,
-  paymentRemainingSeconds,
 }: {
   order: OrderSummary;
   onOpen: () => void;
-  onPay: () => void;
-  paymentRemainingSeconds?: number | null;
 }) {
-  const meta = getStatusMeta(order.status);
+  const meta = STATUS_META[order.status] ?? getStatusMeta(order.status);
   const firstItem = order.items?.[0];
   const sellerLabel = order.sellerName || `Shop #${order.sellerId}`;
-  const isPaymentPending = order.status === 'PENDING';
-  const paymentExpired = isPaymentPending && paymentRemainingSeconds != null && paymentRemainingSeconds <= 0;
 
   return (
     <Card
@@ -137,19 +123,6 @@ function OrderCard({
               {sellerLabel} · {order.itemCount} sản phẩm · {formatDate(order.createdAt)}
             </p>
             <p className="mt-2 text-xs font-medium text-blue-600">{meta.helper}</p>
-            {isPaymentPending && (
-              <div className={cn(
-                'mt-3 inline-flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-xs',
-                paymentExpired
-                  ? 'border-red-100 bg-red-50 text-red-700'
-                  : 'border-amber-100 bg-amber-50 text-amber-800',
-              )}>
-                <span className="font-semibold">Hạn thanh toán</span>
-                <span className="font-bold">
-                  {paymentExpired ? 'Đã hết hạn' : `Còn ${formatPaymentCountdown(paymentRemainingSeconds)}`}
-                </span>
-              </div>
-            )}
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
@@ -157,33 +130,17 @@ function OrderCard({
             <p className="text-xs text-gray-500">Tổng thanh toán</p>
             <p className="font-bold text-gray-900">{fmt(order.finalAmt)}</p>
           </div>
-          {isPaymentPending ? (
-            <Button
-              type="button"
-              variant={paymentExpired ? 'secondary' : 'primary'}
-              size="sm"
-              disabled={paymentExpired}
-              className="mt-0 sm:mt-3"
-              onClick={event => {
-                event.stopPropagation();
-                onPay();
-              }}
-            >
-              Thanh toán
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={event => {
-                event.stopPropagation();
-                onOpen();
-              }}
-            >
-              Chi tiết
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={event => {
+              event.stopPropagation();
+              onOpen();
+            }}
+          >
+            Chi tiết
+          </Button>
         </div>
       </div>
     </Card>
@@ -209,7 +166,7 @@ export default function OrderHistoryPage() {
       const pageData = query.state.data;
       if (!pageData) return false;
       const hasActiveOrders = pageData.content?.some(o =>
-        ['PENDING', 'PAID', 'SHIPPING'].includes(o.status)
+        ['PAID', 'SHIPPING'].includes(o.status)
       );
       return hasActiveOrders ? 10000 : false;
     },
@@ -218,80 +175,10 @@ export default function OrderHistoryPage() {
   const orders: OrderSummary[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements ?? 0;
-  const hasPendingOrders = orders.some(order => order.status === 'PENDING');
-  const pendingParentOrderIds = useMemo(
-    () => Array.from(new Set(orders
-      .filter(order => order.status === 'PENDING')
-      .map(order => order.parentOrderId)
-      .filter((id): id is number => Number.isFinite(id)))),
-    [orders],
-  );
-  const pendingPaymentQueries = useQueries({
-    queries: pendingParentOrderIds.map(parentOrderId => ({
-      queryKey: ['payment', parentOrderId],
-      queryFn: () => paymentApi.getPayment(parentOrderId).then(r => r.data.data),
-      retry: 1,
-      refetchInterval: 10000,
-    })),
-  });
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!hasPendingOrders) return undefined;
-    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(intervalId);
-  }, [hasPendingOrders]);
 
   const handleFilterChange = (newFilter: OrderStatus | 'ALL') => {
     setFilter(newFilter);
     setPage(0);
-  };
-
-  const paymentDeadlineByParentOrder = new Map<number, number>();
-  pendingParentOrderIds.forEach((parentOrderId, index) => {
-    const paymentQuery = pendingPaymentQueries[index];
-    const remainingSeconds = paymentQuery?.data?.remainingSeconds;
-    if (paymentQuery?.data?.status === 'PENDING' && typeof remainingSeconds === 'number') {
-      paymentDeadlineByParentOrder.set(parentOrderId, paymentQuery.dataUpdatedAt + remainingSeconds * 1000);
-    }
-  });
-
-  const paymentTargetAtFor = (order: OrderSummary): number | null => {
-    const paymentDeadline = paymentDeadlineByParentOrder.get(order.parentOrderId);
-    if (paymentDeadline) return paymentDeadline;
-    const fallbackDeadline = getPaymentDeadlineAt(order.createdAt);
-    if (!fallbackDeadline) return null;
-    const fallbackMs = new Date(fallbackDeadline).getTime();
-    return Number.isFinite(fallbackMs) ? fallbackMs : null;
-  };
-
-  const handlePayOrder = (order: OrderSummary, timeoutAt?: string) => {
-    const orderData: CheckoutPaymentData = {
-      parentOrderId: order.parentOrderId,
-      orderCode: order.orderCode,
-      orders: [{
-        orderId: order.orderId,
-        orderCode: order.orderCode,
-        sellerId: order.sellerId,
-        sellerName: order.sellerName || `Shop #${order.sellerId}`,
-        totalAmt: order.totalAmt,
-        finalAmt: order.finalAmt,
-        status: order.status,
-        itemCount: order.itemCount,
-        createdAt: order.createdAt,
-      }],
-      totalAmount: order.totalAmt,
-      finalAmount: order.finalAmt,
-      itemsCount: order.itemCount,
-      paymentStatus: 'PENDING',
-      timeoutAt: timeoutAt ?? getPaymentDeadlineAt(order.createdAt),
-      createdAt: order.createdAt,
-    };
-
-    sessionStorage.setItem('pending_checkout', JSON.stringify(orderData));
-    navigate('/checkout/payment', {
-      state: { orderData, parentOrderId: order.parentOrderId },
-    });
   };
 
   return (
@@ -352,23 +239,13 @@ export default function OrderHistoryPage() {
       {!isLoading && !error && orders.length > 0 && (
         <>
           <div className="space-y-3">
-            {orders.map(order => {
-              const paymentTargetAt = order.status === 'PENDING' ? paymentTargetAtFor(order) : null;
-              const paymentRemainingSeconds = paymentTargetAt
-                ? Math.max(0, Math.ceil((paymentTargetAt - nowMs) / 1000))
-                : getPaymentRemainingSeconds(order.createdAt, nowMs);
-              const timeoutAt = paymentTargetAt ? new Date(paymentTargetAt).toISOString() : getPaymentDeadlineAt(order.createdAt);
-
-              return (
-                <OrderCard
-                  key={order.orderId}
-                  order={order}
-                  onOpen={() => navigate(`/orders/${order.parentOrderId}`)}
-                  onPay={() => handlePayOrder(order, timeoutAt)}
-                  paymentRemainingSeconds={order.status === 'PENDING' ? paymentRemainingSeconds : null}
-                />
-              );
-            })}
+            {orders.map(order => (
+              <OrderCard
+                key={order.orderId}
+                order={order}
+                onOpen={() => navigate(`/orders/${order.parentOrderId}`)}
+              />
+            ))}
           </div>
 
           {totalPages > 1 && (

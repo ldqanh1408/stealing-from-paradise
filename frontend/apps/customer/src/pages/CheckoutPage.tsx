@@ -7,7 +7,7 @@ import { getStripe } from '@/lib/stripe';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
 import { Skeleton } from '@shared/components/ui';
-import { formatPaymentCountdown, normalizeCheckoutPaymentData, type CheckoutPaymentData } from './checkoutPaymentData';
+import { normalizeCheckoutPaymentData, type CheckoutPaymentData } from './checkoutPaymentData';
 import {
   getClientSecretErrorMessage,
   getClientSecretPanelState,
@@ -102,7 +102,6 @@ function PaymentForm({
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [orderData, setOrderData] = useState<CheckoutPaymentData | null>(
     (location.state?.orderData as CheckoutPaymentData) || null
   );
@@ -150,21 +149,6 @@ export default function CheckoutPage() {
     refetchInterval: query => shouldPollClientSecret(query.state.data, query.state.error),
   });
 
-  useEffect(() => {
-    if (!orderData?.timeoutAt) return;
-    const target = new Date(orderData.timeoutAt).getTime();
-    const tick = () => {
-      const remaining = Math.max(0, Math.floor((target - Date.now()) / 1000));
-      setCountdown(remaining);
-      if (remaining === 0) {
-        navigate('/checkout/result?status=failed', { state: { error: 'Hết thời gian thanh toán', parentOrderId: orderData.parentOrderId } });
-      }
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [orderData?.timeoutAt, navigate]);
-
   const handleStripeSuccess = (paymentIntentId: string) => {
     navigate('/checkout/result?status=success', {
       state: { parentOrderId, paymentIntentId },
@@ -202,19 +186,11 @@ export default function CheckoutPage() {
       <CheckoutStepper currentStep="payment" className="mb-6" />
 
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Xác nhận thanh toán</h1>
-      <p className="text-sm text-gray-500 mb-6">Mã đơn: <span className="font-mono font-medium">{orderCode}</span></p>
-
-      {countdown !== null && countdown > 0 && (
-        <div className="mb-6 flex items-center gap-2">
-          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-sm text-gray-500">Thanh toán trong:</span>
-          <span className={`text-sm font-bold ${countdown < 60 ? 'text-red-600 animate-pulse' : 'text-gray-900'}`}>
-            {formatPaymentCountdown(countdown)}
-          </span>
-        </div>
-      )}
+      <p className="text-sm text-gray-500 mb-6">
+        Mã đơn: <span className="font-mono font-medium">{orderCode}</span>
+        {' · '}
+        <span className="text-amber-600 font-medium">Vui lòng thanh toán ngay để xác nhận đơn hàng</span>
+      </p>
 
       {/* Shipping address */}
       {(parentOrder?.shippingAddress) && (
@@ -310,9 +286,15 @@ export default function CheckoutPage() {
                 <span className="text-red-600">{fmt(finalAmount)}</span>
               </div>
             </div>
-            <div className="p-3 bg-blue-50 rounded-xl text-xs text-blue-700">
+            <div className="p-3 bg-blue-50 rounded-xl text-xs text-blue-700 mb-3">
               Thanh toán an toàn qua Stripe. Dữ liệu thẻ của bạn được mã hoá.
             </div>
+            <button
+              onClick={() => navigate('/cart')}
+              className="w-full py-2.5 border border-gray-200 hover:border-gray-300 text-gray-500 text-sm rounded-xl transition-colors"
+            >
+              ← Quay lại giỏ hàng
+            </button>
           </div>
         </div>
       </div>

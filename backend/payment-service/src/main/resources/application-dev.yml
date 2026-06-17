@@ -22,6 +22,14 @@ dev-data:
   # reset=true xóa toàn bộ data cũ rồi seed lại từ đầu
   reset: ${DEV_DATA_RESET:false}
 
+# Payment-service does NOT use AxonServer (no sagas, no Axon event handlers).
+# It processes Kafka events directly and uses local JPA stores only.
+# Disabling the AxonServer client prevents the "UNABLE TO CONNECT" banner
+# when running outside Docker where axonserver isn't accessible.
+axon:
+  axonserver:
+    enabled: false
+
 # Actuator — enable health endpoint for docker healthcheck
 management:
   endpoints:
@@ -37,7 +45,7 @@ management:
     db:
       enabled: true
     axonserver:
-      enabled: true
+      enabled: false
 
 payout:
   schedule:

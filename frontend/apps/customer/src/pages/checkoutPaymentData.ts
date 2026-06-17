@@ -6,7 +6,7 @@ export type CheckoutPaymentData = Partial<CheckoutResponse> & {
   message?: string;
 };
 
-export const PAYMENT_DEADLINE_MS = 24 * 60 * 60 * 1000;
+export const PAYMENT_DEADLINE_MS = 5 * 60 * 1000;
 
 function asNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;

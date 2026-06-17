@@ -20,6 +20,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -29,7 +30,7 @@ import java.util.Optional;
  * One saga instance per sub-order (Order entity), keyed by orderId.
  *
  * Responsibilities:
- * - Schedule and cancel payment timeout deadline (30 min from timeoutAt)
+ * - Schedule and cancel payment timeout deadline (5 min default)
  * - Schedule and cancel shipping deadline (shippingDeadline from Order)
  * - Publish all order lifecycle Kafka events to downstream services
  * - Auto-cancel PENDING orders whose payment window has expired
@@ -214,6 +215,8 @@ public class OrderProcessingSaga {
                 ? event.getReturnTrackingNumber() : "");
         payload.put("total_amount",           event.getAmount());
         payload.put("evidence_count",         event.getEvidenceCount());
+        payload.put("evidence_images",        event.getEvidenceUrls() != null
+                ? event.getEvidenceUrls() : List.of());
         payload.put("timestamp",              Instant.now().toString());
         send(KafkaTopics.ORDER_RETURNED_RTS, String.valueOf(orderId), payload);
     }
@@ -245,7 +248,7 @@ public class OrderProcessingSaga {
         timeoutPayload.put("parent_order_id", parentOrderId);
         timeoutPayload.put("order_ids", java.util.List.of(orderId));
         timeoutPayload.put("session_id", sessionId != null ? sessionId : "");
-        timeoutPayload.put("timeout_threshold_minutes", 1440);
+        timeoutPayload.put("timeout_threshold_minutes", 5);
         timeoutPayload.put("timeout_reason", "PAYMENT_NOT_COMPLETED");
         timeoutPayload.put("auto_cancelled_at", Instant.now().toString());
         send(KafkaTopics.ORDER_PAYMENT_TIMEOUT, String.valueOf(parentOrderId), timeoutPayload);
@@ -278,7 +281,7 @@ public class OrderProcessingSaga {
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private Duration computeTimeout(LocalDateTime deadline) {
-        if (deadline == null) return Duration.ofHours(24);
+        if (deadline == null) return Duration.ofMinutes(5);
         Duration d = Duration.between(LocalDateTime.now(), deadline);
         return (d.isNegative() || d.isZero()) ? Duration.ofSeconds(30) : d;
     }

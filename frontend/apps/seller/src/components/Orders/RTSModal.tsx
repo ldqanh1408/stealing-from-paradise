@@ -21,17 +21,17 @@ export default function RTSModal({ orderId, orderCode, onClose, onSuccess }: RTS
   const [returnTracking, setReturnTracking] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const imageCount = files?.length ?? 0;
-  const imageNames = files ? Array.from(files).map(f => f.name) : [];
+  const imageCount = files.length;
+  const imageNames = files.map(f => f.name);
   const validation = validateRtsForm(returnTracking, imageCount);
 
   const mut = useMutation({
     mutationFn: () => {
       const fd = new FormData();
-      if (files) Array.from(files).forEach(f => fd.append('evidence_images', f));
+      files.forEach(f => fd.append('evidence_images', f));
       fd.append('return_tracking_number', returnTracking.trim());
       if (note.trim()) fd.append('note', note.trim());
       return orderApi.returnToSender(orderId, fd);
@@ -77,7 +77,7 @@ export default function RTSModal({ orderId, orderCode, onClose, onSuccess }: RTS
                       <p key={i} className="truncate">{name}</p>
                     ))}
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); setFiles(null); }}
+                  <button onClick={(e) => { e.stopPropagation(); setFiles([]); }}
                     className="text-xs text-red-500 hover:text-red-600 underline mt-1 block">
                     Xoá tất cả
                   </button>
@@ -90,7 +90,7 @@ export default function RTSModal({ orderId, orderCode, onClose, onSuccess }: RTS
               )}
             </div>
             <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
-              onChange={e => setFiles(e.target.files)} />
+              onChange={e => setFiles(Array.from(e.target.files || []))} />
           </div>
 
           <div>

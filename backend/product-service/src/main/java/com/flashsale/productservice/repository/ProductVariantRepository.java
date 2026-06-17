@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,6 +50,9 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
 
     @Query("SELECT COUNT(v) FROM ProductVariant v WHERE v.productId = :productId AND v.deletedAt IS NULL")
     Integer countByProductId(@Param("productId") UUID productId);
+
+    @Query("SELECT MIN(v.price) FROM ProductVariant v WHERE v.productId = :productId AND v.deletedAt IS NULL")
+    BigDecimal findMinPriceByProductId(@Param("productId") UUID productId);
 
     List<ProductVariant> findByProductIdAndStatus(UUID productId, VariantStatus status);
 

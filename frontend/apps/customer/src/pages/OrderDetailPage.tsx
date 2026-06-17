@@ -7,7 +7,6 @@ import { refundApi, type FullRefundCreatedResponse, type RefundPresignedUrlRespo
 import { type ApiResponse } from '@shared/types/api';
 import { Skeleton, Spinner } from '@shared/components/ui';
 import { notify } from '@shared/lib/toast';
-import { formatPaymentCountdown, getPaymentDeadlineAt, getPaymentRemainingSeconds, normalizeCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -747,12 +746,6 @@ export default function OrderDetailPage() {
   const [showPartialRefund, setShowPartialRefund] = useState<Order | null>(null);
   const [showFullRefund, setShowFullRefund] = useState(false);
   const [showConfirm, setShowConfirm] = useState<Order | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(intervalId);
-  }, []);
 
   if (isNaN(id)) {
     return (
@@ -794,29 +787,6 @@ export default function OrderDetailPage() {
   }
 
   const parent = orderData;
-  const isPaymentPending = !paymentData
-    ? parent.status === 'PENDING'
-    : (paymentData.status === 'PENDING' || parent.status === 'PENDING') && paymentData.status !== 'SUCCESS';
-  const paymentDeadlineFromApi = paymentData?.status === 'PENDING' && typeof paymentData.remainingSeconds === 'number'
-    ? paymentDataUpdatedAt + paymentData.remainingSeconds * 1000
-    : null;
-  const fallbackDeadlineAt = getPaymentDeadlineAt(parent.createdAt);
-  const fallbackDeadlineMs = fallbackDeadlineAt ? new Date(fallbackDeadlineAt).getTime() : NaN;
-  const paymentDeadlineMs = paymentDeadlineFromApi ?? (Number.isFinite(fallbackDeadlineMs) ? fallbackDeadlineMs : null);
-  const paymentRemainingSeconds = paymentDeadlineMs
-    ? Math.max(0, Math.ceil((paymentDeadlineMs - nowMs) / 1000))
-    : getPaymentRemainingSeconds(parent.createdAt, nowMs);
-  const paymentTimeoutAt = paymentDeadlineMs ? new Date(paymentDeadlineMs).toISOString() : fallbackDeadlineAt;
-  const showPayButton = isPaymentPending && (paymentRemainingSeconds == null || paymentRemainingSeconds > 0);
-
-  const handlePay = () => {
-    const pData = normalizeCheckoutPaymentData(null, parent);
-    if (pData) {
-      pData.timeoutAt = paymentTimeoutAt;
-      sessionStorage.setItem('pending_checkout', JSON.stringify(pData));
-      navigate('/checkout/payment', { state: { orderData: pData, parentOrderId: pData.parentOrderId } });
-    }
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -831,35 +801,8 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Payment info / action */}
-      {showPayButton ? (
-        <div className="bg-gradient-to-r from-blue-50 to-violet-50 rounded-2xl border border-blue-100 p-5 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-bold text-blue-900 mb-1 flex items-center gap-2">
-                💳 Chờ thanh toán
-              </h2>
-              <p className="text-sm text-blue-700">
-                Đơn hàng đang chờ thanh toán. Vui lòng thanh toán trong vòng 24 giờ kể từ lúc đặt hàng.
-              </p>
-              <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-lg border border-blue-100 bg-white/70 px-3 py-2 text-xs text-blue-800">
-                <span className="font-semibold">Còn {formatPaymentCountdown(paymentRemainingSeconds)}</span>
-                {paymentTimeoutAt && (
-                  <span className="text-blue-500">Hạn chót: {formatDate(paymentTimeoutAt)}</span>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 shrink-0">
-              <button
-                onClick={handlePay}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all text-center shadow-sm"
-              >
-                Thanh toán ngay
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : paymentData ? (
+      {/* Payment info */}
+      {paymentData ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
           <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
             💳 Thông tin thanh toán
@@ -966,14 +909,6 @@ export default function OrderDetailPage() {
 
               {/* Action buttons */}
               <div className="px-5 py-4 border-t border-gray-50 flex flex-wrap gap-2">
-                {subOrder.status === 'PENDING' && showPayButton && (
-                  <button
-                    onClick={handlePay}
-                    className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                  >
-                    Thanh toán ngay
-                  </button>
-                )}
                 {canCancel(subOrder.status) && (
                   <button
                     onClick={() => setShowCancel(subOrder)}

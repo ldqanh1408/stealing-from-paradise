@@ -14,7 +14,6 @@ const ProductDetailPage  = lazy(() => import('@/pages/ProductDetailPage'));
 const CartPage           = lazy(() => import('@/pages/CartPage'));
 const WishlistPage       = lazy(() => import('@/pages/WishlistPage'));
 const OrderReviewPage    = lazy(() => import('@/pages/OrderReviewPage'));
-const CheckoutPage       = lazy(() => import('@/pages/CheckoutPage'));
 const CheckoutResultPage = lazy(() => import('@/pages/CheckoutResultPage'));
 const FlashSalePage      = lazy(() => import('@/pages/FlashSalePage'));
 const OrderHistoryPage   = lazy(() => import('@/pages/OrderHistoryPage'));
@@ -99,13 +98,12 @@ export default function App() {
                 <Route path="/products/:productId" element={<ProductDetailPage />} />
                 <Route path="/product/:productId"  element={<ProductDetailPage />} />
                 <Route path="/flash-sales"     element={<FlashSalePage />} />
-                <Route path="/checkout/result" element={<CheckoutResultPage />} />
                 <Route path="/sellers/:sellerId" element={<SellerStorePage />} />
 
                 <Route path="/cart"     element={<PrivateRoute><CartPage /></PrivateRoute>} />
                 <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
                 <Route path="/checkout" element={<PrivateRoute><OrderReviewPage /></PrivateRoute>} />
-                <Route path="/checkout/payment" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
+                <Route path="/checkout/result" element={<CheckoutResultPage />} />
                 <Route path="/orders"   element={<PrivateRoute><OrderHistoryPage /></PrivateRoute>} />
                 <Route path="/orders/:parentOrderId" element={<PrivateRoute><OrderDetailPage /></PrivateRoute>} />
                 <Route path="/refunds" element={<PrivateRoute><RefundHistoryPage /></PrivateRoute>} />

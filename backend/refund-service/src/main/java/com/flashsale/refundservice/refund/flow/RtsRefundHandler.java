@@ -49,6 +49,7 @@ public class RtsRefundHandler {
             Long userId        = typeConverter.toLong(payload.get("user_id"));
             BigDecimal amount  = typeConverter.toBigDecimal(payload.get("total_amount"));
             String returnTracking = (String) payload.get("return_tracking_number");
+            List<String> evidenceImages = typeConverter.toStringList(payload.get("evidence_images"));
 
             // Idempotency
             if (refundRepository.existsByOrderIdAndStatusIn(orderId, List.of("PENDING", "SUCCESS"))) {
@@ -72,6 +73,7 @@ public class RtsRefundHandler {
                     .amount(amount)
                     .reason("Hàng hoàn về Seller (Return To Sender)")
                     .status("PENDING")
+                    .evidenceImages(evidenceImages.isEmpty() ? null : evidenceImages)
                     .build();
             refund = refundRepository.save(refund);
 

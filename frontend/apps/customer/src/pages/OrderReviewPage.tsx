@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { cartApi, type CartChangeDetail, type CheckoutPreviewResponse } from '@shared/api/cart.api';
 import { addressApi, type UserAddress } from '@shared/api/address.api';
-import { orderApi, type ParentOrderDetail } from '@shared/api/order.api';
+import { paymentApi } from '@shared/api/payment.api';
+import { orderApi } from '@shared/api/order.api';
 import { Skeleton } from '@shared/components/ui';
 import CheckoutStepper from '@/components/CheckoutStepper';
+import { getStripe } from '@/lib/stripe';
 import { buildCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -42,46 +45,6 @@ function parseCartChangeError(err: any): { error: string; message: string; detai
   return null;
 }
 
-async function getMaxParentOrderId(): Promise<number> {
-  try {
-    const { data } = await orderApi.getOrders({ page: 0, size: 100 });
-    const orders = data.data?.content ?? [];
-    return orders.reduce((max, order) => Math.max(max, order.parentOrderId ?? 0), 0);
-  } catch (_) {
-    return 0;
-  }
-}
-
-async function waitForParentOrder(
-  parentOrderId: number | undefined,
-  minParentOrderId: number,
-): Promise<ParentOrderDetail> {
-  let currentParentOrderId = parentOrderId;
-
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (!currentParentOrderId) {
-      const { data } = await orderApi.getOrders({ page: 0, size: 100 });
-      const orders = data.data?.content ?? [];
-      currentParentOrderId = orders.reduce((max, order) => {
-        const candidate = order.parentOrderId ?? 0;
-        return candidate > minParentOrderId ? Math.max(max, candidate) : max;
-      }, 0);
-    }
-
-    if (currentParentOrderId) {
-      try {
-        const { data } = await orderApi.getParentOrder(currentParentOrderId);
-        if (data.data) return data.data;
-      } catch (_) {
-        // Order-service may need another tick after checkout submit is accepted.
-      }
-    }
-
-    await sleep(1000);
-  }
-
-  throw new Error('ORDER_NOT_READY');
-}
 
 // ─── Address Form Modal ────────────────────────────────────────────────────────
 function AddressFormModal({
@@ -505,6 +468,14 @@ export default function OrderReviewPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
+  // Inline payment state
+  const [paymentStep, setPaymentStep] = useState<'idle' | 'submitting' | 'paying' | 'processing'>('idle');
+  const [parentOrderId, setParentOrderId] = useState<number | null>(null);
+  const [orderData, setOrderData] = useState<Record<string, any> | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [stripeError, setStripeError] = useState<string | null>(null);
+  const [confirmSubmit, setConfirmSubmit] = useState(false); // Two-step confirmation before submit
+
   // Checkout flow state
   const [previewData, setPreviewData] = useState<CheckoutPreviewResponse | null>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
@@ -646,14 +617,23 @@ export default function OrderReviewPage() {
     }
   };
 
-  // Step 2: Submit → create order via preview token
+  // Step 2: Submit → poll parentOrderId → poll client secret → Stripe
   const handleProceedToPayment = async () => {
     if (!previewToken || !selectedAddressId || !previewData) return;
     const addr = addresses.find(a => a.addressId === selectedAddressId);
     setIsProcessing(true);
     setApiError(null);
+    setStripeError(null);
     try {
-      const maxParentOrderIdBefore = await getMaxParentOrderId();
+      // Snapshot max parentOrderId BEFORE submit (order is created async via Kafka)
+      const { data: preOrders } = await orderApi.getOrders({ page: 0, size: 200 });
+      const preMax = Math.max(
+        0,
+        ...((preOrders?.data?.data?.content ?? preOrders?.data?.data ?? []) as any[]).map(
+          (o: any) => o.parentOrderId ?? 0
+        ),
+      );
+
       const { data } = await cartApi.checkoutSubmit(
         previewToken,
         selectedAddressId,
@@ -662,18 +642,25 @@ export default function OrderReviewPage() {
         addr?.fullAddress,
       );
       if (data.data) {
-        const parentOrder = await waitForParentOrder(data.data.parentOrderId, maxParentOrderIdBefore);
-        const orderData = buildCheckoutPaymentData(data.data, previewData, parentOrder);
-        sessionStorage.setItem('pending_checkout', JSON.stringify(orderData));
+        const submitResp = data.data;
+        const orderData_ = buildCheckoutPaymentData(submitResp, previewData);
+        sessionStorage.setItem('pending_checkout', JSON.stringify(orderData_));
+        setOrderData(orderData_);
+
         if (paymentMethod === 'cod') {
+          // Poll for the async-created parentOrderId
+          const poId = await pollForNewParentOrder(preMax);
           navigate('/checkout/result?status=success', {
-            state: { parentOrderId: orderData.parentOrderId, method: 'COD', orderData },
+            state: { parentOrderId: poId, method: 'COD', orderData: orderData_ },
           });
-        } else {
-          navigate('/checkout/payment', {
-            state: { orderData, parentOrderId: orderData.parentOrderId },
-          });
+          return;
         }
+
+        // Stripe: wait for parentOrderId (async via Kafka) → poll client secret
+        setPaymentStep('paying');
+        const poId = await pollForNewParentOrder(preMax);
+        setParentOrderId(poId);
+        await pollForClientSecret(poId);
       }
     } catch (err: any) {
       const cartError = parseCartChangeError(err);
@@ -700,7 +687,135 @@ export default function OrderReviewPage() {
     }
   };
 
+  // Poll for new parentOrderId (order is created asynchronously by order-service Kafka consumer)
+  const pollForNewParentOrder = async (preMax: number): Promise<number> => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      await sleep(1000);
+      try {
+        const { data } = await orderApi.getOrders({ page: 0, size: 200 });
+        const orders = (data?.data?.content ?? data?.data ?? []) as any[];
+        for (const o of orders) {
+          if ((o.parentOrderId ?? 0) > preMax) {
+            return o.parentOrderId as number;
+          }
+        }
+      } catch {
+        // retry
+      }
+    }
+    throw new Error('ORDER_NOT_READY');
+  };
+
+  // Poll for client secret (payment intent created asynchronously by payment-service Kafka consumer)
+  const pollForClientSecret = async (poId: number) => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      try {
+        const { data } = await paymentApi.getClientSecret(poId);
+        if (data.data?.clientSecret) {
+          setClientSecret(data.data.clientSecret);
+          return;
+        }
+        // 202 Accepted means "still initializing" — wait and retry
+      } catch (err: any) {
+        if (err?.response?.status === 404) {
+          // Not ready yet, wait
+        } else {
+          throw err;
+        }
+      }
+      await sleep(1000);
+    }
+    setStripeError('Không thể khởi tạo cổng thanh toán. Vui lòng thử lại sau.');
+  };
+
   const selectedAddress = addresses.find(a => a.addressId === selectedAddressId);
+
+  // Stripe payment success → navigate to result with saga tracker
+  const handleStripeSuccess = (paymentIntentId: string) => {
+    if (!parentOrderId) return;
+    navigate('/checkout/result?status=success', {
+      state: {
+        parentOrderId,
+        paymentIntentId,
+        method: 'stripe',
+        orderData,
+      },
+    });
+  };
+
+  // Inline Stripe payment form
+  const InlineStripeForm = () => {
+    const stripe = useStripe();
+    const elements = useElements();
+    const [isPaying, setIsPaying] = useState(false);
+
+    const handlePay = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!stripe || !elements) return;
+      setIsPaying(true);
+      setStripeError(null);
+
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/checkout/result`,
+        },
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        setStripeError(error.message ?? 'Thanh toán thất bại');
+        setIsPaying(false);
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        setPaymentStep('processing');
+        handleStripeSuccess(paymentIntent.id);
+      }
+    };
+
+    return (
+      <form onSubmit={handlePay} className="space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <span>💳</span>
+            Thông tin thẻ tín dụng
+          </h2>
+          <div className="bg-gray-50 rounded-xl p-4 mb-4 border border-gray-200">
+            <PaymentElement
+              options={{
+                layout: 'tabs',
+                paymentMethodOrder: ['card'],
+              }}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            Thử nghiệm: Dùng thẻ test Stripe (4242 4242 4242 4242), bất kỳ exp/CVC nào
+          </p>
+          {stripeError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+              <p className="text-red-700 text-sm">{stripeError}</p>
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={!stripe || isPaying}
+            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+          >
+            {isPaying ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Đang xử lý thanh toán...
+              </>
+            ) : (
+              `Thanh toán ${fmt(previewData?.totalAmount ?? 0)}`
+            )}
+          </button>
+        </div>
+      </form>
+    );
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">
@@ -1041,25 +1156,82 @@ export default function OrderReviewPage() {
               </div>
             </div>
 
-            <button
-              onClick={handleProceedToPayment}
-              disabled={isProcessing || cartChanges.length > 0}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-            >
-              {isProcessing ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Đang xử lý...
-                </>
-              ) : (
-                paymentMethod === 'cod'
+            {!confirmSubmit ? (
+              <button
+                onClick={() => setConfirmSubmit(true)}
+                disabled={isProcessing || cartChanges.length > 0}
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                {paymentMethod === 'cod'
                   ? `Xác nhận đặt hàng (COD)`
-                  : `Thanh toán ${fmt(previewData.totalAmount)}`
-              )}
-            </button>
+                  : `Thanh toán ${fmt(previewData.totalAmount)}`}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={handleProceedToPayment}
+                  disabled={isProcessing}
+                  className="w-full py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 animate-pulse"
+                >
+                  {isProcessing ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    '⚠️ Nhấn lần nữa để xác nhận đặt hàng'
+                  )}
+                </button>
+                <button
+                  onClick={() => setConfirmSubmit(false)}
+                  disabled={isProcessing}
+                  className="w-full py-2.5 border border-gray-200 text-gray-500 text-sm rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Huỷ
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Inline Stripe Payment Step */}
+        {step === 'review' && paymentStep === 'paying' && (
+          <div className="max-w-3xl mt-6">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Thanh toán</h2>
+            </div>
+
+            {!clientSecret ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <Skeleton className="h-5 w-64" />
+                </div>
+                <div className="space-y-2 mb-5">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+                <Skeleton className="h-12 w-full rounded-xl" />
+                <p className="text-center text-sm text-gray-500 mt-4">
+                  Đang khởi tạo cổng thanh toán...
+                </p>
+              </div>
+            ) : (
+              <div>
+                <Elements stripe={getStripe()} options={{ clientSecret }}>
+                  <InlineStripeForm />
+                </Elements>
+                <button
+                  onClick={() => { setPaymentStep('idle'); setClientSecret(null); }}
+                  className="mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  ← Quay lại
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

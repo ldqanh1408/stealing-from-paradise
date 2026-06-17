@@ -323,12 +323,17 @@ services:
       - KAFKA_SERVER=${KAFKA_SERVER}
       - AXON_SERVER=${AXON_SERVER}
       - JWT_SECRET=${JWT_SECRET}
+      - MINIO_URL=${MINIO_URL}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - TZ=${TZ}
       - JVM_OPTS=${JVM_OPTS_ORDER}
     depends_on:
       postgres: { condition: service_healthy }
       kafka: { condition: service_started }
       axonserver: { condition: service_healthy }
+      minio: { condition: service_healthy }
     networks: [flashsale-net]
 
   flashsale-service:
@@ -399,14 +404,14 @@ services:
     ports: ["${PORT_SEARCH:-8087}:8087"]
     env_file: .env
     environment:
-      - EUREKA_URI=${EUREKA_URI}
-      - ELASTIC_URI=${ELASTIC_URI}
-      - KAFKA_SERVER=${KAFKA_SERVER}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
-      - TZ=${TZ}
-      - JVM_OPTS=${JVM_OPTS_SEARCH}
+      - EUREKA_URI=${EUREKA_URI:-http://discovery-service:8761/eureka/}
+      - ELASTIC_URI=${ELASTIC_URI:-http://elasticsearch:9200}
+      - KAFKA_SERVER=${KAFKA_SERVER:-kafka:9092}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - TZ=${TZ:-Asia/Ho_Chi_Minh}
+      - JVM_OPTS=${JVM_OPTS_SEARCH:-}
     depends_on:
       elasticsearch: { condition: service_healthy }
       redis: { condition: service_healthy }

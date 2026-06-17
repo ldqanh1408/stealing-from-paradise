@@ -73,30 +73,34 @@ public class FlashSaleItemService {
                         return Mono.error(new AppException(ErrorCode.BAD_REQUEST,
                                 "Đã hết hạn đăng ký sản phẩm cho phiên này"));
                     }
-                    if (stateService.isRegistrationClosed(sessionId)) {
-                        return Mono.error(new AppException(ErrorCode.BAD_REQUEST,
-                                "Đã hết hạn đăng ký sản phẩm cho phiên này"));
-                    }
 
-                    return fetchVariantDetails(req.getSkuCode())
-                            .flatMap(variantInfo -> {
-                                Long variantSellerId = toLong(variantInfo.get("sellerId"));
-                                if (variantSellerId == null || !variantSellerId.equals(sellerId)) {
-                                    return Mono.error(new AppException(ErrorCode.FORBIDDEN,
-                                            "Bạn không sở hữu sản phẩm (SKU) này"));
+                    return stateService.isRegistrationClosed(sessionId)
+                            .flatMap(closed -> {
+                                if (Boolean.TRUE.equals(closed)) {
+                                    return Mono.error(new AppException(ErrorCode.BAD_REQUEST,
+                                            "Đã hết hạn đăng ký sản phẩm cho phiên này"));
                                 }
 
-                                FlashSaleItem item = FlashSaleItem.builder()
-                                        .sessionId(sessionId)
-                                        .sellerId(sellerId)
-                                        .skuCode(req.getSkuCode())
-                                        .flashPrice(req.getFlashPrice())
-                                        .flashStock(req.getFlashStock())
-                                        .limitPerUser(req.getLimitPerUser() != null ? req.getLimitPerUser() : 1)
-                                        .soldQty(0)
-                                        .status("PENDING")
-                                        .build();
-                                return itemRepo.save(item);
+                                return fetchVariantDetails(req.getSkuCode())
+                                        .flatMap(variantInfo -> {
+                                            Long variantSellerId = toLong(variantInfo.get("sellerId"));
+                                            if (variantSellerId == null || !variantSellerId.equals(sellerId)) {
+                                                return Mono.error(new AppException(ErrorCode.FORBIDDEN,
+                                                        "Bạn không sở hữu sản phẩm (SKU) này"));
+                                            }
+
+                                            FlashSaleItem item = FlashSaleItem.builder()
+                                                    .sessionId(sessionId)
+                                                    .sellerId(sellerId)
+                                                    .skuCode(req.getSkuCode())
+                                                    .flashPrice(req.getFlashPrice())
+                                                    .flashStock(req.getFlashStock())
+                                                    .limitPerUser(req.getLimitPerUser() != null ? req.getLimitPerUser() : 1)
+                                                    .soldQty(0)
+                                                    .status("PENDING")
+                                                    .build();
+                                            return itemRepo.save(item);
+                                        });
                             });
                 })
                 .doOnSuccess(this::publishItemRegisteredEvent)

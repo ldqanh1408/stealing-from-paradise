@@ -17,18 +17,23 @@ import com.flashsale.orderservice.dto.response.CancelOrderResponse;
 import com.flashsale.orderservice.dto.response.ConfirmReceivedResponse;
 import com.flashsale.orderservice.dto.response.ReturnToSenderResponse;
 import com.flashsale.orderservice.dto.response.TrackingUpdateResponse;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.gateway.EventGateway;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +49,13 @@ public class OrderCommandService {
     private final ObjectMapper objectMapper;
     private final EventGateway eventGateway;
     private final OutboxEventWriter outboxEventWriter;
+    private final MinioClient minioClient;
+
+    @Value("${minio.bucket:refund-evidences}")
+    private String minioBucket;
+
+    @Value("${minio.public-url:http://localhost:9000}")
+    private String minioPublicUrl;
 
     // Thời hạn giao hàng mặc định: 3 ngày
     private static final int DEFAULT_SHIPPING_DAYS = 3;
@@ -252,6 +264,12 @@ public class OrderCommandService {
         order.setStatus("RETURNED");
         orderRepository.save(order);
 
+        // Upload evidence images to MinIO
+        List<String> evidenceUrls = new ArrayList<>();
+        for (MultipartFile image : images) {
+            evidenceUrls.add(uploadRtsEvidenceImage(orderId, image));
+        }
+
         // Tạo refund code (placeholder — sẽ được tạo bởi Refund Service sau khi nhận event)
         String refundCode = "RF-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + "-" + order.getId();
@@ -264,10 +282,12 @@ public class OrderCommandService {
                 order.getSellerId(),
                 order.getFinalAmt(),
                 req.getReturnTrackingNumber(),
-                images.size()
+                images.size(),
+                evidenceUrls
         ));
 
-        log.info("Return-to-sender processed: orderId={}, evidenceCount={}", orderId, images.size());
+        log.info("Return-to-sender processed: orderId={}, evidenceCount={}, evidenceUrls={}",
+                orderId, images.size(), evidenceUrls);
 
         return ReturnToSenderResponse.builder()
                 .orderId(order.getId())
@@ -290,5 +310,33 @@ public class OrderCommandService {
                         .build())
                 .createdAt(Instant.now())
                 .build();
+    }
+
+    /**
+     * Upload a single RTS evidence image to MinIO and return its public URL.
+     */
+    private String uploadRtsEvidenceImage(Long orderId, MultipartFile image) {
+        try {
+            String originalName = image.getOriginalFilename();
+            int dot = originalName != null ? originalName.lastIndexOf('.') : -1;
+            String ext = dot > 0 ? originalName.substring(dot) : ".jpg";
+            String objectKey = "refunds/rts/" + orderId + "/" + UUID.randomUUID() + ext;
+
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(minioBucket)
+                            .object(objectKey)
+                            .stream(new ByteArrayInputStream(image.getBytes()), image.getSize(), -1)
+                            .contentType(image.getContentType() != null ? image.getContentType() : "image/jpeg")
+                            .build()
+            );
+
+            String publicUrl = minioPublicUrl.replaceAll("/$", "") + "/" + minioBucket + "/" + objectKey;
+            log.info("RTS evidence uploaded: orderId={}, key={}", orderId, objectKey);
+            return publicUrl;
+        } catch (Exception e) {
+            log.error("Failed to upload RTS evidence image for orderId={}: {}", orderId, e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_ERROR, "Không thể tải ảnh bằng chứng: " + e.getMessage());
+        }
     }
 }

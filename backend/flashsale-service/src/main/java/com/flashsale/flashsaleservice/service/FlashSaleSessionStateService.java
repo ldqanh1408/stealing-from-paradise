@@ -95,12 +95,11 @@ public class FlashSaleSessionStateService {
                 });
     }
 
-    public boolean isRegistrationClosed(Long sessionId) {
-        Boolean closed = redisTemplate.opsForValue()
+    public Mono<Boolean> isRegistrationClosed(Long sessionId) {
+        return redisTemplate.opsForValue()
                 .get(REG_CLOSED_FLAG_PREFIX + sessionId)
                 .map(v -> "1".equals(v))
-                .block();
-        return Boolean.TRUE.equals(closed);
+                .defaultIfEmpty(false);
     }
 
     private Mono<Void> publishSessionLifecycleEvent(String topic, FlashSaleSession session) {

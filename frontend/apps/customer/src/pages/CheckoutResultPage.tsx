@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import CheckoutStepper from '@/components/CheckoutStepper';
+import OrderSagaTracker from '@/components/checkout/OrderSagaTracker';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
 import { useCartStore } from '@shared/store/cartStore';
 import { Skeleton } from '@shared/components/ui';
 import type { CheckoutResponse } from '@shared/api/order.api';
-
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 function recoverStoredOrderData(): CheckoutResponse | null {
@@ -83,7 +83,8 @@ export default function CheckoutResultPage() {
   }, []); // Only run once on mount
 
   const state = recoveredData;
-  const success = redirectStatus === 'succeeded' || (locationState?.parentOrderId && !locationState?.error);
+  const isExpired = redirectStatus === 'expired' || params.get('status') === 'expired' || locationState?.error?.includes('hết thời gian');
+  const success = !isExpired && (redirectStatus === 'succeeded' || (locationState?.parentOrderId && !locationState?.error));
 
   // Persist orderData to sessionStorage so retries work after refresh
   useEffect(() => {
@@ -126,14 +127,6 @@ export default function CheckoutResultPage() {
     },
   });
 
-  const handleRetry = () => {
-    if (state?.parentOrderId) {
-      navigate('/checkout/payment', { state: { orderData: state.orderData, parentOrderId: state.parentOrderId } });
-    } else {
-      navigate('/cart');
-    }
-  };
-
   const isPending = paymentData?.status === 'PENDING';
 
   // Still recovering data on mount
@@ -159,25 +152,15 @@ export default function CheckoutResultPage() {
           <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6 text-5xl">
             ✅
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {isPending ? 'Đơn hàng đang xử lý...' : 'Đặt hàng thành công!'}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Đặt hàng thành công!</h1>
           <p className="text-gray-500 mb-2">
-            {isPending
-              ? 'Thanh toán của bạn đang được xử lý. Đơn hàng sẽ được xác nhận trong vài giây.'
-              : 'Cảm ơn bạn đã mua hàng. Đơn hàng của bạn đang được xử lý.'}
+            Cảm ơn bạn đã mua hàng. Dưới đây là tiến trình đơn hàng của bạn.
           </p>
 
           {state.method === 'COD' && polledOrder && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left text-sm text-yellow-800 text-left">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left text-sm text-yellow-800">
               <strong>Thanh toán khi nhận hàng (COD)</strong>
               <p className="mt-1">Bạn sẽ thanh toán {fmt(polledOrder.finalAmt)} khi nhận được hàng.</p>
-              {polledOrder.status === 'PENDING' && (
-                <p className="mt-1 text-yellow-700">Trạng thái: <strong>Chờ thanh toán</strong></p>
-              )}
-              {polledOrder.status === 'PAID' && (
-                <p className="mt-1 text-green-700 font-semibold">Trạng thái: Đã xác nhận ✓</p>
-              )}
             </div>
           )}
 
@@ -219,14 +202,10 @@ export default function CheckoutResultPage() {
             </div>
           )}
 
-          {!paymentData && state.parentOrderId > 0 && (
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-center">
-              <div className="grid grid-cols-2 gap-3">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
+          {/* Saga tracker — only shown after payment confirmed */}
+          {state.parentOrderId > 0 && (paymentData?.status === 'SUCCESS' || state.method === 'COD') && (
+            <div className="mb-6">
+              <OrderSagaTracker parentOrderId={state.parentOrderId} />
             </div>
           )}
 
@@ -247,6 +226,33 @@ export default function CheckoutResultPage() {
             </Link>
           </div>
         </>
+      ) : isExpired ? (
+        <>
+          <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6 text-5xl">
+            ⏰
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Hết thời gian thanh toán</h1>
+          <p className="text-gray-500 mb-2">
+            Đơn hàng của bạn đã bị huỷ do không thanh toán trong thời gian quy định.
+          </p>
+          <p className="text-gray-400 text-sm mb-8">
+            Vui lòng tạo đơn hàng mới và thanh toán ngay để xác nhận.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              to="/cart"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
+            >
+              Quay lại giỏ hàng
+            </Link>
+            <Link
+              to="/products"
+              className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors"
+            >
+              Tiếp tục mua sắm
+            </Link>
+          </div>
+        </>
       ) : (
         <>
           <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-6 text-5xl">
@@ -257,20 +263,20 @@ export default function CheckoutResultPage() {
             {locationState?.error || 'Đã xảy ra lỗi trong quá trình thanh toán.'}
           </p>
           <p className="text-gray-400 text-sm mb-8">
-            Đơn hàng của bạn vẫn được lưu với trạng thái "Chờ thanh toán". Bạn có thể thử lại.
+            Vui lòng thử lại từ giỏ hàng.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={handleRetry}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
-            >
-              Thử lại thanh toán
-            </button>
             <Link
               to="/cart"
-              className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
             >
               Quay lại giỏ hàng
+            </Link>
+            <Link
+              to="/products"
+              className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors"
+            >
+              Tiếp tục mua sắm
             </Link>
           </div>
         </>

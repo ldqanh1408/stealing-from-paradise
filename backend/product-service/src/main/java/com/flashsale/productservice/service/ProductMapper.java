@@ -19,6 +19,7 @@ import com.flashsale.productservice.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -102,6 +103,7 @@ public class ProductMapper {
     public SellerProductCard toSellerProductCard(Product product) {
         Integer variantCount = variantRepository.countByProductId(product.getId());
         Integer totalStock = variantRepository.getTotalStockByProductId(product.getId());
+        BigDecimal price = variantRepository.findMinPriceByProductId(product.getId());
         String thumbnailUrl = imageRepository.findByProductIdOrderBySortOrderAsc(product.getId())
                 .stream()
                 .findFirst()
@@ -113,6 +115,7 @@ public class ProductMapper {
                 .name(product.getName())
                 .slug(product.getSlug())
                 .status(product.getStatus().name())
+                .price(price)
                 .thumbnailUrl(thumbnailUrl)
                 .variantCount(variantCount != null ? variantCount : 0)
                 .totalStock(totalStock != null ? totalStock : 0)
