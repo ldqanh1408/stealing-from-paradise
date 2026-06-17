@@ -145,9 +145,13 @@ public class EsSearcher {
                 // Fold diacritics so "tài nghe" matches products indexed as "tai nghe" and vice versa.
                 // This is a safety net on top of the ES-level icu_folding filter.
                 String normalizedQ = foldDiacritics(q);
+                // NOTE: productAttributes.* was removed from the fields list because
+                // productAttributes is a dynamic object containing mixed types (strings,
+                // booleans, longs).  Fuzzy multi_match on non-text/keyword fields causes
+                // query_shard_exception, silently dropping results from failed shards.
                 rootQuery = MultiMatchQuery.of(mm -> mm
                         .query(normalizedQ)
-                        .fields("productName^3", "productDescription", "productAttributes.*")
+                        .fields("productName^3", "productDescription")
                         .fuzziness("AUTO")
                         .type(co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType.BestFields)
                 )._toQuery();

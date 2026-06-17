@@ -1,4 +1,4 @@
-﻿package com.flashsale.searchservice;
+package com.flashsale.searchservice;
 
 import com.flashsale.commonlib.config.DevDataProperties;
 import org.springframework.boot.SpringApplication;

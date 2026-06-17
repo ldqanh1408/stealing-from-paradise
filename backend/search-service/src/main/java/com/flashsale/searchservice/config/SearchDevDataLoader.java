@@ -1,4 +1,4 @@
-﻿package com.flashsale.searchservice.config;
+package com.flashsale.searchservice.config;
 
 import com.flashsale.commonlib.config.DevDataProperties;
 import com.flashsale.searchservice.domain.model.SearchDocument;
@@ -51,7 +51,7 @@ public class SearchDevDataLoader implements CommandLineRunner {
         try {
             var response = esService.search("FE Phone Pro Camera Kit", null, null,
                     null, null, null, null, 0, 1);
-            if (response.getTotalHits() > 0) {
+            if (response.getTotalResults() > 0) {
                 log.info("[SearchDevDataLoader] FE data already exists, skipping.");
                 return;
             }
@@ -251,7 +251,7 @@ public class SearchDevDataLoader implements CommandLineRunner {
                 .sellerName(sellerName).sortId(900110).build());
 
         // --- 111-114: FE Summer T-Shirt (Fashion, 4 sizes) ---
-        for (var entry : List.of(
+        for (var entry : List.<Map.Entry<String, Map<String, Object>>>of(
             Map.entry("90000000-0000-4000-9001-000000000111", Map.of("size", "S")),
             Map.entry("90000000-0000-4000-9001-000000000112", Map.of("size", "M")),
             Map.entry("90000000-0000-4000-9001-000000000113", Map.of("size", "L")),
