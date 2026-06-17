@@ -115,6 +115,13 @@ create_topic "order.refunds.request"
 create_topic "order.refunds.response"
 
 echo ""
+echo "=== Request-Reply topics (Order <-> Refund) ==="
+create_topic "order.refund_presigned_url.request"
+create_topic "order.refund_presigned_url.response"
+create_topic "order.payment_status.request"
+create_topic "order.payment_status.response"
+
+echo ""
 echo "=== Request-Reply topics (Search <-> Product) ==="
 create_topic "search.index_data.request"
 create_topic "search.index_data.response"

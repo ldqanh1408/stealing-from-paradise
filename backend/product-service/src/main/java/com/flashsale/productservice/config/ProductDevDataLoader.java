@@ -139,7 +139,50 @@ public class ProductDevDataLoader implements CommandLineRunner {
             "('90000000-0000-4000-9001-000000000112', '90000000-0000-4000-8001-000000000111', 'FE-SKU-TSHIRT-M', 'Size M', '{\"size\":\"M\",\"material\":\"cotton\"}'::jsonb, 149000, 199000, 80, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-tshirt-m/500/500', now() - interval '7 days', now()), " +
             "('90000000-0000-4000-9001-000000000113', '90000000-0000-4000-8001-000000000111', 'FE-SKU-TSHIRT-L', 'Size L', '{\"size\":\"L\",\"material\":\"cotton\"}'::jsonb, 149000, 199000, 60, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-tshirt-l/500/500', now() - interval '7 days', now()), " +
             "('90000000-0000-4000-9001-000000000114', '90000000-0000-4000-8001-000000000111', 'FE-SKU-TSHIRT-XL', 'Size XL', '{\"size\":\"XL\",\"material\":\"cotton\"}'::jsonb, 149000, 199000, 10, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-tshirt-xl/500/500', now() - interval '7 days', now()), " +
-            // --- Single-variant for products 112-115 use 115, 201-203 ---
+            // --- Additional variants for products 101-110 (301-328: +2 each = 20) ---
+            // Product 101 (+2): Phone — Silver & Blue
+            "('90000000-0000-4000-9001-000000000301', '90000000-0000-4000-8001-000000000101', 'FE-SKU-PHONE-SILVER', 'Silver / 512GB', '{\"color\":\"silver\",\"storage\":\"512GB\"}'::jsonb, 28990000, 30990000, 15, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-phone-silver/500/500', now() - interval '15 days', now()), " +
+            "('90000000-0000-4000-9001-000000000302', '90000000-0000-4000-8001-000000000101', 'FE-SKU-PHONE-BLUE', 'Blue / 128GB', '{\"color\":\"blue\",\"storage\":\"128GB\"}'::jsonb, 20990000, 22990000, 30, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-phone-blue/500/500', now() - interval '15 days', now()), " +
+            // Product 102 (+2): Laptop — Silver & Midnight
+            "('90000000-0000-4000-9001-000000000303', '90000000-0000-4000-8001-000000000102', 'FE-SKU-LAPTOP-SILVER', 'Silver / 8GB', '{\"color\":\"silver\",\"ram\":\"8GB\"}'::jsonb, 24990000, 27990000, 8, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-laptop-silver/500/500', now() - interval '14 days', now()), " +
+            "('90000000-0000-4000-9001-000000000304', '90000000-0000-4000-8001-000000000102', 'FE-SKU-LAPTOP-MIDNIGHT', 'Midnight / 16GB', '{\"color\":\"midnight\",\"ram\":\"16GB\"}'::jsonb, 29990000, 33990000, 5, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-laptop-midnight/500/500', now() - interval '14 days', now()), " +
+            // Product 103 (+2): AirPods — Lightning & Pro Max
+            "('90000000-0000-4000-9001-000000000305', '90000000-0000-4000-8001-000000000103', 'FE-SKU-AIRPODS-LIGHTNING', 'Lightning / Standard', '{\"connector\":\"Lightning\",\"anc\":false}'::jsonb, 3990000, 5490000, 45, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-airpods-lightning/500/500', now() - interval '13 days', now()), " +
+            "('90000000-0000-4000-9001-000000000306', '90000000-0000-4000-8001-000000000103', 'FE-SKU-AIRPODS-PROMAX', 'Pro Max / ANC', '{\"connector\":\"USB-C\",\"anc\":true}'::jsonb, 6990000, 7990000, 25, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-airpods-promax/500/500', now() - interval '13 days', now()), " +
+            // Product 104 (+2): Hub — Black & White
+            "('90000000-0000-4000-9001-000000000307', '90000000-0000-4000-8001-000000000104', 'FE-SKU-HUB-BLACK', 'Black / 6 ports', '{\"color\":\"black\",\"ports\":6}'::jsonb, 690000, 890000, 120, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-hub-black/500/500', now() - interval '12 days', now()), " +
+            "('90000000-0000-4000-9001-000000000308', '90000000-0000-4000-8001-000000000104', 'FE-SKU-HUB-WHITE', 'White / 10 ports', '{\"color\":\"white\",\"ports\":10}'::jsonb, 990000, 1190000, 80, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-hub-white/500/500', now() - interval '12 days', now()), " +
+            // Product 105 (+2): Backpack — Green & Blue
+            "('90000000-0000-4000-9001-000000000309', '90000000-0000-4000-8001-000000000105', 'FE-SKU-BACKPACK-GREEN', 'Green', '{\"color\":\"green\"}'::jsonb, 690000, 890000, 30, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-backpack-green/500/500', now() - interval '5 days', now()), " +
+            "('90000000-0000-4000-9001-000000000310', '90000000-0000-4000-8001-000000000105', 'FE-SKU-BACKPACK-BLUE', 'Blue', '{\"color\":\"blue\"}'::jsonb, 690000, 890000, 25, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-backpack-blue/500/500', now() - interval '5 days', now()), " +
+            // Product 106 (+2): Bag — Red & Black
+            "('90000000-0000-4000-9001-000000000311', '90000000-0000-4000-8001-000000000106', 'FE-SKU-BAG-RED', 'Red', '{\"color\":\"red\"}'::jsonb, 590000, 790000, 28, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-bag-red/500/500', now() - interval '6 days', now()), " +
+            "('90000000-0000-4000-9001-000000000312', '90000000-0000-4000-8001-000000000106', 'FE-SKU-BAG-BLACK', 'Black', '{\"color\":\"black\"}'::jsonb, 590000, 790000, 22, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-bag-black/500/500', now() - interval '6 days', now()), " +
+            // Product 107 (+2): Lamp — Cool White & RGB
+            "('90000000-0000-4000-9001-000000000313', '90000000-0000-4000-8001-000000000107', 'FE-SKU-LAMP-COOL', 'Cool White', '{\"color\":\"cool-white\"}'::jsonb, 450000, 550000, 18, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-lamp-cool/500/500', now() - interval '3 days', now()), " +
+            "('90000000-0000-4000-9001-000000000314', '90000000-0000-4000-8001-000000000107', 'FE-SKU-LAMP-RGB', 'RGB Color', '{\"color\":\"rgb\"}'::jsonb, 590000, 690000, 12, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-lamp-rgb/500/500', now() - interval '3 days', now()), " +
+            // Product 108 (+2): Vacuum — Pro & Max
+            "('90000000-0000-4000-9001-000000000315', '90000000-0000-4000-8001-000000000108', 'FE-SKU-VACUUM-PRO', 'Pro / Wet+Dry', '{\"model\":\"pro\",\"features\":\"wet-dry\"}'::jsonb, 4890000, 5590000, 10, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-vacuum-pro/500/500', now() - interval '4 days', now()), " +
+            "('90000000-0000-4000-9001-000000000316', '90000000-0000-4000-8001-000000000108', 'FE-SKU-VACUUM-MAX', 'Max / Self-clean', '{\"model\":\"max\",\"features\":\"self-clean\"}'::jsonb, 5890000, 6590000, 6, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-vacuum-max/500/500', now() - interval '4 days', now()), " +
+            // Product 109 (+2): Headphone — White & Rose Gold (keep OOS status matching parent logic)
+            "('90000000-0000-4000-9001-000000000317', '90000000-0000-4000-8001-000000000109', 'FE-SKU-OOS-HP-WHITE', 'White', '{\"color\":\"white\"}'::jsonb, 1290000, 1590000, 5, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-oos-hp-white/500/500', now() - interval '9 days', now()), " +
+            "('90000000-0000-4000-9001-000000000318', '90000000-0000-4000-8001-000000000109', 'FE-SKU-OOS-HP-ROSE', 'Rose Gold', '{\"color\":\"rose-gold\"}'::jsonb, 1390000, 1690000, 3, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-oos-hp-rose/500/500', now() - interval '9 days', now()), " +
+            // Product 110 (+2): Desk — Oak & Walnut
+            "('90000000-0000-4000-9001-000000000319', '90000000-0000-4000-8001-000000000110', 'FE-SKU-DESK-OAK', 'Oak', '{\"material\":\"oak\"}'::jsonb, 1990000, 2490000, 8, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-desk-oak/500/500', now() - interval '8 days', now()), " +
+            "('90000000-0000-4000-9001-000000000320', '90000000-0000-4000-8001-000000000110', 'FE-SKU-DESK-WALNUT', 'Walnut', '{\"material\":\"walnut\"}'::jsonb, 2190000, 2690000, 5, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-desk-walnut/500/500', now() - interval '8 days', now()), " +
+            // --- Product 112 (+2): Charger — Black & Blue ---
+            "('90000000-0000-4000-9001-000000000321', '90000000-0000-4000-8001-000000000112', 'FE-SKU-CHARGER-BLACK', 'Black / 10W', '{\"color\":\"black\",\"power\":\"10W\"}'::jsonb, 399000, 490000, 70, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-charger-black/500/500', now() - interval '6 days', now()), " +
+            "('90000000-0000-4000-9001-000000000322', '90000000-0000-4000-8001-000000000112', 'FE-SKU-CHARGER-BLUE', 'Blue / 15W', '{\"color\":\"blue\",\"power\":\"15W\"}'::jsonb, 499000, 590000, 55, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-charger-blue/500/500', now() - interval '6 days', now()), " +
+            // --- Product 113 (+2): Yoga Mat — Blue & Green ---
+            "('90000000-0000-4000-9001-000000000323', '90000000-0000-4000-8001-000000000113', 'FE-SKU-YOGA-BLUE', 'Blue / 6mm', '{\"color\":\"blue\",\"thickness\":\"6mm\"}'::jsonb, 350000, 490000, 80, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-yoga-blue/500/500', now() - interval '5 days', now()), " +
+            "('90000000-0000-4000-9001-000000000324', '90000000-0000-4000-8001-000000000113', 'FE-SKU-YOGA-GREEN', 'Green / 8mm', '{\"color\":\"green\",\"thickness\":\"8mm\"}'::jsonb, 450000, 590000, 55, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-yoga-green/500/500', now() - interval '5 days', now()), " +
+            // --- Product 114 (+2): Backpack — Black & Blue ---
+            "('90000000-0000-4000-9001-000000000325', '90000000-0000-4000-8001-000000000114', 'FE-SKU-BP-BLACK', 'Black / 30L', '{\"color\":\"black\",\"capacity\":\"30L\"}'::jsonb, 890000, 1090000, 35, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-bp-black/500/500', now() - interval '4 days', now()), " +
+            "('90000000-0000-4000-9001-000000000326', '90000000-0000-4000-8001-000000000114', 'FE-SKU-BP-BLUE', 'Blue / 50L', '{\"color\":\"blue\",\"capacity\":\"50L\"}'::jsonb, 990000, 1290000, 25, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-bp-blue/500/500', now() - interval '4 days', now()), " +
+            // --- Product 115 (+2): Earbuds — White & Red ---
+            "('90000000-0000-4000-9001-000000000327', '90000000-0000-4000-8001-000000000115', 'FE-SKU-EARBUDS-WHITE', 'White / ANC', '{\"color\":\"white\",\"anc\":true}'::jsonb, 1590000, 1990000, 28, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-earbuds-white/500/500', now() - interval '3 days', now()), " +
+            "('90000000-0000-4000-9001-000000000328', '90000000-0000-4000-8001-000000000115', 'FE-SKU-EARBUDS-RED', 'Red / Standard', '{\"color\":\"red\",\"anc\":false}'::jsonb, 990000, 1290000, 40, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-earbuds-red/500/500', now() - interval '3 days', now()), " +
+            // --- Existing single-variant for products 112-115 (kept as primary variant) ---
             "('90000000-0000-4000-9001-000000000115', '90000000-0000-4000-8001-000000000112', 'FE-SKU-CHARGER-PAD', 'White / 15W', '{\"color\":\"white\",\"power\":\"15W\"}'::jsonb, 450000, 590000, 80, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-charger-pad/500/500', now() - interval '6 days', now()), " +
             "('90000000-0000-4000-9001-000000000201', '90000000-0000-4000-8001-000000000113', 'FE-SKU-YOGA-MAT', 'Purple / 6mm', '{\"color\":\"purple\",\"thickness\":\"6mm\"}'::jsonb, 350000, 490000, 100, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-yoga-mat/500/500', now() - interval '5 days', now()), " +
             "('90000000-0000-4000-9001-000000000202', '90000000-0000-4000-8001-000000000114', 'FE-SKU-TRAVEL-BACKPACK', 'Gray / 40L', '{\"color\":\"gray\",\"capacity\":\"40L\"}'::jsonb, 890000, 1090000, 45, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-travel-backpack/500/500', now() - interval '4 days', now()), " +
@@ -191,7 +234,7 @@ public class ProductDevDataLoader implements CommandLineRunner {
             "FROM product.product_variants WHERE id = '90000000-0000-4000-9001-000000000104' " +
             "ON CONFLICT DO NOTHING");
 
-        log.info("[ProductDevDataLoader] FE test-dataset seeded (6 categories, 15 products, 18 variants, 15 images, 3 wishlist items, 2 cart items).");
+        log.info("[ProductDevDataLoader] FE test-dataset seeded (6 categories, 15 products, 46 variants, 15 images, 3 wishlist items, 2 cart items).");
     }
 
     /**
