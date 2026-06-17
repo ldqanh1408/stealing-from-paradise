@@ -20,8 +20,16 @@ export default function OrderDrawer({ order, onClose }: { order: SellerOrderSumm
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
         </div>
         <div className="p-5 space-y-5">
+          {/* Flash sale badge */}
+          {order.isFlashSale && (
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-xl p-3 flex items-center gap-2">
+              <span>⚡</span>
+              <span className="text-sm font-medium text-orange-800">Đơn hàng Flash Sale</span>
+            </div>
+          )}
+
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Thông tin khách hàng</h4>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">👤 Thông tin khách hàng</h4>
             <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
               <p><span className="text-gray-500">Tên:</span> <span className="font-medium">{order.buyerName || `User #${order.buyerId}`}</span></p>
               {order.buyerUsername && <p><span className="text-gray-500">Username:</span> <span className="font-medium">@{order.buyerUsername}</span></p>}
@@ -30,7 +38,7 @@ export default function OrderDrawer({ order, onClose }: { order: SellerOrderSumm
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Thông tin vận chuyển</h4>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">📦 Vận chuyển</h4>
             <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
               <p><span className="text-gray-500">Mã vận đơn:</span> <span className="font-medium font-mono">{order.trackingNumber || '—'}</span></p>
               <p><span className="text-gray-500">Đơn vị:</span> <span className="font-medium">{order.carrier || '—'}</span></p>
@@ -38,19 +46,25 @@ export default function OrderDrawer({ order, onClose }: { order: SellerOrderSumm
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Thông tin thanh toán</h4>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">💳 Thanh toán</h4>
             <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
-              <p><span className="text-gray-500">Tổng tiền:</span> <span className="font-bold text-red-600">{fmtVnd(order.totalAmt)}</span></p>
-              <p><span className="text-gray-500">Thanh toán:</span> <span className="font-medium">{fmtVnd(order.finalAmt)}</span></p>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tổng tiền:</span>
+                <span className="text-gray-900">{fmtVnd(order.totalAmt)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Thanh toán:</span>
+                <span className="font-bold text-red-600">{fmtVnd(order.finalAmt)}</span>
+              </div>
             </div>
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={() => { onClose(); navigate(`/orders/${order.orderId}`); }}
-              className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50"
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors"
             >
-              Xem chi tiết đầy đủ
+              Xem chi tiết đầy đủ →
             </button>
           </div>
         </div>

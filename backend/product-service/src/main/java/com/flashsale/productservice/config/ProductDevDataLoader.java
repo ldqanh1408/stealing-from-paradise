@@ -17,14 +17,14 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * Seeds the product catalog (categories, products, variants, images) for local dev.
+ * Seeds the FE test-dataset (categories, products, variants, images, wishlist, cart)
+ * for frontend E2E and integration testing.
  *
- * <p>Crucially this seeds the {@code variant_code} values that the order-service
- * seeder already references via SKU codes (SKU-IPHONE-BLK-128, etc.). Without this,
- * cart / checkout flows that look up products by SKU will fail in dev.</p>
+ * <p>All products belong to seller 900002 (fe_seller). All admin actions
+ * (reviewed_by) reference 900003 (fe_admin). The fe_buyer (900001) receives
+ * wishlist and cart items at the end.</p>
  *
- * <p>Seller IDs 1-5 match the identity-service seeder:
- *  1=techworld, 2=fashionhub, 3=gadgetpro, 4=homeliving, 5=sportoutdoor.</p>
+ * <p>Idempotent via ON CONFLICT DO UPDATE — safe to run repeatedly.</p>
  */
 @Component
 @Profile("dev")
@@ -47,7 +47,7 @@ public class ProductDevDataLoader implements CommandLineRunner {
         log.info("[ProductDevDataLoader] Starting dev data seed for product-service...");
 
         if (devDataProperties.isReset()) {
-            log.warn("[ProductDevDataLoader] RESET=true — wiping all product data...");
+            log.warn("[ProductDevDataLoader] RESET=true -- wiping all product data...");
             stockReservationRepository.deleteAllInBatch();
             productImageRepository.deleteAllInBatch();
             productVariantRepository.deleteAllInBatch();
@@ -56,264 +56,11 @@ public class ProductDevDataLoader implements CommandLineRunner {
             log.info("[ProductDevDataLoader] All product data wiped.");
         } else if (productRepository.count() > 0) {
             log.info("[ProductDevDataLoader] Data already exists, skipping main seed.");
-
             seedFeData();
-
             log.info("[ProductDevDataLoader] Dev data seed complete.");
             return;
         }
 
-        // --- 1. Categories ----------------------------------------------------
-        Map<String, UUID> catIds = new HashMap<>();
-        catIds.put("electronics", seedCategory(null, "Electronics", "electronics", 1));
-        catIds.put("phones",      seedCategory(catIds.get("electronics"), "Phones & Tablets", "phones-tablets", 1));
-        catIds.put("laptops",     seedCategory(catIds.get("electronics"), "Laptops", "laptops", 2));
-        catIds.put("audio",       seedCategory(catIds.get("electronics"), "Audio", "audio", 3));
-        catIds.put("accessories", seedCategory(catIds.get("electronics"), "Accessories", "accessories", 4));
-        catIds.put("wearables",   seedCategory(catIds.get("electronics"), "Wearables", "wearables", 5));
-        catIds.put("home",        seedCategory(null, "Home & Living", "home-living", 2));
-        catIds.put("kitchen",     seedCategory(catIds.get("home"), "Kitchen Appliances", "kitchen", 1));
-        catIds.put("sports",      seedCategory(null, "Sports & Outdoor", "sports-outdoor", 3));
-        catIds.put("beauty",      seedCategory(null, "Beauty & Health", "beauty-health", 4));
-        catIds.put("skincare",    seedCategory(catIds.get("beauty"), "Skincare", "skincare", 1));
-        catIds.put("makeup",      seedCategory(catIds.get("beauty"), "Makeup", "makeup", 2));
-        catIds.put("books",       seedCategory(null, "Books & Stationery", "books-stationery", 5));
-        catIds.put("food",        seedCategory(null, "Food & Drinks", "food-drinks", 6));
-        catIds.put("toys",        seedCategory(null, "Toys & Kids", "toys-kids", 7));
-        log.info("[ProductDevDataLoader] Seeded {} categories", catIds.size());
-
-        // --- 2. Products + variants (SKU codes MUST match order-service seeder) ---
-        // {sellerId, categoryKey, name, slug, description, sku, price, originalPrice, stock}
-        Object[][] catalog = {
-            // ---- TechWorld (seller 1) ----
-            {1L, "phones",      "iPhone 15 Black 128GB",      "iphone-15-black-128",  "Apple iPhone 15 — chip A16 Bionic, USB-C, camera 48MP.",
-             "SKU-IPHONE-BLK-128", "22990000", "24990000", 50},
-            {1L, "audio",       "AirPods Pro 2 (USB-C)",      "airpods-pro-2",         "Tai nghe chống ồn chủ động ANC, sạc MagSafe.",
-             "SKU-AIRPOD-PRO2",     "5990000",  "6490000",  100},
-            {1L, "accessories", "MagSafe Charger 1m",          "magsafe-charger",       "Sạc không dây 15W chính hãng Apple.",
-             "SKU-MAGSAFE",         "990000",   "1290000",  200},
-            {1L, "wearables",   "Apple Watch SE GPS 40mm",     "apple-watch-se",        "Đồng hồ thông minh theo dõi sức khoẻ, GPS.",
-             "SKU-WATCH-SE",        "6490000",  "7290000",  80},
-            {1L, "phones",      "iPad 10th Gen 64GB Wi-Fi",    "ipad-10",               "iPad gen 10, chip A14, màn 10.9 inch Liquid Retina.",
-             "SKU-IPAD-10",         "9990000",  "11990000", 60},
-            {1L, "laptops",     "MacBook Air M3 13\" 256GB",   "macbook-air-m3",        "Chip Apple M3, RAM 8GB, SSD 256GB, màn Retina.",
-             "SKU-MACBOOK-AIR-M3",  "27990000", "31990000", 30},
-            {1L, "audio",       "Samsung Galaxy Buds2",        "samsung-galaxy-buds2",  "Tai nghe true wireless ANC giá tốt.",
-             "SKU-SAMSUNG-BUDS2",   "2290000",  "2990000",  120},
-            {1L, "audio",       "Loa Bluetooth JBL Flip 6 Black", "jbl-flip-6-black",   "Loa di động chống nước IP67, pin 12h.",
-             "SKU-JBL-FLIP6-BLK",   "2790000",  "3290000",  90},
-
-            // ---- GadgetPro (seller 3) ----
-            {3L, "accessories", "Logitech MX Master 3S",       "mx-master-3s",          "Chuột wireless ergo, scroll điện từ MagSpeed.",
-             "SKU-MOUSE-MX3",       "2490000",  "2890000",  150},
-            {3L, "accessories", "Balo laptop Tomtoc 15.6\"",   "tomtoc-backpack-156",   "Balo chống sốc, ngăn laptop chuyên dụng.",
-             "SKU-BACKPACK-TOM",    "1290000",  "1590000",  80},
-            {3L, "accessories", "Bàn phím cơ Akko 3098B",      "akko-3098b",            "Bàn phím cơ wireless 3 mode, switch Akko V3.",
-             "SKU-AKKO-3098B-R",    "2190000",  "2590000",  60},
-
-            // ---- HomeLiving (seller 4) ----
-            {4L, "accessories", "Cable USB-C to USB-C 1m PD",  "cable-usb-c-1m",        "Cáp sạc nhanh Type-C 60W, dài 1m.",
-             "SKU-CABLE-TYPE-C",    "150000",   "250000",   500},
-            {4L, "accessories", "Hub USB-C 7-in-1",            "hub-usb-c-7in1",        "Hub đa năng HDMI 4K + USB 3.0 + SD/TF + Type-C PD.",
-             "SKU-HUB-7IN1",        "459000",   "699000",   200},
-            {4L, "kitchen",     "Nồi chiên không dầu 5.5L",    "airfryer-55l",          "Nồi chiên không dầu Lock&Lock dung tích 5.5L, công suất 1500W.",
-             "SKU-AIRFRY-55",       "1990000",  "2790000",  70},
-            {4L, "kitchen",     "Bình đun siêu tốc Lock&Lock 1.7L", "kettle-locknlock", "Bình đun siêu tốc inox 304, dung tích 1.7L.",
-             "SKU-KETTLE-LNL",      "550000",   "790000",   150},
-
-            // ---- SportOutdoor (seller 5) ----
-            {5L, "sports",      "Giày Nike Air Zoom Pegasus 40 size 42", "nike-pegasus-40-42",
-             "Giày chạy bộ Nike Pegasus 40, đệm React, size 42.",
-             "SKU-NIKE-PEG40-42",   "3290000",  "3990000",  40},
-            {5L, "sports",      "Thảm yoga PU 6mm",           "yoga-mat-6mm",          "Thảm yoga 2 lớp PU + cao su, dày 6mm chống trượt.",
-             "SKU-YOGAMAT-6MM",     "490000",   "690000",   100},
-            {5L, "accessories", "Pin dự phòng Anker 20000mAh", "anker-powercore-20k",   "Pin dự phòng PowerCore 20000mAh, 2 cổng USB-A + USB-C PD 18W.",
-             "SKU-ANKER-20000",     "890000",   "1290000",  120},
-
-            // ---- HomeLiving (seller 4) - new products ----
-            {4L, "kitchen",     "Robot hút bụi lau nhà Xiaomi S10", "xiaomi-s10-robot",
-             "Robot hút bụi thông minh, kết hợp lau nhà, điều khiển qua app.",
-             "SKU-XIAOMI-S10",      "5490000",  "6990000",  40},
-            {4L, "home",        "Máy lọc nước RO Kangaroo 9 lõi", "kangaroo-ro-9",
-             "Máy lọc nước RO 9 lõi, công nghệ lọc khuẩn, tiêu chuẩn QCVN.",
-             "SKU-KANGAROO-RO9",    "4290000",  "5290000",  25},
-            {4L, "home",        "Quạt điều hòa hơi nước Asia",   "asia-cool-fan",
-             "Quạt điều hòa Asia 35L, công suất 200W, làm mát diện rộng.",
-             "SKU-ASIA-COOL",       "1890000",  "2590000",  60},
-            {4L, "kitchen",     "Bộ 3 nồi chảo chống dính Elmich", "elmich-pot-set-3",
-             "Bộ 3 nồi chảo chống dính đáy từ cao cấp, dùng cho bếp từ.",
-             "SKU-ELMICH-POT3",     "1490000",  "1990000",  45},
-
-            // ---- LifeStyle Store (seller 6) — Books & Stationery ----
-            {6L, "books",       "Nhà Giả Kim — Paulo Coelho",    "nha-gia-kim",
-             "Cuốn sách bán chạy nhất mọi thời đại, hành trình tìm kiếm kho báu của chàng chăn cừu Santiago.",
-             "SKU-BOOK-ALCHEMIST",  "85000",    "85000",    200},
-            {6L, "books",       "Atomic Habits — James Clear",   "atomic-habits",
-             "Thay đổi những thói quen nhỏ để tạo nên khác biệt lớn. Best-seller NY Times.",
-             "SKU-BOOK-ATOMIC",     "120000",   "120000",   150},
-            {6L, "books",       "Sổ tay bìa da A5 Lux",         "notebook-a5-lux",
-             "Sổ tay bìa da cao cấp khổ A5, 200 trang giấy ivory, đóng sợi chỉ.",
-             "SKU-NOTEBOOK-A5",     "180000",   "250000",   300},
-            {6L, "books",       "Bút máy ngòi vàng Pilot",      "pilot-fountain-pen",
-             "Bút máy cao cấp Pilot ngòi vàng 14K, viết êm, bao gồm hộp quà.",
-             "SKU-PILOT-PEN",       "890000",   "1290000",  80},
-
-            // ---- LifeStyle Store (seller 6) — Food & Drinks ----
-            {6L, "food",        "Cà phê Arabica Đà Lạt 500g",   "dalat-arabica-500g",
-             "Cà phê Arabica nguyên chất trồng tại vùng Cầu Đất Đà Lạt, hương vị chocolate.",
-             "SKU-COFFEE-ARABICA",  "150000",   "220000",   200},
-            {6L, "food",        "Trà Shan Tuyết cổ thụ 200g",   "shan-tuyet-tea-200g",
-             "Trà xanh Shan Tuyết cổ thụ 300 năm tuổi từ Suối Giàng, Yên Bái.",
-             "SKU-SHAN-TUYET",      "250000",   "350000",   80},
-            {6L, "food",        "Bánh hộp Tết các loại 500g",   "tet-cookie-box-500g",
-             "Hộp bánh quy Tết thượng hạng, 3 lớp nhân: chocolate, dâu tây, matcha.",
-             "SKU-TET-BOX",         "320000",   "450000",   120},
-            {6L, "food",        "Mật ong rừng nguyên chất 500ml", "wild-honey-500ml",
-             "Mật ong rừng tự nhiên từ vùng U Minh, không pha tạp, giàu enzyme.",
-             "SKU-WILD-HONEY",      "280000",   "350000",   100},
-
-            // ---- LifeStyle Store (seller 6) — Beauty & Health ----
-            {6L, "skincare",    "Kem chống nắng Anessa SPF50+ PA++++", "anessa-sunscreen",
-             "Kem chống nắng bền nước, chống trôi, công nghệ Auto-Booster, bảo vệ hoàn hảo.",
-             "SKU-ANESSA-SP50",     "420000",   "420000",   150},
-            {6L, "skincare",    "Serum Vitamin C The Ordinary 30ml", "the-ordinary-vc30",
-             "Serum Vitamin C 23% + HA Spheres, làm sáng da, mờ thâm nám hiệu quả.",
-             "SKU-ORDINARY-VC30",   "320000",   "450000",   100},
-            {6L, "makeup",      "Sữa rửa mặt Cerave 473ml",    "cerave-cleanser-473",
-             "Sữa rửa mặt dịu nhẹ cho da dầu mụn, chứa ceramide và acid hyaluronic.",
-             "SKU-CERAVE-CLEAN",    "380000",   "380000",   200},
-            {6L, "beauty",      "Máy massage cầm tay Relax",    "relax-massage-gun",
-             "Máy massage cầm tay 6 đầu, 6 tốc độ, pin 2500mAh, giảm đau nhức cơ.",
-             "SKU-RELAX-MASSAGE",   "890000",   "1290000",  50},
-
-            // ---- LifeStyle Store (seller 6) — Toys & Kids ----
-            {6L, "toys",        "Lego Technic Porsche 911",     "lego-technic-porsche",
-             "Mô hình lắp ráp Lego Technic Porsche 911 GT3 RS, 1580 mảnh, từ 9 tuổi.",
-             "SKU-LEGO-PORSCHE",    "3290000",  "3990000",  30},
-            {6L, "toys",         "Bộ xếp hình gỗ thông minh 100 miếng", "wooden-puzzle-100",
-             "Bộ xếp hình gỗ rèn luyện tư duy logic cho bé 3-6 tuổi, an toàn 100%.",
-             "SKU-WOODEN-PUZZLE",   "250000",   "350000",   180},
-            {6L, "toys",        "Xe điều khiển từ xa RC Racing", "rc-racing-car",
-             "Xe địa hình RC 4 bánh chủ động, tốc độ 30km/h, pin Li-Ion 7.4V.",
-             "SKU-RC-CAR",          "450000",   "650000",   60},
-            {6L, "toys",        "Bộ bút màu 48 màu Crayola",   "crayola-48-colors",
-             "Bộ bút màu sáp 48 màu, an toàn, rửa được, cho bé từ 3 tuổi.",
-             "SKU-CRAYOLA-48",      "180000",   "180000",   250},
-        };
-
-        // ---- Multi-variant products (FashionHub seller 2) ----
-        // Each entry: {sellerId, categoryKey, name, slug, description,
-        //              variants = [{sku, variantName, price, originalPrice, stock}]}
-        Object[][] multiVariantCatalog = {
-            {2L, "home", "Áo thun basic cotton nam", "ao-thun-basic-cotton",
-             "Áo thun cotton 100% dày dặn, form regular, phù hợp mặc hàng ngày.",
-             new Object[][]{
-                 {"SKU-TSHIRT-S",  "Size S",  "149000", "199000", 80},
-                 {"SKU-TSHIRT-M",  "Size M",  "149000", "199000", 150},
-                 {"SKU-TSHIRT-L",  "Size L",  "149000", "199000", 200},
-                 {"SKU-TSHIRT-XL", "Size XL", "149000", "199000", 100},
-             }},
-            {2L, "home", "Áo sơ mi trắng công sở", "ao-so-mi-trang",
-             "Áo sơ mi trắng chất liệu poplin cao cấp, không nhăn, phù hợp môi trường công sở.",
-             new Object[][]{
-                 {"SKU-SOMI-S",  "Size S",  "299000", "299000", 40},
-                 {"SKU-SOMI-M",  "Size M",  "299000", "299000", 100},
-                 {"SKU-SOMI-L",  "Size L",  "299000", "299000", 120},
-                 {"SKU-SOMI-XL", "Size XL", "299000", "299000", 60},
-             }},
-            {2L, "home", "Quần jeans ống suông nam", "quan-jeans-ong-suong",
-             "Quần jeans denim cao cấp, ống suông thoải mái, phối được nhiều kiểu.",
-             new Object[][]{
-                 {"SKU-JEANS-28", "Size 28", "499000", "699000", 50},
-                 {"SKU-JEANS-30", "Size 30", "499000", "699000", 120},
-                 {"SKU-JEANS-32", "Size 32", "499000", "699000", 130},
-                 {"SKU-JEANS-34", "Size 34", "499000", "699000", 70},
-             }},
-            {2L, "home", "Đầm suông nữ công sở", "dam-suong-cong-so",
-             "Đầm suông nữ thiết kế thanh lịch, form suông tôn dáng, chất liệu linen cao cấp.",
-             new Object[][]{
-                 {"SKU-DAM-S",  "Size S",  "549000", "749000", 60},
-                 {"SKU-DAM-M",  "Size M",  "549000", "749000", 100},
-                 {"SKU-DAM-L",  "Size L",  "549000", "749000", 80},
-             }},
-            // ---- LifeStyle Store books with variant ----
-            {6L, "books", "Sổ tay bìa da A5 cao cấp", "notebook-da-a5-premium",
-             "Sổ tay bìa da thật khổ A5, 300 trang giấy nhập khẩu, dây đánh dấu.",
-             new Object[][]{
-                 {"SKU-NOTE-DA-XANH", "Màu xanh navy", "250000", "350000", 100},
-                 {"SKU-NOTE-DA-DEN",  "Màu đen",       "250000", "350000", 120},
-                 {"SKU-NOTE-DA-NAT",  "Màu nâu cognac","250000", "350000", 80},
-             }},
-            // ---- Food with variant ----
-            {6L, "food", "Cà phê Arabica Đà Lạt rang xay", "ca-phe-arabica-rang-xay",
-             "Cà phê Arabica Đà Lạt rang xay tươi, đóng gói hút chân không.",
-             new Object[][]{
-                 {"SKU-COFFEE-BEAN",  "Hạt nguyên chất",  "150000", "220000", 100},
-                 {"SKU-COFFEE-GROUND","Rang xay sẵn",     "150000", "220000", 200},
-             }},
-        };
-
-        int activeCount = 0;
-
-        // Seed single-variant products
-        for (Object[] row : catalog) {
-            Long sellerId = (Long) row[0];
-            UUID categoryId = catIds.get((String) row[1]);
-            UUID productId = seedProduct(sellerId, categoryId,
-                    (String) row[2], (String) row[3], (String) row[4],
-                    ProductStatus.ACTIVE);
-            seedVariant(productId, (String) row[5], (String) row[2],
-                    new BigDecimal((String) row[6]),
-                    new BigDecimal((String) row[7]),
-                    (int) row[8]);
-            seedImage(productId, "https://picsum.photos/seed/" + row[5] + "/600/600");
-            activeCount++;
-        }
-
-        // Seed multi-variant products
-        for (Object[] row : multiVariantCatalog) {
-            Long sellerId = (Long) row[0];
-            UUID categoryId = catIds.get((String) row[1]);
-            UUID productId = seedProduct(sellerId, categoryId,
-                    (String) row[2], (String) row[3], (String) row[4],
-                    ProductStatus.ACTIVE);
-            Object[][] variants = (Object[][]) row[5];
-            boolean first = true;
-            for (Object[] v : variants) {
-                seedVariant(productId, (String) v[0], (String) v[1],
-                        new BigDecimal((String) v[2]),
-                        new BigDecimal((String) v[3]),
-                        (int) v[4]);
-            }
-            seedImage(productId, "https://picsum.photos/seed/" + variants[0][0] + "/600/600");
-            activeCount++;
-        }
-
-        // --- 3. A few products in non-APPROVED states (for admin workflow demo) ---
-        UUID pendingId = seedProduct(2L, catIds.get("home"),
-                "Khăn lụa Fashion Hub mẫu mới",
-                "khan-lua-fh-2026",
-                "Khăn lụa cao cấp, đang chờ duyệt.",
-                ProductStatus.PENDING);
-        seedVariant(pendingId, "SKU-SCARF-FH-2026", "Khăn lụa Fashion Hub mẫu mới",
-                new BigDecimal("450000"), new BigDecimal("590000"), 30);
-
-        UUID rejectedId = seedProduct(2L, catIds.get("home"),
-                "Túi xách thử nghiệm",
-                "tui-xach-test",
-                "Sản phẩm test bị từ chối do thiếu mô tả.",
-                ProductStatus.REJECTED);
-        Product rejected = productRepository.findById(rejectedId).orElseThrow();
-        rejected.setRejectReason("Mô tả không đủ chi tiết, ảnh không rõ ràng.");
-        rejected.setRejectCount(1);
-        rejected.setReviewedBy(10L); // admin
-        rejected.setReviewedAt(LocalDateTime.now().minusDays(2));
-        productRepository.save(rejected);
-        seedVariant(rejectedId, "SKU-BAG-TEST", "Túi xách thử nghiệm",
-                new BigDecimal("799000"), new BigDecimal("999000"), 0);
-
-        log.info("[ProductDevDataLoader] Seeded {} ACTIVE products + 1 PENDING + 1 REJECTED",
-                activeCount);
         seedFeData();
 
         log.info("[ProductDevDataLoader] Dev data seed complete.");
@@ -330,7 +77,9 @@ public class ProductDevDataLoader implements CommandLineRunner {
             return;
         }
 
-        // Categories
+        // ========================================================================
+        // 1. Categories
+        // ========================================================================
         jdbcTemplate.update("INSERT INTO product.categories (id, parent_id, name, slug, description, image_url, sort_order, is_active, created_at, updated_at) VALUES " +
             "('90000000-0000-4000-8000-000000000001', null, 'FE Electronics', 'fe-electronics', 'Frontend fixture electronics root category', 'https://picsum.photos/seed/fe-electronics/600/400', 10, true, now() - interval '16 days', now()), " +
             "('90000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000001', 'FE Phones', 'fe-phones', 'Frontend fixture phone category', 'https://picsum.photos/seed/fe-phones/600/400', 11, true, now() - interval '16 days', now()), " +
@@ -340,8 +89,11 @@ public class ProductDevDataLoader implements CommandLineRunner {
             "('90000000-0000-4000-8000-000000000006', null, 'FE Fashion', 'fe-fashion', 'Frontend fixture fashion category', 'https://picsum.photos/seed/fe-fashion/600/400', 15, true, now() - interval '16 days', now()) " +
             "ON CONFLICT (id) DO UPDATE SET parent_id=EXCLUDED.parent_id,name=EXCLUDED.name,slug=EXCLUDED.slug,description=EXCLUDED.description,image_url=EXCLUDED.image_url,sort_order=EXCLUDED.sort_order,is_active=EXCLUDED.is_active,updated_at=now()");
 
-        // Products (10)
+        // ========================================================================
+        // 2. Products (15 total)
+        // ========================================================================
         jdbcTemplate.update("INSERT INTO product.products (id, category_id, seller_id, name, slug, description, attributes, status, reject_reason, reviewed_at, reviewed_by, reject_count, submitted_at, created_at, updated_at, published_at) VALUES " +
+            // --- Existing 10 (keep as-is, status changes noted) ---
             "('90000000-0000-4000-8001-000000000101', '90000000-0000-4000-8000-000000000002', 900002, 'FE Phone Pro Camera Kit', 'fe-phone-pro-camera-kit', 'Active catalog product for search, detail, cart, checkout, and flash-sale tests.', '{\"brand\":\"FE\",\"screen\":\"6.1 inch\",\"coverage\":[\"catalog\",\"search\",\"cart\",\"checkout\"]}'::jsonb, 'ACTIVE', null, now() - interval '14 days', 900003, 0, now() - interval '15 days', now() - interval '15 days', now(), now() - interval '14 days'), " +
             "('90000000-0000-4000-8001-000000000102', '90000000-0000-4000-8000-000000000004', 900002, 'FE MacBook Air M3 Demo', 'fe-macbook-air-m3-demo', 'High-value seller product for payment and payout screens.', '{\"brand\":\"FE\",\"ram\":\"16GB\",\"coverage\":[\"seller-payments\",\"search\"]}'::jsonb, 'ACTIVE', null, now() - interval '13 days', 900003, 0, now() - interval '14 days', now() - interval '14 days', now(), now() - interval '13 days'), " +
             "('90000000-0000-4000-8001-000000000103', '90000000-0000-4000-8000-000000000003', 900002, 'FE AirPods Flash Combo', 'fe-airpods-flash-combo', 'Active product with live flash-sale mapping.', '{\"brand\":\"FE\",\"noiseCancellation\":true,\"coverage\":[\"flash-sale\",\"search\"]}'::jsonb, 'ACTIVE', null, now() - interval '12 days', 900003, 0, now() - interval '13 days', now() - interval '13 days', now(), now() - interval '12 days'), " +
@@ -350,12 +102,21 @@ public class ProductDevDataLoader implements CommandLineRunner {
             "('90000000-0000-4000-8001-000000000106', '90000000-0000-4000-8000-000000000006', 900002, 'FE Rejected Sample Bag', 'fe-rejected-sample-bag', 'Rejected product for seller edit/resubmit and admin reject display.', '{\"brand\":\"FE\",\"coverage\":[\"rejected-product\",\"resubmit-product\"]}'::jsonb, 'REJECTED', 'Missing real product images and warranty details.', now() - interval '3 days', 900003, 1, now() - interval '4 days', now() - interval '6 days', now(), null), " +
             "('90000000-0000-4000-8001-000000000107', '90000000-0000-4000-8000-000000000005', 900002, 'FE Draft Smart Lamp', 'fe-draft-smart-lamp', 'Draft seller product for submit-for-review flow.', '{\"brand\":\"FE\",\"coverage\":[\"submit-product-review\"]}'::jsonb, 'DRAFT', null, null, null, 0, null, now() - interval '3 days', now(), null), " +
             "('90000000-0000-4000-8001-000000000108', '90000000-0000-4000-8000-000000000005', 900002, 'FE Approved Robot Vacuum', 'fe-approved-robot-vacuum', 'Approved but unpublished seller product for publish flow.', '{\"brand\":\"FE\",\"coverage\":[\"publish-product\"]}'::jsonb, 'APPROVED', null, now() - interval '2 days', 900003, 0, now() - interval '3 days', now() - interval '4 days', now(), null), " +
-            "('90000000-0000-4000-8001-000000000109', '90000000-0000-4000-8000-000000000003', 900002, 'FE Out Of Stock Headphone', 'fe-out-of-stock-headphone', 'In-stock product for inventory/restock tests.', '{\"brand\":\"FE\",\"coverage\":[\"inventory\",\"restock\"]}'::jsonb, 'ACTIVE', null, now() - interval '8 days', 900003, 0, now() - interval '9 days', now() - interval '9 days', now(), now() - interval '8 days'), " +
-            "('90000000-0000-4000-8001-000000000110', '90000000-0000-4000-8000-000000000005', 900002, 'FE Inactive Desk Setup', 'fe-inactive-desk-setup', 'Inactive product for seller unpublish/publish regression.', '{\"brand\":\"FE\",\"coverage\":[\"unpublish-product\",\"inactive-product\"]}'::jsonb, 'INACTIVE', null, now() - interval '7 days', 900003, 0, now() - interval '8 days', now() - interval '8 days', now(), null) " +
+            "('90000000-0000-4000-8001-000000000109', '90000000-0000-4000-8000-000000000003', 900002, 'FE Out Of Stock Headphone', 'fe-out-of-stock-headphone', 'Out-of-stock product for inventory/restock tests.', '{\"brand\":\"FE\",\"coverage\":[\"inventory\",\"restock\"]}'::jsonb, 'OUT_OF_STOCK', null, now() - interval '8 days', 900003, 0, now() - interval '9 days', now() - interval '9 days', now(), now() - interval '8 days'), " +
+            "('90000000-0000-4000-8001-000000000110', '90000000-0000-4000-8000-000000000005', 900002, 'FE Inactive Desk Setup', 'fe-inactive-desk-setup', 'Inactive product for seller unpublish/publish regression.', '{\"brand\":\"FE\",\"coverage\":[\"unpublish-product\",\"inactive-product\"]}'::jsonb, 'INACTIVE', null, now() - interval '7 days', 900003, 0, now() - interval '8 days', now() - interval '8 days', now(), null), " +
+            // --- New 5 ---
+            "('90000000-0000-4000-8001-000000000111', '90000000-0000-4000-8000-000000000006', 900002, 'FE Summer T-Shirt', 'fe-summer-t-shirt', 'Multi-variant fashion product with sizes S/M/L/XL for cart and order tests.', '{\"brand\":\"FE\",\"material\":\"cotton\",\"coverage\":[\"multi-variant\",\"cart\",\"order\"]}'::jsonb, 'ACTIVE', null, now() - interval '6 days', 900003, 0, now() - interval '7 days', now() - interval '7 days', now(), now() - interval '6 days'), " +
+            "('90000000-0000-4000-8001-000000000112', '90000000-0000-4000-8000-000000000001', 900002, 'FE Wireless Charger Pad', 'fe-wireless-charger-pad', 'Standard active electronics product for search and detail tests.', '{\"brand\":\"FE\",\"power\":\"15W\",\"coverage\":[\"search\",\"product-detail\"]}'::jsonb, 'ACTIVE', null, now() - interval '5 days', 900003, 0, now() - interval '6 days', now() - interval '6 days', now(), now() - interval '5 days'), " +
+            "('90000000-0000-4000-8001-000000000113', '90000000-0000-4000-8000-000000000005', 900002, 'FE Yoga Mat Premium', 'fe-yoga-mat-premium', 'Active home product for category browsing and stock validation.', '{\"brand\":\"FE\",\"thickness\":\"6mm\",\"coverage\":[\"category-browse\",\"stock\"]}'::jsonb, 'ACTIVE', null, now() - interval '4 days', 900003, 0, now() - interval '5 days', now() - interval '5 days', now(), now() - interval '4 days'), " +
+            "('90000000-0000-4000-8001-000000000114', '90000000-0000-4000-8000-000000000006', 900002, 'FE Travel Backpack', 'fe-travel-backpack', 'Active fashion product for search and compare features.', '{\"brand\":\"FE\",\"capacity\":\"40L\",\"coverage\":[\"search\",\"compare\"]}'::jsonb, 'ACTIVE', null, now() - interval '3 days', 900003, 0, now() - interval '4 days', now() - interval '4 days', now(), now() - interval '3 days'), " +
+            "('90000000-0000-4000-8001-000000000115', '90000000-0000-4000-8000-000000000003', 900002, 'FE Bluetooth Earbuds Pro', 'fe-bluetooth-earbuds-pro', 'Premium audio product for flash-sale and recommendation tests.', '{\"brand\":\"FE\",\"battery\":\"8h\",\"coverage\":[\"flash-sale\",\"recommendations\"]}'::jsonb, 'ACTIVE', null, now() - interval '2 days', 900003, 0, now() - interval '3 days', now() - interval '3 days', now(), now() - interval '2 days') " +
             "ON CONFLICT (id) DO UPDATE SET category_id=EXCLUDED.category_id,seller_id=EXCLUDED.seller_id,name=EXCLUDED.name,slug=EXCLUDED.slug,description=EXCLUDED.description,attributes=EXCLUDED.attributes,status=EXCLUDED.status,reject_reason=EXCLUDED.reject_reason,reviewed_at=EXCLUDED.reviewed_at,reviewed_by=EXCLUDED.reviewed_by,reject_count=EXCLUDED.reject_count,submitted_at=EXCLUDED.submitted_at,updated_at=now(),published_at=EXCLUDED.published_at");
 
-        // Variants
+        // ========================================================================
+        // 3. Variants
+        // ========================================================================
         jdbcTemplate.update("INSERT INTO product.product_variants (id, product_id, variant_code, variant_name, variant_attributes, price, original_price, stock_quantity, status, version, image_url, created_at, updated_at) VALUES " +
+            // --- Existing 10 variants (101-110) ---
             "('90000000-0000-4000-9001-000000000101', '90000000-0000-4000-8001-000000000101', 'FE-SKU-PHONE-15PRO', 'Black / 256GB', '{\"color\":\"black\",\"storage\":\"256GB\"}'::jsonb, 23990000, 25990000, 25, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-phone-15pro/500/500', now() - interval '15 days', now()), " +
             "('90000000-0000-4000-9001-000000000102', '90000000-0000-4000-8001-000000000102', 'FE-SKU-LAPTOP-M3', 'Space Gray / 16GB', '{\"color\":\"gray\",\"ram\":\"16GB\"}'::jsonb, 27990000, 31990000, 12, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-laptop-m3/500/500', now() - interval '14 days', now()), " +
             "('90000000-0000-4000-9001-000000000103', '90000000-0000-4000-8001-000000000103', 'FE-SKU-AIRPODS-COMBO', 'USB-C Combo', '{\"connector\":\"USB-C\"}'::jsonb, 4990000, 6490000, 60, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-airpods-combo/500/500', now() - interval '13 days', now()), " +
@@ -364,12 +125,25 @@ public class ProductDevDataLoader implements CommandLineRunner {
             "('90000000-0000-4000-9001-000000000106', '90000000-0000-4000-8001-000000000106', 'FE-SKU-REJECTED-BAG', 'Default', '{}'::jsonb, 590000, 790000, 35, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-rejected-bag/500/500', now() - interval '6 days', now()), " +
             "('90000000-0000-4000-9001-000000000107', '90000000-0000-4000-8001-000000000107', 'FE-SKU-DRAFT-LAMP', 'Warm White', '{\"color\":\"warm-white\"}'::jsonb, 450000, 550000, 20, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-draft-lamp/500/500', now() - interval '3 days', now()), " +
             "('90000000-0000-4000-9001-000000000108', '90000000-0000-4000-8001-000000000108', 'FE-SKU-APPROVED-VACUUM', 'Standard', '{}'::jsonb, 3890000, 4590000, 18, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-approved-vacuum/500/500', now() - interval '4 days', now()), " +
-            "('90000000-0000-4000-9001-000000000109', '90000000-0000-4000-8001-000000000109', 'FE-SKU-OOS-HEADPHONE', 'Midnight', '{\"color\":\"midnight\"}'::jsonb, 1290000, 1590000, 15, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-oos-headphone/500/500', now() - interval '9 days', now()), " +
-            "('90000000-0000-4000-9001-000000000110', '90000000-0000-4000-8001-000000000110', 'FE-SKU-INACTIVE-DESK', 'Default', '{}'::jsonb, 1990000, 2490000, 10, 'INACTIVE', 1, 'https://picsum.photos/seed/fe-inactive-desk/500/500', now() - interval '8 days', now()) " +
+            "('90000000-0000-4000-9001-000000000109', '90000000-0000-4000-8001-000000000109', 'FE-SKU-OOS-HEADPHONE', 'Midnight', '{\"color\":\"midnight\"}'::jsonb, 1290000, 1590000, 0, 'OUT_OF_STOCK', 1, 'https://picsum.photos/seed/fe-oos-headphone/500/500', now() - interval '9 days', now()), " +
+            "('90000000-0000-4000-9001-000000000110', '90000000-0000-4000-8001-000000000110', 'FE-SKU-INACTIVE-DESK', 'Default', '{}'::jsonb, 1990000, 2490000, 10, 'INACTIVE', 1, 'https://picsum.photos/seed/fe-inactive-desk/500/500', now() - interval '8 days', now()), " +
+            // --- Product 111 (multi-variant: S/M/L/XL) uses 111-114 ---
+            "('90000000-0000-4000-9001-000000000111', '90000000-0000-4000-8001-000000000111', 'FE-SKU-TSHIRT-S', 'Size S', '{\"size\":\"S\",\"material\":\"cotton\"}'::jsonb, 149000, 199000, 50, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-tshirt-s/500/500', now() - interval '7 days', now()), " +
+            "('90000000-0000-4000-9001-000000000112', '90000000-0000-4000-8001-000000000111', 'FE-SKU-TSHIRT-M', 'Size M', '{\"size\":\"M\",\"material\":\"cotton\"}'::jsonb, 149000, 199000, 80, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-tshirt-m/500/500', now() - interval '7 days', now()), " +
+            "('90000000-0000-4000-9001-000000000113', '90000000-0000-4000-8001-000000000111', 'FE-SKU-TSHIRT-L', 'Size L', '{\"size\":\"L\",\"material\":\"cotton\"}'::jsonb, 149000, 199000, 60, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-tshirt-l/500/500', now() - interval '7 days', now()), " +
+            "('90000000-0000-4000-9001-000000000114', '90000000-0000-4000-8001-000000000111', 'FE-SKU-TSHIRT-XL', 'Size XL', '{\"size\":\"XL\",\"material\":\"cotton\"}'::jsonb, 149000, 199000, 10, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-tshirt-xl/500/500', now() - interval '7 days', now()), " +
+            // --- Single-variant for products 112-115 use 115, 201-203 ---
+            "('90000000-0000-4000-9001-000000000115', '90000000-0000-4000-8001-000000000112', 'FE-SKU-CHARGER-PAD', 'White / 15W', '{\"color\":\"white\",\"power\":\"15W\"}'::jsonb, 450000, 590000, 80, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-charger-pad/500/500', now() - interval '6 days', now()), " +
+            "('90000000-0000-4000-9001-000000000201', '90000000-0000-4000-8001-000000000113', 'FE-SKU-YOGA-MAT', 'Purple / 6mm', '{\"color\":\"purple\",\"thickness\":\"6mm\"}'::jsonb, 350000, 490000, 100, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-yoga-mat/500/500', now() - interval '5 days', now()), " +
+            "('90000000-0000-4000-9001-000000000202', '90000000-0000-4000-8001-000000000114', 'FE-SKU-TRAVEL-BACKPACK', 'Gray / 40L', '{\"color\":\"gray\",\"capacity\":\"40L\"}'::jsonb, 890000, 1090000, 45, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-travel-backpack/500/500', now() - interval '4 days', now()), " +
+            "('90000000-0000-4000-9001-000000000203', '90000000-0000-4000-8001-000000000115', 'FE-SKU-EARBUDS-PRO', 'Black / ANC', '{\"color\":\"black\",\"anc\":true}'::jsonb, 1590000, 1990000, 35, 'ACTIVE', 1, 'https://picsum.photos/seed/fe-earbuds-pro/500/500', now() - interval '3 days', now()) " +
             "ON CONFLICT (id) DO UPDATE SET product_id=EXCLUDED.product_id,variant_code=EXCLUDED.variant_code,variant_name=EXCLUDED.variant_name,variant_attributes=EXCLUDED.variant_attributes,price=EXCLUDED.price,original_price=EXCLUDED.original_price,stock_quantity=EXCLUDED.stock_quantity,status=EXCLUDED.status,version=EXCLUDED.version,image_url=EXCLUDED.image_url,updated_at=now()");
 
-        // Images
+        // ========================================================================
+        // 4. Images
+        // ========================================================================
         jdbcTemplate.update("INSERT INTO product.product_images (id, product_id, variant_id, url, sort_order, created_at) VALUES " +
+            // --- Existing 10 images (101-110) ---
             "('90000000-0000-4000-a001-000000000101', '90000000-0000-4000-8001-000000000101', null, 'https://picsum.photos/seed/fe-phone-hero/800/800', 0, now() - interval '15 days'), " +
             "('90000000-0000-4000-a001-000000000102', '90000000-0000-4000-8001-000000000102', null, 'https://picsum.photos/seed/fe-laptop-hero/800/800', 0, now() - interval '14 days'), " +
             "('90000000-0000-4000-a001-000000000103', '90000000-0000-4000-8001-000000000103', null, 'https://picsum.photos/seed/fe-airpods-hero/800/800', 0, now() - interval '13 days'), " +
@@ -379,10 +153,38 @@ public class ProductDevDataLoader implements CommandLineRunner {
             "('90000000-0000-4000-a001-000000000107', '90000000-0000-4000-8001-000000000107', null, 'https://picsum.photos/seed/fe-draft-hero/800/800', 0, now() - interval '3 days'), " +
             "('90000000-0000-4000-a001-000000000108', '90000000-0000-4000-8001-000000000108', null, 'https://picsum.photos/seed/fe-vacuum-hero/800/800', 0, now() - interval '4 days'), " +
             "('90000000-0000-4000-a001-000000000109', '90000000-0000-4000-8001-000000000109', null, 'https://picsum.photos/seed/fe-oos-hero/800/800', 0, now() - interval '9 days'), " +
-            "('90000000-0000-4000-a001-000000000110', '90000000-0000-4000-8001-000000000110', null, 'https://picsum.photos/seed/fe-desk-hero/800/800', 0, now() - interval '8 days') " +
+            "('90000000-0000-4000-a001-000000000110', '90000000-0000-4000-8001-000000000110', null, 'https://picsum.photos/seed/fe-desk-hero/800/800', 0, now() - interval '8 days'), " +
+            // --- New images for products 111-115 ---
+            "('90000000-0000-4000-a001-000000000111', '90000000-0000-4000-8001-000000000111', null, 'https://picsum.photos/seed/fe-tshirt-hero/800/800', 0, now() - interval '7 days'), " +
+            "('90000000-0000-4000-a001-000000000112', '90000000-0000-4000-8001-000000000112', null, 'https://picsum.photos/seed/fe-charger-hero/800/800', 0, now() - interval '6 days'), " +
+            "('90000000-0000-4000-a001-000000000113', '90000000-0000-4000-8001-000000000113', null, 'https://picsum.photos/seed/fe-yoga-hero/800/800', 0, now() - interval '5 days'), " +
+            "('90000000-0000-4000-a001-000000000114', '90000000-0000-4000-8001-000000000114', null, 'https://picsum.photos/seed/fe-backpack-hero/800/800', 0, now() - interval '4 days'), " +
+            "('90000000-0000-4000-a001-000000000115', '90000000-0000-4000-8001-000000000115', null, 'https://picsum.photos/seed/fe-earbuds-hero/800/800', 0, now() - interval '3 days') " +
             "ON CONFLICT (id) DO UPDATE SET product_id=EXCLUDED.product_id,variant_id=EXCLUDED.variant_id,url=EXCLUDED.url,sort_order=EXCLUDED.sort_order");
 
-        log.info("[ProductDevDataLoader] FE test-dataset seeded (6 categories, 10 products, 10 variants, 10 images).");
+        // ========================================================================
+        // 5. Wishlist: fe_buyer (900001) wishlists products 101, 103, 104
+        // ========================================================================
+        jdbcTemplate.update("INSERT INTO product.wishlist_items (customer_id, product_id, created_at) VALUES " +
+            "(900001, '90000000-0000-4000-8001-000000000101', now() - interval '10 days'), " +
+            "(900001, '90000000-0000-4000-8001-000000000103', now() - interval '8 days'), " +
+            "(900001, '90000000-0000-4000-8001-000000000104', now() - interval '6 days') " +
+            "ON CONFLICT DO NOTHING");
+
+        // ========================================================================
+        // 6. Cart: fe_buyer (900001) has product 102 x1, product 104 x2
+        // ========================================================================
+        // Look up variant price/name/image snapshots from the seeded variants
+        jdbcTemplate.update("INSERT INTO product.cart_items (customer_id, variant_id, quantity, price_snapshot, variant_name_snapshot, variant_image_snapshot, seller_id, created_at, updated_at) " +
+            "SELECT 900001, id, 1, price, variant_name, image_url, 900002, now() - interval '5 days', now() " +
+            "FROM product.product_variants WHERE id = '90000000-0000-4000-9001-000000000102' " +
+            "ON CONFLICT DO NOTHING");
+        jdbcTemplate.update("INSERT INTO product.cart_items (customer_id, variant_id, quantity, price_snapshot, variant_name_snapshot, variant_image_snapshot, seller_id, created_at, updated_at) " +
+            "SELECT 900001, id, 2, price, variant_name, image_url, 900002, now() - interval '4 days', now() " +
+            "FROM product.product_variants WHERE id = '90000000-0000-4000-9001-000000000104' " +
+            "ON CONFLICT DO NOTHING");
+
+        log.info("[ProductDevDataLoader] FE test-dataset seeded (6 categories, 15 products, 18 variants, 15 images, 3 wishlist items, 2 cart items).");
     }
 
     private UUID seedCategory(UUID parentId, String name, String slug, int sortOrder) {

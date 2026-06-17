@@ -44,4 +44,12 @@ public interface SellerTransferRepository extends JpaRepository<SellerTransfer, 
         @Param("cutoff") LocalDateTime cutoff,
         Pageable pageable
     );
+
+    /** Find transfers stuck in a status since before a date (for timeout schedulers). */
+    @Query("SELECT t FROM SellerTransfer t WHERE t.status = :status AND t.createdAt <= :cutoff ORDER BY t.createdAt ASC")
+    List<SellerTransfer> findByStatusAndCreatedAtBefore(
+        @Param("status") String status,
+        @Param("cutoff") LocalDateTime cutoff,
+        Pageable pageable
+    );
 }

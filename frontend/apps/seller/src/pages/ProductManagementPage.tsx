@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '@shared/lib/axios';
 import { sellerApi, type SellerProduct } from '@shared/api/seller.api';
 import type { ApiResponse, PageResponse } from '@shared/types/api';
@@ -8,12 +9,13 @@ import ProductTabs from '@/components/ProductManagement/ProductTabs';
 import ProductsTable from '@/components/ProductManagement/ProductsTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
 import Pagination from '@shared/components/Pagination';
-import { Skeleton } from '@shared/components/ui';
+import { Skeleton, EmptyState, Button } from '@shared/components/ui';
 
 type ProductFormTab = 'info' | 'images' | 'variants' | 'inventory';
 
 export default function ProductManagementPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -36,12 +38,7 @@ export default function ProductManagementPage() {
       }).then(r => {
         const res = r.data.data;
         if (!res) {
-          return {
-            content: [],
-            totalElements: 0,
-            totalPages: 0,
-            last: true,
-          };
+          return { content: [], totalElements: 0, totalPages: 0, last: true };
         }
         return {
           ...res,
@@ -60,17 +57,16 @@ export default function ProductManagementPage() {
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements ?? 0;
 
+  // Count low-stock products
+  const lowStockProducts = products.filter(p => p.stockAvailable > 0 && p.stockAvailable < 10).length;
+
   // Action mutations
   const submitMut = useMutation({ mutationFn: sellerApi.submitForReview, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller-products'] }) });
   const publishMut = useMutation({ mutationFn: sellerApi.publishProduct, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller-products'] }) });
   const unpublishMut = useMutation({ mutationFn: sellerApi.unpublishProduct, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['seller-products'] }) });
-  
   const deleteMut = useMutation({
     mutationFn: sellerApi.deleteProduct,
-    onSuccess: () => {
-      setDeletingProduct(null);
-      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
-    },
+    onSuccess: () => { setDeletingProduct(null); queryClient.invalidateQueries({ queryKey: ['seller-products'] }); },
   });
 
   const handleEdit = (product: SellerProduct) => {
@@ -78,13 +74,11 @@ export default function ProductManagementPage() {
     setFormInitialTab('info');
     setShowForm(true);
   };
-
   const handleInventory = (product: SellerProduct) => {
     setEditProduct(product);
     setFormInitialTab('inventory');
     setShowForm(true);
   };
-
   const handleAdd = () => {
     setEditProduct(undefined);
     setFormInitialTab('info');
@@ -92,29 +86,44 @@ export default function ProductManagementPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sản phẩm của tôi</h1>
+          <h1 className="text-2xl font-bold text-gray-900">📦 Sản phẩm của tôi</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {totalElements > 0 && <span>{totalElements} sản phẩm</span>}
+            {totalElements > 0 && <span>{totalElements} sản phẩm · </span>}
+            Quản lý danh sách sản phẩm đang bán
           </p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => queryClient.invalidateQueries({ queryKey: ['seller-products'] })}
-            className="px-3 py-2 border rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+          <button
+            onClick={() => navigate('/flash-sales')}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-violet-200 rounded-xl text-sm text-violet-700 hover:bg-violet-50 transition-colors font-medium"
+          >
+            ⚡ Flash Sale
+          </button>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['seller-products'] })}
+            className="px-3 py-2 border rounded-xl text-sm text-gray-600 hover:bg-gray-50"
+          >
             🔄 Làm mới
           </button>
-          <button onClick={handleAdd}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-colors shadow-sm">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Thêm sản phẩm
-          </button>
+          <Button onClick={handleAdd}>
+            + Thêm sản phẩm
+          </Button>
         </div>
       </div>
+
+      {/* Low stock alert */}
+      {!isLoading && lowStockProducts > 0 && (
+        <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-3 text-orange-800 text-sm flex items-center gap-2">
+          <span>⚠️</span>
+          <span>
+            <strong>{lowStockProducts} sản phẩm</strong> sắp hết hàng (tồn &lt; 10). Nhấn <strong>"Kho"</strong> để nhập thêm.
+          </span>
+        </div>
+      )}
 
       {/* Filters */}
       <ProductTabs
@@ -152,14 +161,17 @@ export default function ProductManagementPage() {
       {!isLoading && !error && products.length === 0 && (
         <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 py-20 text-center">
           <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-5 text-4xl">📦</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có sản phẩm nào</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {searchQuery || statusFilter ? 'Không tìm thấy sản phẩm' : 'Chưa có sản phẩm nào'}
+          </h3>
           <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
-            Hãy thêm sản phẩm đầu tiên để bắt đầu bán hàng trên nền tảng
+            {searchQuery || statusFilter
+              ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.'
+              : 'Hãy thêm sản phẩm đầu tiên để bắt đầu bán hàng trên nền tảng'}
           </p>
-          <button onClick={handleAdd}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-colors">
-            Thêm sản phẩm đầu tiên
-          </button>
+          {!searchQuery && !statusFilter && (
+            <Button onClick={handleAdd}>Thêm sản phẩm đầu tiên</Button>
+          )}
         </div>
       )}
 
@@ -179,13 +191,7 @@ export default function ProductManagementPage() {
             unpublishPending={unpublishMut.isPending}
             deletePending={deleteMut.isPending}
           />
-
-          {/* Pagination */}
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}
 
@@ -199,7 +205,7 @@ export default function ProductManagementPage() {
         />
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete confirmation */}
       {deletingProduct && (
         <ConfirmDialog
           title="Xóa sản phẩm?"

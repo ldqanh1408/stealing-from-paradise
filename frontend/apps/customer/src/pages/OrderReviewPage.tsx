@@ -582,6 +582,7 @@ export default function OrderReviewPage() {
     try {
       // Build proper "customerId:variantId" keys from cart items
       const itemKeys: string[] = [];
+      const customerId = cart?.userId;
       cart?.sellers.forEach(seller => {
         seller.items.forEach(item => {
           if (matchesSelectedItem(item)) {

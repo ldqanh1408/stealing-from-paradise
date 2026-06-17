@@ -2,13 +2,10 @@
  * SellerOrdersPage — UC-ORDER-007 "View Seller Orders".
  *
  * Paginated, status-filterable list of every order placed with this seller's
- * shop. Per-row actions are driven by the business-rule predicates in
- * {@link ../lib/orderActions} so the UI only ever offers a transition the
- * backend will accept:
- *   - PAID  → "Cập nhật vận đơn" (ship, UC-ORDER-004) or "Huỷ đơn" (UC-ORDER-008)
- *   - SHIPPING → "Hoàn hàng" (return-to-sender, UC-ORDER-006 Flow B)
+ * shop. Supports ?filter=<status> query param for deep-linking from Dashboard.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { orderApi, type SellerOrderSummary, type OrderStatus } from '@shared/api/order.api';
 import TrackingModal from '@/components/Orders/TrackingModal';
@@ -23,19 +20,32 @@ import { Skeleton, EmptyState } from '@shared/components/ui';
 /** Build a human-friendly buyer label for modal headers. */
 const buyerLabel = (o: SellerOrderSummary) => o.buyerName || o.buyerUsername || `User #${o.buyerId}`;
 
+const FILTER_MAP: Record<string, OrderStatus> = {
+  paid: 'PAID', pending: 'PENDING', shipping: 'SHIPPING',
+  delivered: 'DELIVERED', cancelled: 'CANCELLED', refunded: 'REFUNDED',
+};
+
 export default function SellerOrdersPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
+  const [searchCode, setSearchCode] = useState('');
 
-  // Each modal is keyed off the order it acts on (null = closed).
-  const [trackingOrder, setTrackingOrder] = useState<SellerOrderSummary | null>(null);
-  const [rtsOrder, setRtsOrder] = useState<SellerOrderSummary | null>(null);
-  const [cancelOrder, setCancelOrder] = useState<SellerOrderSummary | null>(null);
-  const [drawerOrder, setDrawerOrder] = useState<SellerOrderSummary | null>(null);
+  // Read ?filter=<status> from URL (for dashboard deep-links)
+  useEffect(() => {
+    const f = searchParams.get('filter');
+    if (f && FILTER_MAP[f]) {
+      setFilter(FILTER_MAP[f]);
+      // clear the param after reading
+      const next = new URLSearchParams(searchParams);
+      next.delete('filter');
+      setSearchParams(next, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['seller-orders', filter, page],
+    queryKey: ['seller-orders', filter, page, searchCode],
     queryFn: () =>
       orderApi.getSellerOrders({
         status: filter === 'ALL' ? undefined : filter,
@@ -48,23 +58,41 @@ export default function SellerOrdersPage() {
   const orders: SellerOrderSummary[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
 
+  // Filter by order code search locally
+  const filteredOrders = searchCode
+    ? orders.filter(o => o.orderCode.toLowerCase().includes(searchCode.toLowerCase()))
+    : orders;
+
   /** Refresh the list after any mutation succeeds. */
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
 
+  const [trackingOrder, setTrackingOrder] = useState<SellerOrderSummary | null>(null);
+  const [rtsOrder, setRtsOrder] = useState<SellerOrderSummary | null>(null);
+  const [cancelOrder, setCancelOrder] = useState<SellerOrderSummary | null>(null);
+  const [drawerOrder, setDrawerOrder] = useState<SellerOrderSummary | null>(null);
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Đơn hàng</h1>
           <p className="text-sm text-gray-500 mt-1">Quản lý và xử lý đơn hàng từ khách</p>
         </div>
-        <button
-          onClick={refresh}
-          className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 text-gray-600"
-        >
-          🔄 Làm mới
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Search by order code */}
+          <input
+            type="text"
+            placeholder="Tìm mã đơn…"
+            value={searchCode}
+            onChange={e => setSearchCode(e.target.value)}
+            className="w-40 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button onClick={refresh}
+            className="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50 text-gray-600">
+            🔄
+          </button>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -97,36 +125,30 @@ export default function SellerOrdersPage() {
         </div>
       )}
 
-      {/* Empty (UC-ORDER-007 A1: no orders found) */}
-      {!isLoading && !error && orders.length === 0 && (
+      {/* Empty */}
+      {!isLoading && !error && filteredOrders.length === 0 && (
         <EmptyState
           iconKey="receipt"
-          title="Chưa có đơn hàng nào"
-          description="Đơn hàng từ khách sẽ xuất hiện ở đây khi có người mua sản phẩm của bạn."
+          title={searchCode ? 'Không tìm thấy đơn hàng' : 'Chưa có đơn hàng nào'}
+          description={searchCode ? `Không có mã "${searchCode}".` : 'Đơn hàng từ khách sẽ xuất hiện ở đây.'}
         />
       )}
 
       {/* Table */}
-      {!isLoading && !error && orders.length > 0 && (
+      {!isLoading && !error && filteredOrders.length > 0 && (
         <>
           <OrdersTable
-            orders={orders}
+            orders={filteredOrders}
             onViewDetail={setDrawerOrder}
             onShip={setTrackingOrder}
             onCancel={setCancelOrder}
             onReturnToSender={setRtsOrder}
           />
-
-          {/* Pagination */}
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}
 
-      {/* Action modals — all share the same refresh-on-success behaviour. */}
+      {/* Modals */}
       {trackingOrder && (
         <TrackingModal
           orderId={trackingOrder.orderId}

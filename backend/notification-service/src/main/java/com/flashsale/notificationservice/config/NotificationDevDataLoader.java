@@ -15,13 +15,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Seeds notifications across buyer + seller accounts.
+ * Seeds notifications across the FE test-dataset accounts.
  *
- * <p>Covers the major notification {@code type} values from the catalog so the UI
- * can render every template variant. Mix of read / unread, multiple priorities.</p>
+ * <p>Only targets {@code fe_buyer} (900001) and {@code fe_seller} (900002)
+ * so the frontend always has realistic data to render every notification
+ * template variant.</p>
  *
- * <p>NotificationRepository is a ReactiveMongoRepository — we use {@code .block()}
- * since this runs once at startup.</p>
+ * <p>Covers all major notification {@code type} values from the catalog.
+ * Mix of READ / UNREAD, multiple priorities ({@code NORMAL}, {@code HIGH},
+ * {@code URGENT}), and realistic Vietnamese-language messages referencing
+ * FE products and orders.</p>
+ *
+ * <p>NotificationRepository is a ReactiveMongoRepository — we use
+ * {@code .block()} since this runs once at startup.</p>
  */
 @Component
 @Profile("dev")
@@ -52,60 +58,78 @@ public class NotificationDevDataLoader implements CommandLineRunner {
         LocalDateTime now = LocalDateTime.now();
         List<Notification> all = new ArrayList<>();
 
-        // ---- Buyer notifications ----
-        all.add(notif(1L, "ORDER_CREATED",   "Đơn hàng đã được tạo",
-                "Đơn hàng ORD-1 của bạn đã được ghi nhận. Vui lòng thanh toán trong 30 phút.",
-                "{\"order_id\":1,\"deeplink\":\"/orders/1\"}", "NORMAL", true,  now.minusDays(7)));
-        all.add(notif(1L, "ORDER_PAID",      "Thanh toán thành công",
-                "Đơn hàng ORD-1 đã thanh toán thành công 250.000đ qua Stripe.",
-                "{\"order_id\":1,\"amount\":250000}", "NORMAL", true,  now.minusDays(7).plusMinutes(5)));
-        all.add(notif(1L, "ORDER_DELIVERED", "Đơn hàng đã giao",
-                "Đơn ORD-1 đã được giao thành công. Đánh giá ngay!",
-                "{\"order_id\":1}", "HIGH",   false, now.minusDays(1)));
+        // ======================================================================
+        //  fe_buyer (900001) — 8 notifications
+        // ======================================================================
 
-        all.add(notif(2L, "ORDER_SHIPPED",   "Đơn hàng đang vận chuyển",
-                "Đơn ORD-2 đã được giao cho GHTK987654.",
-                "{\"order_id\":2,\"tracking\":\"GHTK987654\"}", "NORMAL", false, now.minusDays(4)));
-        all.add(notif(2L, "REFUND_REQUESTED", "Yêu cầu hoàn tiền của bạn đang được xem xét",
-                "Yêu cầu hoàn 600.000đ cho ORD-2 đã gửi tới shop.",
-                "{\"refund_id\":2}", "NORMAL", false, now.minusHours(6)));
+        all.add(notif(900001, "ORDER_CREATED", "Don hang da duoc tao",
+                "Don hang FE-ORD-PENDING-900101 (23.990.000d) da duoc ghi nhan. Vui long thanh toan trong 30 phut.",
+                "{\"order_id\":900101,\"deeplink\":\"/orders/900101\"}", "NORMAL", true, now.minusHours(1)));
 
-        all.add(notif(4L, "REFUND_APPROVED", "Hoàn tiền thành công",
-                "Đã hoàn 3.450.000đ cho ORD-4. Tiền sẽ về tài khoản trong 3-5 ngày làm việc.",
-                "{\"refund_id\":3,\"amount\":3450000}", "HIGH", true,  now.minusDays(2)));
+        all.add(notif(900001, "ORDER_PAID", "Thanh toan thanh cong",
+                "Don hang FE-ORD-PAID-900102 da thanh toan thanh cong 23.990.000d.",
+                "{\"order_id\":900102,\"amount\":23990000}", "NORMAL", true, now.minusDays(1).plusMinutes(10)));
 
-        all.add(notif(6L, "ORDER_CREATED",   "Đơn hàng đã được tạo",
-                "Đơn ORD-7 (6.800.000đ) đã được tạo.",
-                "{\"order_id\":7}", "NORMAL", false, now.minusDays(4)));
-        all.add(notif(6L, "ORDER_SHIPPED",   "Đơn hàng đang vận chuyển",
-                "Đơn ORD-7 đã giao GHTK112233.",
-                "{\"order_id\":7}", "NORMAL", false, now.minusDays(2)));
-        all.add(notif(6L, "FLASH_SALE_STARTING", "Flash Sale bắt đầu sau 1 giờ!",
-                "MacBook Air M3 giảm còn 25.990.000đ — chỉ 10 suất!",
-                "{\"session_id\":2}", "URGENT", false, now.minusMinutes(50)));
+        all.add(notif(900001, "ORDER_SHIPPED", "Don hang dang van chuyen",
+                "FE-ORD-SHIPPING-900103 (FE AirPods Flash Combo) da duoc giao cho FE-GHN-900103.",
+                "{\"order_id\":900103,\"tracking\":\"FE-GHN-900103\"}", "NORMAL", false, now.minusDays(2)));
 
-        all.add(notif(7L, "ORDER_DELIVERED", "Đơn hàng đã giao",
-                "ORD-8 đã giao thành công.",
-                "{\"order_id\":8}", "NORMAL", true, now.minusDays(1)));
+        all.add(notif(900001, "ORDER_DELIVERED", "Don hang da duoc giao",
+                "FE-ORD-DELIVERED-900104 (FE USB-C Hub 8-in-1) da giao thanh cong. Danh gia ngay!",
+                "{\"order_id\":900104}", "HIGH", false, now.minusDays(2)));
 
-        all.add(notif(8L, "REFUND_REJECTED", "Yêu cầu hoàn tiền bị từ chối",
-                "Yêu cầu hoàn 1.200.000đ cho ORD-9 đã bị từ chối: thiếu bằng chứng.",
-                "{\"refund_id\":4}", "HIGH", false, now.minusHours(3)));
+        all.add(notif(900001, "REFUND_REQUESTED", "Yeu cau hoan tien dang duoc xem xet",
+                "Yeu cau hoan 1.990.000d cho FE-ORD-PARTIAL-REFUND-900106 da duoc gui toi shop.",
+                "{\"refund_id\":900201,\"order_id\":900106}", "NORMAL", false, now.minusHours(6)));
 
-        all.add(notif(9L, "PAYMENT_FAILED",  "Thanh toán không thành công",
-                "Thanh toán ORD-10 thất bại. Vui lòng thử lại trong 24h.",
-                "{\"order_id\":10}", "URGENT", false, now.minusHours(1)));
+        all.add(notif(900001, "REFUND_APPROVED", "Hoan tien thanh cong",
+                "Da hoan 4.990.000d cho FE-ORD-REFUNDED-900107. Tien se ve tai khoan trong 3-5 ngay lam viec.",
+                "{\"refund_id\":900202,\"order_id\":900107,\"amount\":4990000}", "HIGH", true, now.minusDays(3)));
 
-        // ---- Seller notifications ----
-        all.add(notif(1L, "PRODUCT_APPROVED", "Sản phẩm được duyệt",
-                "iPhone 15 Black 128GB đã được duyệt và lên sàn.",
-                "{\"product_slug\":\"iphone-15-black-128\"}", "NORMAL", true, now.minusDays(5)));
-        all.add(notif(2L, "PRODUCT_REJECTED", "Sản phẩm bị từ chối",
-                "Túi xách thử nghiệm bị từ chối — vui lòng cập nhật mô tả.",
-                "{\"product_slug\":\"tui-xach-test\"}", "HIGH", false, now.minusDays(2)));
-        all.add(notif(3L, "TRANSFER_PAID_OUT", "Đã chuyển khoản doanh thu",
-                "5.044.500đ đã được chuyển vào tài khoản Stripe của bạn.",
-                "{\"transfer_id\":\"tr_test_xxx\"}", "NORMAL", false, now.minusDays(3)));
+        all.add(notif(900001, "REFUND_REJECTED", "Yeu cau hoan tien bi tu choi",
+                "Yeu cau hoan 390.000d cho don hang 900203 da bi tu choi: bang chung khong cho thay loi tu nguoi ban.",
+                "{\"refund_id\":900203,\"order_id\":900104}", "HIGH", false, now.minusDays(1)));
+
+        all.add(notif(900001, "PAYMENT_FAILED", "Thanh toan khong thanh cong",
+                "Thanh toan don hang FE-ORD-PENDING-900101 that bai. Vui long thu lai trong 24h.",
+                "{\"order_id\":900101}", "URGENT", false, now.minusMinutes(30)));
+
+        all.add(notif(900001, "FLASH_SALE_STARTING", "Flash Sale sap bat dau!",
+                "FE AirPods Flash Combo gia chi 4.990.000d — Flash Sale bat dau sau 1 tieng!",
+                "{\"session_id\":900001,\"deeplink\":\"/flash-sale/900001\"}", "URGENT", false, now.minusMinutes(50)));
+
+        // ======================================================================
+        //  fe_seller (900002) — 6 notifications
+        // ======================================================================
+
+        all.add(notif(900002, "ORDER_CREATED", "Co don hang moi",
+                "Khach hang da dat FE Phone Pro Camera Kit (23.990.000d). Vui long chuan bi hang.",
+                "{\"order_id\":900102,\"deeplink\":\"/seller/orders/900102\"}", "NORMAL", true, now.minusDays(1)));
+
+        all.add(notif(900002, "ORDER_DELIVERED", "Don hang da duoc giao",
+                "FE-ORD-DELIVERED-900104 da duoc giao thanh cong. Doanh thu 790.000d se duoc chuyen sau 7 ngay.",
+                "{\"order_id\":900104}", "NORMAL", false, now.minusDays(2)));
+
+        all.add(notif(900002, "PRODUCT_APPROVED", "San pham da duoc duyet",
+                "FE Approved Robot Vacuum da duoc admin phe duyet. Dang nhap de xuat ban ngay.",
+                "{\"product_slug\":\"fe-approved-robot-vacuum\",\"deeplink\":\"/seller/products\"}", "NORMAL", true, now.minusDays(2)));
+
+        all.add(notif(900002, "PRODUCT_REJECTED", "San pham bi tu choi",
+                "FE Rejected Sample Bag bi tu choi: thieu hinh anh that va thong tin bao hanh. Vui long cap nhat va gui lai.",
+                "{\"product_slug\":\"fe-rejected-sample-bag\",\"reason\":\"Missing real product images and warranty details.\"}",
+                "HIGH", false, now.minusDays(3)));
+
+        all.add(notif(900002, "TRANSFER_PAID_OUT", "Da chuyen khoan doanh thu",
+                "27.990.000d da duoc chuyen vao tai khoan Stripe cua ban cho don FE-ORD-PAIDOUT-900109.",
+                "{\"transfer_id\":\"tr_fe_900109\",\"amount\":27990000,\"order_id\":900109}", "URGENT", false, now.minusDays(12)));
+
+        all.add(notif(900002, "SYSTEM", "Bao tri he thong",
+                "He thong se bao tri dinh ky vao 02:00-04:00 ngay mai. Chuc nang ban hang tam ngung trong thoi gian nay.",
+                "{\"announcement_id\":\"SYS-2026-001\"}", "HIGH", true, now.minusDays(5)));
+
+        // ======================================================================
+        //  Save all
+        // ======================================================================
 
         Long inserted = notificationRepository.saveAll(all).count().block();
         log.info("[NotificationDevDataLoader] Seeded {} notifications.", inserted);

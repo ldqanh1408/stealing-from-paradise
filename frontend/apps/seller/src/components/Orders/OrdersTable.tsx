@@ -44,6 +44,11 @@ export default function OrdersTable({
                   >
                     {order.orderCode}
                   </button>
+                  {order.isFlashSale && (
+                    <span className="ml-2 text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-medium">
+                      ⚡FS
+                    </span>
+                  )}
                 </td>
                 <td className="px-5 py-4 text-gray-700">
                   <p className="font-medium">{order.buyerName || `User #${order.buyerId}`}</p>
@@ -57,30 +62,28 @@ export default function OrdersTable({
                 <td className="px-5 py-4 text-gray-500 whitespace-nowrap">{fmtDate(order.createdAt)}</td>
                 <td className="px-5 py-4">
                   <div className="flex gap-2 flex-wrap">
-                    {/* PAID, not yet shipped → ship or cancel */}
                     {canShip(order.status) && (
                       <button
                         onClick={() => onShip(order)}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
+                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
                       >
-                        + Vận đơn
+                        📦 Vận đơn
                       </button>
                     )}
                     {canCancel(order.status, order.trackingNumber) && (
                       <button
                         onClick={() => onCancel(order)}
-                        className="text-xs text-red-500 hover:text-red-600 font-medium whitespace-nowrap"
+                        className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-600 font-medium whitespace-nowrap"
                       >
-                        Huỷ đơn
+                        ✕ Huỷ
                       </button>
                     )}
-                    {/* SHIPPING → carrier returned the package */}
                     {canReturnToSender(order.status) && (
                       <button
                         onClick={() => onReturnToSender(order)}
-                        className="text-xs text-orange-600 hover:text-orange-700 font-medium whitespace-nowrap"
+                        className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium whitespace-nowrap"
                       >
-                        Hoàn hàng
+                        ↩ Hoàn
                       </button>
                     )}
                   </div>

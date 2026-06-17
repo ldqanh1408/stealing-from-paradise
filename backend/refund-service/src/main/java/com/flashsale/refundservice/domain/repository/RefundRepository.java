@@ -55,4 +55,12 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     boolean existsByOrderIdAndStatusIn(Long orderId, List<String> statuses);
 
     Optional<Refund> findByRefundRef(String refundRef);
+
+    /** Find refunds stuck in a status since before a date (for timeout schedulers). */
+    @Query("SELECT r FROM Refund r WHERE r.status = :status AND r.createdAt <= :cutoff ORDER BY r.createdAt ASC")
+    List<Refund> findByStatusAndCreatedAtBefore(
+        @Param("status") String status,
+        @Param("cutoff") LocalDateTime cutoff,
+        org.springframework.data.domain.Pageable pageable
+    );
 }

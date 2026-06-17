@@ -67,9 +67,12 @@ export default function ProductsTable({
                 <td className="px-5 py-4 text-gray-500 capitalize">{p.categoryName || p.category || '—'}</td>
                 <td className="px-5 py-4 font-semibold text-gray-900">{p.price ? fmtVnd(p.price) : '—'}</td>
                 <td className="px-5 py-4">
-                  <span className={`font-medium ${p.stockAvailable > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  <span className={`font-medium ${p.stockAvailable > 0 ? (p.stockAvailable < 10 ? 'text-orange-600' : 'text-green-700') : 'text-red-600'}`}>
                     {p.stockAvailable}
                   </span>
+                  {p.stockAvailable > 0 && p.stockAvailable < 10 && (
+                    <span className="ml-1 text-[10px] text-orange-500">(sắp hết)</span>
+                  )}
                 </td>
                 <td className="px-5 py-4">
                   <ProductStatusBadge status={p.status} />
@@ -77,69 +80,42 @@ export default function ProductsTable({
                 <td className="px-5 py-4 text-gray-400 whitespace-nowrap text-xs">
                   {p.createdAt
                     ? new Date(p.createdAt).toLocaleDateString('vi-VN', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
+                        day: '2-digit', month: '2-digit', year: 'numeric',
                       })
                     : '—'}
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => onEdit(p)}
-                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                      Sửa
+                    <button onClick={() => onEdit(p)}
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                      ✏️ Sửa
                     </button>
-
-                    {/* DRAFT → Submit for review */}
-                    <button
-                      onClick={() => onInventory(p)}
-                      className="text-xs text-violet-600 hover:text-violet-700 font-medium"
-                    >
-                      Kho
+                    <button onClick={() => onInventory(p)}
+                      className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 font-medium">
+                      📊 Kho
                     </button>
-
                     {canSubmit(p.status) && (
-                      <button
-                        onClick={() => onSubmitForReview(p.productId)}
-                        disabled={submitPending}
-                        className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50"
-                      >
-                        {submitPending ? '...' : 'Gửi duyệt'}
+                      <button onClick={() => onSubmitForReview(p.productId)} disabled={submitPending}
+                        className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
+                        {submitPending ? '...' : '📨 Gửi duyệt'}
                       </button>
                     )}
-
-                    {/* APPROVED / hidden/out-of-stock → Publish */}
                     {canPublish(p.status) && (
-                      <button
-                        onClick={() => onPublish(p.productId)}
-                        disabled={publishPending}
-                        className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50"
-                      >
-                        {publishPending ? '...' : 'Hiển thị'}
+                      <button onClick={() => onPublish(p.productId)} disabled={publishPending}
+                        className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-50">
+                        {publishPending ? '...' : '🌐 Hiển thị'}
                       </button>
                     )}
-
-                    {/* Live product → Unpublish */}
                     {canUnpublish(p.status) && (
-                      <button
-                        onClick={() => onUnpublish(p.productId)}
-                        disabled={unpublishPending}
-                        className="text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
-                      >
-                        {unpublishPending ? '...' : 'Ẩn'}
+                      <button onClick={() => onUnpublish(p.productId)} disabled={unpublishPending}
+                        className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50">
+                        {unpublishPending ? '...' : '🙈 Ẩn'}
                       </button>
                     )}
-
-                    {/* Delete (DRAFT or REJECTED only) */}
                     {canDelete(p.status) && (
-                      <button
-                        onClick={() => onDelete(p)}
-                        disabled={deletePending}
-                        className="text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-50"
-                      >
-                        {deletePending ? '...' : 'Xóa'}
+                      <button onClick={() => onDelete(p)} disabled={deletePending}
+                        className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-50">
+                        {deletePending ? '...' : '🗑 Xóa'}
                       </button>
                     )}
                   </div>

@@ -1,8 +1,6 @@
 package com.flashsale.paymentservice.config;
 
 import com.flashsale.commonlib.config.DevDataProperties;
-import com.flashsale.paymentservice.domain.model.*;
-import com.flashsale.paymentservice.domain.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -12,10 +10,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.*;
-
 @Component
 @Profile("dev")
 @RequiredArgsConstructor
@@ -23,36 +17,8 @@ import java.util.*;
 @ConditionalOnProperty(name = "dev-data.enabled", havingValue = "true", matchIfMissing = false)
 public class PaymentDevDataLoader implements CommandLineRunner {
 
-    private final SellerStripeAccountRepository sellerStripeAccountRepository;
-    private final TransactionRepository transactionRepository;
-    private final SellerTransferRepository sellerTransferRepository;
     private final DevDataProperties devDataProperties;
     private final JdbcTemplate jdbcTemplate;
-
-    private static final long[] SELLER_IDS = {1L, 2L, 3L, 4L, 5L};
-
-    private static final long[] PARENT_ORDER_IDS = {1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L};
-
-    private static final BigDecimal[] TX_AMOUNTS = {
-            new BigDecimal("250000.00"),
-            new BigDecimal("1590000.00"),
-            new BigDecimal("899000.00"),
-            new BigDecimal("3450000.00"),
-            new BigDecimal("459000.00"),
-            new BigDecimal("6800000.00"),
-            new BigDecimal("1200000.00"),
-            new BigDecimal("4200000.00"),
-            new BigDecimal("3200000.00"),
-            new BigDecimal("8500000.00"),
-    };
-
-    private static final String[] STRIPE_ACCOUNT_IDS = {
-            "acct_test_SELLER001_AABBCC",
-            "acct_test_SELLER002_DDEEFF",
-            "acct_test_SELLER003_GGHHII",
-            "acct_test_SELLER004_JJKKLL",
-            "acct_test_SELLER005_MMNOPP",
-    };
 
     @Override
     @Transactional
@@ -60,79 +26,16 @@ public class PaymentDevDataLoader implements CommandLineRunner {
         log.info("[PaymentDevDataLoader] Starting dev data seed for payment-service...");
 
         if (devDataProperties.isReset()) {
-            log.warn("[PaymentDevDataLoader] RESET=true — wiping all payment data...");
-            sellerTransferRepository.deleteAll();
-            transactionRepository.deleteAll();
-            sellerStripeAccountRepository.deleteAll();
+            log.warn("[PaymentDevDataLoader] RESET=true -- wiping all payment data...");
+            jdbcTemplate.update("DELETE FROM payment.seller_transfers");
+            jdbcTemplate.update("DELETE FROM payment.transactions");
+            jdbcTemplate.update("DELETE FROM payment.seller_stripe_accounts");
             log.info("[PaymentDevDataLoader] All payment data wiped.");
-        } else if (sellerStripeAccountRepository.count() > 0) {
-            log.info("[PaymentDevDataLoader] Data already exists, skipping main seed.");
-
-            seedFeData();
-
-            log.info("[PaymentDevDataLoader] Dev data seed complete.");
-            return;
         }
-
-        seedSellerStripeAccounts();
-        seedTransactionsAndTransfers();
 
         seedFeData();
 
         log.info("[PaymentDevDataLoader] Dev data seed complete.");
-    }
-
-    private void seedSellerStripeAccounts() {
-        for (int i = 0; i < SELLER_IDS.length; i++) {
-            SellerStripeAccount account = SellerStripeAccount.builder()
-                    .sellerId(SELLER_IDS[i])
-                    .stripeAccountId(STRIPE_ACCOUNT_IDS[i])
-                    .accountStatus("ACTIVE")
-                    .chargesEnabled(true)
-                    .payoutsEnabled(true)
-                    .detailsSubmitted(true)
-                    .onboardingUrl(null)
-                    .build();
-            sellerStripeAccountRepository.save(account);
-        }
-        log.info("[PaymentDevDataLoader] Seeded {} seller stripe accounts", SELLER_IDS.length);
-    }
-
-    private void seedTransactionsAndTransfers() {
-        String[] statuses = {"PAID", "PAID", "PAID", "PAID", "PENDING", "PAID", "PAID", "PAID", "PAID", "PENDING"};
-        long[] sellerIds = {1L, 2L, 3L, 1L, 2L, 4L, 5L, 1L, 3L, 4L};
-
-        for (int i = 0; i < PARENT_ORDER_IDS.length; i++) {
-            String status = statuses[i];
-            BigDecimal amount = TX_AMOUNTS[i];
-            LocalDateTime paidAt = "PAID".equals(status) ? LocalDateTime.now().minusDays(7 - i) : null;
-            BigDecimal transferAmount = "PAID".equals(status) ? amount.multiply(new BigDecimal("0.95")) : null;
-
-            Transaction tx = Transaction.builder()
-                    .parentOrderId(PARENT_ORDER_IDS[i])
-                    .amount(amount)
-                    .transRef("TX" + String.format("%06d", i + 1))
-                    .stripeConnectMode("DESTINATION")
-                    .applicationFeeAmount(amount.multiply(new BigDecimal("0.05")))
-                    .status(status)
-                    .payAt(paidAt)
-                    .build();
-            tx = transactionRepository.save(tx);
-
-            if (transferAmount != null) {
-                SellerTransfer transfer = SellerTransfer.builder()
-                        .orderId(PARENT_ORDER_IDS[i])
-                        .parentOrderId(PARENT_ORDER_IDS[i])
-                        .sellerId(sellerIds[i])
-                        .transferAmount(amount)
-                        .stripeTransferId("tr_test_" + UUID.randomUUID().toString().substring(0, 16).toUpperCase())
-                        .status("COMPLETED")
-                        .build();
-                sellerTransferRepository.save(transfer);
-            }
-        }
-
-        log.info("[PaymentDevDataLoader] Seeded {} transactions + transfers", PARENT_ORDER_IDS.length);
     }
 
     private void seedFeData() {
@@ -161,7 +64,10 @@ public class PaymentDevDataLoader implements CommandLineRunner {
             "(900106, 900106, 4990000, 'FE-TX-PARTIAL-900106', null, 249500, 'DESTINATION', 'PARTIALLY_REFUNDED', '{\"id\":\"pi_fe_partial_900106\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '6 days', now() - interval '6 days', now()), " +
             "(900107, 900107, 4990000, 'FE-TX-REFUNDED-900107', null, 249500, 'DESTINATION', 'REFUNDED', '{\"id\":\"pi_fe_refunded_900107\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '7 days', now() - interval '7 days', now()), " +
             "(900108, 900108, 27990000, 'FE-TX-RETURNED-900108', null, 1399500, 'DESTINATION', 'REFUNDED', '{\"id\":\"pi_fe_returned_900108\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '8 days', now() - interval '8 days', now()), " +
-            "(900109, 900109, 27990000, 'FE-TX-PAIDOUT-900109', 'tr_fe_paidout_900109', 1399500, 'DESTINATION', 'PAID', '{\"id\":\"pi_fe_paidout_900109\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '20 days', now() - interval '20 days', now()) " +
+            "(900109, 900109, 27990000, 'FE-TX-PAIDOUT-900109', 'tr_fe_paidout_900109', 1399500, 'DESTINATION', 'PAID', '{\"id\":\"pi_fe_paidout_900109\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '20 days', now() - interval '20 days', now()), " +
+            "(900110, 900110, 1590000, 'FE-TX-PAID-900110', null, 79500, 'DESTINATION', 'PAID', '{\"id\":\"pi_fe_paid_900110\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '3 days', now() - interval '3 days', now()), " +
+            "(900111, 900111, 23990000, 'FE-TX-PAID-900111', null, 1199500, 'DESTINATION', 'PAID', '{\"id\":\"pi_fe_paid_900111\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '7 days', now() - interval '7 days', now()), " +
+            "(900112, 900112, 1990000, 'FE-TX-PAID-900112', null, 99500, 'DESTINATION', 'PAID', '{\"id\":\"pi_fe_paid_900112\",\"object\":\"payment_intent\",\"status\":\"succeeded\"}'::jsonb, now() - interval '12 hours', now() - interval '12 hours', now()) " +
             "ON CONFLICT (id) DO UPDATE SET parent_order_id=EXCLUDED.parent_order_id,amount=EXCLUDED.amount,trans_ref=EXCLUDED.trans_ref,stripe_transfer_id=EXCLUDED.stripe_transfer_id,application_fee_amount=EXCLUDED.application_fee_amount,stripe_connect_mode=EXCLUDED.stripe_connect_mode,status=EXCLUDED.status,raw_response=EXCLUDED.raw_response,pay_at=EXCLUDED.pay_at,updated_at=now()");
 
         // FE Seller Transfers
@@ -172,14 +78,17 @@ public class PaymentDevDataLoader implements CommandLineRunner {
             "(900106, 900106, 900106, 900002, 4990000, null, 'READY_FOR_PAYOUT', now() - interval '10 days', now() - interval '3 days', 249500, null, 0, now() - interval '6 days', now()), " +
             "(900107, 900107, 900107, 900002, 4990000, null, 'REFUNDED', now() - interval '4 days', now() + interval '3 days', 249500, null, 0, now() - interval '7 days', now()), " +
             "(900108, 900108, 900108, 900002, 27990000, null, 'SKIPPED', now() - interval '5 days', now() + interval '2 days', 1399500, null, 0, now() - interval '8 days', now()), " +
-            "(900109, 900109, 900109, 900002, 27990000, 'tr_fe_paidout_900109', 'PAID_OUT', now() - interval '12 days', now() - interval '5 days', 1399500, now() - interval '4 days', 0, now() - interval '20 days', now()) " +
+            "(900109, 900109, 900109, 900002, 27990000, 'tr_fe_paidout_900109', 'PAID_OUT', now() - interval '12 days', now() - interval '5 days', 1399500, now() - interval '4 days', 0, now() - interval '20 days', now()), " +
+            "(900110, 900110, 900110, 900002, 1590000, null, 'AWAITING_DELIVERY', null, null, 79500, null, 0, now() - interval '3 days', now()), " +
+            "(900111, 900111, 900111, 900002, 23990000, null, 'RETURN_WINDOW', now() - interval '7 days', now() + interval '1 day', 1199500, null, 0, now() - interval '7 days', now()), " +
+            "(900112, 900112, 900112, 900002, 1990000, null, 'AWAITING_DELIVERY', null, null, 99500, null, 0, now() - interval '12 hours', now()) " +
             "ON CONFLICT (id) DO UPDATE SET order_id=EXCLUDED.order_id,parent_order_id=EXCLUDED.parent_order_id,seller_id=EXCLUDED.seller_id,transfer_amount=EXCLUDED.transfer_amount,stripe_transfer_id=EXCLUDED.stripe_transfer_id,status=EXCLUDED.status,delivered_at=EXCLUDED.delivered_at,payout_eligible_at=EXCLUDED.payout_eligible_at,platform_commission_amt=EXCLUDED.platform_commission_amt,payout_at=EXCLUDED.payout_at,payout_retry_count=EXCLUDED.payout_retry_count,updated_at=now()");
 
         // Reset sequences
         jdbcTemplate.queryForObject("SELECT setval('payment.seller_stripe_accounts_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.seller_stripe_accounts), 900003))", Long.class);
-        jdbcTemplate.queryForObject("SELECT setval('payment.transactions_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.transactions), 900109))", Long.class);
-        jdbcTemplate.queryForObject("SELECT setval('payment.seller_transfers_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.seller_transfers), 900109))", Long.class);
+        jdbcTemplate.queryForObject("SELECT setval('payment.transactions_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.transactions), 900112))", Long.class);
+        jdbcTemplate.queryForObject("SELECT setval('payment.seller_transfers_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.seller_transfers), 900112))", Long.class);
 
-        log.info("[PaymentDevDataLoader] FE test-dataset seeded (2 stripe accounts, 9 transactions, 7 transfers).");
+        log.info("[PaymentDevDataLoader] FE test-dataset seeded (2 stripe accounts, 12 transactions, 10 transfers).");
     }
 }

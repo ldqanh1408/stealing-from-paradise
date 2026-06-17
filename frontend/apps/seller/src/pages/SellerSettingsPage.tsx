@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { userApi } from '@shared/api/user.api';
-import { Skeleton } from '@shared/components/ui';
+import { sellerApi } from '@shared/api/seller.api';
+import { Skeleton, Badge } from '@shared/components/ui';
 
 function SellerProfileCard({ profile }: {
-  profile: {
-    fullName?: string; phone?: string; email: string; avatarUrl?: string;
-  }
+  profile: { fullName?: string; phone?: string; email: string; avatarUrl?: string };
 }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
@@ -66,32 +66,24 @@ function EditProfileModal({ profile, onClose }: {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Tên cửa hàng / Họ tên</label>
-            <input
-              type="text"
-              value={form.fullName}
+            <input type="text" value={form.fullName}
               onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Nhập tên cửa hàng"
-            />
+              placeholder="Nhập tên cửa hàng" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Số điện thoại</label>
-            <input
-              type="tel"
-              value={form.phone}
+            <input type="tel" value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="0xxx xxx xxx"
-            />
+              placeholder="0xxx xxx xxx" />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
-          <button
-            onClick={() => mut.mutate()}
-            disabled={mut.isPending}
-            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium disabled:opacity-60"
-          >
+          <button onClick={onClose}
+            className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
+          <button onClick={() => mut.mutate()} disabled={mut.isPending}
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium disabled:opacity-60">
             {mut.isPending ? 'Đang lưu...' : 'Lưu'}
           </button>
         </div>
@@ -110,6 +102,24 @@ export default function SellerSettingsPage() {
     retry: 1,
   });
 
+  const { data: stripeStatus } = useQuery({
+    queryKey: ['seller-stripe-status'],
+    queryFn: () => sellerApi.getStripeStatus().then(r => r.data.data),
+    retry: 1,
+    staleTime: 30_000,
+  });
+
+  const stripeBadge = (() => {
+    if (!stripeStatus) return null;
+    if (stripeStatus.onboardingStatus === 'COMPLETE')
+      return <Badge tone="success" dot>Đã kết nối</Badge>;
+    if (stripeStatus.onboardingStatus === 'IN_PROGRESS')
+      return <Badge tone="warning" dot>Đang xác minh</Badge>;
+    if (stripeStatus.onboardingStatus === 'SUSPENDED')
+      return <Badge tone="danger" dot>Bị tạm ngưng</Badge>;
+    return <Badge tone="neutral">Chưa kết nối</Badge>;
+  })();
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -118,11 +128,9 @@ export default function SellerSettingsPage() {
           <p className="text-gray-500 mt-1 text-sm">Quản lý thông tin cửa hàng của bạn</p>
         </div>
         {profile && (
-          <button
-            onClick={() => setEditOpen(true)}
-            className="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50"
-          >
-            Chỉnh sửa
+          <button onClick={() => setEditOpen(true)}
+            className="px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50">
+            ✏️ Chỉnh sửa
           </button>
         )}
       </div>
@@ -151,33 +159,56 @@ export default function SellerSettingsPage() {
         <>
           <SellerProfileCard profile={profile} />
 
-          {/* Stripe Info */}
+          {/* Stripe Status */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
-            <h3 className="text-base font-semibold text-gray-900 mb-4">Thông tin thanh toán</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">💳 Thanh toán Stripe</h3>
+              {stripeBadge}
+            </div>
             <p className="text-sm text-gray-500 mb-4">
               Quản lý tài khoản Stripe để nhận thanh toán từ khách hàng.
             </p>
-            <a
-              href="/stripe-onboarding"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white rounded-xl text-sm font-semibold transition-all"
-            >
+            {stripeStatus?.stripeAccountId && (
+              <div className="mb-4 bg-gray-50 rounded-xl p-3 text-sm">
+                <div className="flex justify-between mb-1">
+                  <span className="text-gray-500">Account ID:</span>
+                  <span className="font-mono text-xs text-gray-700">{stripeStatus.stripeAccountId}</span>
+                </div>
+                {stripeStatus.chargesEnabled && (
+                  <div className="flex items-center gap-1.5 text-green-700">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span>Có thể nhận thanh toán</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <Link to="/stripe-onboarding"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white rounded-xl text-sm font-semibold transition-all">
               ⚙️ Quản lý Stripe
-            </a>
+            </Link>
           </div>
 
-          {/* Change Password Info */}
+          {/* Change Password */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
-            <h3 className="text-base font-semibold text-gray-900 mb-4">Đổi mật khẩu</h3>
+            <h3 className="text-base font-semibold text-gray-900 mb-4">🔑 Đổi mật khẩu</h3>
             <SellerChangePasswordSection />
+          </div>
+
+          {/* Store info */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">ℹ️ Thông tin cửa hàng</h3>
+            <p className="text-sm text-gray-500">
+              Email liên hệ: {profile.email}
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              Seller account · FlashSale Platform
+            </p>
           </div>
         </>
       )}
 
       {editOpen && profile && (
-        <EditProfileModal
-          profile={profile}
-          onClose={() => setEditOpen(false)}
-        />
+        <EditProfileModal profile={profile} onClose={() => setEditOpen(false)} />
       )}
     </div>
   );
@@ -214,39 +245,22 @@ function SellerChangePasswordSection() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-4">{error}</div>}
       {success && <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl mb-4">{success}</div>}
       <div className="max-w-md">
-        <PwInput
-          name="currentPassword"
-          label="Mật khẩu hiện tại"
-          placeholder="Nhập mật khẩu hiện tại"
-          value={form.currentPassword}
-          show={showPw.current}
+        <PwInput name="currentPassword" label="Mật khẩu hiện tại" placeholder="Nhập mật khẩu"
+          value={form.currentPassword} show={showPw.current}
           onChange={val => setForm(f => ({ ...f, currentPassword: val }))}
-          onToggleShow={() => setShowPw(p => ({ ...p, current: !p.current }))}
-        />
-        <PwInput
-          name="newPassword"
-          label="Mật khẩu mới"
-          placeholder="Ít nhất 6 ký tự"
-          value={form.newPassword}
-          show={showPw.new}
+          onToggleShow={() => setShowPw(p => ({ ...p, current: !p.current }))} />
+        <PwInput name="newPassword" label="Mật khẩu mới" placeholder="Ít nhất 6 ký tự"
+          value={form.newPassword} show={showPw.new}
           onChange={val => setForm(f => ({ ...f, newPassword: val }))}
-          onToggleShow={() => setShowPw(p => ({ ...p, new: !p.new }))}
-        />
-        <PwInput
-          name="confirmPassword"
-          label="Xác nhận mật khẩu mới"
-          placeholder="Nhập lại mật khẩu mới"
-          value={form.confirmPassword}
-          show={showPw.confirm}
+          onToggleShow={() => setShowPw(p => ({ ...p, new: !p.new }))} />
+        <PwInput name="confirmPassword" label="Xác nhận mật khẩu mới" placeholder="Nhập lại mật khẩu mới"
+          value={form.confirmPassword} show={showPw.confirm}
           onChange={val => setForm(f => ({ ...f, confirmPassword: val }))}
-          onToggleShow={() => setShowPw(p => ({ ...p, confirm: !p.confirm }))}
-        />
+          onToggleShow={() => setShowPw(p => ({ ...p, confirm: !p.confirm }))} />
       </div>
-      <button
-        onClick={() => mut.mutate()}
+      <button onClick={() => mut.mutate()}
         disabled={mut.isPending || !form.currentPassword || !form.newPassword || !form.confirmPassword}
-        className="mt-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60 transition-all"
-      >
+        className="mt-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-60 transition-all">
         {mut.isPending ? 'Đang đổi...' : 'Đổi mật khẩu'}
       </button>
     </div>
@@ -268,13 +282,9 @@ function PwInput({ label, placeholder, value, show, onChange, onToggleShow }: Pw
     <div className="mb-4">
       <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
       <div className="relative">
-        <input
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full px-4 py-2.5 pr-11 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <input type={show ? 'text' : 'password'} value={value}
+          onChange={e => onChange(e.target.value)} placeholder={placeholder}
+          className="w-full px-4 py-2.5 pr-11 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <button type="button" onClick={onToggleShow}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

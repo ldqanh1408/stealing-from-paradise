@@ -181,9 +181,7 @@ public class RefundReplyService {
                             .expiry(ttlSeconds)
                             .build()
             );
-            // Swap the internal Docker hostname for the browser-reachable one so the
-            // signed URL (which signs the host header) stays valid for the buyer's browser.
-            String presignedUrl = signedUrl.replace(minioUrl, minioPublicUrl);
+            String presignedUrl = signedUrl;
 
             Map<String, Object> response = new HashMap<>();
             response.put("correlation_id", correlationId);

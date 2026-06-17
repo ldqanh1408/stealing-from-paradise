@@ -19,9 +19,12 @@ import java.util.List;
 /**
  * Seeds AI chat sessions and messages for local dev.
  *
- * <p>Three sessions covering: an active product-discovery chat (user 6),
- * a closed order-status chat (user 7), and an active chat with a TOOL_CALL
- * sequence (user 8).</p>
+ * <p>Three sessions for fe_buyer (user_id=900001):</p>
+ * <ol>
+ *   <li>ACTIVE product discovery — asking about FE Phone Pro Camera Kit</li>
+ *   <li>CLOSED refund status — checked on completed refund #900202</li>
+ *   <li>ACTIVE with pending action — wants to return FE USB-C Hub 8-in-1</li>
+ * </ol>
  *
  * <p>ChatSessionRepository / ChatMessageRepository are ReactiveMongoRepository
  * — we use {@code .block()} since this only runs once at startup.</p>
@@ -42,7 +45,7 @@ public class ChatDevDataLoader implements CommandLineRunner {
         log.info("[ChatDevDataLoader] Starting dev data seed for chat-service...");
 
         if (devDataProperties.isReset()) {
-            log.warn("[ChatDevDataLoader] RESET=true — wiping chat data...");
+            log.warn("[ChatDevDataLoader] RESET=true -- wiping chat data...");
             messageRepository.deleteAll().block();
             sessionRepository.deleteAll().block();
             log.info("[ChatDevDataLoader] All chat data wiped.");
@@ -57,65 +60,97 @@ public class ChatDevDataLoader implements CommandLineRunner {
         LocalDateTime now = LocalDateTime.now();
         List<ChatMessage> messages = new ArrayList<>();
 
-        // ---- Session A: user 6 — ACTIVE product discovery ----
-        ChatSession a = sessionRepository.save(ChatSession.builder()
-                .userId(6L)
+        // ========================================================================
+        // Session 1: fe_buyer (900001) -- ACTIVE product discovery
+        // Asks about the FE Phone Pro Camera Kit they ordered before
+        // ========================================================================
+        ChatSession s1 = sessionRepository.save(ChatSession.builder()
+                .userId(900001L)
                 .status("ACTIVE")
-                .contextSummary("User đang tìm điện thoại tầm 25 triệu, ưu tiên camera.")
-                .createdAt(now.minusHours(2))
-                .updatedAt(now.minusMinutes(5))
+                .contextSummary("User asking about FE Phone Pro Camera Kit specifications and accessories after previous purchase.")
+                .createdAt(now.minusHours(1))
+                .updatedAt(now.minusMinutes(3))
                 .build()).block();
-        messages.add(msg(a.getId(), "USER", "Mình tìm điện thoại khoảng 25 triệu, chụp ảnh đẹp",
-                null, 1, null, now.minusHours(2)));
-        messages.add(msg(a.getId(), "ASSISTANT",
-                "Trong tầm giá đó iPhone 15 (22.99tr) là lựa chọn rất tốt: chip A16, camera 48MP. Bạn có muốn xem thêm vài tuỳ chọn khác không?",
-                null, 2, 120, now.minusHours(2).plusSeconds(15)));
-        messages.add(msg(a.getId(), "USER", "Ok cho mình xem iPhone 15 chi tiết",
-                null, 3, null, now.minusHours(1).minusMinutes(50)));
-        messages.add(msg(a.getId(), "ASSISTANT",
-                "iPhone 15 Black 128GB — giá 22.990.000đ (giảm từ 24.990.000đ), còn 50 chiếc. Bạn muốn thêm vào giỏ?",
-                null, 4, 95, now.minusHours(1).minusMinutes(49)));
-        messages.add(msg(a.getId(), "USER", "Thêm 1 chiếc giúp mình",
-                null, 5, null, now.minusMinutes(5)));
 
-        // ---- Session B: user 7 — CLOSED order status ----
-        ChatSession b = sessionRepository.save(ChatSession.builder()
-                .userId(7L)
+        messages.add(msg(s1.getId(), "USER",
+                "I bought the FE Phone Pro Camera Kit before — can you tell me what accessories it supports?",
+                null, 1, null, now.minusHours(1)));
+        messages.add(msg(s1.getId(), "TOOL_CALL",
+                "{\"query\":\"FE Phone Pro Camera Kit accessories\"}",
+                "searchProducts", 2, null, now.minusHours(1).plusSeconds(2)));
+        messages.add(msg(s1.getId(), "TOOL_RESULT",
+                "{\"products\":[{\"name\":\"FE Phone Pro Camera Kit\",\"price\":23990000,\"description\":\"48MP main camera, 12MP ultra-wide, 12MP telephoto, A18 chip\"},{\"name\":\"FE USB-C Hub 8-in-1\",\"price\":790000,\"description\":\"USB-C to HDMI/VGA/Ethernet/SD/USB 3.0\"},{\"name\":\"FE Wireless Charger Pad\",\"price\":450000,\"description\":\"15W Qi fast wireless charger\"}]}",
+                "searchProducts", 3, null, now.minusHours(1).plusSeconds(3)));
+        messages.add(msg(s1.getId(), "ASSISTANT",
+                "The FE Phone Pro Camera Kit (23,990,000 VND) features a 48MP main camera, 12MP ultra-wide, and 12MP telephoto with the A18 chip. It supports USB-C accessories like the FE USB-C Hub 8-in-1 and the FE Wireless Charger Pad. Would you like me to check current stock or pricing?",
+                null, 4, 142, now.minusHours(1).plusSeconds(4)));
+        messages.add(msg(s1.getId(), "USER",
+                "Is the Wireless Charger Pad still available? I'd like to order one.",
+                null, 5, null, now.minusMinutes(3)));
+
+        // ========================================================================
+        // Session 2: fe_buyer (900001) -- CLOSED refund status check
+        // Asked about refund #900202 for order FE-ORD-REFUNDED-900107
+        // ========================================================================
+        ChatSession s2 = sessionRepository.save(ChatSession.builder()
+                .userId(900001L)
                 .status("CLOSED")
-                .contextSummary("User hỏi tiến độ giao hàng đơn ORD-8.")
-                .createdAt(now.minusDays(2))
-                .updatedAt(now.minusDays(2).plusMinutes(15))
-                .closedAt(now.minusDays(2).plusMinutes(15))
+                .contextSummary("User checked refund status for order FE-ORD-REFUNDED-900107 (refund #900202).")
+                .createdAt(now.minusDays(1))
+                .updatedAt(now.minusDays(1).plusMinutes(10))
+                .closedAt(now.minusDays(1).plusMinutes(10))
                 .build()).block();
-        messages.add(msg(b.getId(), "USER", "Đơn ORD-8 của mình giờ tới đâu rồi?",
-                null, 1, null, now.minusDays(2)));
-        messages.add(msg(b.getId(), "TOOL_CALL", "{\"order_code\":\"ORD-8\"}",
-                "get_order_status", 2, null, now.minusDays(2).plusSeconds(2)));
-        messages.add(msg(b.getId(), "TOOL_RESULT",
-                "{\"status\":\"CONFIRMED\",\"tracking\":null,\"eta_days\":3}",
-                "get_order_status", 3, null, now.minusDays(2).plusSeconds(3)));
-        messages.add(msg(b.getId(), "ASSISTANT",
-                "Đơn ORD-8 đang ở trạng thái CONFIRMED, dự kiến shop sẽ giao đơn cho ĐVVC trong 3 ngày tới. Mình sẽ thông báo khi có cập nhật.",
-                null, 4, 78, now.minusDays(2).plusSeconds(4)));
 
-        // ---- Session C: user 8 — ACTIVE with pending tool call ----
-        ChatSession c = sessionRepository.save(ChatSession.builder()
-                .userId(8L)
+        messages.add(msg(s2.getId(), "USER",
+                "I returned my FE AirPods Flash Combo last week. Has the refund been processed yet? My order code is FE-ORD-REFUNDED-900107.",
+                null, 1, null, now.minusDays(1)));
+        messages.add(msg(s2.getId(), "TOOL_CALL",
+                "{\"orderId\":\"FE-ORD-REFUNDED-900107\"}",
+                "lookupOrder", 2, null, now.minusDays(1).plusSeconds(2)));
+        messages.add(msg(s2.getId(), "TOOL_RESULT",
+                "{\"id\":900107,\"orderCode\":\"FE-ORD-REFUNDED-900107\",\"status\":\"REFUNDED\",\"finalAmt\":4990000,\"refund\":{\"id\":900202,\"amount\":4990000,\"status\":\"COMPLETED\"}}",
+                "lookupOrder", 3, null, now.minusDays(1).plusSeconds(3)));
+        messages.add(msg(s2.getId(), "ASSISTANT",
+                "Great news! Your refund for the FE AirPods Flash Combo (4,990,000 VND) has been **completed** (refund #900202). The full amount has been processed and should appear in your account within 1-3 business days based on your payment method. Is there anything else I can help with?",
+                null, 4, 98, now.minusDays(1).plusSeconds(4)));
+        messages.add(msg(s2.getId(), "USER",
+                "Thanks, that's all I needed!",
+                null, 5, null, now.minusDays(1).plusSeconds(30)));
+        messages.add(msg(s2.getId(), "ASSISTANT",
+                "You're welcome! Feel free to reach out anytime if you need further assistance.",
+                null, 6, 32, now.minusDays(1).plusSeconds(31)));
+
+        // ========================================================================
+        // Session 3: fe_buyer (900001) -- ACTIVE with pending action
+        // Wants to return FE USB-C Hub 8-in-1 from order FE-ORD-DELIVERED-900104
+        // Pending user confirmation to initiate the return process
+        // ========================================================================
+        ChatSession s3 = sessionRepository.save(ChatSession.builder()
+                .userId(900001L)
                 .status("ACTIVE")
-                .contextSummary("User muốn huỷ đơn ORD-9 — cần xác nhận trước khi gọi tool huỷ.")
-                .createdAt(now.minusMinutes(30))
+                .contextSummary("User wants to return FE USB-C Hub 8-in-1 from order FE-ORD-DELIVERED-900104 -- awaiting confirmation to initiate return.")
+                .createdAt(now.minusMinutes(20))
                 .updatedAt(now.minusMinutes(2))
                 .build()).block();
-        messages.add(msg(c.getId(), "USER", "Huỷ đơn ORD-9 giúp mình",
-                null, 1, null, now.minusMinutes(30)));
-        messages.add(msg(c.getId(), "ASSISTANT",
-                "Bạn chắc chắn muốn huỷ đơn ORD-9 (4.200.000đ)? Đơn này đã DELIVERED, mình sẽ chuyển thành yêu cầu hoàn tiền nhé.",
-                null, 2, 65, now.minusMinutes(29)));
-        messages.add(msg(c.getId(), "USER", "Ok, huỷ và hoàn tiền cho mình",
-                null, 3, null, now.minusMinutes(2)));
+
+        messages.add(msg(s3.getId(), "USER",
+                "I want to return the FE USB-C Hub 8-in-1 I bought. It doesn't work with my laptop.",
+                null, 1, null, now.minusMinutes(20)));
+        messages.add(msg(s3.getId(), "TOOL_CALL",
+                "{\"orderId\":\"FE-ORD-DELIVERED-900104\"}",
+                "lookupOrder", 2, null, now.minusMinutes(20).plusSeconds(2)));
+        messages.add(msg(s3.getId(), "TOOL_RESULT",
+                "{\"id\":900104,\"orderCode\":\"FE-ORD-DELIVERED-900104\",\"status\":\"DELIVERED\",\"finalAmt\":790000,\"itemCount\":1,\"deliveredAt\":\"2 days ago\",\"itemName\":\"FE USB-C Hub 8-in-1\"}",
+                "lookupOrder", 3, null, now.minusMinutes(20).plusSeconds(3)));
+        messages.add(msg(s3.getId(), "ASSISTANT",
+                "I can see your order FE-ORD-DELIVERED-900104 for the **FE USB-C Hub 8-in-1** (790,000 VND) was delivered 2 days ago and is still within the return window. To proceed, I'll need to create a return request. Would you like me to go ahead and start the return process?",
+                null, 4, 134, now.minusMinutes(20).plusSeconds(4)));
+        messages.add(msg(s3.getId(), "USER",
+                "Yes, please start the return. I'd like a full refund.",
+                null, 5, null, now.minusMinutes(2)));
 
         Long inserted = messageRepository.saveAll(messages).count().block();
-        log.info("[ChatDevDataLoader] Seeded 3 chat sessions + {} messages.", inserted);
+        log.info("[ChatDevDataLoader] Seeded 3 chat sessions + {} messages for fe_buyer (900001).", inserted);
     }
 
     private ChatMessage msg(String sessionId, String role, String content, String toolName,
