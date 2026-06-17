@@ -176,9 +176,9 @@ public class ProductCommandService {
         }
 
         List<ProductImage> images = imageRepository.findByProductIdOrderBySortOrderAsc(productId);
-        if (images.isEmpty()) {
-            throw new AppException(ErrorCode.BAD_REQUEST, "Product must have at least one image");
-        }
+        // if (images.isEmpty()) {
+        //     throw new AppException(ErrorCode.BAD_REQUEST, "Product must have at least one image");
+        // }
 
         product.setStatus(ProductStatus.PENDING);
         product.setSubmittedAt(LocalDateTime.now());

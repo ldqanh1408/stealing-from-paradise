@@ -24,61 +24,75 @@ class SearchQueryServiceTest {
     @Test
     void searchShouldCapSizeAtMax40() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), any(), any(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, "relevance", 0, 100);
+        searchQueryService.search("test", null, null, null, null, null, "relevance", 0, 100);
 
         verify(esService).search(eq("test"), isNull(), isNull(),
-                eq(true), isNull(), eq("relevance"), eq(0), eq(40));
+                isNull(), isNull(), isNull(), eq("relevance"), eq(0), eq(40));
     }
 
     @Test
-    void searchShouldDefaultInStockToTrue() {
+    void searchShouldPassNullInStockWhenNotSpecified() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), any(), any(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, "relevance", 0, 20);
+        searchQueryService.search("test", null, null, null, null, null, "relevance", 0, 20);
 
+        // inStock is null → EsSearcher uses function_score boosting instead of hard filter
         verify(esService).search(eq("test"), isNull(), isNull(),
-                eq(true), isNull(), eq("relevance"), eq(0), eq(20));
+                isNull(), isNull(), isNull(), eq("relevance"), eq(0), eq(20));
     }
 
     @Test
-    void searchShouldPassInStockFalseWhenExplicitlySet() {
+    void searchShouldPassInStockTrueWhenExplicitlySet() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), any(), any(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, false, null, "relevance", 0, 20);
+        searchQueryService.search("test", null, null, true, null, null, "relevance", 0, 20);
 
         verify(esService).search(eq("test"), isNull(), isNull(),
-                eq(false), isNull(), eq("relevance"), eq(0), eq(20));
+                eq(true), isNull(), isNull(), eq("relevance"), eq(0), eq(20));
+    }
+
+    @Test
+    void searchShouldTreatInStockFalseAsNoFilter() {
+        // false → "show all": no hard stock filter (boosting instead)
+        SearchResponse mockResponse = SearchResponse.builder().build();
+        when(esService.search(anyString(), any(), any(), any(), any(), any(), anyString(), anyInt(), anyInt()))
+                .thenReturn(mockResponse);
+
+        searchQueryService.search("test", null, null, false, null, null, "relevance", 0, 20);
+
+        verify(esService).search(eq("test"), isNull(), isNull(),
+                isNull(), isNull(), isNull(), eq("relevance"), eq(0), eq(20));
     }
 
     @Test
     void searchShouldClampNegativePageToZero() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), any(), any(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, "relevance", -5, 20);
+        searchQueryService.search("test", null, null, null, null, null, "relevance", -5, 20);
 
         verify(esService).search(anyString(), isNull(), isNull(),
-                anyBoolean(), isNull(), anyString(), eq(0), anyInt());
+                isNull(), isNull(), isNull(), anyString(), eq(0), anyInt());
     }
 
     @Test
     void searchShouldClampSizeBelowOneTo20() {
         SearchResponse mockResponse = SearchResponse.builder().build();
-        when(esService.search(anyString(), any(), any(), anyBoolean(), any(), anyString(), anyInt(), anyInt()))
+        when(esService.search(anyString(), any(), any(), any(), any(), any(), anyString(), anyInt(), anyInt()))
                 .thenReturn(mockResponse);
 
-        searchQueryService.search("test", null, null, null, null, "relevance", 0, 0);
+        searchQueryService.search("test", null, null, null, null, null, "relevance", 0, 0);
 
         verify(esService).search(anyString(), isNull(), isNull(),
-                anyBoolean(), isNull(), anyString(), anyInt(), eq(20));
+                isNull(), isNull(), isNull(), anyString(), anyInt(), eq(20));
     }
 
     @Test

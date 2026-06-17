@@ -1,4 +1,5 @@
 import { useQueries } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { adminApi } from '@shared/api/admin.api';
 import { adminRefundApi } from '@shared/api/refund.api';
 import { flashSaleApi } from '@shared/api/flashSale.api';
@@ -34,17 +35,17 @@ export default function AdminDashboard() {
   const anyError = stats.some(s => s.isError);
 
   const STATS = [
-    { label: 'Tổng người dùng', value: anyLoading ? '...' : String(users.data ?? 0), icon: '👥', gradient: 'from-blue-500 to-cyan-500', trend: 'Tất cả vai trò' },
-    { label: 'Sản phẩm chờ duyệt', value: anyLoading ? '...' : String(pendingProducts.data ?? 0), icon: '📦', gradient: 'from-amber-500 to-orange-500', trend: 'Cần xem xét' },
-    { label: 'Yêu cầu hoàn tiền', value: anyLoading ? '...' : String(pendingRefunds.data ?? 0), icon: '💸', gradient: 'from-red-500 to-pink-500', trend: 'Chờ xử lý' },
-    { label: 'Flash Sale đang chạy', value: anyLoading ? '...' : String(activeFlashSales.data ?? 0), icon: '⚡', gradient: 'from-violet-500 to-purple-600', trend: 'Phiên hoạt động' },
+    { label: 'Tổng người dùng', value: anyLoading ? <div className="h-7 w-16 bg-gray-200 rounded animate-pulse" /> : String(users.data ?? 0), icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>, gradient: 'from-blue-600 to-cyan-600', trend: 'Tất cả vai trò' },
+    { label: 'Sản phẩm chờ duyệt', value: anyLoading ? <div className="h-7 w-16 bg-gray-200 rounded animate-pulse" /> : String(pendingProducts.data ?? 0), icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4 7.55 4.24" /><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.29 7 12 12 20.71 7" /><line x1="12" y1="22" x2="12" y2="12" /></svg>, gradient: 'from-amber-500 to-orange-500', trend: 'Cần xem xét' },
+    { label: 'Yêu cầu hoàn tiền', value: anyLoading ? <div className="h-7 w-16 bg-gray-200 rounded animate-pulse" /> : String(pendingRefunds.data ?? 0), icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>, gradient: 'from-red-500 to-pink-500', trend: 'Chờ xử lý' },
+    { label: 'Flash Sale đang chạy', value: anyLoading ? <div className="h-7 w-16 bg-gray-200 rounded animate-pulse" /> : String(activeFlashSales.data ?? 0), icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>, gradient: 'from-violet-500 to-purple-600', trend: 'Phiên hoạt động' },
   ];
 
   const QUICK_LINKS = [
-    { label: 'Quản lý người dùng', icon: '👤', href: '/users', desc: 'Xem, khoá, mở khoá tài khoản', color: 'hover:border-blue-300 hover:bg-blue-50' },
-    { label: 'Duyệt sản phẩm', icon: '✅', href: '/product-moderation', desc: 'Kiểm duyệt sản phẩm mới', color: 'hover:border-green-300 hover:bg-green-50' },
-    { label: 'Xử lý hoàn tiền', icon: '💰', href: '/refunds', desc: 'Xem xét và phê duyệt hoàn tiền', color: 'hover:border-red-300 hover:bg-red-50' },
-    { label: 'Cấu hình Flash Sale', icon: '⚡', href: '/flash-sale-config', desc: 'Tạo và quản lý phiên flash sale', color: 'hover:border-violet-300 hover:bg-violet-50' },
+    { label: 'Quản lý người dùng', icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>, href: '/users', desc: 'Xem, khoá, mở khoá tài khoản', color: 'hover:border-blue-300 hover:bg-blue-50' },
+    { label: 'Duyệt sản phẩm', icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>, href: '/product-moderation', desc: 'Kiểm duyệt sản phẩm mới', color: 'hover:border-green-300 hover:bg-green-50' },
+    { label: 'Xử lý hoàn tiền', icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>, href: '/refunds', desc: 'Xem xét và phê duyệt hoàn tiền', color: 'hover:border-red-300 hover:bg-red-50' },
+    { label: 'Cấu hình Flash Sale', icon: <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>, href: '/flash-sale-config', desc: 'Tạo và quản lý phiên flash sale', color: 'hover:border-violet-300 hover:bg-violet-50' },
   ];
 
   return (
@@ -70,13 +71,13 @@ export default function AdminDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {STATS.map(({ label, value, icon, gradient, trend }) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-shadow overflow-hidden relative">
+        {STATS.map(({ label, value, icon, gradient, trend }, index) => (
+          <div key={label} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-sm transition-shadow overflow-hidden relative animate-fadeIn" style={{ animationDelay: `${index * 0.1}s` }}>
             <div className={`absolute top-0 right-0 w-24 h-24 rounded-full bg-gradient-to-br ${gradient} opacity-10 translate-x-8 -translate-y-8`} />
             <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} text-white text-lg mb-4 shadow-sm`}>
               {icon}
             </div>
-            <p className="text-2xl font-bold text-gray-900 mb-0.5">{value}</p>
+            <div className="text-2xl font-bold text-gray-900 mb-0.5">{value}</div>
             <p className="text-sm text-gray-500 mb-1">{label}</p>
             <p className="text-xs text-gray-400">{trend}</p>
           </div>
@@ -88,15 +89,15 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Truy cập nhanh</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {QUICK_LINKS.map(({ label, icon, href, desc, color }) => (
-            <a
+            <Link
               key={label}
-              href={href}
+              to={href}
               className={`group bg-white rounded-2xl border-2 border-gray-100 p-5 transition-all duration-150 cursor-pointer ${color}`}
             >
               <span className="text-3xl block mb-3">{icon}</span>
               <h3 className="font-semibold text-gray-900 text-sm mb-1">{label}</h3>
               <p className="text-xs text-gray-500">{desc}</p>
-            </a>
+            </Link>
           ))}
         </div>
       </div>

@@ -20,6 +20,28 @@ const REASON_LABELS: Record<string, string> = {
   VARIANT_INACTIVE: 'Sản phẩm đã ngừng bán',
 };
 
+/**
+ * Parse a cart-change error that the backend serialises into the ApiResponse.message field.
+ *
+ * Backend flow:
+ *   AppException(CONFLICT, objectMapper.writeValueAsString(CheckoutPreviewError))
+ *   → GlobalExceptionHandler wraps as ApiResponse.error("RES_004", jsonString)
+ *   → jsonString lives in err.response.data.message, not at the top level
+ */
+function parseCartChangeError(err: any): { error: string; message: string; details: CartChangeDetail[] } | null {
+  const data = err?.response?.data as any;
+  if (!data?.message || typeof data.message !== 'string') return null;
+  try {
+    const parsed = JSON.parse(data.message);
+    if (parsed?.error && Array.isArray(parsed?.details)) {
+      return parsed;
+    }
+  } catch {
+    // Plain string message — not a cart-change error
+  }
+  return null;
+}
+
 async function getMaxParentOrderId(): Promise<number> {
   try {
     const { data } = await orderApi.getOrders({ page: 0, size: 100 });
@@ -538,7 +560,6 @@ export default function OrderReviewPage() {
     queryKey: ['addresses'],
     queryFn: () => addressApi.list().then(r => r.data.data ?? []),
     retry: 1,
-    initialData: [],
   });
 
   useEffect(() => {
@@ -559,6 +580,19 @@ export default function OrderReviewPage() {
   };
 
   const handleRefreshCart = async () => {
+    if (cartChanges.length > 0) {
+      setRefreshLoading(true);
+      try {
+        // Fetch latest cart data first, then navigate
+        await fetchCart();
+      } catch {
+        // Proceed even if fetch fails
+      } finally {
+        setRefreshLoading(false);
+      }
+      navigate('/cart');
+      return;
+    }
     setRefreshLoading(true);
     setCartChanges([]);
     setApiError(null);
@@ -597,15 +631,16 @@ export default function OrderReviewPage() {
         setStep('review');
       }
     } catch (err: any) {
-      const errData = err?.response?.data as any;
-      if (errData?.error === 'CART_ITEMS_CHANGED' && errData?.details) {
-        setCartChanges(errData.details as CartChangeDetail[]);
+      const cartError = parseCartChangeError(err);
+      if (cartError) {
+        setCartChanges(cartError.details as CartChangeDetail[]);
+      } else {
+        setApiError(
+          err?.response?.data?.message ||
+          err?.response?.data?.errorCode ||
+          'Lỗi xác thực giỏ hàng'
+        );
       }
-      setApiError(
-        errData?.message ||
-        err?.response?.data?.message ||
-        'Lỗi xác thực giỏ hàng'
-      );
     } finally {
       setIsProcessing(false);
     }
@@ -641,24 +676,25 @@ export default function OrderReviewPage() {
         }
       }
     } catch (err: any) {
-      const errData = err?.response?.data as any;
+      const cartError = parseCartChangeError(err);
       const isExpired =
         err?.response?.status === 404 ||
-        errData?.error === 'PREVIEW_TOKEN_EXPIRED' ||
-        (errData?.message && errData.message.includes('không tồn tại') && errData.message.includes('hết hạn'));
+        cartError?.error === 'PREVIEW_TOKEN_EXPIRED' ||
+        (err?.response?.data?.message && String(err?.response?.data?.message).includes('không tồn tại') && String(err?.response?.data?.message).includes('hết hạn'));
       if (isExpired) {
         setSessionExpired(true);
         return;
       }
-      if (errData?.error === 'STOCK_CHANGED' && errData?.details) {
-        setCartChanges(errData.details as CartChangeDetail[]);
+      if (cartError) {
+        setCartChanges(cartError.details as CartChangeDetail[]);
+      } else {
+        setApiError(
+          err?.response?.data?.message ||
+          err?.response?.data?.errorCode ||
+          (err?.message === 'ORDER_NOT_READY' ? 'Đơn hàng đang được tạo. Vui lòng thử lại sau vài giây.' : null) ||
+          'Lỗi tạo đơn hàng'
+        );
       }
-      setApiError(
-        errData?.message ||
-        err?.response?.data?.message ||
-        (err?.message === 'ORDER_NOT_READY' ? 'Đơn hàng đang được tạo. Vui lòng thử lại sau vài giây.' : null) ||
-        'Lỗi tạo đơn hàng'
-      );
     } finally {
       setIsProcessing(false);
     }

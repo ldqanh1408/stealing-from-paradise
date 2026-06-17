@@ -127,6 +127,39 @@ public class NotificationDevDataLoader implements CommandLineRunner {
                 "He thong se bao tri dinh ky vao 02:00-04:00 ngay mai. Chuc nang ban hang tam ngung trong thoi gian nay.",
                 "{\"announcement_id\":\"SYS-2026-001\"}", "HIGH", true, now.minusDays(5)));
 
+        all.add(notif(900002, "ORDER_CREATED", "Don hang moi: FE Yoga Mat Premium",
+                "Khach hang da dat FE Yoga Mat Premium (350.000d). Vui long chuan bi hang.",
+                "{\"order_id\":900113,\"deeplink\":\"/seller/orders/900113\"}", "NORMAL", false, now.minusDays(2)));
+
+        // ======================================================================
+        //  fe_admin (900003) — 4 notifications
+        // ======================================================================
+
+        all.add(notif(900003, "PRODUCT_PENDING", "San pham cho phe duyet",
+                "FE Pending Review Backpack can admin xem xet va phe duyet.",
+                "{\"product_slug\":\"fe-pending-review-backpack\",\"deeplink\":\"/admin/products/pending\"}",
+                "NORMAL", false, now.minusDays(2)));
+
+        all.add(notif(900003, "PRODUCT_APPROVED", "Da phe duyet san pham",
+                "FE AirPods Flash Combo da duoc admin phe duyet thanh cong.",
+                "{\"product_slug\":\"fe-airpods-flash-combo\"}", "NORMAL", true, now.minusDays(12)));
+
+        all.add(notif(900003, "SYSTEM", "Yeu cau hoan tien can xem xet",
+                "Khach hang yeu cau hoan 23.990.000d cho REFUND-900205. Vao phan Refund de xu ly.",
+                "{\"refund_id\":900205,\"deeplink\":\"/admin/refunds/900205\"}", "HIGH", false, now.minusHours(3)));
+
+        all.add(notif(900003, "SYSTEM", "Bao cao thong ke hang thang",
+                "Bao cao doanh thu thang 5 da san sang. Xem tai dashboard.",
+                "{\"report_id\":\"REPORT-2026-05\",\"deeplink\":\"/admin/reports\"}", "NORMAL", true, now.minusDays(2)));
+
+        // ======================================================================
+        //  fe_buyer (900001) — 1 extra: Yoga Mat delivered
+        // ======================================================================
+
+        all.add(notif(900001, "ORDER_DELIVERED", "FE Yoga Mat Premium da duoc giao",
+                "FE-ORD-DELIVERED-900113 (FE Yoga Mat Premium) da giao thanh cong. Danh gia ngay!",
+                "{\"order_id\":900113}", "HIGH", false, now.minusDays(1)));
+
         // ======================================================================
         //  Save all
         // ======================================================================
@@ -135,7 +168,7 @@ public class NotificationDevDataLoader implements CommandLineRunner {
         log.info("[NotificationDevDataLoader] Seeded {} notifications.", inserted);
     }
 
-    private Notification notif(Long userId, String type, String title, String body,
+    private Notification notif(long userId, String type, String title, String body,
                                 String metadata, String priority, boolean isRead,
                                 LocalDateTime createdAt) {
         return Notification.builder()

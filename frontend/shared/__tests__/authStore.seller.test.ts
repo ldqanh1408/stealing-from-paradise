@@ -42,6 +42,10 @@ const authResponse = (token: string) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({ user: null, profile: null, isAuthenticated: false });
+  if (typeof window !== 'undefined') {
+    delete (window as any).location;
+    window.location = new URL('http://localhost/seller') as any;
+  }
 });
 
 describe('authStore.registerSeller (UC-IDENTITY-006)', () => {
@@ -54,8 +58,8 @@ describe('authStore.registerSeller (UC-IDENTITY-006)', () => {
     expect(s.isAuthenticated).toBe(true);
     expect(s.user?.role).toBe('SELLER');
     expect(s.user?.username).toBe('shop1');
-    expect(Cookies.set).toHaveBeenCalledWith('accessToken', expect.any(String), expect.any(Object));
-    expect(Cookies.set).toHaveBeenCalledWith('refreshToken', 'refresh-xyz', expect.any(Object));
+    expect(Cookies.set).toHaveBeenCalledWith('seller_accessToken', expect.any(String), expect.any(Object));
+    expect(Cookies.set).toHaveBeenCalledWith('seller_refreshToken', 'refresh-xyz', expect.any(Object));
   });
 
   it('falls back to SELLER role when the token has no role claim', async () => {

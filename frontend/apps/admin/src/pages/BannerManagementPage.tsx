@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bannerApi, uploadBannerImage, type Banner, type BannerPosition, type BannerRequest } from '@shared/api/banner.api';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
@@ -28,6 +28,18 @@ export default function BannerManagementPage() {
     queryKey: ['admin-banners'],
     queryFn: () => bannerApi.list().then((r) => r.data.data ?? []),
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsOpen(false); };
+      document.addEventListener('keydown', handler);
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.removeEventListener('keydown', handler);
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isOpen]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
 
@@ -129,7 +141,7 @@ export default function BannerManagementPage() {
       )}
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setIsOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" onClick={() => setIsOpen(false)}>
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-gray-900 mb-4">{editing ? 'Chỉnh sửa banner' : 'Thêm banner mới'}</h2>
             {errorMsg && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">{errorMsg}</div>}

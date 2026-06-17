@@ -1,5 +1,5 @@
 import apiClient, { handleAuthFailure } from '../lib/axios';
-import Cookies from 'js-cookie';
+import { authCookies } from '../utils/cookie';
 import type { ApiResponse } from '../types/api';
 import { isMockMode } from './mock';
 
@@ -147,7 +147,7 @@ export function streamChat(
   // Real connection using fetch + ReadableStream
   (async () => {
     try {
-      const token = Cookies.get('accessToken');
+      const token = authCookies.get('accessToken');
       const response = await fetch(`${getChatBaseUrl()}/chat`, {
         method: 'POST',
         headers: {

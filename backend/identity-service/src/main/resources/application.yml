@@ -80,7 +80,7 @@ eureka:
 
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_for_flashsale_project_that_is_very_long_32_chars_minimum}
-  expiration: ${JWT_EXPIRATION:3600}
+  expiration: ${JWT_EXPIRATION:86400}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800}
 
 

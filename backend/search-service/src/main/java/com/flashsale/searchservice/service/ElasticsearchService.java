@@ -42,11 +42,12 @@ public class ElasticsearchService {
             Double priceMax,
             Boolean inStock,
             Boolean isFlash,
+            Long sellerId,
             String sort,
             int page,
             int size
     ) {
-        return searcher.search(q, priceMin, priceMax, inStock, isFlash, sort, page, size);
+        return searcher.search(q, priceMin, priceMax, inStock, isFlash, sellerId, sort, page, size);
     }
 
     public SuggestResponse suggest(String q, int size) {

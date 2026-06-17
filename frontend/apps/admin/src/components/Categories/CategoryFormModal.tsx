@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { Category } from '@shared/api/category.api';
 
 interface CategoryFormModalProps {
@@ -29,8 +30,18 @@ export default function CategoryFormModal({
   onSubmit,
   onClose,
 }: CategoryFormModalProps) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handler);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn" role="dialog" aria-modal="true">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-gray-100 overflow-hidden transform transition-all animate-scaleUp">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
           <h3 className="text-lg font-bold text-gray-900">

@@ -10,6 +10,7 @@ import com.flashsale.identityservice.dto.request.UserProfileUpdateRequest;
 import com.flashsale.identityservice.dto.response.AddressResponse;
 import com.flashsale.identityservice.dto.response.NotificationPreferencesResponse;
 import com.flashsale.identityservice.dto.response.PresignedUrlResponse;
+import com.flashsale.identityservice.dto.response.SellerPublicResponse;
 import com.flashsale.identityservice.dto.response.UserProfileResponse;
 import com.flashsale.identityservice.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -122,6 +123,12 @@ public class UserController {
             @RequestBody NotificationPreferencesUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
                 userService.updateNotificationPreferences(user.getId(), request), "Preferences updated"));
+    }
+
+    @GetMapping("/sellers/{sellerId}")
+    public ResponseEntity<ApiResponse<SellerPublicResponse>> getSellerPublic(
+            @PathVariable Long sellerId) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getSellerPublicInfo(sellerId)));
     }
 
     @PutMapping("/me/avatar")

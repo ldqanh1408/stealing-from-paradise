@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import Cookies from 'js-cookie';
+import { authCookies } from '../utils/cookie';
 import { authApi, type RegisterRequest } from '../api/auth.api';
 import { userApi, type UserProfileResponse } from '../api/user.api';
 import { logoutApi, registerAuthFailureHandler } from '../lib/axios';
@@ -42,7 +42,7 @@ interface AuthState {
 }
 
 export function isAuthFromCookie(): boolean {
-  return !!Cookies.get('accessToken');
+  return !!authCookies.get('accessToken');
 }
 
 function decodeJwt(token: string): any {
@@ -89,9 +89,9 @@ export const useAuthStore = create<AuthState>()(
       login: async (credential, password) => {
         const { data } = await authApi.login({ credential, password });
         const auth = data.data!;
-        Cookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'lax' });
+        authCookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'lax' });
         if (auth.refreshToken) {
-          Cookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
+          authCookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
         }
         const decoded = decodeJwt(auth.accessToken);
         const role = decoded?.role || 'BUYER';
@@ -114,9 +114,9 @@ export const useAuthStore = create<AuthState>()(
       register: async (req) => {
         const { data } = await authApi.register(req);
         const auth = data.data!;
-        Cookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'lax' });
+        authCookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'lax' });
         if (auth.refreshToken) {
-          Cookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
+          authCookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
         }
         const decoded = decodeJwt(auth.accessToken);
         const role = decoded?.role || 'BUYER';
@@ -139,9 +139,9 @@ export const useAuthStore = create<AuthState>()(
       registerSeller: async (req) => {
         const { data } = await authApi.registerSeller(req);
         const auth = data.data!;
-        Cookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'lax' });
+        authCookies.set('accessToken', auth.accessToken, { secure: true, sameSite: 'lax' });
         if (auth.refreshToken) {
-          Cookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
+          authCookies.set('refreshToken', auth.refreshToken, { secure: true, sameSite: 'lax' });
         }
         const decoded = decodeJwt(auth.accessToken);
         const role = decoded?.role || 'SELLER';
@@ -163,8 +163,8 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try { await logoutApi(); } catch (_) {}
-        Cookies.remove('accessToken');
-        Cookies.remove('refreshToken');
+        authCookies.remove('accessToken');
+        authCookies.remove('refreshToken');
         set({ user: null, profile: null, isAuthenticated: false });
       },
 

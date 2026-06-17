@@ -2,7 +2,6 @@ package com.flashsale.productservice.config;
 
 import com.flashsale.commonlib.filter.JwtTokenDecoderFilter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
@@ -13,7 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 import lombok.Getter;
@@ -23,20 +22,6 @@ import lombok.Setter;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    private final JwtTokenDecoderFilter jwtTokenDecoderFilter;
-
-    public SecurityConfig(JwtTokenDecoderFilter jwtTokenDecoderFilter) {
-        this.jwtTokenDecoderFilter = jwtTokenDecoderFilter;
-    }
-
-    @Bean
-    public FilterRegistrationBean<JwtTokenDecoderFilter> jwtTokenDecoderFilterRegistration(
-            JwtTokenDecoderFilter filter) {
-        FilterRegistrationBean<JwtTokenDecoderFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false);
-        return registration;
-    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -53,7 +38,6 @@ public class SecurityConfig {
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
-            .anonymous(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/v1/categories/**", "/categories/**").permitAll()
@@ -62,7 +46,7 @@ public class SecurityConfig {
                 .requestMatchers("/v1/search/**").permitAll()
                 .anyRequest().permitAll()
             )
-            .addFilterBefore(jwtTokenDecoderFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(new JwtTokenDecoderFilter(), SecurityContextHolderFilter.class);
 
         return http.build();
     }

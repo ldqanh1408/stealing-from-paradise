@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -58,6 +59,13 @@ public class GlobalExceptionHandler {
         log.error("Unhandled NullPointerException", ex);
         return ResponseEntity.internalServerError()
             .body(ApiResponse.error(ErrorCode.INTERNAL_ERROR.getCode(), "Lỗi nội bộ"));
+    }
+
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoAuth(AuthenticationCredentialsNotFoundException ex) {
+        log.warn("[AUTH_001] Authentication required: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error(ErrorCode.UNAUTHORIZED.getCode(), "Vui lòng đăng nhập"));
     }
 
     @ExceptionHandler({AuthorizationDeniedException.class, AccessDeniedException.class})

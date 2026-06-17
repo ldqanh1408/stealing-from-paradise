@@ -13,6 +13,6 @@ public class SearchService {
     }
 
     public void search(String query, int page, int size) {
-        searchQueryService.search(query, null, null, true, null, "relevance", page, size);
+        searchQueryService.search(query, null, null, true, null, null, "relevance", page, size);
     }
 }

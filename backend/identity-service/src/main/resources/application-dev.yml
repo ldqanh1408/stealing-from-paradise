@@ -12,4 +12,4 @@ dev-data:
   enabled: true
   # reset=true drops all users/roles/addresses before seeding.
   # CAUTION: This destroys ALL data in the identity schema.
-  reset: false
+  reset: ${DEV_DATA_RESET:false}

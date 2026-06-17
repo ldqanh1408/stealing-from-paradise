@@ -324,10 +324,12 @@ export default function FlashSalePage() {
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           s.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
                           s.status === 'UPCOMING' ? 'bg-blue-100 text-blue-700' :
+                          s.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
                           'bg-gray-100 text-gray-600'
                         }`}>
                           {s.status === 'ACTIVE' ? 'Đang diễn ra' :
-                           s.status === 'UPCOMING' ? 'Sắp diễn ra' : 'Đã kết thúc'}
+                           s.status === 'UPCOMING' ? 'Sắp diễn ra' :
+                           s.status === 'CANCELLED' ? 'Đã huỷ' : 'Đã kết thúc'}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-gray-500">{s.items?.length ?? 0} sản phẩm</td>

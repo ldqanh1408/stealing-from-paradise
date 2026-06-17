@@ -20,7 +20,7 @@ export default function RejectRefundModal({ refund, onClose, onSuccess }: { refu
 
   if (done) {
     return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center">
           <div className="text-5xl mb-4">✅</div>
           <h3 className="text-lg font-bold text-gray-900 mb-2">Đã từ chối yêu cầu hoàn tiền</h3>
@@ -31,7 +31,7 @@ export default function RejectRefundModal({ refund, onClose, onSuccess }: { refu
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full">
         <h3 className="text-lg font-bold text-gray-900 mb-2">Từ chối hoàn tiền</h3>
         <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1 text-sm">

@@ -1,7 +1,6 @@
 package com.flashsale.orderservice.config;
 
 import com.flashsale.commonlib.filter.JwtTokenDecoderFilter;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
@@ -12,34 +11,19 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 /**
  * Order Service Security Configuration
  *
- * JwtTokenDecoderFilter decodes X-User-* headers (from gateway) into SecurityContext
- * before @PreAuthorize checks run. Registered INSIDE SecurityFilterChain so the
- * context survives SecurityContextHolderFilter (STATELESS).
+ * JwtTokenDecoderFilter runs INSIDE SecurityFilterChain (after SecurityContextHolderFilter),
+ * so the SecurityContext survives until @PreAuthorize checks.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    private final JwtTokenDecoderFilter jwtTokenDecoderFilter;
-
-    public SecurityConfig(JwtTokenDecoderFilter jwtTokenDecoderFilter) {
-        this.jwtTokenDecoderFilter = jwtTokenDecoderFilter;
-    }
-
-    @Bean
-    public FilterRegistrationBean<JwtTokenDecoderFilter> jwtTokenDecoderFilterRegistration(
-            JwtTokenDecoderFilter filter) {
-        FilterRegistrationBean<JwtTokenDecoderFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false);
-        return registration;
-    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -56,9 +40,8 @@ public class SecurityConfig {
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
-            .anonymous(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-            .addFilterBefore(jwtTokenDecoderFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(new JwtTokenDecoderFilter(), SecurityContextHolderFilter.class);
 
         return http.build();
     }

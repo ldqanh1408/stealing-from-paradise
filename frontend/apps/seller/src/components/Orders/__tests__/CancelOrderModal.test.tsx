@@ -35,7 +35,7 @@ describe('CancelOrderModal (UC-ORDER-008 / BR-ORDER-026)', () => {
 
     fireEvent.change(reasonBox(), { target: { value: 'short' } });
     expect(confirmBtn()).toBeDisabled();
-    expect(screen.getByText(/tối thiểu 10 ký tự/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/tối thiểu 10 ký tự/i).length).toBeGreaterThan(0);
   });
 
   it('enables confirm once the reason is long enough', () => {

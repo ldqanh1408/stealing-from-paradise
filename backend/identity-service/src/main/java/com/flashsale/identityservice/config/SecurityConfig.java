@@ -2,39 +2,37 @@ package com.flashsale.identityservice.config;
 
 import com.flashsale.commonlib.filter.JwtTokenDecoderFilter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import com.flashsale.identityservice.service.CustomUserDetailsService;
 
 /**
  * Security Configuration for Identity Service
  *
- * JwtTokenDecoderFilter runs BEFORE FilterChainProxy at @Order(HIGHEST_PRECEDENCE+10).
- * This causes it to set SecurityContext BEFORE FilterChainProxy, but then
- * SecurityContextHolderFilter (inside the chain, STATELESS) wipes it — leaving null.
- *
- * Fix: disable the top-level servlet filter registration and add the filter
- * INSIDE the SecurityFilterChain via addFilterBefore, after SecurityContextHolderFilter.
+ * JwtTokenDecoderFilter runs INSIDE SecurityFilterChain (after SecurityContextHolderFilter),
+ * so the SecurityContext survives until @PreAuthorize checks.
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
-    private final JwtTokenDecoderFilter jwtTokenDecoderFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -49,18 +47,6 @@ public class SecurityConfig {
                 .userDetailsService(customUserDetailsService)
                 .passwordEncoder(passwordEncoder());
         return authenticationManagerBuilder.build();
-    }
-
-    /**
-     * Disable top-level servlet filter registration so the filter only runs
-     * inside the SecurityFilterChain where STATELESS won't wipe it immediately.
-     */
-    @Bean
-    public FilterRegistrationBean<JwtTokenDecoderFilter> jwtTokenDecoderFilterRegistration(
-            JwtTokenDecoderFilter filter) {
-        FilterRegistrationBean<JwtTokenDecoderFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false);
-        return registration;
     }
 
     @Bean
@@ -78,11 +64,23 @@ public class SecurityConfig {
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
-            .anonymous(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-            .addFilterBefore(jwtTokenDecoderFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(new JwtTokenDecoderFilter(), SecurityContextHolderFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Role hierarchy so ADMIN implicitly inherits SELLER and BUYER authorities,
+     * and SELLER inherits BUYER. This allows @PreAuthorize("hasRole('SELLER')")
+     * to match when the user is an ADMIN.
+     */
+    @Bean
+    public RoleHierarchy roleHierarchy() {
+        return RoleHierarchyImpl.withDefaultRolePrefix()
+            .role("ADMIN").implies("SELLER")
+            .role("SELLER").implies("BUYER")
+            .build();
     }
 }
 

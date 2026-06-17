@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminRefundApi, type RefundResponse } from '@shared/api/refund.api';
 import ApproveRefundModal from '@/components/Refunds/ApproveRefundModal';
@@ -15,9 +15,20 @@ export default function RefundsPage() {
   const [statusFilter, setStatusFilter] = useState<RefundStatus>('ALL');
   const [typeFilter, setTypeFilter] = useState<RefundType>('ALL');
   const [page, setPage] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [approveRefund, setApproveRefund] = useState<RefundResponse | null>(null);
   const [rejectRefund, setRejectRefund] = useState<RefundResponse | null>(null);
   const [detailRefund, setDetailRefund] = useState<RefundResponse | null>(null);
+
+  // Debounce search: wait 400ms after typing before filtering, reset to page 0
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-refunds', statusFilter, typeFilter, page],
@@ -32,6 +43,14 @@ export default function RefundsPage() {
   });
 
   const refunds: RefundResponse[] = data?.content ?? [];
+  // Client-side search filter
+  const filteredRefunds = debouncedSearch
+    ? refunds.filter(r =>
+        String(r.refundId).includes(debouncedSearch) ||
+        String(r.orderId).includes(debouncedSearch) ||
+        r.reason?.toLowerCase().includes(debouncedSearch.toLowerCase())
+      )
+    : refunds;
   const totalPages = data?.totalPages ?? 0;
   const totalElements = data?.totalElements ?? 0;
 
@@ -51,6 +70,17 @@ export default function RefundsPage() {
         >
           🔄 Làm mới
         </button>
+      </div>
+
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Tìm theo mã hoàn tiền, đơn hàng..."
+          className="w-full max-w-md px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       {/* Filters */}
@@ -95,20 +125,24 @@ export default function RefundsPage() {
       )}
 
       {/* Empty */}
-      {!isLoading && !error && refunds.length === 0 && (
+      {!isLoading && !error && filteredRefunds.length === 0 && (
         <EmptyState
           iconKey="refund"
           title="Không có yêu cầu hoàn tiền nào"
-          description="Các yêu cầu hoàn tiền mới sẽ xuất hiện ở đây để admin xử lý."
+          description={
+            debouncedSearch || statusFilter !== 'ALL' || typeFilter !== 'ALL'
+              ? 'Thử đổi từ khóa hoặc bộ lọc để xem thêm kết quả.'
+              : 'Các yêu cầu hoàn tiền mới sẽ xuất hiện ở đây để admin xử lý.'
+          }
           className="bg-white rounded-2xl border border-gray-100"
         />
       )}
 
       {/* Table */}
-      {!isLoading && !error && refunds.length > 0 && (
+      {!isLoading && !error && filteredRefunds.length > 0 && (
         <>
           <RefundsTable
-            refunds={refunds}
+            refunds={filteredRefunds}
             onDetail={setDetailRefund}
             onApprove={setApproveRefund}
             onReject={setRejectRefund}

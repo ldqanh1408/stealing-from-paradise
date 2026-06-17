@@ -5,6 +5,7 @@ interface CategoriesTableProps {
   getParentName: (parentId?: string | null) => string;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
+  onAddClick?: () => void;
 }
 
 export default function CategoriesTable({
@@ -12,6 +13,7 @@ export default function CategoriesTable({
   getParentName,
   onEdit,
   onDelete,
+  onAddClick,
 }: CategoriesTableProps) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -30,8 +32,18 @@ export default function CategoriesTable({
           <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
             {categories.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                  Chưa có danh mục nào được tạo.
+                <td colSpan={6} className="px-6 py-16 text-center">
+                  <div className="text-5xl mb-4 opacity-40">📂</div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-1">Chưa có danh mục nào</h3>
+                  <p className="text-sm text-gray-500 mb-5">Nhấn "Thêm danh mục" để tạo danh mục đầu tiên.</p>
+                  {onAddClick && (
+                    <button
+                      onClick={onAddClick}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+                    >
+                      + Thêm danh mục
+                    </button>
+                  )}
                 </td>
               </tr>
             ) : (

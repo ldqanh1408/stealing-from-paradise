@@ -1,57 +1,29 @@
 package com.flashsale.refundservice.config;
 
 import com.flashsale.commonlib.filter.JwtTokenDecoderFilter;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 /**
  * Refund Service Security Configuration
  *
- * JwtTokenDecoderFilter is added into the SecurityFilterChain via addFilterBefore,
- * BEFORE AuthorizationFilter (which evaluates @PreAuthorize). This ensures the
- * SecurityContext is populated from gateway X-User-* headers before role checks run.
- *
- * The @Import variant is NOT used here because @Import alone registers the filter
- * in the servlet filter chain at HIGHEST_PRECEDENCE+10, which is AFTER
- * AuthorizationFilter (Integer.MIN_VALUE) — causing @PreAuthorize to see no auth.
+ * JwtTokenDecoderFilter runs INSIDE SecurityFilterChain (after SecurityContextHolderFilter),
+ * so the SecurityContext survives until @PreAuthorize checks.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    private final JwtTokenDecoderFilter jwtTokenDecoderFilter;
-
-    public SecurityConfig(JwtTokenDecoderFilter jwtTokenDecoderFilter) {
-        this.jwtTokenDecoderFilter = jwtTokenDecoderFilter;
-    }
-
-    /**
-     * Disable Spring Boot's auto-registration of JwtTokenDecoderFilter as a top-level
-     * servlet filter. Otherwise it runs BEFORE FilterChainProxy, sets the SecurityContext,
-     * but then SecurityContextHolderFilter (inside the chain, with STATELESS) wipes it.
-     * The in-chain re-registration via addFilterBefore would then be skipped by
-     * OncePerRequestFilter's already-filtered guard, leaving auth as null.
-     *
-     * With this disabled, the filter only runs INSIDE the SecurityFilterChain, after
-     * SecurityContextHolderFilter, so the context survives until @PreAuthorize.
-     */
-    @Bean
-    public FilterRegistrationBean<JwtTokenDecoderFilter> jwtTokenDecoderFilterRegistration(
-        JwtTokenDecoderFilter filter) {
-        FilterRegistrationBean<JwtTokenDecoderFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false);
-        return registration;
-    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -65,15 +37,27 @@ public class SecurityConfig {
                     .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
                 )
             )
-            .anonymous(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-            .addFilterBefore(jwtTokenDecoderFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(new JwtTokenDecoderFilter(), SecurityContextHolderFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Role hierarchy so ADMIN implicitly inherits SELLER and BUYER authorities,
+     * and SELLER inherits BUYER. This allows @PreAuthorize("hasRole('SELLER')")
+     * to match when the user is an ADMIN.
+     */
+    @Bean
+    public RoleHierarchy roleHierarchy() {
+        return RoleHierarchyImpl.withDefaultRolePrefix()
+            .role("ADMIN").implies("SELLER")
+            .role("SELLER").implies("BUYER")
+            .build();
     }
 }

@@ -3,20 +3,23 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import SellerDashboard from '../SellerDashboard';
 import { sellerApi } from '@shared/api/seller.api';
+import { orderApi } from '@shared/api/order.api';
 
 vi.mock('@shared/api/seller.api', () => ({ sellerApi: { getDashboardStats: vi.fn() } }));
+vi.mock('@shared/api/order.api', () => ({ orderApi: { getSellerOrders: vi.fn(() => Promise.resolve({ data: { data: { content: [] } } })) } }));
 
 const setStats = (s: any) => (sellerApi.getDashboardStats as any).mockResolvedValue({ data: { data: s } });
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('SellerDashboard (UC-ORDER-007 dashboard)', () => {
+describe('SellerDashboard', () => {
   it('renders the stat cards', async () => {
     setStats({ totalProducts: 12, ordersToday: 3, revenueMonth: 5_000_000, pendingOrders: 0, activeProducts: 10 });
     renderWithProviders(<SellerDashboard />, { route: '/dashboard' });
     expect(await screen.findByText('Tổng sản phẩm')).toBeInTheDocument();
     expect(screen.getByText('Đơn hàng hôm nay')).toBeInTheDocument();
-    expect(screen.getByText('Doanh thu tháng')).toBeInTheDocument();
+    // Updated label text
+    expect(screen.getByText('Doanh thu tháng này')).toBeInTheDocument();
   });
 
   it('shows the pending-orders banner when there are pending orders', async () => {

@@ -8,6 +8,7 @@ vi.mock('@shared/api/seller.api', () => ({
   sellerApi: {
     getEarnings: vi.fn(),
     getStripeDashboardLink: vi.fn(() => Promise.resolve({ data: { data: { dashboardUrl: 'https://dash/x' } } })),
+    getStripeStatus: vi.fn(() => Promise.resolve({ data: { data: null } })),
   },
 }));
 
@@ -22,7 +23,7 @@ const setEarnings = (transfers: any[]) => (sellerApi.getEarnings as any).mockRes
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('SellerPaymentsPage — earnings & transfer status (Stripe transfer.* events)', () => {
+describe('SellerPaymentsPage — earnings & transfer status', () => {
   it('renders transfer-status chips for each transfer state', async () => {
     setEarnings([
       transfer({ id: 1, status: 'SUCCEEDED' }),
@@ -31,10 +32,11 @@ describe('SellerPaymentsPage — earnings & transfer status (Stripe transfer.* e
       transfer({ id: 4, status: 'REVERSED' }),
     ]);
     renderWithProviders(<SellerPaymentsPage />, { route: '/payments' });
-    expect(await screen.findByText('Đã chuyển')).toBeInTheDocument();
-    expect(screen.getByText('Đang chờ')).toBeInTheDocument();
-    expect(screen.getByText('Thất bại')).toBeInTheDocument();
-    expect(screen.getByText('Bị đảo ngược')).toBeInTheDocument();
+    // Status labels appear inside spans with icons - use getAllByText
+    expect(await screen.findByText(/Đã chuyển/)).toBeInTheDocument();
+    expect(screen.getByText(/Đang chờ/)).toBeInTheDocument();
+    expect(screen.getByText(/Thất bại/)).toBeInTheDocument();
+    expect(screen.getByText(/Bị đảo ngược/)).toBeInTheDocument();
   });
 
   it('shows the empty state when there are no transfers', async () => {
@@ -47,6 +49,7 @@ describe('SellerPaymentsPage — earnings & transfer status (Stripe transfer.* e
     setEarnings([]);
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     renderWithProviders(<SellerPaymentsPage />, { route: '/payments' });
+    // Switch to Stripe tab first
     fireEvent.click(await screen.findByRole('button', { name: /Stripe Dashboard/i }));
     fireEvent.click(screen.getByRole('button', { name: /Mở Stripe Dashboard/i }));
     await waitFor(() => expect(sellerApi.getStripeDashboardLink).toHaveBeenCalled());

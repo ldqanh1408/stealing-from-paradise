@@ -24,6 +24,7 @@ const AddressPage        = lazy(() => import('@/pages/AddressPage'));
 const AccountSettingsPage = lazy(() => import('@/pages/AccountSettingsPage'));
 const RefundHistoryPage = lazy(() => import('@/pages/RefundHistoryPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+const SellerStorePage   = lazy(() => import('@/pages/SellerStorePage'));
 
 // Top-priority destinations shown inline on the desktop bar. The cart lives in
 // its own badge icon, so it's not repeated here.
@@ -99,6 +100,7 @@ export default function App() {
                 <Route path="/product/:productId"  element={<ProductDetailPage />} />
                 <Route path="/flash-sales"     element={<FlashSalePage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
+                <Route path="/sellers/:sellerId" element={<SellerStorePage />} />
 
                 <Route path="/cart"     element={<PrivateRoute><CartPage /></PrivateRoute>} />
                 <Route path="/wishlist" element={<PrivateRoute><WishlistPage /></PrivateRoute>} />

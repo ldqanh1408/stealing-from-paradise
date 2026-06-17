@@ -213,6 +213,7 @@ export default function CategoryManagementPage() {
           getParentName={getParentName}
           onEdit={handleOpenEdit}
           onDelete={setDeletingCategory}
+          onAddClick={handleOpenCreate}
         />
       )}
 

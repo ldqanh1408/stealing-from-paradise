@@ -1,8 +1,5 @@
 package com.flashsale.orderservice.axon.saga;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.orderservice.axon.event.*;
 import com.flashsale.orderservice.domain.model.Order;
 import com.flashsale.orderservice.domain.repository.OrderRepository;
@@ -14,23 +11,13 @@ import org.axonframework.modelling.saga.SagaEventHandler;
 import org.axonframework.modelling.saga.StartSaga;
 import org.axonframework.spring.stereotype.Saga;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Saga
 @Slf4j
 public class ParentOrderPaymentSaga {
-
-    @Autowired
-    private transient KafkaTemplate<String, String> kafkaTemplate;
-
-    @Autowired
-    private transient ObjectMapper objectMapper;
 
     @Autowired
     private transient OrderRepository orderRepository;
@@ -44,25 +31,18 @@ public class ParentOrderPaymentSaga {
     @StartSaga
     @SagaEventHandler(associationProperty = "parentOrderId")
     public void on(ParentOrderCheckoutCreatedEvent event) {
-        List<Order> subOrders = orderRepository.findAllByParentOrderIdAndStatus(event.getParentOrderId(), "PENDING");
-        List<Map<String, Object>> orders = subOrders.stream().map(o -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("order_id",    o.getId());
-            m.put("seller_id",   o.getSellerId());
-            m.put("amount",      o.getFinalAmt());
-            return m;
-        }).toList();
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("parent_order_id", event.getParentOrderId());
-        payload.put("user_id", event.getUserId());
-        payload.put("total_amount", event.getTotalAmount());
-        payload.put("currency", "VND");
-        payload.put("timestamp", Instant.now().toString());
-        payload.put("orders", orders);
-
-        send(KafkaTopics.PAYMENT_REQUESTED, String.valueOf(event.getParentOrderId()), payload);
-        log.info("[ParentPaymentSaga][{}] Payment requested with {} sub-orders", event.getParentOrderId(), orders.size());
+        // Payment request is published by OrderCheckoutService after the creating
+        // transaction commits (publishPaymentRequestedAfterCommit → direct Kafka send).
+        // This saga only tracks the payment lifecycle — it handles payment.succeeded
+        // and payment.failed events below.
+        //
+        // We DO NOT publish payment.requested here because the saga runs inside the
+        // creating transaction (EventGateway is synchronous), so
+        // findAllByParentOrderIdAndStatus would query the DB before the sub-orders
+        // are committed — returning 0 rows and creating a Stripe PI with no orders.
+        // The afterCommit hook in OrderCheckoutService avoids this race by building
+        // the orders array from the in-memory list and sending after the DB commit.
+        log.info("[ParentPaymentSaga][{}] Saga started, awaiting payment result", event.getParentOrderId());
     }
 
     @EndSaga
@@ -122,14 +102,6 @@ public class ParentOrderPaymentSaga {
         }
 
         log.info("[ParentPaymentSaga][{}] Payment failed, cancelled {} sub-orders", event.getParentOrderId(), orders.size());
-    }
-
-    private void send(String topic, String key, Map<String, Object> payload) {
-        try {
-            kafkaTemplate.send(topic, key, objectMapper.writeValueAsString(payload));
-        } catch (JsonProcessingException e) {
-            log.error("[ParentPaymentSaga] Failed to serialize payload for topic {}: {}", topic, e.getMessage());
-        }
     }
 }
 

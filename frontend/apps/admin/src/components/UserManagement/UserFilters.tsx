@@ -17,16 +17,16 @@ export default function UserFilters({
 }: UserFiltersProps) {
   const roleFilters = [
     { value: '', label: 'Tất cả' },
-    { value: 'BUYER', label: 'BUYER' },
-    { value: 'SELLER', label: 'SELLER' },
-    { value: 'ADMIN', label: 'ADMIN' },
+    { value: 'BUYER', label: 'Người mua' },
+    { value: 'SELLER', label: 'Người bán' },
+    { value: 'ADMIN', label: 'Quản trị viên' },
   ];
 
   const statusFilters = [
     { value: '', label: 'Tất cả trạng thái' },
-    { value: 'ACTIVE', label: 'ACTIVE' },
-    { value: 'LOCKED', label: 'LOCKED' },
-    { value: 'BANNED', label: 'BANNED' },
+    { value: 'ACTIVE', label: 'Hoạt động' },
+    { value: 'LOCKED', label: 'Đã khoá' },
+    { value: 'BANNED', label: 'Đã cấm' },
   ];
 
   return (

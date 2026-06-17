@@ -73,7 +73,11 @@ services:
       retries: 5
 
   elasticsearch:
-    image: elasticsearch:${ELASTIC_VER:-8.10.2}
+    build:
+      context: ./docker/elasticsearch
+      args:
+        ES_VERSION: ${ELASTIC_VER:-8.10.2}
+    image: flashsale-elasticsearch:${ELASTIC_VER:-8.10.2}
     container_name: fs-elasticsearch
     restart: unless-stopped
     ports: ["${PORT_ELASTIC:-9200}:9200"]

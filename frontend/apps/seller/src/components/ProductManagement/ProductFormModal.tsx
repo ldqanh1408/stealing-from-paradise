@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sellerApi, type SellerProduct, type SellerVariant } from '@shared/api/seller.api';
 import { categoryApi } from '@shared/api/category.api';
-import { fmtVnd as fmt } from '@shared/utils/format';
+import { fmtVnd } from '@shared/utils/format';
 import VariantModal from './VariantModal';
 import ImageUploader from './ImageUploader';
 import InventoryPanel from './InventoryPanel';
@@ -14,7 +14,7 @@ type ProductFormTab = 'info' | 'images' | 'variants' | 'inventory';
 function makeDefaultSku(name: string) {
   const base = name
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .toUpperCase()
@@ -94,17 +94,10 @@ export default function ProductFormModal({
 
       return created;
     },
-    onSuccess: (res) => {
-      if (!product && res.data.data) {
-        // New product — navigate to edit for variants
-        queryClient.invalidateQueries({ queryKey: ['seller-products'] });
-        setDone(true);
-        timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['seller-products'] });
-        setDone(true);
-        timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200);
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
+      setDone(true);
+      timerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1200);
     },
     onError: (err: any) => setError(err?.response?.data?.message || 'Lưu sản phẩm thất bại'),
   });
@@ -119,9 +112,7 @@ export default function ProductFormModal({
       setDeletingVariant(null);
       notify.success('Đã xoá biến thể');
     },
-    onError: (err: any) => {
-      notify.error(err?.response?.data?.message || 'Xóa biến thể thất bại');
-    },
+    onError: (err: any) => notify.error(err?.response?.data?.message || 'Xóa biến thể thất bại'),
   });
 
   const handleSaveInfo = () => {
@@ -140,7 +131,6 @@ export default function ProductFormModal({
       setError('Số lượng ban đầu không hợp lệ.');
       return;
     }
-    if (!name.trim() || !price) { setError('Vui lòng điền tên và giá sản phẩm.'); return; }
     setError(null);
     mut.mutate({ name: name.trim(), description, categoryId: selectedCategoryId, images });
   };
@@ -162,10 +152,16 @@ export default function ProductFormModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl p-6 max-w-lg w-full my-4 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">
-            {product ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
-          </h3>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">
+              {product ? '✏️ Chỉnh sửa sản phẩm' : '➕ Thêm sản phẩm mới'}
+            </h3>
+            {product && (
+              <p className="text-xs text-gray-400 mt-0.5">ID: {product.productId}</p>
+            )}
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
         </div>
 
@@ -176,24 +172,34 @@ export default function ProductFormModal({
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}>
-              {tab === 'info' ? 'Thông tin' : tab === 'images' ? 'Hình ảnh' : tab === 'variants' ? 'Biến thể' : 'Tồn kho'}
+              {tab === 'info' ? '📝 Thông tin' : tab === 'images' ? '🖼 Ảnh' : tab === 'variants' ? '🏷 Biến thể' : '📦 Kho'}
+              {tab === 'variants' && variants.length > 0 && (
+                <span className="ml-1 text-xs text-gray-400">({variants.length})</span>
+              )}
             </button>
           ))}
         </div>
 
-        {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4">{error}</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm mb-4 flex items-start gap-2">
+            <span>⚠️</span>
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">×</button>
+          </div>
+        )}
 
+        {/* Tab: Info */}
         {activeTab === 'info' && (
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Tên sản phẩm *</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)}
-                placeholder="VD: Tai nghe Bluetooth Sony WH-1000XM5"
+                placeholder="VD: Tai nghe Bluetooth Sony WH-1000XM5" autoFocus={!product}
                 className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Mô tả</label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4}
                 placeholder="Mô tả chi tiết sản phẩm..."
                 className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
             </div>
@@ -202,18 +208,19 @@ export default function ProductFormModal({
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Danh mục</label>
                 <select value={category} onChange={e => setCategory(e.target.value)}
                   className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {categories.length === 0 && <option value="">Đang tải danh mục...</option>}
+                  {categories.length === 0 && <option value="">Đang tải...</option>}
                   {categories.map(c => (
-                    <option key={c.categoryId} value={c.categoryId}>
-                      {c.name}
-                    </option>
+                    <option key={c.categoryId} value={c.categoryId}>{c.name}</option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Giá (VND) *</label>
-                <input type="number" value={price} onChange={e => setPrice(e.target.value)} min="0"
-                  className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="relative">
+                  <input type="number" value={price} onChange={e => setPrice(e.target.value)} min="0"
+                    className="w-full px-3 py-2.5 pr-7 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">₫</span>
+                </div>
               </div>
             </div>
             {isNew && (
@@ -223,44 +230,56 @@ export default function ProductFormModal({
                   className="w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             )}
+            {!isNew && price && (
+              <div className="bg-gray-50 rounded-xl p-3 text-sm">
+                <div className="flex justify-between text-gray-500">
+                  <span>Giá hiện tại</span>
+                  <span className="font-semibold text-gray-900">{fmtVnd(Number(price))}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
+        {/* Tab: Images */}
         {activeTab === 'images' && (
-          <ImageUploader productId={product?.productId ?? 'new'} images={images} onChange={setImages} />
+          <div className="min-h-[200px]">
+            <ImageUploader productId={product?.productId ?? 'new'} images={images} onChange={setImages} />
+          </div>
         )}
 
+        {/* Tab: Variants */}
         {activeTab === 'variants' && (
-          <div>
+          <div className="min-h-[200px]">
             {!product ? (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                Lưu sản phẩm trước để thêm biến thể.
+              <div className="flex flex-col items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                <span className="text-3xl">💾</span>
+                <p>Lưu sản phẩm trước để thêm biến thể.</p>
               </div>
             ) : (
               <>
-                <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                <div className="space-y-2 mb-4 max-h-52 overflow-y-auto">
                   {variants.length === 0 && (
-                    <p className="text-sm text-gray-400 text-center py-4">Chưa có biến thể nào.</p>
+                    <p className="text-sm text-gray-400 text-center py-6">Chưa có biến thể nào. Thêm biến thể đầu tiên!</p>
                   )}
                   {variants.map(v => (
-                    <div key={v.skuCode} className="flex items-center gap-3 p-2 border border-gray-100 rounded-lg">
+                    <div key={v.skuCode} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:border-gray-200 transition-colors">
+                      <div className={`w-2 h-8 rounded-full ${v.stock > 0 ? 'bg-green-400' : 'bg-red-400'}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{v.variantName}</p>
-                        <p className="text-xs text-gray-400">SKU: {v.skuCode} · {fmt(v.price)} · Kho: {v.stock}</p>
+                        <p className="text-xs text-gray-400">
+                          SKU: {v.skuCode} · {fmtVnd(v.price)} · Kho: <span className={v.stock > 0 ? 'text-green-700' : 'text-red-600'}>{v.stock}</span>
+                        </p>
                       </div>
                       <button onClick={() => { setShowVariant(v); setShowVariantForm(true); }}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium shrink-0">Sửa</button>
-                      <button
-                        onClick={() => setDeletingVariant(v)}
-                        className="text-xs text-red-500 hover:text-red-600 font-medium shrink-0"
-                      >
-                        Xoá
-                      </button>
+                        className="px-3 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors">Sửa</button>
+                      <button onClick={() => setDeletingVariant(v)}
+                        className="px-3 py-1 text-xs text-red-500 hover:bg-red-50 rounded-lg font-medium transition-colors">Xoá</button>
                     </div>
                   ))}
                 </div>
                 <button onClick={() => { setShowVariant(undefined); setShowVariantForm(true); }}
-                  className="w-full py-2 border border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
+                  className="w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors font-medium">
                   + Thêm biến thể
                 </button>
               </>
@@ -268,11 +287,13 @@ export default function ProductFormModal({
           </div>
         )}
 
+        {/* Tab: Inventory */}
         {activeTab === 'inventory' && (
-          <div>
+          <div className="min-h-[200px]">
             {!product ? (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                Lưu sản phẩm trước để quản lý tồn kho.
+              <div className="flex flex-col items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                <span className="text-3xl">💾</span>
+                <p>Lưu sản phẩm trước để quản lý tồn kho.</p>
               </div>
             ) : (
               <InventoryPanel productId={product.productId} variants={variants} />
@@ -280,12 +301,14 @@ export default function ProductFormModal({
           </div>
         )}
 
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50">Huỷ</button>
+        {/* Footer buttons */}
+        <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 border rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">Huỷ</button>
           {activeTab === 'info' && (
             <button onClick={handleSaveInfo} disabled={mut.isPending}
-              className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-              {mut.isPending ? 'Đang lưu...' : product ? 'Cập nhật' : 'Tạo sản phẩm'}
+              className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-violet-700 disabled:opacity-50 transition-all">
+              {mut.isPending ? '⏳ Đang lưu...' : product ? '💾 Cập nhật' : '✨ Tạo sản phẩm'}
             </button>
           )}
         </div>

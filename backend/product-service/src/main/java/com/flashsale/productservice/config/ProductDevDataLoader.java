@@ -1,5 +1,7 @@
 package com.flashsale.productservice.config;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.config.DevDataProperties;
 import com.flashsale.productservice.entity.*;
 import com.flashsale.productservice.repository.*;
@@ -8,12 +10,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 
 /**
@@ -41,6 +44,8 @@ public class ProductDevDataLoader implements CommandLineRunner {
     private final DevDataProperties devDataProperties;
     private final JdbcTemplate jdbcTemplate;
 
+    private static final String JSON_PATH = "test-data/products.json";
+
     @Override
     @Transactional
     public void run(String... args) {
@@ -57,11 +62,13 @@ public class ProductDevDataLoader implements CommandLineRunner {
         } else if (productRepository.count() > 0) {
             log.info("[ProductDevDataLoader] Data already exists, skipping main seed.");
             seedFeData();
+            seedFromJsonDataset();
             log.info("[ProductDevDataLoader] Dev data seed complete.");
             return;
         }
 
         seedFeData();
+        seedFromJsonDataset();
 
         log.info("[ProductDevDataLoader] Dev data seed complete.");
     }
@@ -187,66 +194,97 @@ public class ProductDevDataLoader implements CommandLineRunner {
         log.info("[ProductDevDataLoader] FE test-dataset seeded (6 categories, 15 products, 18 variants, 15 images, 3 wishlist items, 2 cart items).");
     }
 
-    private UUID seedCategory(UUID parentId, String name, String slug, int sortOrder) {
-        Category c = Category.builder()
-                .parentId(parentId)
-                .name(name)
-                .slug(slug)
-                .description(name + " category")
-                .sortOrder(sortOrder)
-                .isActive(true)
-                .build();
-        return categoryRepository.save(c).getId();
-    }
+    /**
+     * Seeds products from {@code test-data/products.json} (the full-coverage dataset).
+     * Each JSON product becomes one product + one variant (mapped by SKU).
+     * Category names are matched to existing categories; unknown names create a simple mapping.
+     * Idempotent via ON CONFLICT DO UPDATE on variant_code.
+     */
+    private void seedFromJsonDataset() {
+        List<Map<String, Object>> products;
+        try (InputStream is = new ClassPathResource(JSON_PATH).getInputStream()) {
+            products = new ObjectMapper().readValue(is, new TypeReference<List<Map<String, Object>>>() {});
+        } catch (IOException e) {
+            log.warn("[ProductDevDataLoader] Could not read {} — skipping JSON seed: {}", JSON_PATH, e.getMessage());
+            return;
+        }
 
-    private UUID seedProduct(Long sellerId, UUID categoryId, String name, String slug,
-                             String description, ProductStatus status) {
-        LocalDateTime now = LocalDateTime.now();
-        boolean reviewed = status == ProductStatus.APPROVED
-                || status == ProductStatus.ACTIVE
-                || status == ProductStatus.OUT_OF_STOCK;
-        boolean published = status == ProductStatus.ACTIVE
-                || status == ProductStatus.OUT_OF_STOCK;
+        log.info("[ProductDevDataLoader] Seeding {} products from {}", products.size(), JSON_PATH);
 
-        Product p = Product.builder()
-                .sellerId(sellerId)
-                .categoryId(categoryId)
-                .name(name)
-                .slug(slug)
-                .description(description)
-                .attributes("{}")
-                .status(status)
-                .rejectCount(0)
-                .submittedAt(now.minusDays(new Random().nextInt(30) + 1))
-                .publishedAt(published ? now.minusDays(1) : null)
-                .reviewedBy(reviewed ? 10L : null)
-                .reviewedAt(reviewed ? now.minusDays(1) : null)
-                .build();
-        return productRepository.save(p).getId();
-    }
+        // Check if JSON data already exists (by first SKU)
+        Map<String, Object> first = products.getFirst();
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM product.product_variants WHERE variant_code = ?",
+            Integer.class, first.get("sku"));
+        if (count != null && count > 0) {
+            log.info("[ProductDevDataLoader] JSON dataset already seeded, skipping.");
+            return;
+        }
 
-    private void seedVariant(UUID productId, String sku, String variantName,
-                             BigDecimal price, BigDecimal originalPrice, int stock) {
-        ProductVariant v = ProductVariant.builder()
-                .productId(productId)
-                .variantCode(sku)
-                .variantName(variantName)
-                .variantAttributes("{}")
-                .price(price)
-                .originalPrice(originalPrice)
-                .stockQuantity(stock)
-                .status(stock > 0 ? VariantStatus.ACTIVE : VariantStatus.OUT_OF_STOCK)
-                .imageUrl("https://picsum.photos/seed/" + sku + "/400/400")
-                .build();
-        productVariantRepository.save(v);
-    }
+        int sortId = 1000;
+        for (Map<String, Object> p : products) {
+            String sku = (String) p.get("sku");
+            String name = (String) p.get("name");
+            String slug = (String) p.get("slug");
+            String description = (String) p.get("description");
+            Number priceNum = (Number) p.get("price");
+            Number originalPriceNum = (Number) p.get("originalPrice");
+            Number stockNum = (Number) p.get("stock");
+            Number sellerIdNum = (Number) p.get("sellerId");
+            String categoryName = (String) p.get("category");
+            String status = (String) p.get("status");
 
-    private void seedImage(UUID productId, String url) {
-        ProductImage img = ProductImage.builder()
-                .productId(productId)
-                .url(url)
-                .sortOrder(0)
-                .build();
-        productImageRepository.save(img);
+            int price = priceNum.intValue();
+            int originalPrice = originalPriceNum != null ? originalPriceNum.intValue() : price;
+            int stock = stockNum != null ? stockNum.intValue() : 0;
+            int sellerId = sellerIdNum.intValue();
+
+            // Generate deterministic UUIDs from SKU
+            String productId = UUID.nameUUIDFromBytes(("product:" + sku).getBytes()).toString();
+            String variantId = UUID.nameUUIDFromBytes(("variant:" + sku).getBytes()).toString();
+            String imageId = UUID.nameUUIDFromBytes(("image:" + sku).getBytes()).toString();
+
+            // Map or create category — derive slug from category name
+            String catSlug = categoryName.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+            String catId = UUID.nameUUIDFromBytes(("category:" + catSlug).getBytes()).toString();
+
+            // Ensure category exists
+            jdbcTemplate.update("""
+                INSERT INTO product.categories (id, parent_id, name, slug, description, image_url, sort_order, is_active, created_at, updated_at)
+                VALUES (?, null, ?, ?, ?, 'https://picsum.photos/seed/' || ? || '/600/400', ?, true, now(), now())
+                ON CONFLICT (id) DO NOTHING
+                """, catId, categoryName, catSlug, "Auto-seeded from JSON dataset", catSlug, sortId);
+
+            // Insert product
+            jdbcTemplate.update("""
+                INSERT INTO product.products (id, category_id, seller_id, name, slug, description, attributes, status, reject_reason, reviewed_at, reviewed_by, reject_count, submitted_at, created_at, updated_at, published_at)
+                VALUES (?, ?, ?, ?, ?, ?, '{}'::jsonb, ?, null, null, null, 0, now(), now(), now(), CASE WHEN ? = 'ACTIVE' THEN now() ELSE null END)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name, slug = EXCLUDED.slug, description = EXCLUDED.description,
+                    category_id = EXCLUDED.category_id, status = EXCLUDED.status, updated_at = now()
+                """, productId, catId, sellerId, name, slug, description,
+                status != null ? status : "ACTIVE", status);
+
+            // Insert variant (one per product)
+            jdbcTemplate.update("""
+                INSERT INTO product.product_variants (id, product_id, variant_code, variant_name, variant_attributes, price, original_price, stock_quantity, status, version, image_url, created_at, updated_at)
+                VALUES (?, ?, ?, 'Default', '{}'::jsonb, ?, ?, ?, 'ACTIVE', 1, 'https://picsum.photos/seed/' || ? || '/500/500', now(), now())
+                ON CONFLICT (id) DO UPDATE SET
+                    product_id = EXCLUDED.product_id, variant_code = EXCLUDED.variant_code,
+                    price = EXCLUDED.price, original_price = EXCLUDED.original_price,
+                    stock_quantity = EXCLUDED.stock_quantity, updated_at = now()
+                """, variantId, productId, sku, price, originalPrice, stock, slug);
+
+            // Insert image
+            jdbcTemplate.update("""
+                INSERT INTO product.product_images (id, product_id, variant_id, url, sort_order, created_at)
+                VALUES (?, ?, null, 'https://picsum.photos/seed/' || ? || '/800/800', 0, now())
+                ON CONFLICT (id) DO NOTHING
+                """, imageId, productId, slug);
+
+            sortId++;
+        }
+
+        log.info("[ProductDevDataLoader] JSON dataset seeded ({} products, {} variants).", products.size(), products.size());
     }
 }

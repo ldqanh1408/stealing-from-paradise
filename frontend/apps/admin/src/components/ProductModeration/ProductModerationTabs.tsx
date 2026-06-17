@@ -1,17 +1,19 @@
 const TAB_STATUS = [
   { value: 'PENDING', label: 'Chờ duyệt' },
   { value: 'APPROVED', label: 'Đã duyệt' },
-  { value: 'REJECTED', label: 'Chờ duyệt lại' },
+  { value: 'REJECTED', label: 'Đã từ chối' },
 ];
 
 interface ProductModerationTabsProps {
   tab: string;
   onTabChange: (tab: string) => void;
+  counts?: Record<string, number>;
 }
 
 export default function ProductModerationTabs({
   tab,
   onTabChange,
+  counts,
 }: ProductModerationTabsProps) {
   return (
     <div className="flex gap-2 mb-5">
@@ -26,6 +28,11 @@ export default function ProductModerationTabs({
           }`}
         >
           {t.label}
+          {counts?.[t.value] !== undefined && (
+            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-white/30">
+              {counts[t.value]}
+            </span>
+          )}
         </button>
       ))}
     </div>

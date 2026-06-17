@@ -3,6 +3,8 @@ package com.flashsale.flashsaleservice.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flashsale.commonlib.dto.ApiResponse;
 import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.commonlib.exception.AppException;
+import com.flashsale.commonlib.exception.ErrorCode;
 import com.flashsale.flashsaleservice.domain.model.FlashSaleSession;
 import com.flashsale.flashsaleservice.domain.repository.FlashSaleItemRepository;
 import com.flashsale.flashsaleservice.domain.repository.FlashSaleSessionRepository;
@@ -70,9 +72,14 @@ public class FlashSaleSessionService {
     }
 
     public Mono<SessionListResponse> getSessions(String status) {
-        Flux<FlashSaleSession> sessionsFlux = (status != null && !status.isEmpty())
-                ? sessionRepo.findByStatus(status)
-                : sessionRepo.findAll();
+        Flux<FlashSaleSession> sessionsFlux;
+        if (status != null && !status.isEmpty()) {
+            sessionsFlux = sessionRepo.findByStatus(status);
+        } else {
+            // Exclude soft-deleted (CANCELLED) sessions from the unfiltered list
+            sessionsFlux = sessionRepo.findAll()
+                    .filter(s -> s.getDeletedAt() == null);
+        }
 
         return sessionsFlux
                 .map(this::toSessionResponse)
@@ -220,17 +227,61 @@ public class FlashSaleSessionService {
 
     public Mono<Void> deleteSession(Long sessionId) {
         return sessionRepo.findById(sessionId)
+                .switchIfEmpty(Mono.error(new AppException(ErrorCode.NOT_FOUND, "Không tìm thấy phiên Flash Sale")))
                 .flatMap(session -> {
+                    if (session.getDeletedAt() != null) {
+                        return Mono.error(new AppException(ErrorCode.NOT_FOUND, "Phiên Flash Sale đã bị xóa"));
+                    }
+                    // BLOCK: cannot delete an ACTIVE / running flash sale
+                    if ("ACTIVE".equals(session.getStatus())) {
+                        return Mono.error(new AppException(ErrorCode.BAD_REQUEST,
+                                "Không thể xóa phiên Flash Sale đang chạy. Vui lòng đợi phiên kết thúc trước."));
+                    }
+                    // Transition UPCOMING → CANCELLED before soft-delete
+                    if ("UPCOMING".equals(session.getStatus())) {
+                        session.setStatus("CANCELLED");
+                    }
                     session.setDeletedAt(LocalDateTime.now());
                     return sessionRepo.save(session);
                 })
+                .flatMap(saved -> removeSessionTriggers(saved.getId()).thenReturn(saved))
+                .doOnSuccess(this::publishSessionCancelledEvent)
                 .then();
+    }
+
+    private Mono<Void> removeSessionTriggers(Long sessionId) {
+        String key = FlashSaleSessionStateService.ZSET_TRIGGERS_KEY;
+        return redisTemplate.opsForZSet()
+                .remove(key, "start:" + sessionId, "end:" + sessionId, "close_reg:" + sessionId)
+                .then();
+    }
+
+    private void publishSessionCancelledEvent(FlashSaleSession session) {
+        try {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("event_id", "evt_" + System.currentTimeMillis() + "_" + session.getId());
+            event.put("event_type", KafkaTopics.FLASH_SALE_SESSION_CANCELLED);
+            event.put("session_id", session.getId());
+            event.put("sessionId", session.getId());
+            event.put("name", session.getName());
+            event.put("status", session.getStatus());
+            event.put("start_time", session.getStartTime() != null ? session.getStartTime().toString() : null);
+            event.put("end_time", session.getEndTime() != null ? session.getEndTime().toString() : null);
+            event.put("timestamp", Instant.now().toString());
+            kafkaTemplate.send(KafkaTopics.FLASH_SALE_SESSION_CANCELLED,
+                    String.valueOf(session.getId()), objectMapper.writeValueAsString(event));
+        } catch (Exception e) {
+            log.error("Failed to publish session cancelled event for sessionId={}: {}",
+                    session.getId(), e.getMessage(), e);
+        }
     }
 
     public SessionResponse toSessionResponse(FlashSaleSession s) {
         long secondsRemaining = 0;
         boolean isEnded = false;
-        if ("ACTIVE".equals(s.getStatus())) {
+        if ("CANCELLED".equals(s.getStatus())) {
+            isEnded = true;
+        } else if ("ACTIVE".equals(s.getStatus())) {
             Duration d = Duration.between(LocalDateTime.now(), s.getEndTime());
             secondsRemaining = Math.max(0, d.getSeconds());
             isEnded = secondsRemaining <= 0;

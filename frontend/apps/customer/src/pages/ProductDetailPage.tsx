@@ -6,6 +6,7 @@ import WishlistButton from '@/components/WishlistButton';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
 import { addressApi } from '@shared/api/address.api';
 import { cartApi } from '@shared/api/cart.api';
+import { userApi } from '@shared/api/user.api';
 import { useAuthStore } from '@shared/store/authStore';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -37,6 +38,25 @@ export default function ProductDetailPage() {
     enabled: !!productId,
     retry: 1,
   });
+
+  const { data: sellerInfo } = useQuery({
+    queryKey: ['seller-public', product?.sellerId],
+    queryFn: () => userApi.getSellerPublic(product!.sellerId).then(r => r.data.data),
+    enabled: !!product?.sellerId,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
+  // Fetch product count separately — identity-service returns productCount=0 (hardcoded)
+  const { data: sellerProducts } = useQuery({
+    queryKey: ['seller-product-count', product?.sellerId],
+    queryFn: () =>
+      productApi.getProducts({ sellerId: product!.sellerId, page: 0, size: 1 }).then(r => r.data.data),
+    enabled: !!product?.sellerId,
+    staleTime: 1000 * 30,
+    retry: 1,
+  });
+  const sellerProductCount = (sellerProducts as any)?.totalElements ?? sellerInfo?.productCount;
 
   // Auto-select first in-stock variant when product loads
   useEffect(() => {
@@ -218,18 +238,13 @@ export default function ProductDetailPage() {
           {/* Product info */}
           <div>
             {/* Header */}
-            <div className="mb-6">
+            <div className="mb-4">
               {isFlash && (
                 <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full mb-3">
                   ⚡ FLASH SALE
                 </span>
               )}
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-              {product.sellerName && (
-                <p className="text-sm text-gray-500">
-                  Được bán bởi <span className="font-semibold text-gray-700">{product.sellerName}</span>
-                </p>
-              )}
+              <h1 className="text-3xl font-bold text-gray-900 mb-3">{product.name}</h1>
             </div>
 
             {/* Price */}
@@ -259,6 +274,38 @@ export default function ProductDetailPage() {
                 )}
               </div>
             </div>
+
+            {/* Seller Card */}
+            {product.sellerId > 0 && (
+              <Link
+                to={`/sellers/${product.sellerId}`}
+                className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 flex items-center gap-4 hover:shadow-md hover:border-blue-200 transition-all group"
+              >
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-2xl shrink-0 overflow-hidden">
+                  {sellerInfo?.avatarUrl ? (
+                    <img src={sellerInfo.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    '🏪'
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                    {sellerInfo?.sellerName || product.sellerName || `Shop ${product.sellerId}`}
+                  </p>
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                    {sellerInfo?.productCount != null && sellerProductCount > 0 && (
+                      <span>{sellerProductCount} sản phẩm</span>
+                    )}
+                    {sellerInfo?.joinedAt && (
+                      <span>Tham gia {new Date(sellerInfo.joinedAt).toLocaleDateString('vi-VN')}</span>
+                    )}
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-blue-600 shrink-0 group-hover:translate-x-0.5 transition-transform">
+                  Xem shop →
+                </span>
+              </Link>
+            )}
 
             {/* Variants */}
             {hasVariants && (

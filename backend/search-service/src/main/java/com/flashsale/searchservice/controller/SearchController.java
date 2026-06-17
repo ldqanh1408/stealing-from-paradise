@@ -25,14 +25,15 @@ public class SearchController {
             @RequestParam(required = false) String q,
             @RequestParam(name = "price_min", required = false) Double priceMin,
             @RequestParam(name = "price_max", required = false) Double priceMax,
-            @RequestParam(name = "in_stock", required = false, defaultValue = "true") Boolean inStock,
+            @RequestParam(name = "in_stock", required = false) Boolean inStock,
             @RequestParam(name = "is_flash", required = false) Boolean isFlash,
+            @RequestParam(name = "seller_id", required = false) Long sellerId,
             @RequestParam(required = false, defaultValue = "relevance") String sort,
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "20") int size
     ) {
         SearchResponse response = searchQueryService.search(
-                q, priceMin, priceMax, inStock, isFlash, sort, page, size
+                q, priceMin, priceMax, inStock, isFlash, sellerId, sort, page, size
         );
         return ResponseEntity.ok(ApiResponse.success(response));
     }

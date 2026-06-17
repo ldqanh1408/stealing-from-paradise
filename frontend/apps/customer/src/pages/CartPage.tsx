@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCartStore } from '@shared/store/cartStore';
 import type { CartChangeDetail } from '@shared/api/cart.api';
@@ -24,31 +24,36 @@ function CartChangeBanner({
   isLoading: boolean;
 }) {
   return (
-    <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6">
-      <div className="flex items-start gap-3">
-        <div className="text-2xl shrink-0">⚠️</div>
+    <div className="bg-orange-100 border-2 border-orange-400 rounded-2xl p-6 mb-8 shadow-lg">
+      <div className="flex items-start gap-4">
+        <div className="text-4xl shrink-0 mt-1">🚨</div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-orange-800 mb-1">Dữ liệu giỏ hàng đã thay đổi</h3>
-          <p className="text-sm text-orange-700 mb-3">
-            Một số sản phẩm trong giỏ hàng có thông tin đã thay đổi. Vui lòng làm mới để cập nhật giá và thông tin mới nhất.
+          <h3 className="text-xl font-bold text-orange-900 mb-2">
+            Giỏ hàng đã thay đổi!
+          </h3>
+          <p className="text-base text-orange-800 mb-4">
+            Một số sản phẩm trong giỏ hàng của bạn đã có sự thay đổi về giá.
+            Vui lòng nhấn nút bên dưới để tải lại thông tin mới nhất trước khi thanh toán.
           </p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {details.map((d, i) => (
-              <div key={i} className="bg-white/70 rounded-xl p-3 text-sm">
+              <div key={i} className="bg-white/90 rounded-xl p-4 text-sm border border-orange-200">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-gray-900 truncate min-w-0">
+                  <p className="font-semibold text-gray-900 truncate min-w-0">
                     {d.productName || d.skuCode || d.variantId}
                   </p>
-                  <p className="text-orange-600 font-medium shrink-0">
-                    {d.reason === 'PRICE_CHANGED' ? 'Giá đã thay đổi' : d.reason}
-                  </p>
+                  <span className="shrink-0 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                    Giá đã thay đổi
+                  </span>
                 </div>
                 {d.reason === 'PRICE_CHANGED' && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Giá cũ: <span className="line-through">{d.expectedValue}</span>
-                    {' → '}
-                    Giá mới: <span className="font-semibold text-orange-700">{d.currentValue}</span>
-                  </p>
+                  <div className="flex items-center gap-3 mt-2 text-sm">
+                    <span className="text-gray-500 line-through">{d.expectedValue}</span>
+                    <svg className="w-4 h-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                    <span className="font-bold text-orange-700 text-base">{d.currentValue}</span>
+                  </div>
                 )}
               </div>
             ))}
@@ -56,22 +61,22 @@ function CartChangeBanner({
           <button
             onClick={onRefresh}
             disabled={isLoading}
-            className="mt-3 flex items-center gap-2 px-4 py-2 bg-orange-200 hover:bg-orange-300 text-orange-800 font-semibold text-sm rounded-xl transition-colors disabled:opacity-50"
+            className="mt-5 w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-base rounded-xl transition-colors shadow-md hover:shadow-lg disabled:opacity-50"
           >
             {isLoading ? (
               <>
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Đang làm mới...
+                Đang cập nhật...
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Làm mới giỏ hàng
+                Cập nhật giỏ hàng ngay
               </>
             )}
           </button>
@@ -84,10 +89,6 @@ function CartChangeBanner({
 export default function CartPage() {
   const { cart, isLoading, fetchCart, updateQuantity, removeFromCart } = useCartStore();
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
 
   const [quantityError, setQuantityError] = useState<string | null>(null);
 
@@ -169,15 +170,16 @@ export default function CartPage() {
   };
 
   // ─── Price-change detection ────────────────────────────────────────────────
-  // Compares priceSnapshot (snapshot khi add to cart) với unitPrice (giá hiện tại).
-  // Nếu khác nhau → show banner. Backend cũng gửi priceChanged flag, nhưng
-  // dữ liệu snapshot trong DB có thể đã bị ghi đè bởi code cũ → cần check client-side.
-  const cartChanges = useMemo<CartChangeDetail[]>(() => {
+  // Backend updates priceSnapshot in DB inside getCart(), so priceChanged=true
+  // only appears on the FIRST fetch. We capture changes into local state so the
+  // banner stays visible until the user explicitly clicks "Cập nhật giỏ hàng".
+  const [detectedChanges, setDetectedChanges] = useState<CartChangeDetail[]>([]);
+
+  const currentChanges = useMemo<CartChangeDetail[]>(() => {
     if (!cart?.sellers) return [];
     const list: CartChangeDetail[] = [];
     cart.sellers.forEach((seller) => {
       seller.items.forEach((item) => {
-        // Detect change: backend flag hoặc so sánh snapshot vs current price
         const hasChanged = item.priceChanged
           || (item.priceSnapshot != null && Math.abs(item.priceSnapshot - item.unitPrice) > 0);
         if (!hasChanged) return;
@@ -194,16 +196,26 @@ export default function CartPage() {
     return list;
   }, [cart]);
 
+  // Capture once — never overwrite existing changes unless user reloads
+  useEffect(() => {
+    if (currentChanges.length > 0) {
+      setDetectedChanges((prev) => prev.length > 0 ? prev : currentChanges);
+    }
+  }, [currentChanges]);
+
   const [refreshLoading, setRefreshLoading] = useState(false);
 
   const handleRefreshCart = async () => {
     setRefreshLoading(true);
     try {
       await fetchCart();
+      setDetectedChanges([]); // clear captured changes after refresh
     } finally {
       setRefreshLoading(false);
     }
   };
+
+  const cartChanges = detectedChanges;
 
   if (isLoading && !cart) {
     return (

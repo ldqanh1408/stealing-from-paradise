@@ -21,7 +21,7 @@ export interface FlashSaleSession {
   name: string;
   startTime: string;
   endTime: string;
-  status: 'UPCOMING' | 'ACTIVE' | 'ENDED';
+  status: 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
   secondsRemaining?: number;
   isEnded?: boolean;
   createdAt?: string;
@@ -59,7 +59,7 @@ interface BackendItem {
 
 function mapSession(s: BackendSession): FlashSaleSession {
   // Backend emits "LIVE" for an in-progress session; normalize to "ACTIVE".
-  const status = s.status === 'LIVE' ? 'ACTIVE' : s.status;
+  const status: string = s.status === 'LIVE' ? 'ACTIVE' : s.status;
   return {
     id: s.sessionId,
     name: s.name,

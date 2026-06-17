@@ -19,6 +19,7 @@ public class SearchQueryService {
             Double priceMax,
             Boolean inStock,
             Boolean isFlash,
+            Long sellerId,
             String sort,
             int page,
             int size
@@ -33,12 +34,17 @@ public class SearchQueryService {
             page = 0;
         }
 
-        Boolean effectiveInStock = inStock != null ? inStock : true;
+        // API convention:
+        //   inStock=true  → filter: show only in-stock products
+        //   inStock=false or absent → no stock filter; EsSearcher uses
+        //     function_score boosting to rank in-stock products higher
+        //     while still showing out-of-stock results.
+        Boolean effectiveInStock = Boolean.TRUE.equals(inStock) ? true : null;
 
-        log.info("Search: q='{}', price=[{}-{}], inStock={}, isFlash={}, sort={}, page={}, size={}",
-                q, priceMin, priceMax, effectiveInStock, isFlash, sort, page, size);
+        log.info("Search: q='{}', price=[{}-{}], inStock={}, isFlash={}, sellerId={}, sort={}, page={}, size={}",
+                q, priceMin, priceMax, effectiveInStock, isFlash, sellerId, sort, page, size);
 
-        return esService.search(q, priceMin, priceMax, effectiveInStock, isFlash, sort, page, size);
+        return esService.search(q, priceMin, priceMax, effectiveInStock, isFlash, sellerId, sort, page, size);
     }
 
     public SuggestResponse suggest(String q, int size) {

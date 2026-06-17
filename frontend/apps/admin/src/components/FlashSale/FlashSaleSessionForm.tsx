@@ -54,6 +54,7 @@ export default function FlashSaleSessionForm({
             type="datetime-local"
             value={startTime}
             onChange={(e) => onStartTimeChange(e.target.value)}
+            min={new Date().toISOString().slice(0, 16)}
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
         </div>
@@ -63,8 +64,10 @@ export default function FlashSaleSessionForm({
             type="datetime-local"
             value={endTime}
             onChange={(e) => onEndTimeChange(e.target.value)}
+            min={startTime || new Date().toISOString().slice(0, 16)}
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
+          <p className="text-xs text-gray-400 mt-1">Thời gian theo múi giờ địa phương (UTC+7)</p>
         </div>
       </div>
       <div className="flex gap-3 mt-5">

@@ -20,23 +20,30 @@ function load(orders: any[]) {
 
 beforeEach(() => vi.clearAllMocks());
 
+// Use exact action names from the component (they have emoji/icons)
+const findShipAction = () => screen.queryByText(/Vận đơn/);
+const findCancelAction = () => screen.queryByText(/^✕\s*Huỷ$/);
+const findRtsAction = () => screen.queryByText(/^↩\s*Hoàn$/);
+// The filter tab "Hoàn một phần" exists in the UI too
+
 describe('SellerOrdersPage — action matrix per status', () => {
   it('PAID (not shipped) → ship + cancel, no RTS', async () => {
     load([order({ orderId: 1, orderCode: 'PAID-1', status: 'PAID', trackingNumber: null })]);
     renderWithProviders(<SellerOrdersPage />, { route: '/orders' });
     expect(await screen.findByText('PAID-1')).toBeInTheDocument();
-    expect(screen.getByText('+ Vận đơn')).toBeInTheDocument();
-    expect(screen.getByText('Huỷ đơn')).toBeInTheDocument();
-    expect(screen.queryByText('Hoàn hàng')).not.toBeInTheDocument();
+    // Use getByText with exact match for action buttons (they have specific text)
+    expect(screen.getByText('📦 Vận đơn')).toBeInTheDocument();
+    expect(screen.getByText('✕ Huỷ')).toBeInTheDocument();
+    expect(screen.queryByText('↩ Hoàn')).not.toBeInTheDocument();
   });
 
   it('SHIPPING → only return-to-sender', async () => {
     load([order({ orderId: 2, orderCode: 'SHIP-1', status: 'SHIPPING', trackingNumber: 'VN1' })]);
     renderWithProviders(<SellerOrdersPage />, { route: '/orders' });
     expect(await screen.findByText('SHIP-1')).toBeInTheDocument();
-    expect(screen.getByText('Hoàn hàng')).toBeInTheDocument();
-    expect(screen.queryByText('+ Vận đơn')).not.toBeInTheDocument();
-    expect(screen.queryByText('Huỷ đơn')).not.toBeInTheDocument();
+    expect(screen.getByText('↩ Hoàn')).toBeInTheDocument();
+    expect(screen.queryByText('📦 Vận đơn')).not.toBeInTheDocument();
+    expect(screen.queryByText('✕ Huỷ')).not.toBeInTheDocument();
   });
 
   it('PENDING and DELIVERED → no seller actions', async () => {
@@ -46,12 +53,12 @@ describe('SellerOrdersPage — action matrix per status', () => {
     ]);
     renderWithProviders(<SellerOrdersPage />, { route: '/orders' });
     expect(await screen.findByText('PEND-1')).toBeInTheDocument();
-    expect(screen.queryByText('+ Vận đơn')).not.toBeInTheDocument();
-    expect(screen.queryByText('Huỷ đơn')).not.toBeInTheDocument();
-    expect(screen.queryByText('Hoàn hàng')).not.toBeInTheDocument();
+    expect(screen.queryByText('📦 Vận đơn')).not.toBeInTheDocument();
+    expect(screen.queryByText('✕ Huỷ')).not.toBeInTheDocument();
+    expect(screen.queryByText('↩ Hoàn')).not.toBeInTheDocument();
   });
 
-  it('empty result → empty-state message (UC-ORDER-007 A1)', async () => {
+  it('empty result → empty-state message', async () => {
     load([]);
     renderWithProviders(<SellerOrdersPage />, { route: '/orders' });
     expect(await screen.findByText(/Chưa có đơn hàng nào/i)).toBeInTheDocument();

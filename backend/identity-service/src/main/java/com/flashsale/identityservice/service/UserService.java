@@ -16,6 +16,7 @@ import com.flashsale.commonlib.dto.PageResponse;
 import com.flashsale.commonlib.event.KafkaTopics;
 import com.flashsale.identityservice.dto.response.AddressResponse;
 import com.flashsale.identityservice.dto.response.AdminUserResponse;
+import com.flashsale.identityservice.dto.response.SellerPublicResponse;
 import com.flashsale.identityservice.dto.response.UserProfileResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
@@ -70,6 +71,22 @@ public class UserService {
                 .updatedAt(user.getUpdatedAt())
                 .avatarUrl(user.getAvatarUrl())
                 .notificationPreferences(user.getNotificationPreferences())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public SellerPublicResponse getSellerPublicInfo(Long sellerId) {
+        User user = getUserById(sellerId);
+        String roleName = roleRepository.findFirstByUserIdOrderByIdAsc(sellerId)
+                .map(Role::getRoleName)
+                .orElse("BUYER");
+
+        return SellerPublicResponse.builder()
+                .sellerId(user.getId())
+                .sellerName(user.getFullName() != null ? user.getFullName() : user.getUsername())
+                .avatarUrl(user.getAvatarUrl())
+                .joinedAt(user.getCreatedAt())
+                .productCount(0)
                 .build();
     }
 

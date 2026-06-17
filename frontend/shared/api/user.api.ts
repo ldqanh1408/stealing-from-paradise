@@ -16,6 +16,14 @@ export interface UserProfileResponse {
   updatedAt: string;
 }
 
+export interface SellerPublicInfo {
+  sellerId: number;
+  sellerName: string;
+  avatarUrl?: string;
+  joinedAt: string;
+  productCount: number;
+}
+
 export interface UserProfileUpdateRequest {
   fullName?: string;
   avatarUrl?: string;
@@ -95,6 +103,10 @@ export interface AdminUser {
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export const userApi = {
+  // Public seller info (no auth required)
+  getSellerPublic: (sellerId: number) =>
+    apiClient.get<ApiResponse<SellerPublicInfo>>(`/users/sellers/${sellerId}`),
+
   // Profile
   getProfile: () =>
     apiClient.get<ApiResponse<UserProfileResponse>>('/users/me'),

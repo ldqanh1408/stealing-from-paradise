@@ -47,9 +47,25 @@ public class EsIndexManager {
                         .analysis(a -> a
                                 .analyzer("vietnamese_analyzer", an -> an
                                         .custom(cu -> cu
-                                                .tokenizer("standard")
-                                                .filter("lowercase", "asciifolding")
+                                                // ICU tokenizer handles Unicode text segmentation (UAX #29),
+                                                // correctly splitting Vietnamese text with diacritics.
+                                                .tokenizer("icu_tokenizer")
+                                                // ICU folding normalises Unicode characters to their ASCII
+                                                // equivalents (e.g. "tài" → "tai") so queries without diacritics
+                                                // still match indexed content with diacritics, and vice versa.
+                                                // Built-in asciifolding is a simpler subset; ICU folding is
+                                                // comprehensive for all scripts (Latin, CJK, etc.).
+                                                .filter("lowercase", "icu_folding")
                                         )
+                                )
+                        )
+                        // Explicit BM25 similarity configuration for relevance ranking.
+                        // The default parameters (k1=1.2, b=0.75) are retained here to
+                        // document the algorithm selection and make tuning easier in future.
+                        .similarity("custom_bm25", sim -> sim
+                                .bm25(b -> b
+                                        .k1(1.2)   // Saturation point — how much term frequency matters
+                                        .b(0.75)   // Length normalisation (0=no norm, 1=full norm)
                                 )
                         )
                 )
@@ -60,11 +76,17 @@ public class EsIndexManager {
                         .properties("productName", p -> p
                                 .text(t -> t
                                         .analyzer("vietnamese_analyzer")
+                                        .similarity("custom_bm25")
                                         .fields("keyword", f -> f.keyword(k -> k))
                                 )
                         )
                         .properties("productSlug", p -> p.keyword(k -> k))
-                        .properties("productDescription", p -> p.text(t -> t.analyzer("vietnamese_analyzer")))
+                        .properties("productDescription", p -> p
+                                .text(t -> t
+                                        .analyzer("vietnamese_analyzer")
+                                        .similarity("custom_bm25")
+                                )
+                        )
                         .properties("productAttributes", p -> p.object(o -> o.enabled(true)))
                         .properties("categoryId", p -> p.keyword(k -> k))
                         .properties("categorySlug", p -> p.keyword(k -> k))

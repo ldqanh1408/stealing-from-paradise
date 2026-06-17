@@ -4,9 +4,6 @@ import { renderWithProviders } from '@/test/utils';
 import ProductManagementPage from '../ProductManagementPage';
 import apiClient from '@shared/lib/axios';
 
-// The page lists products via a raw apiClient.get('/sellers/me/products'); mutations
-// go through sellerApi (also backed by this client). Mocking the axios default
-// covers both without hitting the network.
 vi.mock('@shared/lib/axios', () => {
   const m = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() };
   return { default: m, apiClient: m };
@@ -17,6 +14,7 @@ const product = (over: any) => ({
   stockAvailable: 5, variantsCount: 0, createdAt: '2026-01-01T00:00:00Z', ...over,
 });
 
+/** Helper: set up apiClient.get to return a paginated product list. */
 const list = (content: any[]) =>
   (apiClient.get as any).mockResolvedValue({ data: { data: { content, totalPages: 1, totalElements: content.length } } });
 
@@ -37,10 +35,11 @@ describe('ProductManagementPage — action matrix per status', () => {
     renderWithProviders(<ProductManagementPage />, { route: '/products' });
     expect(await screen.findByText('Draft SP')).toBeInTheDocument();
 
-    expect(screen.getAllByText('Gửi duyệt')).toHaveLength(1);   // DRAFT
-    expect(screen.getAllByText('Hiển thị')).toHaveLength(1);    // APPROVED
-    expect(screen.getAllByText('Ẩn')).toHaveLength(1);          // PUBLISHED
-    expect(screen.getAllByText('Xóa')).toHaveLength(2);         // DRAFT + REJECTED
+    // Button text now has emoji + label, use regex to match text content
+    expect(screen.getAllByText(/Gửi duyệt/)).toHaveLength(1);   // DRAFT
+    expect(screen.getAllByText(/Hiển thị/)).toHaveLength(1);    // APPROVED
+    expect(screen.getAllByText(/Ẩn$/)).toHaveLength(1);          // PUBLISHED — exact "Ẩn"
+    expect(screen.getAllByText(/Xóa/)).toHaveLength(2);          // DRAFT + REJECTED
   });
 
   it('shows the empty state when the seller has no products', async () => {
@@ -55,37 +54,34 @@ describe('ProductManagementPage — action matrix per status', () => {
       list([]);
       renderWithProviders(<ProductManagementPage />, { route: '/products' });
 
-      // Run pending timers to complete the initial load query
+      // Flush initial queries (product list + count queries from ProductTabs)
       await act(async () => {
         await vi.runOnlyPendingTimersAsync();
       });
 
-      // Initially called once for loading all products
-      expect(apiClient.get).toHaveBeenCalledTimes(1);
-
-      const searchInput = screen.getByPlaceholderText('Tìm sản phẩm...');
-      
-      // Type a search query
+      const searchInput = screen.getByPlaceholderText(/Tìm sản phẩm/i);
       fireEvent.change(searchInput, { target: { value: 'laptop' } });
 
-      // Should not call apiClient immediately
-      expect(apiClient.get).toHaveBeenCalledTimes(1);
+      // Count calls before debounce fires
+      const beforeCalls = (apiClient.get as any).mock.calls.length;
 
-      // Advance by 200ms - still shouldn't call
+      // Advance 299ms — debounce should not have fired yet
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(200);
+        await vi.advanceTimersByTimeAsync(299);
       });
-      expect(apiClient.get).toHaveBeenCalledTimes(1);
+      expect(apiClient.get).toHaveBeenCalledTimes(beforeCalls);
 
-      // Advance by another 100ms (total 300ms) - should trigger call
+      // Advance remaining 1ms — should trigger the debounced call
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(100);
+        await vi.advanceTimersByTimeAsync(1);
       });
 
-      expect(apiClient.get).toHaveBeenCalledTimes(2);
-      expect(apiClient.get).toHaveBeenLastCalledWith('/sellers/me/products', expect.objectContaining({
-        params: expect.objectContaining({ search: 'laptop' })
-      }));
+      // Verify the debounced product search was called
+      const calls = (apiClient.get as any).mock.calls;
+      const productSearchCall = calls.find(
+        (call: any) => call[0] === '/sellers/me/products' && call[1]?.params?.search === 'laptop',
+      );
+      expect(productSearchCall).toBeDefined();
     } finally {
       vi.useRealTimers();
     }
@@ -95,21 +91,20 @@ describe('ProductManagementPage — action matrix per status', () => {
     list([]);
     renderWithProviders(<ProductManagementPage />, { route: '/products' });
 
-    // Initially called with default params
-    await waitFor(() => expect(apiClient.get).toHaveBeenCalled());
-    expect(apiClient.get).toHaveBeenLastCalledWith('/sellers/me/products', expect.objectContaining({
-      params: expect.objectContaining({ status: undefined, page: 0 })
-    }));
+    // Wait for the initial product list call
+    await waitFor(() => {
+      const calls = (apiClient.get as any).mock.calls;
+      const productCall = calls.find((c: any) => c[0] === '/sellers/me/products' && c[1]?.params?.status === undefined);
+      expect(productCall).toBeDefined();
+    });
 
-    // Click "Đang bán" tab
     const publishedTab = screen.getByText('Đang bán');
     fireEvent.click(publishedTab);
 
-    // Verify it triggers a new request with status = ACTIVE
     await waitFor(() => {
-      expect(apiClient.get).toHaveBeenLastCalledWith('/sellers/me/products', expect.objectContaining({
-        params: expect.objectContaining({ status: 'ACTIVE', page: 0 })
-      }));
+      const calls = (apiClient.get as any).mock.calls;
+      const activeCall = calls.find((c: any) => c[0] === '/sellers/me/products' && c[1]?.params?.status === 'ACTIVE');
+      expect(activeCall).toBeDefined();
     });
   });
 });

@@ -60,6 +60,7 @@ interface RawProductResponse {
   categoryId?: string;
   categoryName?: string;
   sellerId: number;
+  sellerName?: string;
   status?: string;
   attributes?: Record<string, unknown>;
   variants?: RawVariantResponse[];
@@ -88,6 +89,7 @@ function mapProductDetail(raw: RawProductResponse): ProductDetail {
   return {
     productId: raw.id,
     sellerId: raw.sellerId,
+    sellerName: raw.sellerName,
     name: raw.name,
     description: raw.description,
     categoryId: raw.categoryId,
@@ -194,6 +196,7 @@ export const productApi = {
     priceMax?: number;
     inStock?: boolean;
     isFlash?: boolean;
+    sellerId?: number;
     page?: number;
     size?: number;
     sort?: string;
@@ -205,6 +208,7 @@ export const productApi = {
         price_max: params?.priceMax,
         in_stock: params?.inStock,
         is_flash: params?.isFlash,
+        seller_id: params?.sellerId,
         page: params?.page ?? 0,
         size: params?.size ?? 20,
         sort: params?.sort || undefined,
@@ -252,6 +256,7 @@ export const productApi = {
     priceMax?: number;
     inStock?: boolean;
     isFlash?: boolean;
+    sellerId?: number;
     page?: number;
     size?: number;
     sort?: string;
@@ -263,6 +268,7 @@ export const productApi = {
         price_max: params?.priceMax,
         in_stock: params?.inStock,
         is_flash: params?.isFlash,
+        seller_id: params?.sellerId,
         page: params?.page ?? 0,
         size: params?.size ?? 20,
         sort: params?.sort || undefined,

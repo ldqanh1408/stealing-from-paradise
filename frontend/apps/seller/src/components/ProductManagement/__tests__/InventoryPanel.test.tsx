@@ -34,9 +34,10 @@ describe('InventoryPanel (UC-PRODUCT-006)', () => {
   it('adjusts stock by +1 via the quick button + confirm', async () => {
     renderPanel();
     fireEvent.click(screen.getByText('+1'));
-    fireEvent.click(screen.getByRole('button', { name: /Xác nhận/i }));
+    // Updated button text from "Xác nhận" to "Điều chỉnh"
+    fireEvent.click(screen.getByRole('button', { name: /Điều chỉnh/i }));
     await waitFor(() => expect(sellerApi.adjustInventory).toHaveBeenCalledWith({
-      skuCode: 'SKU1', delta: 1, reason: 'Điều chỉnh tồn kho',
+      skuCode: 'SKU1', delta: 1, reason: 'Điều chỉnh',
     }));
   });
 });

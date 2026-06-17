@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosError } from 'axios';
-import Cookies from 'js-cookie';
+import { authCookies } from '../utils/cookie';
 import { installMockInterceptor, isMockMode, isNetworkError } from '../api/mock';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
@@ -25,7 +25,7 @@ if (isMockMode()) {
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (isMockMode()) return config;
-    const token = Cookies.get('accessToken');
+    const token = authCookies.get('accessToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -60,8 +60,8 @@ export function handleAuthFailure() {
   const isAtLogin = window.location.pathname === '/login';
   if (!isRedirectingToLogin && !isAtLogin) {
     isRedirectingToLogin = true;
-    Cookies.remove('accessToken');
-    Cookies.remove('refreshToken');
+    authCookies.remove('accessToken');
+    authCookies.remove('refreshToken');
     if (onAuthFailure) {
       onAuthFailure();
     }
@@ -104,12 +104,12 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshToken = Cookies.get('refreshToken');
+        const refreshToken = authCookies.get('refreshToken');
         if (!refreshToken) {
           throw new Error('No refresh token');
         }
 
-        const { data } = await rawAxios.post<{ data: { accessToken: string } }>(
+        const { data } = await rawAxios.post<{ data: { accessToken: string; refreshToken?: string } }>(
           `${BASE_URL}/auth/refresh`,
           {},
           {
@@ -118,7 +118,11 @@ apiClient.interceptors.response.use(
           }
         );
         const newToken = data.data.accessToken;
-        Cookies.set('accessToken', newToken, { secure: true, sameSite: 'lax' });
+        const newRefreshToken = data.data.refreshToken;
+        authCookies.set('accessToken', newToken, { secure: true, sameSite: 'lax' });
+        if (newRefreshToken) {
+          authCookies.set('refreshToken', newRefreshToken, { secure: true, sameSite: 'lax' });
+        }
         processQueue(null, newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
@@ -142,7 +146,7 @@ apiClient.interceptors.response.use(
 
 // ─── Logout: bypass interceptor to avoid 401→refresh→loop ───────
 export async function logoutApi(): Promise<void> {
-  const accessToken = Cookies.get('accessToken');
+  const accessToken = authCookies.get('accessToken');
   await rawAxios.post(
     `${BASE_URL}/auth/logout`,
     {},

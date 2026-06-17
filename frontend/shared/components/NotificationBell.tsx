@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Cookies from 'js-cookie';
+import { authCookies } from '../utils/cookie';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { isMockMode } from '../api/mock';
@@ -69,7 +69,7 @@ export default function NotificationBell() {
       try {
         const response = await fetch(streamUrl, {
           headers: {
-            'Authorization': `Bearer ${Cookies.get('accessToken') ?? ''}`,
+            'Authorization': `Bearer ${authCookies.get('accessToken') ?? ''}`,
             'X-User-Id': String(user.userId),
             'Accept': 'text/event-stream',
           },

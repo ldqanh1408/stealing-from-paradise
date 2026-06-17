@@ -23,10 +23,11 @@ function renderModal(initial?: any) {
 beforeEach(() => vi.clearAllMocks());
 
 describe('VariantModal (UC-PRODUCT-004)', () => {
-  it('validates required fields before saving', () => {
+  it('validates required fields before saving', async () => {
     renderModal();
-    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
-    expect(screen.getByText(/Vui lòng điền đầy đủ thông tin/i)).toBeInTheDocument();
+    // Auto-generated SKU and name are filled, but price is empty → triggers "Giá phải lớn hơn 0"
+    fireEvent.click(screen.getByRole('button', { name: /Tạo biến thể/i }));
+    expect(await screen.findByText(/Giá phải lớn hơn 0/i)).toBeInTheDocument();
     expect(sellerApi.createVariant).not.toHaveBeenCalled();
   });
 
@@ -36,7 +37,7 @@ describe('VariantModal (UC-PRODUCT-004)', () => {
     fireEvent.change(screen.getByPlaceholderText(/iPhone 15 Black 128GB/i), { target: { value: 'V1' } });
     const numbers = screen.getAllByRole('spinbutton');
     fireEvent.change(numbers[0], { target: { value: '5000' } }); // price
-    fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Tạo biến thể/i }));
     await waitFor(() => expect(sellerApi.createVariant).toHaveBeenCalledWith('p1', {
       skuCode: 'SKU1', variantName: 'V1', price: 5000, stock: 1,
     }));

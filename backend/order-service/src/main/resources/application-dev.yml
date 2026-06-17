@@ -24,4 +24,4 @@ logging:
 
 dev-data:
   enabled: true
-  reset: false
+  reset: ${DEV_DATA_RESET:false}

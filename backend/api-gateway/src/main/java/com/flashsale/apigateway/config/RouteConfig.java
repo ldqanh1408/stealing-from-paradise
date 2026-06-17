@@ -34,7 +34,7 @@ public class RouteConfig {
         return b.routes()
             // ===== Identity Service =====
             .route("identity-public", r -> r
-                .path("/api/v1/auth/**", "/api/v1/users/register")
+                .path("/api/v1/auth/**", "/api/v1/users/register", "/api/v1/users/sellers/**")
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://identity-service"))
 
@@ -155,6 +155,12 @@ public class RouteConfig {
                 .path("/api/v1/notifications/**")
                 .filters(f -> f.stripPrefix(1))
                 .uri("lb://notification-service"))
+
+            // ===== Banner =====
+            .route("admin-banners", r -> r
+                .path("/api/v1/admin/banners/**")
+                .filters(f -> f.stripPrefix(1))
+                .uri("lb://product-service"))
 
             // ===== AI Chat Service =====
             .route("ai-chat", r -> r

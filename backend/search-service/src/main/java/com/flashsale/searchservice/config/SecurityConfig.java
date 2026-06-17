@@ -1,7 +1,6 @@
 package com.flashsale.searchservice.config;
 
 import com.flashsale.commonlib.filter.JwtTokenDecoderFilter;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,27 +10,13 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    private final JwtTokenDecoderFilter jwtTokenDecoderFilter;
-
-    public SecurityConfig(JwtTokenDecoderFilter jwtTokenDecoderFilter) {
-        this.jwtTokenDecoderFilter = jwtTokenDecoderFilter;
-    }
-
-    @Bean
-    public FilterRegistrationBean<JwtTokenDecoderFilter> jwtTokenDecoderFilterRegistration(
-            JwtTokenDecoderFilter filter) {
-        FilterRegistrationBean<JwtTokenDecoderFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false);
-        return registration;
-    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -48,7 +33,6 @@ public class SecurityConfig {
             )
             .httpBasic(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)
-            .anonymous(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.GET, "/api/v1/search/products").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/search/products/suggest").permitAll()
@@ -57,7 +41,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.GET, "/api/v1/search/reindex/status").permitAll()
                     .anyRequest().permitAll()
             )
-            .addFilterBefore(jwtTokenDecoderFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterAfter(new JwtTokenDecoderFilter(), SecurityContextHolderFilter.class);
 
         return http.build();
     }

@@ -4,6 +4,10 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionBoostMode;
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionScore;
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionScoreMode;
+import co.elastic.clients.elasticsearch._types.query_dsl.FunctionScoreQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.MultiMatchQuery;
@@ -28,6 +32,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -58,6 +63,10 @@ public class EsSearcher {
      * Works by NFKD-decomposing the string then removing all combining marks (\p{M}).
      * The Vietnamese đ/Đ (U+0111 / U+0110) is not decomposed by NFKD so it is
      * handled explicitly.
+     * <p>
+     * This is kept as a safety net on top of the ES index-level icu_folding filter.
+     * When icu_folding is present, this provides a belt-and-suspenders approach so
+     * that edge cases ICU might miss (e.g. certain composed sequences) still match.
      */
     static String foldDiacritics(String s) {
         if (s == null || s.isEmpty()) return s;
@@ -99,12 +108,14 @@ public class EsSearcher {
             Double priceMax,
             Boolean inStock,
             Boolean isFlash,
+            Long sellerId,
             String sort,
             int page,
             int size
     ) {
         try {
             List<Query> filterQueries = new ArrayList<>();
+            // Hard filter: deactivated products are never shown.
             filterQueries.add(TermQuery.of(t -> t.field("isActive").value(true))._toQuery());
 
             if (priceMin != null) {
@@ -113,20 +124,26 @@ public class EsSearcher {
             if (priceMax != null) {
                 filterQueries.add(RangeQuery.of(r -> r.number(n -> n.field("price").lte(priceMax)))._toQuery());
             }
-            if (inStock != null && inStock) {
-                filterQueries.add(TermQuery.of(t -> t.field("stockStatus").value("in_stock"))._toQuery());
+            if (sellerId != null) {
+                filterQueries.add(TermQuery.of(t -> t.field("sellerId").value(sellerId))._toQuery());
+            }
+            if (inStock != null) {
+                // Explicit true/false: restrict to matching stock status.
+                // When inStock is null (not specified), no hard filter is added
+                // and ranking is driven by function_score boosting only.
+                filterQueries.add(TermQuery.of(t -> t.field("stockStatus")
+                        .value(inStock ? "in_stock" : "out_of_stock"))._toQuery());
             }
             if (isFlash != null && isFlash) {
                 // isFlash = true: include products with any discount (seed data with
                 // price<originalPrice AND active flash-sale items both set hasDiscount=true).
-                // This covers both intrinsically discounted seed products and flash-sale-
-                // activated products where the scheduler has set hasDiscount + flashSessionId.
                 filterQueries.add(TermQuery.of(t -> t.field("hasDiscount").value(true))._toQuery());
             }
 
             Query rootQuery;
             if (q != null && !q.isBlank()) {
                 // Fold diacritics so "tài nghe" matches products indexed as "tai nghe" and vice versa.
+                // This is a safety net on top of the ES-level icu_folding filter.
                 String normalizedQ = foldDiacritics(q);
                 rootQuery = MultiMatchQuery.of(mm -> mm
                         .query(normalizedQ)
@@ -138,7 +155,32 @@ public class EsSearcher {
                 rootQuery = MatchAllQuery.of(m -> m)._toQuery();
             }
 
-            BoolQuery.Builder boolBuilder = new BoolQuery.Builder().must(rootQuery);
+            // Wrap the root query in a function_score query to incorporate business signals
+            // (stock availability, discount status) as ranking boosts — not hard filters.
+            // This means out-of-stock or non-discounted products still appear in results
+            // but are ranked below in-stock / discounted ones.
+            List<FunctionScore> functions = Arrays.asList(
+                    // Boost score function: products in stock rank higher.
+                    FunctionScore.of(fn -> fn
+                            .filter(TermQuery.of(t -> t.field("stockStatus").value("in_stock"))._toQuery())
+                            .weight(2.0)
+                    ),
+                    // Boost score function: discounted/flash-sale products rank higher.
+                    FunctionScore.of(fn -> fn
+                            .filter(TermQuery.of(t -> t.field("hasDiscount").value(true))._toQuery())
+                            .weight(1.5)
+                    )
+            );
+
+            Query scoredQuery = FunctionScoreQuery.of(fs -> fs
+                    .query(rootQuery)
+                    .functions(functions)
+                    .scoreMode(FunctionScoreMode.Sum)
+                    .boostMode(FunctionBoostMode.Multiply)
+                    .minScore(0.0)
+            )._toQuery();
+
+            BoolQuery.Builder boolBuilder = new BoolQuery.Builder().must(scoredQuery);
             for (Query fq : filterQueries) {
                 boolBuilder.filter(fq);
             }
@@ -272,7 +314,7 @@ public class EsSearcher {
         }
         try {
             // Normalize diacritics so "tài nghe" → "tai nghe", matching the
-            // folded / asciifolded terms in the index.
+            // folded / icu_folded terms in the index.
             String normalizedQ = foldDiacritics(q);
 
             // Build a bool query that matches the folded term against the text-analysed

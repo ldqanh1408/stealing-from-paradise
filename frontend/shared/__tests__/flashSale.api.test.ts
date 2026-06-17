@@ -35,7 +35,7 @@ function mapSession(s: BackendSession) {
     name: s.name,
     startTime: s.startTime,
     endTime: s.endTime,
-    status: s.status as 'UPCOMING' | 'ACTIVE' | 'ENDED',
+    status: s.status as 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'CANCELLED',
     secondsRemaining: s.secondsRemaining,
     isEnded: s.isEnded,
     createdAt: s.createdAt,
@@ -108,6 +108,7 @@ describe('mapSession', () => {
     expect(mapSession(mockBackendSession).status).toBe('ACTIVE');
     expect(mapSession({ ...mockBackendSession, status: 'UPCOMING' }).status).toBe('UPCOMING');
     expect(mapSession({ ...mockBackendSession, status: 'ENDED' }).status).toBe('ENDED');
+    expect(mapSession({ ...mockBackendSession, status: 'CANCELLED' }).status).toBe('CANCELLED');
   });
 
   it('maps secondsRemaining and isEnded', () => {

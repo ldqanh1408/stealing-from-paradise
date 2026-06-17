@@ -1,9 +1,10 @@
 import { type FlashSaleSession } from '@shared/api/flashSale.api';
 
 const STATUS_COLORS: Record<string, string> = {
-  UPCOMING: 'bg-blue-100 text-blue-700',
-  ACTIVE:   'bg-green-100 text-green-700',
-  ENDED:    'bg-gray-100 text-gray-600',
+  UPCOMING:  'bg-blue-100 text-blue-700',
+  ACTIVE:    'bg-green-100 text-green-700',
+  ENDED:     'bg-gray-100 text-gray-600',
+  CANCELLED: 'bg-red-100 text-red-700',
 };
 
 function formatDateTime(iso?: string) {
@@ -57,7 +58,7 @@ export default function FlashSaleSessionsTable({
                       STATUS_COLORS[s.status] ?? 'bg-gray-100 text-gray-600'
                     }`}
                   >
-                    {s.status === 'UPCOMING' ? 'Sắp diễn ra' : s.status === 'ACTIVE' ? 'Đang chạy' : 'Đã kết thúc'}
+                    {s.status === 'UPCOMING' ? 'Sắp diễn ra' : s.status === 'ACTIVE' ? 'Đang chạy' : s.status === 'CANCELLED' ? 'Đã huỷ' : 'Đã kết thúc'}
                   </span>
                 </td>
                 <td className="px-5 py-4">
@@ -70,12 +71,18 @@ export default function FlashSaleSessionsTable({
                         Chỉnh sửa
                       </button>
                     )}
-                    <button
-                      onClick={() => onDelete(s)}
-                      className="text-xs text-red-500 hover:text-red-600 font-medium"
-                    >
-                      Xoá
-                    </button>
+                    {s.status !== 'ACTIVE' && (
+                      <button
+                        onClick={() => onDelete(s)}
+                        disabled={s.status === 'ACTIVE'}
+                        className="text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {s.status === 'CANCELLED' ? 'Đã xoá' : 'Xoá'}
+                      </button>
+                    )}
+                    {s.status === 'ACTIVE' && (
+                      <span className="text-xs text-gray-400 italic cursor-not-allowed">Đang chạy</span>
+                    )}
                   </div>
                 </td>
               </tr>

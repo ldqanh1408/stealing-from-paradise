@@ -40,7 +40,8 @@ public class DevDataRunner implements CommandLineRunner {
         log.info("    6. refund-service       — refunds / refund items");
         log.info("    7. notification-service — notifications (Mongo)");
         log.info("    8. chat-service         — chat sessions / messages (Mongo)");
-        log.info("=================================================");
+        log.info("    9. (Bonus) Each service also seeds its JSON test-dataset");
+        log.info("       from test-data/*.json in classpath:");
         log.info("");
         log.info("To seed: each service auto-seeds on first start with profile=dev.");
         log.info("To wipe + reseed: set dev-data.reset=true in the service's");

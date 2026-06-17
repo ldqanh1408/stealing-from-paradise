@@ -124,9 +124,25 @@ export default function SellerStripePage() {
         </div>
       ) : filteredAccounts.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-          <div className="text-4xl mb-3">📭</div>
-          <p className="font-bold text-gray-700 text-lg">Không tìm thấy nhà bán hàng nào</p>
-          <p className="text-gray-400 text-sm mt-1">Vui lòng thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.</p>
+          <div className="text-5xl mb-4 opacity-30">
+            {searchQuery || statusFilter ? '🔍' : '🏪'}
+          </div>
+          <h3 className="font-bold text-gray-900 text-lg mb-1">
+            {searchQuery || statusFilter ? 'Không tìm thấy kết quả' : 'Chưa có nhà bán hàng nào'}
+          </h3>
+          <p className="text-gray-400 text-sm mt-1 max-w-sm mx-auto">
+            {searchQuery || statusFilter
+              ? 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái để xem thêm kết quả.'
+              : 'Khi seller liên kết tài khoản Stripe, họ sẽ xuất hiện ở đây để quản lý.'}
+          </p>
+          {(searchQuery || statusFilter) && (
+            <button
+              onClick={() => { setSearchQuery(''); setStatusFilter(''); }}
+              className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+            >
+              Xoá bộ lọc
+            </button>
+          )}
         </div>
       ) : (
         <StripeAccountsTable

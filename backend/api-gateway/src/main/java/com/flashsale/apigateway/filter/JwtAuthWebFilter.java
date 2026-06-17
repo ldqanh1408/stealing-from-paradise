@@ -49,6 +49,7 @@ public class JwtAuthWebFilter implements WebFilter {
         "/api/v1/auth/reset-password",
         "/api/v1/stripe/webhooks",
         "/api/ai/suggest",
+        "/api/v1/users/sellers/",
         "/actuator/health",
         "/actuator/info"
     );
@@ -89,7 +90,17 @@ public class JwtAuthWebFilter implements WebFilter {
                     || requestPath.startsWith("/api/v1/support")
                     || requestPath.startsWith("/api/v1/notifications")
                     || requestPath.startsWith("/api/v1/payments")
-                    || requestPath.startsWith("/api/v1/refunds")) {
+                    || requestPath.startsWith("/api/v1/refunds")
+                    || requestPath.startsWith("/api/v1/wishlist")
+                    || requestPath.startsWith("/api/v1/seller")
+                    || requestPath.startsWith("/api/v1/sellers")
+                    || requestPath.startsWith("/api/v1/admin")
+                    || requestPath.startsWith("/api/v1/chat")
+                    || requestPath.startsWith("/api/v1/stripe/onboarding")
+                    || requestPath.startsWith("/api/v1/checkout")
+                    // Flash-sales write operations (POST/PUT/DELETE) need auth too;
+                    // GET is kept public so customers can browse without logging in.
+                    || (requestPath.startsWith("/api/v1/flash-sales") && !"GET".equalsIgnoreCase(method))) {
                 return onError(exchange, "AUTH_001", "Vui lòng đăng nhập", HttpStatus.UNAUTHORIZED);
             }
             return chain.filter(exchange);
@@ -103,28 +114,34 @@ public class JwtAuthWebFilter implements WebFilter {
                 return onError(exchange, "AUTH_004", "Token không hợp lệ", HttpStatus.UNAUTHORIZED);
             }
 
-            // Check if token is blacklisted
-            if (tokenBlacklistCheckService.isTokenBlacklisted(token)) {
-                return onError(exchange, "AUTH_005", "Token đã bị hủy (logout)", HttpStatus.UNAUTHORIZED);
-            }
+            return tokenBlacklistCheckService.isTokenBlacklistedReactive(token)
+                .flatMap(isBlacklisted -> {
+                    if (Boolean.TRUE.equals(isBlacklisted)) {
+                        return onError(exchange, "AUTH_005", "Token đã bị hủy (logout)", HttpStatus.UNAUTHORIZED);
+                    }
 
-            // API Gateway DECODE token - extract user info
-            String userId = jwtUtils.extractUserId(token);
-            String email = jwtUtils.extractEmail(token);
-            String role = jwtUtils.extractRole(token);
-            String jti = jwtUtils.extractJti(token);
+                    try {
+                        // API Gateway DECODE token - extract user info
+                        String userId = jwtUtils.extractUserId(token);
+                        String email = jwtUtils.extractEmail(token);
+                        String role = jwtUtils.extractRole(token);
+                        String jti = jwtUtils.extractJti(token);
 
-            // Đặt decoded info vào headers để gửi đến service
-            // Services sẽ đọc các headers này và đặt vào SecurityContext
-            var mutated = exchange.getRequest().mutate()
-                .header("X-User-Id", userId != null ? userId : "")
-                .header("X-User-Email", email != null ? email : "")
-                .header("X-User-Role", role != null ? role : "")
-                .header("X-Token-Jti", jti != null ? jti : "")
-                .header("X-Access-Token", token)  // Forward the access token for logout/blacklist
-                .build();
+                        // Đặt decoded info vào headers để gửi đến service
+                        // Services sẽ đọc các headers này và đặt vào SecurityContext
+                        var mutated = exchange.getRequest().mutate()
+                            .header("X-User-Id", userId != null ? userId : "")
+                            .header("X-User-Email", email != null ? email : "")
+                            .header("X-User-Role", role != null ? role : "")
+                            .header("X-Token-Jti", jti != null ? jti : "")
+                            .header("X-Access-Token", token)  // Forward the access token for logout/blacklist
+                            .build();
 
-            return chain.filter(exchange.mutate().request(mutated).build());
+                        return chain.filter(exchange.mutate().request(mutated).build());
+                    } catch (Exception e) {
+                        return onError(exchange, "AUTH_004", "Token không hợp lệ", HttpStatus.UNAUTHORIZED);
+                    }
+                });
 
         } catch (Exception e) {
             return onError(exchange, "AUTH_004", "Token không hợp lệ", HttpStatus.UNAUTHORIZED);

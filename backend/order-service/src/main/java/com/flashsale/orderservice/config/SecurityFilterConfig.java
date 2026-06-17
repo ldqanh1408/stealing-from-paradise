@@ -1,19 +1,9 @@
 package com.flashsale.orderservice.config;
 
-import com.flashsale.commonlib.filter.JwtTokenDecoderFilter;
-import org.springframework.context.annotation.Import;
-
 /**
- * Imports JwtTokenDecoderFilter from common-lib so that it gets registered
- * as a Servlet Filter in order-service's filter chain.
+ * SecurityFilterConfig — removed.
  *
- * JwtTokenDecoderFilter reads the X-User-Id, X-User-Role, etc. headers
- * that API Gateway sets after decoding the JWT, and populates the
- * Spring SecurityContext so that @PreAuthorize annotations work correctly.
- *
- * Without this import, the filter lives in common-lib but is never
- * discovered because Spring Boot only scans com.flashsale.orderservice.**
+ * Previously imported JwtTokenDecoderFilter from common-lib via @Import.
+ * JwtTokenDecoderFilter is no longer a @Component; it's created as a @Bean
+ * inside SecurityConfig and added to the SecurityFilterChain there.
  */
-@Import(JwtTokenDecoderFilter.class)
-public class SecurityFilterConfig {
-}

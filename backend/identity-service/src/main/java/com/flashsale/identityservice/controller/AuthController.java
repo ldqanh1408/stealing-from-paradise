@@ -34,7 +34,7 @@ public class AuthController {
     private final RoleRepository roleRepository;
     private final JwtUtils jwtUtils;
 
-    @Value("${jwt.expiration:3600}")
+    @Value("${jwt.expiration:86400}")
     private long accessTokenExpiration;
 
     /**

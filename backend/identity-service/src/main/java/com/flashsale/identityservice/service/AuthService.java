@@ -32,7 +32,7 @@ public class AuthService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${jwt.expiration:3600}")
+    @Value("${jwt.expiration:86400}")
     private long accessTokenExpiration;
 
     @Value("${jwt.refresh-expiration:604800}")
@@ -195,16 +195,30 @@ public class AuthService {
         }
 
         String domainLower = domain.toLowerCase();
+        String dbRole = (userRole != null && !userRole.isEmpty()) ? userRole.toUpperCase() : "BUYER";
 
-        if (domainLower.contains("seller")) {
-            return "SELLER";
-        } else if (domainLower.contains("admin")) {
-            return "ADMIN";
-        } else if (domainLower.contains("customer") || domainLower.contains("app")) {
+        if (domainLower.contains("admin")) {
+            if ("ADMIN".equals(dbRole)) {
+                return "ADMIN";
+            }
             return "BUYER";
         }
 
-        return (userRole != null && !userRole.isEmpty()) ? userRole : "BUYER";
+        if (domainLower.contains("seller")) {
+            if ("SELLER".equals(dbRole) || "ADMIN".equals(dbRole)) {
+                return "SELLER";
+            }
+            return "BUYER";
+        }
+
+        if (domainLower.contains("customer") || domainLower.contains("app")) {
+            if (domainLower.contains("customer")) {
+                return "BUYER";
+            }
+            return dbRole;
+        }
+
+        return dbRole;
     }
 
     public boolean validatePassword(String rawPassword, String hashedPassword) {

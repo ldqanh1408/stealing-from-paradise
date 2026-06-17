@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import NotificationBell from '@shared/components/NotificationBell';
 import { handleAuthFailure } from '../../../../../shared/lib/axios';
-import Cookies from 'js-cookie';
+import { authCookies } from '../../../../../shared/utils/cookie';
+import type { Notification } from '../api/notification.api';
 
 // Hoisted store doubles.
 const h = vi.hoisted(() => ({
@@ -44,12 +45,16 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.authState.user = null; // Reset to default
   global.fetch = vi.fn();
-  Cookies.set('accessToken', 'mock-token');
+  if (typeof window !== 'undefined') {
+    delete (window as any).location;
+    window.location = new URL('http://localhost/seller') as any;
+  }
+  authCookies.set('accessToken', 'mock-token');
 });
 
 afterEach(() => {
   global.fetch = originalFetch;
-  Cookies.remove('accessToken');
+  authCookies.remove('accessToken');
 });
 
 describe('NotificationBell', () => {

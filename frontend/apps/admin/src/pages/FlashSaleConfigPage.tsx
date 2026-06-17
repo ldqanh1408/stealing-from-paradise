@@ -6,7 +6,7 @@ import FlashSaleSessionForm from '@/components/FlashSale/FlashSaleSessionForm';
 import FlashSaleSessionsTable from '@/components/FlashSale/FlashSaleSessionsTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
 import { notify } from '@shared/lib/toast';
-import { Skeleton } from '@shared/components/ui';
+import { Skeleton, EmptyState } from '@shared/components/ui';
 import { fmtVnd } from '@shared/utils/format';
 
 function toLocalDatetime(iso?: string) {
@@ -45,6 +45,7 @@ export default function FlashSaleConfigPage() {
   const [endTime, setEndTime] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [processingItemId, setProcessingItemId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-flash-sale-sessions'],
@@ -109,21 +110,35 @@ export default function FlashSaleConfigPage() {
   };
 
   const approveItemMut = useMutation({
-    mutationFn: (item: FlashSaleItem) => flashSaleApi.approveItem(item.sessionId, item.id, 'Approved from admin UI'),
+    mutationFn: (item: FlashSaleItem) => {
+      setProcessingItemId(item.id);
+      return flashSaleApi.approveItem(item.sessionId, item.id, 'Approved from admin UI');
+    },
     onSuccess: () => {
       notify.success('Đã duyệt sản phẩm Flash Sale');
       invalidateSessionDetail();
+      setProcessingItemId(null);
     },
-    onError: (err: any) => notify.error(err?.response?.data?.message || 'Duyệt sản phẩm thất bại'),
+    onError: (err: any) => {
+      notify.error(err?.response?.data?.message || 'Duyệt sản phẩm thất bại');
+      setProcessingItemId(null);
+    },
   });
 
   const rejectItemMut = useMutation({
-    mutationFn: (item: FlashSaleItem) => flashSaleApi.rejectItem(item.sessionId, item.id, 'Không đạt điều kiện Flash Sale'),
+    mutationFn: (item: FlashSaleItem) => {
+      setProcessingItemId(item.id);
+      return flashSaleApi.rejectItem(item.sessionId, item.id, 'Không đạt điều kiện Flash Sale');
+    },
     onSuccess: () => {
       notify.success('Đã từ chối sản phẩm Flash Sale');
       invalidateSessionDetail();
+      setProcessingItemId(null);
     },
-    onError: (err: any) => notify.error(err?.response?.data?.message || 'Từ chối sản phẩm thất bại'),
+    onError: (err: any) => {
+      notify.error(err?.response?.data?.message || 'Từ chối sản phẩm thất bại');
+      setProcessingItemId(null);
+    },
   });
 
   const resetForm = () => {
@@ -233,19 +248,20 @@ export default function FlashSaleConfigPage() {
 
       {/* Empty */}
       {!isLoading && !error && sessions.length === 0 && (
-        <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 py-20 text-center">
-          <span className="text-5xl block mb-4">⚡</span>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có phiên Flash Sale nào</h3>
-          <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
-            Tạo phiên flash sale đầu tiên để thu hút khách hàng với giá ưu đãi đặc biệt
-          </p>
-          <button
-            onClick={handleOpenCreate}
-            className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm rounded-xl transition-colors"
-          >
-            Tạo phiên đầu tiên
-          </button>
-        </div>
+        <EmptyState
+          iconKey="bolt"
+          title="Chưa có phiên Flash Sale nào"
+          description="Tạo phiên flash sale đầu tiên để thu hút khách hàng với giá ưu đãi đặc biệt"
+          action={
+            <button
+              onClick={handleOpenCreate}
+              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm rounded-xl transition-colors"
+            >
+              Tạo phiên đầu tiên
+            </button>
+          }
+          className="bg-white rounded-2xl border-2 border-dashed border-gray-300"
+        />
       )}
 
       {/* Sessions list */}
@@ -280,7 +296,12 @@ export default function FlashSaleConfigPage() {
               {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
           ) : !sessionDetailQuery.data?.items?.length ? (
-            <div className="p-12 text-center text-gray-500 text-sm">Chưa có sản phẩm nào đăng ký trong phiên này.</div>
+            <EmptyState
+              iconKey="bolt"
+              title="Chưa có sản phẩm đăng ký"
+              description="Sản phẩm do seller gửi sẽ xuất hiện ở đây sau khi họ đăng ký vào phiên này."
+              className="p-12"
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
@@ -313,16 +334,28 @@ export default function FlashSaleConfigPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => approveItemMut.mutate(item)}
-                            disabled={item.status === 'APPROVED' || approveItemMut.isPending || rejectItemMut.isPending}
-                            className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-40"
+                            disabled={item.status === 'APPROVED' || processingItemId !== null}
+                            className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-40"
                           >
+                            {processingItemId === item.id && approveItemMut.isPending ? (
+                              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            ) : null}
                             Duyệt
                           </button>
                           <button
                             onClick={() => rejectItemMut.mutate(item)}
-                            disabled={item.status === 'REJECTED' || approveItemMut.isPending || rejectItemMut.isPending}
-                            className="text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-40"
+                            disabled={item.status === 'REJECTED' || processingItemId !== null}
+                            className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-40"
                           >
+                            {processingItemId === item.id && rejectItemMut.isPending ? (
+                              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            ) : null}
                             Từ chối
                           </button>
                         </div>
@@ -340,7 +373,9 @@ export default function FlashSaleConfigPage() {
       {deletingSession && (
         <ConfirmDialog
           title="Xoá phiên Flash Sale?"
-          message={`Bạn có chắc muốn xoá phiên "${deletingSession.name}"? Hành động này không thể hoàn tác.`}
+          message={deletingSession.status === 'ACTIVE'
+            ? 'Không thể xoá phiên Flash Sale đang chạy.'
+            : `Bạn có chắc muốn xoá phiên "${deletingSession.name}"? Hành động này sẽ chuyển trạng thái thành "Đã huỷ" và không thể hoàn tác.`}
           confirmLabel="Xoá"
           danger
           loading={deleteMut.isPending}

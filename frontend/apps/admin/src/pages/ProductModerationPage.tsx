@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, type PendingProduct } from '@shared/api/admin.api';
 import RejectProductModal from '@/components/ProductModeration/RejectProductModal';
@@ -19,6 +19,7 @@ export default function ProductModerationPage() {
   const [rejectProduct, setRejectProduct] = useState<PendingProduct | null>(null);
   const [approveProduct, setApproveProduct] = useState<PendingProduct | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-pending-products', tab, page],
@@ -56,6 +57,12 @@ export default function ProductModerationPage() {
     onError: (err: unknown) => setActionError(getErrMsg(err)),
   });
 
+  useEffect(() => {
+    if (data?.totalElements !== undefined) {
+      setTabCounts(prev => ({ ...prev, [tab]: data.totalElements }));
+    }
+  }, [data, tab]);
+
   const pendingProducts: PendingProduct[] = data?.content ?? [];
   const totalPages = data?.totalPages ?? 0;
 
@@ -79,6 +86,7 @@ export default function ProductModerationPage() {
       <ProductModerationTabs
         tab={tab}
         onTabChange={(t) => { setTab(t); setPage(0); }}
+        counts={tabCounts}
       />
 
       {/* Loading */}

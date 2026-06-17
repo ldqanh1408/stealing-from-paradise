@@ -17,7 +17,7 @@ public class JwtUtils {
     @Value("${jwt.secret:your-very-secret-key-for-hs256-algorithm-minimum-32-characters-long}")
     private String secretKey;
 
-    @Value("${jwt.expiration:3600}")  // Default 1 hour in seconds
+    @Value("${jwt.expiration:86400}")  // Default 24 hours in seconds
     private long accessTokenExpiration;
 
     @Value("${jwt.refresh-expiration:604800}")  // Default 7 days in seconds

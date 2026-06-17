@@ -20,7 +20,7 @@ spring:
 dev-data:
   enabled: true
   # reset=true xóa toàn bộ data cũ rồi seed lại từ đầu
-  reset: false
+  reset: ${DEV_DATA_RESET:false}
 
 # Actuator — enable health endpoint for docker healthcheck
 management:

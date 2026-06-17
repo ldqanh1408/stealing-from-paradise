@@ -27,7 +27,7 @@ export default function RefundDetailDrawer({ refund, onClose }: { refund: Refund
   const status = STATUS_STYLE[current.status] ?? { bg: 'bg-gray-100', color: 'text-gray-600', label: current.status };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
       <div className="bg-white w-full max-w-md h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-white border-b p-5 flex items-center justify-between">
           <h3 className="font-bold text-gray-900">Chi tiết hoàn tiền</h3>

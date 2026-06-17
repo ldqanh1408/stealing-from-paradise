@@ -47,7 +47,7 @@ public class PaymentController {
      * Chỉ hoạt động khi transaction ở trạng thái PENDING.
      */
     @GetMapping("/payments/client-secret/{parentOrderId}")
-    @PreAuthorize("hasRole('BUYER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('BUYER') or hasRole('SELLER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ClientSecretResponse>> getClientSecret(
             @PathVariable Long parentOrderId,
             @AuthenticationPrincipal UserDetailsImpl user) {

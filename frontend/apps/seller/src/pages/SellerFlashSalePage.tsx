@@ -48,6 +48,7 @@ function mapSellerProduct(p: any): SellerProduct {
   return {
     ...p,
     productId: p.productId ?? p.id,
+    price: p.price ?? 0,
     stockAvailable: p.stockAvailable ?? p.totalStock ?? 0,
     variantsCount: p.variantsCount ?? p.variantCount ?? 0,
     images: p.images ?? (p.thumbnailUrl ? [p.thumbnailUrl] : []),
