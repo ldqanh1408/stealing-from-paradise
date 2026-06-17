@@ -8,6 +8,7 @@ const LoginPage              = lazy(() => import('@shared/pages/LoginPage'));
 const SellerRegisterPage     = lazy(() => import('@/pages/SellerRegisterPage'));
 const SellerDashboard        = lazy(() => import('@/pages/SellerDashboard'));
 const ProductManagementPage   = lazy(() => import('@/pages/ProductManagementPage'));
+const SellerFlashSalePage     = lazy(() => import('@/pages/SellerFlashSalePage'));
 const SellerOrdersPage       = lazy(() => import('@/pages/SellerOrdersPage'));
 const SellerOrderDetailPage  = lazy(() => import('@/pages/SellerOrderDetailPage'));
 const StripeOnboardingPage   = lazy(() => import('@/pages/StripeOnboardingPage'));
@@ -23,6 +24,7 @@ const NAV_GROUPS = [
     label: 'Bán hàng',
     items: [
       { label: 'Sản phẩm', to: '/products', iconKey: 'cube' as const },
+      { label: 'Flash Sale', to: '/flash-sales', iconKey: 'bolt' as const },
       { label: 'Đơn hàng', to: '/orders', iconKey: 'clipboard' as const },
     ],
   },
@@ -55,6 +57,7 @@ export default function App() {
               <Routes>
                 <Route path="/dashboard"         element={<PrivateRoute role="SELLER"><SellerDashboard /></PrivateRoute>} />
                 <Route path="/products"          element={<PrivateRoute role="SELLER"><ProductManagementPage /></PrivateRoute>} />
+                <Route path="/flash-sales"       element={<PrivateRoute role="SELLER"><SellerFlashSalePage /></PrivateRoute>} />
                 <Route path="/orders"            element={<PrivateRoute role="SELLER"><SellerOrdersPage /></PrivateRoute>} />
                 <Route path="/orders/:orderId"   element={<PrivateRoute role="SELLER"><SellerOrderDetailPage /></PrivateRoute>} />
                 <Route path="/stripe-onboarding" element={<PrivateRoute role="SELLER"><StripeOnboardingPage /></PrivateRoute>} />

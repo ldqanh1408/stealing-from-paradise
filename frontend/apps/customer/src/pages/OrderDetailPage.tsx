@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderApi, type Order, type OrderItem } from '@shared/api/order.api';
 import { paymentApi } from '@shared/api/payment.api';
-import { refundApi, type FullRefundCreatedResponse } from '@shared/api/refund.api';
+import { refundApi, type FullRefundCreatedResponse, type RefundPresignedUrlResponse } from '@shared/api/refund.api';
 import { type ApiResponse } from '@shared/types/api';
 import { Skeleton, Spinner } from '@shared/components/ui';
 import { notify } from '@shared/lib/toast';
@@ -46,7 +46,8 @@ function canRequestPartialRefund(order: Order) {
 }
 
 type EvidenceImage = {
-  url: string;
+  previewUrl: string;
+  evidenceUrl: string;
   name: string;
 };
 
@@ -56,6 +57,38 @@ function normalizeMinioUrl(url: string) {
     .replace('//fs-minio:9000', '//localhost:9000');
 }
 
+function firstString(...values: Array<string | undefined>) {
+  return values.find(value => typeof value === 'string' && value.trim().length > 0);
+}
+
+function getPresignedUploadUrl(presigned: RefundPresignedUrlResponse) {
+  return firstString(
+    presigned.url,
+    presigned.presignedUrl,
+    presigned.presigned_url,
+    presigned.uploadUrl,
+    presigned.upload_url,
+  );
+}
+
+function getEvidenceObjectUrl(presigned: RefundPresignedUrlResponse, uploadUrl: string) {
+  return firstString(
+    presigned.objectUrl,
+    presigned.object_url,
+    presigned.cdnUrl,
+    presigned.cdn_url,
+  ) ?? getPublicEvidenceUrl(uploadUrl);
+}
+
+function isApiRouteUrl(url: string) {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.pathname.startsWith('/api/v1/orders/') || parsed.pathname.startsWith('/orders/');
+  } catch {
+    return false;
+  }
+}
+
 function getPublicEvidenceUrl(uploadUrl: string) {
   return uploadUrl.split('?')[0];
 }
@@ -63,18 +96,25 @@ function getPublicEvidenceUrl(uploadUrl: string) {
 async function uploadRefundEvidence(orderId: number, file: File): Promise<EvidenceImage> {
   const { data } = await refundApi.getRefundPresignedUrl(orderId, file.name, file.type || 'image/jpeg');
   const presigned = data.data;
-  if (!presigned?.url) {
+  const rawUploadUrl = presigned ? getPresignedUploadUrl(presigned) : undefined;
+  if (!rawUploadUrl) {
     throw new Error('Không thể tạo URL tải ảnh');
   }
 
-  if (presigned.url.startsWith('mock://')) {
+  if (rawUploadUrl.startsWith('mock://')) {
+    const previewUrl = URL.createObjectURL(file);
     return {
-      url: URL.createObjectURL(file),
+      previewUrl,
+      evidenceUrl: previewUrl,
       name: file.name,
     };
   }
 
-  const uploadUrl = normalizeMinioUrl(presigned.url);
+  const uploadUrl = normalizeMinioUrl(rawUploadUrl);
+  if (isApiRouteUrl(uploadUrl)) {
+    throw new Error('URL upload anh khong hop le');
+  }
+
   const uploadRes = await fetch(uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': file.type || presigned.contentType || 'image/jpeg' },
@@ -86,7 +126,8 @@ async function uploadRefundEvidence(orderId: number, file: File): Promise<Eviden
   }
 
   return {
-    url: normalizeMinioUrl(getPublicEvidenceUrl(presigned.url)),
+    previewUrl: URL.createObjectURL(file),
+    evidenceUrl: normalizeMinioUrl(getEvidenceObjectUrl(presigned, rawUploadUrl)),
     name: file.name,
   };
 }
@@ -162,8 +203,8 @@ function EvidenceUploader({
       {images.length > 0 && (
         <div className="mt-3 grid grid-cols-4 gap-2">
           {images.map((image, index) => (
-            <div key={`${image.url}-${index}`} className="relative overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
-              <img src={image.url} alt={image.name} className="h-20 w-full object-cover" />
+            <div key={`${image.evidenceUrl}-${index}`} className="relative overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+              <img src={image.previewUrl} alt={image.name} className="h-20 w-full object-cover" />
               <button
                 type="button"
                 onClick={() => onChange(images.filter((_, i) => i !== index))}
@@ -266,7 +307,7 @@ function PartialRefundModal({ order, onClose, onSuccess }: { order: Order; onClo
       return refundApi.requestPartialRefund(order.orderId, {
         reason,
         items,
-        evidenceImages: evidenceImages.map(image => image.url),
+        evidenceImages: evidenceImages.map(image => image.evidenceUrl),
       });
     },
     onSuccess: () => {
@@ -438,7 +479,7 @@ function FullRefundModal({ parentOrderId, evidenceOrderId, onClose, onSuccess }:
     mutationFn: () =>
       refundApi.requestFullRefund(parentOrderId, {
         reason,
-        evidenceImages: evidenceImages.map(image => image.url),
+        evidenceImages: evidenceImages.map(image => image.evidenceUrl),
       }) as Promise<{ data: ApiResponse<FullRefundCreatedResponse> }>,
     onSuccess: (res) => {
       setResult(res.data.data);

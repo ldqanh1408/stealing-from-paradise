@@ -110,7 +110,7 @@ export default function ProductsTable({
                       </button>
                     )}
 
-                    {/* APPROVED / UNPUBLISHED → Publish */}
+                    {/* APPROVED / hidden/out-of-stock → Publish */}
                     {canPublish(p.status) && (
                       <button
                         onClick={() => onPublish(p.productId)}
@@ -121,7 +121,7 @@ export default function ProductsTable({
                       </button>
                     )}
 
-                    {/* PUBLISHED → Unpublish */}
+                    {/* Live product → Unpublish */}
                     {canUnpublish(p.status) && (
                       <button
                         onClick={() => onUnpublish(p.productId)}

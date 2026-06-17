@@ -11,6 +11,17 @@ import ConfirmDialog from '@shared/components/ConfirmDialog';
 
 type ProductFormTab = 'info' | 'images' | 'variants' | 'inventory';
 
+function makeDefaultSku(name: string) {
+  const base = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toUpperCase()
+    .slice(0, 24) || 'PRODUCT';
+  return `${base}-${Date.now().toString(36).toUpperCase()}`;
+}
+
 export default function ProductFormModal({
   product,
   initialTab = 'info',
@@ -60,12 +71,29 @@ export default function ProductFormModal({
   const [showVariant, setShowVariant] = useState<SellerVariant | undefined>(undefined);
   const [showVariantForm, setShowVariantForm] = useState(false);
   const [deletingVariant, setDeletingVariant] = useState<SellerVariant | null>(null);
+  const isNew = !product;
 
   const mut = useMutation({
-    mutationFn: (data: { name: string; description: string; categoryId: string; images?: string[] }) =>
-      product
-        ? sellerApi.updateProduct(product.productId, data)
-        : sellerApi.createProduct({ ...data, price: Number(price), stock: Number(stock) }),
+    mutationFn: async (data: { name: string; description: string; categoryId: string; images?: string[] }) => {
+      if (product) {
+        return sellerApi.updateProduct(product.productId, data);
+      }
+
+      const created = await sellerApi.createProduct(data);
+      const createdProduct = created.data.data as any;
+      const createdProductId = createdProduct?.productId ?? createdProduct?.id;
+
+      if (createdProductId) {
+        await sellerApi.createVariant(createdProductId, {
+          skuCode: makeDefaultSku(data.name),
+          variantName: 'Default',
+          price: Number(price),
+          stock: Number(stock),
+        });
+      }
+
+      return created;
+    },
     onSuccess: (res) => {
       if (!product && res.data.data) {
         // New product — navigate to edit for variants
@@ -97,9 +125,24 @@ export default function ProductFormModal({
   });
 
   const handleSaveInfo = () => {
+    const priceNumber = Number(price);
+    const stockNumber = Number(stock);
+    const selectedCategoryId = category || categories[0]?.categoryId;
+    if (!name.trim() || !Number.isFinite(priceNumber) || priceNumber <= 0) {
+      setError('Vui lòng điền tên và giá sản phẩm.');
+      return;
+    }
+    if (!selectedCategoryId) {
+      setError('Vui lòng chọn danh mục sản phẩm.');
+      return;
+    }
+    if (isNew && (!Number.isFinite(stockNumber) || stockNumber < 0)) {
+      setError('Số lượng ban đầu không hợp lệ.');
+      return;
+    }
     if (!name.trim() || !price) { setError('Vui lòng điền tên và giá sản phẩm.'); return; }
     setError(null);
-    mut.mutate({ name: name.trim(), description, categoryId: category, images });
+    mut.mutate({ name: name.trim(), description, categoryId: selectedCategoryId, images });
   };
 
   if (done) {
@@ -115,8 +158,6 @@ export default function ProductFormModal({
       </div>
     );
   }
-
-  const isNew = !product;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto">

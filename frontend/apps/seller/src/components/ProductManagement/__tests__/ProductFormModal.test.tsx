@@ -8,12 +8,17 @@ import { categoryApi } from '@shared/api/category.api';
 vi.mock('@shared/api/seller.api', () => ({
   sellerApi: {
     createProduct: vi.fn(() => Promise.resolve({ data: { data: { productId: 'new1' } } })),
+    createVariant: vi.fn(() => Promise.resolve({ data: { data: { id: 'v1' } } })),
     updateProduct: vi.fn(() => Promise.resolve({ data: { data: { productId: 'p1' } } })),
     getVariants: vi.fn(() => Promise.resolve({ data: { data: [] } })),
   },
 }));
 vi.mock('@shared/api/category.api', () => ({
-  categoryApi: { getCategories: vi.fn(() => Promise.resolve({ data: { data: [] } })) },
+  categoryApi: {
+    getCategories: vi.fn(() => Promise.resolve({
+      data: { data: [{ categoryId: 'c1', name: 'Category 1' }] },
+    })),
+  },
 }));
 
 function renderModal(product?: any) {
@@ -37,11 +42,17 @@ describe('ProductFormModal (UC-PRODUCT-003)', () => {
 
   it('creates a product on valid input', async () => {
     renderModal();
+    await screen.findByText('Category 1');
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'c1' } });
     fireEvent.change(screen.getByPlaceholderText(/Sony WH-1000XM5/i), { target: { value: 'New SP' } });
     fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '1000' } }); // price
     fireEvent.click(screen.getByRole('button', { name: /Tạo sản phẩm/i }));
     await waitFor(() => expect(sellerApi.createProduct).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'New SP', price: 1000 }),
+      expect.objectContaining({ name: 'New SP', categoryId: 'c1' }),
+    ));
+    await waitFor(() => expect(sellerApi.createVariant).toHaveBeenCalledWith(
+      'new1',
+      expect.objectContaining({ variantName: 'Default', price: 1000, stock: 1 }),
     ));
   });
 });

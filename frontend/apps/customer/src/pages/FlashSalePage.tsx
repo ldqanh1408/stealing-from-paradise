@@ -160,8 +160,9 @@ export default function FlashSalePage() {
 
   const sessions: FlashSaleSession[] = sessionsData?.content ?? [];
 
-  // Determine which session is active
-  const activeSession = sessions.find(s => s.status === 'ACTIVE') ?? sessions.find(s => s.status === 'UPCOMING');
+  // Determine which session is active; respect the selected tab when present.
+  const defaultSession = sessions.find(s => s.status === 'ACTIVE') ?? sessions.find(s => s.status === 'UPCOMING') ?? sessions[0];
+  const activeSession = sessions.find(s => s.id === activeSessionId) ?? defaultSession;
 
   const { data: sessionDetail, isLoading: detailLoading } = useQuery({
     queryKey: ['flash-sale-session', activeSession?.id],
@@ -189,6 +190,9 @@ export default function FlashSalePage() {
     ? new Date(activeSession.endTime)
     : new Date(Date.now() + 2 * 3600 * 1000);
   const isActive = activeSession?.status === 'ACTIVE';
+  const visibleItems = (sessionDetail?.items ?? []).filter(item =>
+    ['APPROVED', 'ACTIVE', 'SOLD_OUT'].includes(item.status),
+  );
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -267,7 +271,7 @@ export default function FlashSalePage() {
               </div>
             ))}
           </div>
-        ) : !sessionDetail?.items?.length ? (
+        ) : visibleItems.length === 0 ? (
           <div className="bg-white rounded-2xl border-2 border-dashed border-gray-300 py-20 text-center">
             <span className="text-5xl block mb-4">⚡</span>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -281,7 +285,7 @@ export default function FlashSalePage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {sessionDetail.items.map((item) => (
+            {visibleItems.map((item) => (
               <FlashItemCard
                 key={item.skuCode}
                 item={item}

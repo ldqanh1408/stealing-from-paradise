@@ -47,6 +47,7 @@ interface RawVariantResponse {
   price: number;
   originalPrice?: number;
   stockQuantity: number;
+  isFlash?: boolean;
   status: string;
   imageUrl?: string;
 }
@@ -103,7 +104,7 @@ function mapProductDetail(raw: RawProductResponse): ProductDetail {
       variantName: v.variantName,
       stockQuantity: v.stockQuantity ?? 0,
       stock: v.stockQuantity ?? 0,
-      isFlash: false,
+      isFlash: v.isFlash ?? (v.originalPrice != null && v.price < v.originalPrice),
       price: v.price,
       originalPrice: v.originalPrice,
     })),

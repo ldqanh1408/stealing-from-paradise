@@ -94,7 +94,9 @@ export default function App() {
             >
               <Routes>
                 <Route path="/products"        element={<ProductListPage />} />
+                <Route path="/product"         element={<ProductListPage />} />
                 <Route path="/products/:productId" element={<ProductDetailPage />} />
+                <Route path="/product/:productId"  element={<ProductDetailPage />} />
                 <Route path="/flash-sales"     element={<FlashSalePage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
 

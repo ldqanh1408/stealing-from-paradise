@@ -71,10 +71,12 @@ public class EsSearcher {
 
     /**
      * Builds {@code must_not} prefix queries that exclude fixture documents whose
-     * category lineage ({@code categorySlugPath}) OR product slug ({@code productSlug})
-     * starts with a hidden prefix. Both fields are checked because reindexes can land
-     * fixture products under real category slugs (e.g. {@code electronics}) while the
-     * product slug itself still carries the {@code fe-}/{@code e2e-} marker.
+     * category lineage ({@code categorySlugPath}) starts with a hidden prefix.
+     * Only category path is checked — product slugs are NOT filtered so that
+     * seller-created products with names that happen to contain the prefix remain
+     * visible in search results (the `fe-` prefix in the group was historically
+     * reserved for frontend fixture products, but seller-created products should
+     * never be hidden by slug alone).
      */
     private List<Query> hiddenCategoryExclusions() {
         if (hiddenCategoryPrefixes == null || hiddenCategoryPrefixes.isEmpty()) {
@@ -87,7 +89,6 @@ public class EsSearcher {
             }
             String value = prefix.trim();
             exclusions.add(PrefixQuery.of(p -> p.field("categorySlugPath").value(value))._toQuery());
-            exclusions.add(PrefixQuery.of(p -> p.field("productSlug").value(value))._toQuery());
         }
         return exclusions;
     }

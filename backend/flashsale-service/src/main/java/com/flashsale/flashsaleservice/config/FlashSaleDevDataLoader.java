@@ -55,7 +55,11 @@ public class FlashSaleDevDataLoader implements CommandLineRunner {
         } else {
             Long count = sessionRepository.count().block();
             if (count != null && count > 0) {
-                log.info("[FlashSaleDevDataLoader] Data already exists, skipping. Set dev-data.reset=true to reload.");
+                log.info("[FlashSaleDevDataLoader] Data already exists, skipping main seed.");
+
+                seedFeData();
+
+                log.info("[FlashSaleDevDataLoader] Dev data seed complete.");
                 return;
             }
         }
@@ -102,6 +106,44 @@ public class FlashSaleDevDataLoader implements CommandLineRunner {
         seedItem(s3.getId(), "SKU-ANKER-20000",   "690000",  50, 0, "PENDING");
 
         log.info("[FlashSaleDevDataLoader] Seeded 3 sessions (1 ENDED, 2 UPCOMING) with registration_deadline.");
+
+        seedFeData();
+    }
+
+    private void seedFeData() {
+        log.info("[FlashSaleDevDataLoader] Seeding FE test-dataset...");
+
+        Long count = databaseClient.sql("SELECT COUNT(*) FROM fs_sessions WHERE id = 900001")
+            .map((row, meta) -> row.get(0, Long.class)).first().block();
+        if (count != null && count > 0) {
+            log.info("[FlashSaleDevDataLoader] FE data already exists, skipping.");
+            return;
+        }
+
+        databaseClient.sql("INSERT INTO fs_sessions (id, name, start_time, end_time, registration_deadline, status, deleted_at, created_at, updated_at) VALUES " +
+            "(900001, 'FE Live Flash Sale', now() - interval '30 minutes', now() + interval '2 hours', now() - interval '1 hour', 'LIVE', null, now() - interval '1 day', now()), " +
+            "(900002, 'FE Upcoming Weekend Sale', now() + interval '1 day', now() + interval '1 day 6 hours', now() + interval '1 day', 'UPCOMING', null, now() - interval '1 day', now()), " +
+            "(900003, 'FE Ended Morning Sale', now() - interval '2 days', now() - interval '1 day 20 hours', now() - interval '2 days', 'ENDED', null, now() - interval '3 days', now()) " +
+            "ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,start_time=EXCLUDED.start_time,end_time=EXCLUDED.end_time,registration_deadline=EXCLUDED.registration_deadline,status=EXCLUDED.status,deleted_at=EXCLUDED.deleted_at,updated_at=now()")
+            .then().block();
+
+        databaseClient.sql("INSERT INTO fs_items (id, session_id, seller_id, sku_code, flash_price, flash_stock, limit_per_user, sold_qty, status, version, created_at, updated_at) VALUES " +
+            "(900001, 900001, 900002, 'FE-SKU-AIRPODS-COMBO', 3990000, 30, 2, 6, 'LIVE', 0, now() - interval '1 day', now()), " +
+            "(900002, 900001, 900002, 'FE-SKU-PHONE-15PRO', 21990000, 10, 1, 2, 'LIVE', 0, now() - interval '1 day', now()), " +
+            "(900003, 900002, 900002, 'FE-SKU-LAPTOP-M3', 25990000, 8, 1, 0, 'APPROVED', 0, now() - interval '1 day', now()), " +
+            "(900004, 900002, 900002, 'FE-SKU-HUB-8IN1', 590000, 100, 3, 0, 'APPROVED', 0, now() - interval '1 day', now()), " +
+            "(900005, 900003, 900002, 'FE-SKU-AIRPODS-COMBO', 3790000, 20, 2, 20, 'SOLD_OUT', 0, now() - interval '3 days', now()) " +
+            "ON CONFLICT (id) DO UPDATE SET session_id=EXCLUDED.session_id,seller_id=EXCLUDED.seller_id,sku_code=EXCLUDED.sku_code,flash_price=EXCLUDED.flash_price,flash_stock=EXCLUDED.flash_stock,limit_per_user=EXCLUDED.limit_per_user,sold_qty=EXCLUDED.sold_qty,status=EXCLUDED.status,version=EXCLUDED.version,updated_at=now()")
+            .then().block();
+
+        databaseClient.sql("INSERT INTO fs_reminders (id, customer_id, session_id, created_at) VALUES " +
+            "(900001, 900001, 900002, now() - interval '12 hours'), " +
+            "(900002, 900001, 900001, now() - interval '2 hours'), " +
+            "(900003, 900001, 900003, now() - interval '3 days') " +
+            "ON CONFLICT (customer_id, session_id) DO NOTHING")
+            .then().block();
+
+        log.info("[FlashSaleDevDataLoader] FE test-dataset seeded (3 sessions, 5 items, 3 reminders).");
     }
 
     private void seedItem(Long sessionId, String sku, String price, int stock, int sold, String status) {

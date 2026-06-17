@@ -7,6 +7,7 @@ import { Skeleton } from '@shared/components/ui';
 import CheckoutStepper from '@/components/CheckoutStepper';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
+const itemKey = (item: CartItem) => item.cartItemId;
 
 function isFlashExpired(iso?: string | null) {
   if (!iso) return false;
@@ -42,6 +43,13 @@ function CartChangeBanner({
                     {d.reason === 'PRICE_CHANGED' ? 'Giá đã thay đổi' : d.reason}
                   </p>
                 </div>
+                {d.reason === 'PRICE_CHANGED' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Giá cũ: <span className="line-through">{d.expectedValue}</span>
+                    {' → '}
+                    Giá mới: <span className="font-semibold text-orange-700">{d.currentValue}</span>
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -103,7 +111,7 @@ export default function CartPage() {
     let total = 0;
     cart.sellers.forEach(seller => {
       seller.items.forEach(item => {
-        const key = item.variantId ?? String(item.cartItemId);
+        const key = itemKey(item);
         if (selectedItems.has(key)) {
           const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
           total += price * item.quantity;
@@ -118,7 +126,7 @@ export default function CartPage() {
     return cart.sellers
       .map(seller => {
         const sellerTotal = seller.items.reduce((sum, item) => {
-          const key = item.variantId ?? String(item.cartItemId);
+          const key = itemKey(item);
           if (selectedItems.has(key)) {
             const price = item.isFlash && item.flashPrice ? item.flashPrice : item.unitPrice;
             return sum + price * item.quantity;
@@ -148,7 +156,7 @@ export default function CartPage() {
       const all = new Set<string>();
       cart.sellers.forEach(seller => {
         seller.items.forEach(item => {
-          all.add(item.variantId ?? String(item.cartItemId));
+          all.add(itemKey(item));
         });
       });
       setSelectedItems(all);
@@ -161,22 +169,25 @@ export default function CartPage() {
   };
 
   // ─── Price-change detection ────────────────────────────────────────────────
-  // Backend's CartService.getCart auto-updates the snapshot on read AND sets
-  // cart.hasPriceChanges=true when any item's variant price differs from the
-  // snapshot. We only need to detect that flag and surface a banner; we do NOT
-  // need to recompute differences client-side.
+  // Compares priceSnapshot (snapshot khi add to cart) với unitPrice (giá hiện tại).
+  // Nếu khác nhau → show banner. Backend cũng gửi priceChanged flag, nhưng
+  // dữ liệu snapshot trong DB có thể đã bị ghi đè bởi code cũ → cần check client-side.
   const cartChanges = useMemo<CartChangeDetail[]>(() => {
-    if (!cart?.hasPriceChanges || !cart.sellers) return [];
+    if (!cart?.sellers) return [];
     const list: CartChangeDetail[] = [];
     cart.sellers.forEach((seller) => {
       seller.items.forEach((item) => {
+        // Detect change: backend flag hoặc so sánh snapshot vs current price
+        const hasChanged = item.priceChanged
+          || (item.priceSnapshot != null && Math.abs(item.priceSnapshot - item.unitPrice) > 0);
+        if (!hasChanged) return;
         list.push({
           variantId: item.variantId,
           skuCode: item.skuCode,
           productName: item.productName,
           reason: 'PRICE_CHANGED',
           currentValue: fmt(item.unitPrice),
-          expectedValue: fmt(item.unitPrice),
+          expectedValue: fmt(item.priceSnapshot ?? item.unitPrice),
         });
       });
     });
@@ -278,13 +289,13 @@ export default function CartPage() {
                     const overStock = item.quantity > item.stockAvailable;
 
                     return (
-                      <div key={item.variantId ?? String(item.cartItemId)} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
+                      <div key={itemKey(item)} className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${
                         isExpired ? 'border-red-200 bg-red-50/30' : item.isFlash ? 'border-orange-200 bg-orange-50/20' : 'border-gray-100'
                       }`}>
                         <input
                           type="checkbox"
-                          checked={selectedItems.has(item.variantId ?? String(item.cartItemId))}
-                          onChange={() => toggleItemSelection(item.variantId ?? String(item.cartItemId))}
+                          checked={selectedItems.has(itemKey(item))}
+                          onChange={() => toggleItemSelection(itemKey(item))}
                           className="w-5 h-5 accent-blue-600 cursor-pointer shrink-0"
                         />
                         <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-3xl shrink-0 overflow-hidden">
@@ -349,7 +360,7 @@ export default function CartPage() {
                         <div className="flex flex-col items-center gap-1 shrink-0">
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => updateQuantity(item.variantId ?? String(item.cartItemId), Math.max(1, item.quantity - 1))}
+                              onClick={() => updateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
                               disabled={item.quantity <= 1}
                               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-600 font-bold"
                             >
@@ -363,12 +374,12 @@ export default function CartPage() {
                               +
                             </button>
                           </div>
-                          {quantityError === (item.variantId ?? String(item.cartItemId)) && (
+                          {quantityError === item.variantId && (
                             <p className="text-xs text-red-500 whitespace-nowrap">Đã đạt số lượng tối đa</p>
                           )}
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.variantId ?? String(item.cartItemId))}
+                          onClick={() => removeFromCart(item.cartItemId)}
                           className="text-gray-300 hover:text-red-400 transition-colors shrink-0"
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

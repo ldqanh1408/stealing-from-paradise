@@ -44,6 +44,24 @@ public class CartService {
         }
         Cart cart = cartOpt.get();
         List<CartItem> items = cartItemRepository.findByCustomerId(cart.getCustomerId());
+
+        // 1. Build response FIRST — compares persisted snapshot vs current variant price
+        //    so hasPriceChanges / priceChanged are correctly computed
+        CartResponse response = toCartResponse(cart, items);
+
+        log.debug("getCart for user {}: {} items, hasPriceChanges={}",
+                user.getId(), response.getItems() != null ? response.getItems().size() : 0,
+                response.getHasPriceChanges());
+
+        if (response.getItems() != null) {
+            for (CartItemResponse ci : response.getItems()) {
+                log.debug("  variant={} snapshot={} current={} changed={}",
+                        ci.getVariantId(), ci.getPriceSnapshot(), ci.getCurrentPrice(), ci.getPriceChanged());
+            }
+        }
+
+        // 2. AFTER response is built, update snapshots to current values
+        //    so the banner only shows once per price change event
         for (CartItem item : items) {
             ProductVariant variant = variantRepository.findById(item.getVariantId())
                     .filter(v -> v.getDeletedAt() == null)
@@ -55,6 +73,9 @@ public class CartService {
                         || (variant.getImageUrl() == null && item.getVariantImageSnapshot() != null);
 
                 if (priceChanged || nameChanged || imageChanged) {
+                    log.debug("  snapshot updated for variant {}: price {}→{}, name {}→{}",
+                            item.getVariantId(), item.getPriceSnapshot(), variant.getPrice(),
+                            item.getVariantNameSnapshot(), variant.getVariantName());
                     item.setPriceSnapshot(variant.getPrice());
                     item.setVariantNameSnapshot(variant.getVariantName());
                     item.setVariantImageSnapshot(variant.getImageUrl());
@@ -62,7 +83,8 @@ public class CartService {
                 }
             }
         }
-        return ApiResponse.success(toCartResponse(cart));
+
+        return ApiResponse.success(response);
     }
 
     @Transactional
@@ -181,6 +203,10 @@ public class CartService {
 
     private CartResponse toCartResponse(Cart cart) {
         List<CartItem> items = cartItemRepository.findByCustomerId(cart.getCustomerId());
+        return toCartResponse(cart, items);
+    }
+
+    private CartResponse toCartResponse(Cart cart, List<CartItem> items) {
         List<CartItemResponse> itemResponses = items.stream()
                 .map(this::toCartItemResponse)
                 .collect(Collectors.toList());

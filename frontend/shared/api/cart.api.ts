@@ -20,6 +20,10 @@ export interface CartItem {
   maxQuantityPerUser?: number | null;
   subtotal?: number;
   addedAt?: string;
+  /** Price when item was added to cart — for detecting price changes */
+  priceSnapshot?: number;
+  /** Whether price changed since item was added to cart */
+  priceChanged?: boolean;
 }
 
 export interface CartSeller {
@@ -82,6 +86,8 @@ function mapCartItem(raw: RawCartItemResponse, customerId: number): CartItem {
       : raw.stockAvailable ?? (raw.outOfStock ? 0 : raw.quantity),
     isFlash: false,
     subtotal: raw.subtotal,
+    priceSnapshot: raw.priceSnapshot,
+    priceChanged: raw.priceChanged ?? false,
   };
 }
 

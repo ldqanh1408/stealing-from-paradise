@@ -38,7 +38,12 @@ public class ProductQueryService {
 
     @Transactional(readOnly = true)
     public ApiResponse<PageResponse<SellerProductCard>> getSellerProducts(UserDetailsImpl user, Pageable pageable) {
-        Page<Product> products = productRepository.findBySellerIdAndDeletedAtIsNull(user.getId(), pageable);
+        // ADMIN sees all products across all sellers (full catalog management).
+        // SELLER sees only their own products.
+        boolean isAdmin = "ADMIN".equals(user.getRole());
+        Page<Product> products = isAdmin
+            ? productRepository.findAllByDeletedAtIsNull(pageable)
+            : productRepository.findBySellerIdAndDeletedAtIsNull(user.getId(), pageable);
 
         List<SellerProductCard> cards = products.getContent().stream()
                 .map(productMapper::toSellerProductCard)

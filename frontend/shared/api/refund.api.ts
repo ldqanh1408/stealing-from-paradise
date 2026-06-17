@@ -125,6 +125,24 @@ export interface FullRefundStatus {
   }[];
 }
 
+export interface RefundPresignedUrlResponse {
+  url?: string;
+  presignedUrl?: string;
+  presigned_url?: string;
+  uploadUrl?: string;
+  upload_url?: string;
+  objectUrl?: string;
+  object_url?: string;
+  cdnUrl?: string;
+  cdn_url?: string;
+  fileName?: string;
+  file_name?: string;
+  contentType?: string;
+  content_type?: string;
+  expiresAt?: string;
+  expires_at?: string;
+}
+
 // ─── Admin Refund Types ──────────────────────────────────────────────────────
 
 export interface AdminRefundApproveRequest {
@@ -218,7 +236,7 @@ export const refundApi = {
 
   /** Get presigned URL for refund evidence upload */
   getRefundPresignedUrl: (orderId: number, fileName: string, contentType: string) =>
-    apiClient.get<ApiResponse<{ url: string; fileName: string; contentType: string; expiresAt: string }>>(
+    apiClient.get<ApiResponse<RefundPresignedUrlResponse>>(
       `/orders/${orderId}/refunds/presigned-url`,
       { params: { file_name: fileName, content_type: contentType } }
     ),

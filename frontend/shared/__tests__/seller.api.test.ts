@@ -62,13 +62,23 @@ describe('sellerApi — product lifecycle', () => {
   it('createProduct → POST /products with body', async () => {
     const body = { name: 'A', description: 'd', categoryId: 'c1', price: 1000, stock: 5 };
     await sellerApi.createProduct(body);
-    expect(client.post).toHaveBeenCalledWith('/products', body);
+    expect(client.post).toHaveBeenCalledWith('/products', {
+      name: 'A',
+      description: 'd',
+      categoryId: 'c1',
+      attributes: undefined,
+    });
   });
 
   it('updateProduct → PUT /products/{id} with body', async () => {
-    const body = { name: 'A2', description: 'd2', categoryId: 'c1' };
+    const body = { name: 'A2', description: 'd2', categoryId: 'c1', images: ['ignored.png'] };
     await sellerApi.updateProduct('p4', body);
-    expect(client.put).toHaveBeenCalledWith('/products/p4', body);
+    expect(client.put).toHaveBeenCalledWith('/products/p4', {
+      name: 'A2',
+      description: 'd2',
+      categoryId: 'c1',
+      attributes: undefined,
+    });
   });
 
   it('deleteProduct → DELETE /seller/products/{id}', async () => {
@@ -79,19 +89,36 @@ describe('sellerApi — product lifecycle', () => {
 
 describe('sellerApi — variants', () => {
   it('getVariants → GET /seller/products/{id}/variants', async () => {
-    await sellerApi.getVariants('p1');
+    client.get.mockResolvedValueOnce(ok([{ id: 'v1', variantCode: 'SKU1', variantName: 'V1', price: 100, stockQuantity: 7 }]));
+    const res = await sellerApi.getVariants('p1');
     expect(client.get).toHaveBeenCalledWith('/seller/products/p1/variants');
+    expect(res.data.data?.[0]).toEqual(expect.objectContaining({ skuCode: 'SKU1', stock: 7 }));
   });
 
   it('createVariant → POST /seller/products/{id}/variants with body', async () => {
     const body = { skuCode: 'SKU1', variantName: 'V1', price: 100, stock: 10 };
     await sellerApi.createVariant('p1', body);
-    expect(client.post).toHaveBeenCalledWith('/seller/products/p1/variants', body);
+    expect(client.post).toHaveBeenCalledWith('/seller/products/p1/variants', {
+      variantCode: 'SKU1',
+      variantName: 'V1',
+      price: 100,
+      originalPrice: undefined,
+      stockQuantity: 10,
+      imageUrl: undefined,
+    });
   });
 
   it('updateVariant → PUT /seller/variants/{id} with body', async () => {
-    await sellerApi.updateVariant('v9', { price: 200 });
-    expect(client.put).toHaveBeenCalledWith('/seller/variants/v9', { price: 200 });
+    await sellerApi.updateVariant('v9', { price: 200, stock: 4 });
+    expect(client.put).toHaveBeenCalledWith('/seller/variants/v9', {
+      variantName: undefined,
+      price: 200,
+      originalPrice: undefined,
+      stockQuantity: 4,
+      status: undefined,
+      imageUrl: undefined,
+      version: undefined,
+    });
   });
 
   it('deleteVariant → DELETE /seller/variants/{id}', async () => {

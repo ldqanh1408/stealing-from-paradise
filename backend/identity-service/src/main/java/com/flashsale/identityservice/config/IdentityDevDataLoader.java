@@ -75,12 +75,18 @@ public class IdentityDevDataLoader implements CommandLineRunner {
             userRepository.deleteAllInBatch();
             log.info("[IdentityDevDataLoader] All identity data wiped.");
         } else if (userRepository.count() > 0) {
-            log.info("[IdentityDevDataLoader] Data already exists, skipping. Set dev-data.reset=true to reload.");
+            log.info("[IdentityDevDataLoader] Data already exists, skipping main seed.");
+
+            seedFeData();
+
+            log.info("[IdentityDevDataLoader] Dev data seed complete.");
             return;
         }
 
         seedUsersAndRoles();
         seedAddresses();
+
+        seedFeData();
 
         log.info("[IdentityDevDataLoader] Dev data seed complete.");
     }
@@ -207,5 +213,46 @@ public class IdentityDevDataLoader implements CommandLineRunner {
 
         addressRepository.saveAll(addresses);
         log.info("[IdentityDevDataLoader] Seeded {} addresses for {} users", addresses.size(), allUserIds.length);
+    }
+
+    /**
+     * Seeds FE test-dataset users (900001-900003) with roles and addresses.
+     * Idempotent via ON CONFLICT DO UPDATE.
+     */
+    private void seedFeData() {
+        log.info("[IdentityDevDataLoader] Seeding FE test-dataset...");
+
+        String hashed = passwordEncoder.encode("dev123");
+
+        // Users
+        jdbcTemplate.update("INSERT INTO identity.users (id, username, email, phone, password, full_name, status, role, created_at, updated_at) VALUES " +
+            "(900001, 'fe_buyer', 'fe_buyer@example.test', '0999000001', ?, 'Frontend Buyer', 'ACTIVE', 'BUYER', now() - interval '20 days', now()), " +
+            "(900002, 'fe_seller', 'fe_seller@example.test', '0999000002', ?, 'Frontend Seller', 'ACTIVE', 'SELLER', now() - interval '19 days', now()), " +
+            "(900003, 'fe_admin', 'fe_admin@example.test', '0999000003', ?, 'Frontend Admin', 'ACTIVE', 'ADMIN', now() - interval '18 days', now()) " +
+            "ON CONFLICT (id) DO UPDATE SET username=EXCLUDED.username,email=EXCLUDED.email,phone=EXCLUDED.phone,password=EXCLUDED.password,full_name=EXCLUDED.full_name,status=EXCLUDED.status,role=EXCLUDED.role,updated_at=now()",
+            hashed, hashed, hashed);
+
+        // Roles
+        jdbcTemplate.update("INSERT INTO identity.roles (id, user_id, role_name, created_at, updated_at) VALUES " +
+            "(900001, 900001, 'BUYER', now() - interval '20 days', now()), " +
+            "(900002, 900002, 'SELLER', now() - interval '19 days', now()), " +
+            "(900003, 900003, 'ADMIN', now() - interval '18 days', now()) " +
+            "ON CONFLICT (id) DO UPDATE SET user_id=EXCLUDED.user_id,role_name=EXCLUDED.role_name,updated_at=now()");
+
+        // Addresses
+        jdbcTemplate.update("INSERT INTO identity.addresses (id, user_id, province_id, district_id, full_address, is_default, created_at, updated_at) VALUES " +
+            "(900001, 900001, 79, 760, '123 Frontend Test Street, District 1, Ho Chi Minh City', true, now() - interval '20 days', now()), " +
+            "(900002, 900001, 1, 1, '456 Backup Address, Ba Dinh, Ha Noi', false, now() - interval '19 days', now()), " +
+            "(900003, 900002, 79, 761, 'FE Seller Warehouse, District 3, Ho Chi Minh City', true, now() - interval '18 days', now()), " +
+            "(900004, 900001, 48, 490, '789 Da Nang Office, Hai Chau, Da Nang', false, now() - interval '17 days', now()), " +
+            "(900005, 900002, 1, 4, 'FE Seller Return Center, Dong Da, Ha Noi', false, now() - interval '16 days', now()) " +
+            "ON CONFLICT (id) DO UPDATE SET user_id=EXCLUDED.user_id,province_id=EXCLUDED.province_id,district_id=EXCLUDED.district_id,full_address=EXCLUDED.full_address,is_default=EXCLUDED.is_default,updated_at=now()");
+
+        // Reset sequences
+        jdbcTemplate.queryForObject("SELECT setval('identity.users_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM identity.users), 900003))", Long.class);
+        jdbcTemplate.queryForObject("SELECT setval('identity.roles_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM identity.roles), 900003))", Long.class);
+        jdbcTemplate.queryForObject("SELECT setval('identity.addresses_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM identity.addresses), 900005))", Long.class);
+
+        log.info("[IdentityDevDataLoader] FE test-dataset seeded (3 users, 3 roles, 5 addresses).");
     }
 }

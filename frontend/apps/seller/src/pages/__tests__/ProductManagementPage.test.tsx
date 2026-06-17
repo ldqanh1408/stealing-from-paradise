@@ -105,10 +105,10 @@ describe('ProductManagementPage — action matrix per status', () => {
     const publishedTab = screen.getByText('Đang bán');
     fireEvent.click(publishedTab);
 
-    // Verify it triggers a new request with status = PUBLISHED
+    // Verify it triggers a new request with status = ACTIVE
     await waitFor(() => {
       expect(apiClient.get).toHaveBeenLastCalledWith('/sellers/me/products', expect.objectContaining({
-        params: expect.objectContaining({ status: 'PUBLISHED', page: 0 })
+        params: expect.objectContaining({ status: 'ACTIVE', page: 0 })
       }));
     });
   });

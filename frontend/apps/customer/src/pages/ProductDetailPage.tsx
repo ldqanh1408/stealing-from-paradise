@@ -6,6 +6,7 @@ import WishlistButton from '@/components/WishlistButton';
 import { productApi, type ProductDetail } from '@shared/api/product.api';
 import { addressApi } from '@shared/api/address.api';
 import { cartApi } from '@shared/api/cart.api';
+import { useAuthStore } from '@shared/store/authStore';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
@@ -45,12 +46,15 @@ export default function ProductDetailPage() {
     }
   }, [product]);
 
+  const { isAuthenticated } = useAuthStore();
+
   const { data: addresses = [] } = useQuery({
     queryKey: ['addresses'],
     queryFn: async () => {
       const res = await addressApi.list();
       return res.data.data ?? [];
     },
+    enabled: isAuthenticated,
     retry: 1,
   });
 

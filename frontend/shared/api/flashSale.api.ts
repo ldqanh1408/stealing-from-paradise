@@ -4,6 +4,7 @@ import type { ApiResponse } from '../types/api';
 export interface FlashSaleItem {
   id: number;
   sessionId: number;
+  sellerId?: number;
   skuCode: string;
   productName?: string;
   flashPrice: number;
@@ -42,6 +43,7 @@ interface BackendSession {
 interface BackendItem {
   id: number;
   sessionId: number;
+  sellerId?: number;
   skuCode: string;
   flashPrice: number;
   flashStock: number;
@@ -74,6 +76,7 @@ function mapItem(i: BackendItem): FlashSaleItem {
   return {
     id: i.id,
     sessionId: i.sessionId,
+    sellerId: i.sellerId,
     skuCode: i.skuCode,
     flashPrice: i.flashPrice,
     flashStock: i.flashStock,
@@ -123,4 +126,16 @@ export const flashSaleApi = {
   /** Create a flash sale session (admin) */
   createSession: (data: { name: string; startTime: string; endTime: string; description?: string; registrationWindowMinutes?: number }) =>
     apiClient.post<ApiResponse<BackendSession>>('/flash-sales', data),
+
+  /** Seller registers a SKU into an upcoming flash sale session. */
+  registerItem: (sessionId: number, data: { skuCode: string; flashPrice: number; flashStock: number; limitPerUser?: number }) =>
+    apiClient.post<ApiResponse<BackendItem>>(`/flash-sales/${sessionId}/items`, data),
+
+  /** Admin approves a seller's registered item. */
+  approveItem: (sessionId: number, itemId: number, note?: string) =>
+    apiClient.post<ApiResponse<BackendItem>>(`/flash-sales/${sessionId}/items/${itemId}/approve`, { note }),
+
+  /** Admin rejects a seller's registered item. */
+  rejectItem: (sessionId: number, itemId: number, rejectReason: string) =>
+    apiClient.post<ApiResponse<BackendItem>>(`/flash-sales/${sessionId}/items/${itemId}/reject`, { rejectReason }),
 };

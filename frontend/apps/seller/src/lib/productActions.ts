@@ -2,7 +2,7 @@
  * Seller product lifecycle rules.
  *
  * Pure predicates encoding which actions are valid for a product in each state,
- * mirroring the DRAFT → PENDING → APPROVED → PUBLISHED/UNPUBLISHED/REJECTED
+ * mirroring the DRAFT → PENDING → APPROVED → ACTIVE/INACTIVE/REJECTED
  * lifecycle (UC-PRODUCT-003/013/014/015). Extracted from ProductManagementPage
  * so the per-row action buttons stay declarative and the rules are unit-testable.
  */
@@ -20,14 +20,14 @@ export function canSubmit(status: ProductStatus): boolean {
   return status === 'DRAFT';
 }
 
-/** An APPROVED (or previously UNPUBLISHED) product can be published/listed. */
+/** An APPROVED (or previously hidden) product can be published/listed. */
 export function canPublish(status: ProductStatus): boolean {
-  return status === 'APPROVED' || status === 'UNPUBLISHED';
+  return status === 'APPROVED' || status === 'UNPUBLISHED' || status === 'INACTIVE' || status === 'OUT_OF_STOCK';
 }
 
-/** A live PUBLISHED product can be hidden again. */
+/** A live product can be hidden again. */
 export function canUnpublish(status: ProductStatus): boolean {
-  return status === 'PUBLISHED';
+  return status === 'PUBLISHED' || status === 'ACTIVE' || status === 'OUT_OF_STOCK';
 }
 
 /** Only DRAFT or REJECTED products can be hard-deleted. */

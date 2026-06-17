@@ -490,6 +490,8 @@ export default function OrderReviewPage() {
   const [refreshLoading, setRefreshLoading] = useState(false);
 
   const selectedItemIds = (location.state?.selectedItemIds || []) as string[];
+  const matchesSelectedItem = (item: { cartItemId?: string; variantId?: string }) =>
+    selectedItemIds.includes(item.cartItemId ?? '') || selectedItemIds.includes(item.variantId ?? '');
 
   // Check for price changes on cart load
   useEffect(() => {
@@ -521,7 +523,7 @@ export default function OrderReviewPage() {
     const items: any[] = [];
     cart.sellers.forEach(seller => {
       seller.items.forEach(item => {
-        if (selectedItemIds.includes(item.cartItemId)) {
+        if (matchesSelectedItem(item)) {
           items.push({ ...item, sellerName: seller.sellerName, price: getItemPrice(item) });
         }
       });
@@ -578,7 +580,16 @@ export default function OrderReviewPage() {
     setApiError(null);
     setCartChanges([]);
     try {
-      const { data } = await cartApi.checkoutPreview(selectedItemIds.map(String));
+      // Build proper "customerId:variantId" keys from cart items
+      const itemKeys: string[] = [];
+      cart?.sellers.forEach(seller => {
+        seller.items.forEach(item => {
+          if (matchesSelectedItem(item)) {
+            itemKeys.push(item.cartItemId);
+          }
+        });
+      });
+      const { data } = await cartApi.checkoutPreview(itemKeys);
       if (data.data) {
         setPreviewData(data.data);
         setPreviewToken(data.data.previewToken);

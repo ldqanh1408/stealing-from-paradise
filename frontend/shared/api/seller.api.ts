@@ -60,6 +60,7 @@ export interface SellerVariant {
   variantName: string;
   price: number;
   stock: number;
+  status?: string;
 }
 
 /** Seller product list item */
@@ -72,13 +73,98 @@ export interface SellerProduct {
   categorySlug?: string;
   price: number;
   originalPrice?: number;
-  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED' | 'PUBLISHED';
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED' | 'PUBLISHED' | 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
   stockAvailable: number;
   images?: string[];
   variantsCount: number;
   variants?: SellerVariant[];
   createdAt: string;
   updatedAt?: string;
+}
+
+interface RawSellerVariant {
+  id: string;
+  skuCode?: string;
+  variantCode?: string;
+  variantName?: string;
+  price: number;
+  stock?: number;
+  stockQuantity?: number;
+  status?: string;
+}
+
+interface ProductWriteInput {
+  name: string;
+  description: string;
+  categoryId: string;
+  attributes?: Record<string, unknown>;
+  images?: string[];
+}
+
+interface VariantWriteInput {
+  skuCode?: string;
+  variantCode?: string;
+  variantName?: string;
+  price?: number;
+  stock?: number;
+  stockQuantity?: number;
+  originalPrice?: number;
+  status?: string;
+  imageUrl?: string;
+  version?: number;
+}
+
+function mapSellerVariant(raw: RawSellerVariant): SellerVariant {
+  return {
+    id: raw.id,
+    skuCode: raw.skuCode ?? raw.variantCode ?? '',
+    variantName: raw.variantName ?? raw.skuCode ?? raw.variantCode ?? '',
+    price: raw.price,
+    stock: raw.stock ?? raw.stockQuantity ?? 0,
+    status: raw.status,
+  };
+}
+
+function toProductWriteRequest(data: ProductWriteInput) {
+  return {
+    name: data.name,
+    description: data.description,
+    categoryId: data.categoryId,
+    attributes: data.attributes,
+  };
+}
+
+function toCreateVariantRequest(data: VariantWriteInput) {
+  return {
+    variantCode: data.variantCode ?? data.skuCode,
+    variantName: data.variantName,
+    price: data.price,
+    originalPrice: data.originalPrice,
+    stockQuantity: data.stockQuantity ?? data.stock,
+    imageUrl: data.imageUrl,
+  };
+}
+
+function toUpdateVariantRequest(data: VariantWriteInput) {
+  return {
+    variantName: data.variantName,
+    price: data.price,
+    originalPrice: data.originalPrice,
+    stockQuantity: data.stockQuantity ?? data.stock,
+    status: data.status,
+    imageUrl: data.imageUrl,
+    version: data.version,
+  };
+}
+
+function mapVariantResponse<T extends { data: ApiResponse<RawSellerVariant> }>(res: T) {
+  return {
+    ...res,
+    data: {
+      ...res.data,
+      data: res.data.data ? mapSellerVariant(res.data.data) : res.data.data,
+    } as ApiResponse<SellerVariant>,
+  };
 }
 
 export const sellerApi = {
@@ -112,15 +198,25 @@ export const sellerApi = {
 
   /** List variants for a product */
   getVariants: (productId: string) =>
-    apiClient.get<ApiResponse<SellerVariant[]>>(`/seller/products/${productId}/variants`),
+    apiClient.get<ApiResponse<RawSellerVariant[]>>(`/seller/products/${productId}/variants`).then(res => ({
+      ...res,
+      data: {
+        ...res.data,
+        data: (res.data.data ?? []).map(mapSellerVariant),
+      } as ApiResponse<SellerVariant[]>,
+    })),
 
   /** Create a variant */
   createVariant: (productId: string, data: { skuCode: string; variantName: string; price: number; stock: number }) =>
-    apiClient.post<ApiResponse<SellerVariant>>(`/seller/products/${productId}/variants`, data),
+    apiClient
+      .post<ApiResponse<RawSellerVariant>>(`/seller/products/${productId}/variants`, toCreateVariantRequest(data))
+      .then(mapVariantResponse),
 
   /** Update a variant */
   updateVariant: (variantId: string, data: { skuCode?: string; variantName?: string; price?: number; stock?: number }) =>
-    apiClient.put<ApiResponse<SellerVariant>>(`/seller/variants/${variantId}`, data),
+    apiClient
+      .put<ApiResponse<RawSellerVariant>>(`/seller/variants/${variantId}`, toUpdateVariantRequest(data))
+      .then(mapVariantResponse),
 
   /** Delete a variant */
   deleteVariant: (variantId: string) =>
@@ -141,16 +237,16 @@ export const sellerApi = {
     apiClient.get<ApiResponse<StripeDashboardLink>>('/seller/payments/stripe-dashboard'),
 
   /** Create a new product */
-  createProduct: (data: { name: string; description: string; categoryId: string; price: number; stock: number; images?: string[] }) =>
-    apiClient.post<ApiResponse<SellerProduct>>('/products', data),
+  createProduct: (data: ProductWriteInput) =>
+    apiClient.post<ApiResponse<SellerProduct>>('/products', toProductWriteRequest(data)),
 
   /** Delete a product (seller owner) */
   deleteProduct: (productId: string) =>
     apiClient.delete<ApiResponse<void>>(`/seller/products/${productId}`),
 
   /** Update a product */
-  updateProduct: (productId: string, data: { name: string; description: string; categoryId: string; images?: string[] }) =>
-    apiClient.put<ApiResponse<SellerProduct>>(`/products/${productId}`, data),
+  updateProduct: (productId: string, data: ProductWriteInput) =>
+    apiClient.put<ApiResponse<SellerProduct>>(`/products/${productId}`, toProductWriteRequest(data)),
 
   // ─── Inventory ──────────────────────────────────────────────────────────────
 

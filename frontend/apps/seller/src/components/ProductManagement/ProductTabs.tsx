@@ -1,10 +1,12 @@
 const STATUS_TABS = [
   { value: '', label: 'Tất cả' },
   { value: 'APPROVED', label: 'Đã duyệt' },
-  { value: 'PUBLISHED', label: 'Đang bán' },
+  { value: 'ACTIVE', label: 'Đang bán' },
+  { value: 'INACTIVE', label: 'Đã ẩn' },
   { value: 'PENDING', label: 'Chờ duyệt' },
   { value: 'REJECTED', label: 'Từ chối' },
   { value: 'DRAFT', label: 'Nháp' },
+  { value: 'OUT_OF_STOCK', label: 'Hết hàng' },
 ];
 
 interface ProductTabsProps {

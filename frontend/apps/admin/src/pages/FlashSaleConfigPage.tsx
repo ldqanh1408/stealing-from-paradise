@@ -1,18 +1,38 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { flashSaleApi, type FlashSaleSession } from '@shared/api/flashSale.api';
+import { flashSaleApi, type FlashSaleItem, type FlashSaleSession } from '@shared/api/flashSale.api';
 import { adminApi } from '@shared/api/admin.api';
 import FlashSaleSessionForm from '@/components/FlashSale/FlashSaleSessionForm';
 import FlashSaleSessionsTable from '@/components/FlashSale/FlashSaleSessionsTable';
 import ConfirmDialog from '@shared/components/ConfirmDialog';
 import { notify } from '@shared/lib/toast';
 import { Skeleton } from '@shared/components/ui';
+import { fmtVnd } from '@shared/utils/format';
 
 function toLocalDatetime(iso?: string) {
   if (!iso) return '';
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function itemStatusLabel(status: string) {
+  switch (status) {
+    case 'APPROVED': return 'Đã duyệt';
+    case 'REJECTED': return 'Từ chối';
+    case 'PENDING': return 'Chờ duyệt';
+    case 'SOLD_OUT': return 'Hết hàng';
+    default: return status;
+  }
+}
+
+function itemStatusClass(status: string) {
+  switch (status) {
+    case 'APPROVED': return 'bg-green-100 text-green-700';
+    case 'REJECTED': return 'bg-red-100 text-red-700';
+    case 'PENDING': return 'bg-yellow-100 text-yellow-700';
+    default: return 'bg-gray-100 text-gray-600';
+  }
 }
 
 export default function FlashSaleConfigPage() {
@@ -24,6 +44,7 @@ export default function FlashSaleConfigPage() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-flash-sale-sessions'],
@@ -73,6 +94,37 @@ export default function FlashSaleConfigPage() {
   });
 
   const sessions: FlashSaleSession[] = data?.content ?? [];
+  const activeSessionId = selectedSessionId ?? sessions[0]?.id ?? null;
+
+  const sessionDetailQuery = useQuery({
+    queryKey: ['admin-flash-sale-session-detail', activeSessionId],
+    queryFn: () => flashSaleApi.getSession(activeSessionId!).then(r => r.data.data),
+    enabled: !!activeSessionId,
+    staleTime: 15_000,
+  });
+
+  const invalidateSessionDetail = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-flash-sale-sessions'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-flash-sale-session-detail', activeSessionId] });
+  };
+
+  const approveItemMut = useMutation({
+    mutationFn: (item: FlashSaleItem) => flashSaleApi.approveItem(item.sessionId, item.id, 'Approved from admin UI'),
+    onSuccess: () => {
+      notify.success('Đã duyệt sản phẩm Flash Sale');
+      invalidateSessionDetail();
+    },
+    onError: (err: any) => notify.error(err?.response?.data?.message || 'Duyệt sản phẩm thất bại'),
+  });
+
+  const rejectItemMut = useMutation({
+    mutationFn: (item: FlashSaleItem) => flashSaleApi.rejectItem(item.sessionId, item.id, 'Không đạt điều kiện Flash Sale'),
+    onSuccess: () => {
+      notify.success('Đã từ chối sản phẩm Flash Sale');
+      invalidateSessionDetail();
+    },
+    onError: (err: any) => notify.error(err?.response?.data?.message || 'Từ chối sản phẩm thất bại'),
+  });
 
   const resetForm = () => {
     setName('');
@@ -203,6 +255,85 @@ export default function FlashSaleConfigPage() {
           onEdit={handleOpenEdit}
           onDelete={setDeletingSession}
         />
+      )}
+
+      {!isLoading && !error && sessions.length > 0 && (
+        <div className="mt-6 bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+          <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-gray-900">Sản phẩm đăng ký Flash Sale</h2>
+              <p className="text-sm text-gray-500 mt-1">Duyệt sản phẩm seller gửi vào từng phiên.</p>
+            </div>
+            <select
+              value={activeSessionId ?? ''}
+              onChange={e => setSelectedSessionId(Number(e.target.value))}
+              className="px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              {sessions.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {sessionDetailQuery.isLoading ? (
+            <div className="p-5 space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : !sessionDetailQuery.data?.items?.length ? (
+            <div className="p-12 text-center text-gray-500 text-sm">Chưa có sản phẩm nào đăng ký trong phiên này.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Sản phẩm', 'Seller', 'Giá flash', 'Stock', 'Trạng thái', 'Thao tác'].map(h => (
+                      <th key={h} className="px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessionDetailQuery.data.items.map(item => (
+                    <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <p className="font-medium text-gray-900">{item.productName || item.skuCode}</p>
+                        <p className="text-xs text-gray-400">{item.skuCode}</p>
+                      </td>
+                      <td className="px-5 py-4 text-gray-600">#{item.sellerId ?? '—'}</td>
+                      <td className="px-5 py-4">
+                        <span className="font-semibold text-red-600">{fmtVnd(item.flashPrice)}</span>
+                        {item.originalPrice && <p className="text-xs text-gray-400 line-through">{fmtVnd(item.originalPrice)}</p>}
+                      </td>
+                      <td className="px-5 py-4 text-gray-700">{item.flashStock}</td>
+                      <td className="px-5 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${itemStatusClass(item.status)}`}>
+                          {itemStatusLabel(item.status)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => approveItemMut.mutate(item)}
+                            disabled={item.status === 'APPROVED' || approveItemMut.isPending || rejectItemMut.isPending}
+                            className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-40"
+                          >
+                            Duyệt
+                          </button>
+                          <button
+                            onClick={() => rejectItemMut.mutate(item)}
+                            disabled={item.status === 'REJECTED' || approveItemMut.isPending || rejectItemMut.isPending}
+                            className="text-xs text-red-500 hover:text-red-600 font-medium disabled:opacity-40"
+                          >
+                            Từ chối
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Delete confirmation modal */}

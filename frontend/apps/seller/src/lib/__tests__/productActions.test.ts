@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { canEdit, canSubmit, canPublish, canUnpublish, canDelete, type ProductStatus } from '../productActions';
 
-const ALL: ProductStatus[] = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'UNPUBLISHED', 'PUBLISHED'];
+const ALL: ProductStatus[] = [
+  'DRAFT',
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'UNPUBLISHED',
+  'PUBLISHED',
+  'ACTIVE',
+  'INACTIVE',
+  'OUT_OF_STOCK',
+];
 
 /** Assert a predicate is true for exactly `expected` and false for the rest. */
 function onlyFor(fn: (s: ProductStatus) => boolean, expected: ProductStatus[]) {
@@ -15,9 +25,11 @@ describe('productActions (UC-PRODUCT lifecycle)', () => {
 
   it('canSubmit only for DRAFT', () => onlyFor(canSubmit, ['DRAFT']));
 
-  it('canPublish only for APPROVED or UNPUBLISHED', () => onlyFor(canPublish, ['APPROVED', 'UNPUBLISHED']));
+  it('canPublish only for approved or currently hidden sellable states', () =>
+    onlyFor(canPublish, ['APPROVED', 'UNPUBLISHED', 'INACTIVE', 'OUT_OF_STOCK']));
 
-  it('canUnpublish only for PUBLISHED', () => onlyFor(canUnpublish, ['PUBLISHED']));
+  it('canUnpublish only for currently visible sellable states', () =>
+    onlyFor(canUnpublish, ['PUBLISHED', 'ACTIVE', 'OUT_OF_STOCK']));
 
   it('canDelete only for DRAFT or REJECTED', () => onlyFor(canDelete, ['DRAFT', 'REJECTED']));
 

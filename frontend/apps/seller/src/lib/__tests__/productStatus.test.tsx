@@ -3,7 +3,17 @@ import { render, screen } from '@testing-library/react';
 import { PRODUCT_STATUS_META, getProductStatusMeta, ProductStatusBadge } from '../productStatus';
 import type { ProductStatus } from '../productActions';
 
-const ALL: ProductStatus[] = ['DRAFT', 'PENDING', 'APPROVED', 'REJECTED', 'UNPUBLISHED', 'PUBLISHED'];
+const ALL: ProductStatus[] = [
+  'DRAFT',
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'UNPUBLISHED',
+  'PUBLISHED',
+  'ACTIVE',
+  'INACTIVE',
+  'OUT_OF_STOCK',
+];
 
 describe('PRODUCT_STATUS_META', () => {
   it('has label + chip styles for every product status', () => {

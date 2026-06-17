@@ -18,6 +18,9 @@ export const PRODUCT_STATUS_META: Record<ProductStatus, ProductStatusMeta> = {
   REJECTED:    { label: 'Từ chối',   bg: 'bg-red-100',    color: 'text-red-700' },
   UNPUBLISHED: { label: 'Đã ẩn',     bg: 'bg-blue-100',   color: 'text-blue-700' },
   PUBLISHED:   { label: 'Đang bán',  bg: 'bg-green-100',  color: 'text-green-700' },
+  ACTIVE:      { label: 'Đang bán',  bg: 'bg-green-100',  color: 'text-green-700' },
+  INACTIVE:    { label: 'Đã ẩn',     bg: 'bg-blue-100',   color: 'text-blue-700' },
+  OUT_OF_STOCK:{ label: 'Hết hàng',  bg: 'bg-orange-100', color: 'text-orange-700' },
 };
 
 const FALLBACK: ProductStatusMeta = { label: '—', bg: 'bg-gray-100', color: 'text-gray-600' };

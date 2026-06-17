@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ public class RefundDevDataLoader implements CommandLineRunner {
     private final RefundRepository refundRepository;
     private final RefundItemRepository refundItemRepository;
     private final DevDataProperties devDataProperties;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
@@ -50,7 +52,11 @@ public class RefundDevDataLoader implements CommandLineRunner {
             refundRepository.deleteAllInBatch();
             log.info("[RefundDevDataLoader] All refund data wiped.");
         } else if (refundRepository.count() > 0) {
-            log.info("[RefundDevDataLoader] Data already exists, skipping. Set dev-data.reset=true to reload.");
+            log.info("[RefundDevDataLoader] Data already exists, skipping main seed.");
+
+            seedFeData();
+
+            log.info("[RefundDevDataLoader] Dev data seed complete.");
             return;
         }
 
@@ -132,5 +138,37 @@ public class RefundDevDataLoader implements CommandLineRunner {
                 .build());
 
         log.info("[RefundDevDataLoader] Seeded 4 refunds (1 RTS_COMPLETED, 1 PENDING, 1 RTS_COMPLETED+items, 1 REJECTED).");
+
+        seedFeData();
+    }
+
+    private void seedFeData() {
+        log.info("[RefundDevDataLoader] Seeding FE test-dataset...");
+
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM refund.refunds WHERE id >= 900201", Integer.class);
+        if (count != null && count > 0) {
+            log.info("[RefundDevDataLoader] FE data already exists, skipping.");
+            return;
+        }
+
+        jdbcTemplate.update("INSERT INTO refund.refunds (id, transaction_id, order_id, user_id, group_ref, type, initiated_by, refund_reason_type, amount, reason, status, evidence_images, reject_reason, admin_note, reviewed_by, reviewed_at, refund_ref, raw_response, created_at, updated_at) VALUES " +
+            "(900201, 900106, 900106, 900001, '90000000-0000-4000-c001-000000000201', 'PARTIAL', 'BUYER', 'MISSING_ITEM', 1990000, 'One accessory was missing from the package.', 'PENDING', '[\"https://picsum.photos/seed/fe-refund-pending/600/400\"]'::jsonb, null, null, null, null, null, '{}'::jsonb, now() - interval '6 hours', now()), " +
+            "(900202, 900107, 900107, 900001, '90000000-0000-4000-c001-000000000202', 'FULL', 'BUYER', 'ITEM_BROKEN', 4990000, 'Product stopped working after delivery.', 'COMPLETED', '[\"https://picsum.photos/seed/fe-refund-completed/600/400\"]'::jsonb, null, 'Approved and refunded by admin fixture.', 900003, now() - interval '2 days', 're_fe_completed_900202', '{\"status\":\"succeeded\"}'::jsonb, now() - interval '3 days', now()), " +
+            "(900203, 900104, 900104, 900001, '90000000-0000-4000-c001-000000000203', 'PARTIAL', 'BUYER', 'ITEM_NOT_AS_DESCRIBED', 390000, 'Requested refund after normal usage.', 'REJECTED', '[\"https://picsum.photos/seed/fe-refund-rejected/600/400\"]'::jsonb, 'Evidence does not show seller fault.', 'Reject fixture for admin screen.', 900003, now() - interval '1 day', null, '{}'::jsonb, now() - interval '2 days', now()), " +
+            "(900204, 900108, 900108, 900001, '90000000-0000-4000-c001-000000000204', 'FULL', 'SYSTEM', 'RETURN_TO_SENDER', 27990000, 'Carrier returned package to seller.', 'PROCESSING', '[\"https://picsum.photos/seed/fe-refund-processing/600/400\"]'::jsonb, null, 'RTS automatic refund is processing.', 900003, now() - interval '12 hours', null, '{}'::jsonb, now() - interval '1 day', now()) " +
+            "ON CONFLICT (id) DO UPDATE SET transaction_id=EXCLUDED.transaction_id,order_id=EXCLUDED.order_id,user_id=EXCLUDED.user_id,group_ref=EXCLUDED.group_ref,type=EXCLUDED.type,initiated_by=EXCLUDED.initiated_by,refund_reason_type=EXCLUDED.refund_reason_type,amount=EXCLUDED.amount,reason=EXCLUDED.reason,status=EXCLUDED.status,evidence_images=EXCLUDED.evidence_images,reject_reason=EXCLUDED.reject_reason,admin_note=EXCLUDED.admin_note,reviewed_by=EXCLUDED.reviewed_by,reviewed_at=EXCLUDED.reviewed_at,refund_ref=EXCLUDED.refund_ref,raw_response=EXCLUDED.raw_response,updated_at=now()");
+
+        jdbcTemplate.update("INSERT INTO refund.refund_items (id, refund_id, item_id, quantity, refund_amount, item_reason, status, return_tracking_number, return_evidence_images, returned_at) VALUES " +
+            "(900201, 900201, 900106, 1, 1990000, 'Missing item in box', 'PENDING', null, null, null), " +
+            "(900202, 900202, 900107, 1, 4990000, 'Broken item returned', 'COMPLETED', 'FE-RTS-900202', '[\"https://picsum.photos/seed/fe-return-completed/600/400\"]'::jsonb, now() - interval '2 days'), " +
+            "(900203, 900203, 900104, 1, 390000, 'Evidence rejected', 'REJECTED', null, null, null), " +
+            "(900204, 900204, 900108, 1, 27990000, 'Carrier returned to sender', 'PROCESSING', 'FE-RTS-900204', '[\"https://picsum.photos/seed/fe-return-processing/600/400\"]'::jsonb, now() - interval '1 day') " +
+            "ON CONFLICT (id) DO UPDATE SET refund_id=EXCLUDED.refund_id,item_id=EXCLUDED.item_id,quantity=EXCLUDED.quantity,refund_amount=EXCLUDED.refund_amount,item_reason=EXCLUDED.item_reason,status=EXCLUDED.status,return_tracking_number=EXCLUDED.return_tracking_number,return_evidence_images=EXCLUDED.return_evidence_images,returned_at=EXCLUDED.returned_at");
+
+        jdbcTemplate.queryForObject("SELECT setval('refund.refunds_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM refund.refunds), 900204))", Long.class);
+        jdbcTemplate.queryForObject("SELECT setval('refund.refund_items_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM refund.refund_items), 900204))", Long.class);
+
+        log.info("[RefundDevDataLoader] FE test-dataset seeded (4 refunds, 4 refund_items).");
     }
 }
