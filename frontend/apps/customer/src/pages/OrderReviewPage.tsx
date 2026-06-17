@@ -474,7 +474,6 @@ export default function OrderReviewPage() {
   const [orderData, setOrderData] = useState<Record<string, any> | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [stripeError, setStripeError] = useState<string | null>(null);
-  const [confirmSubmit, setConfirmSubmit] = useState(false); // Two-step confirmation before submit
 
   // Checkout flow state
   const [previewData, setPreviewData] = useState<CheckoutPreviewResponse | null>(null);
@@ -1036,7 +1035,7 @@ export default function OrderReviewPage() {
           </div>
         )}
 
-        {step === 'review' && previewData && (
+        {step === 'review' && previewData && paymentStep !== 'paying' && (
           <div className="max-w-3xl">
             {/* Cart change warnings on review step */}
             <div className="flex items-center gap-3 mb-6">
@@ -1156,44 +1155,25 @@ export default function OrderReviewPage() {
               </div>
             </div>
 
-            {!confirmSubmit ? (
-              <button
-                onClick={() => setConfirmSubmit(true)}
-                disabled={isProcessing || cartChanges.length > 0}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                {paymentMethod === 'cod'
-                  ? `Xác nhận đặt hàng (COD)`
-                  : `Thanh toán ${fmt(previewData.totalAmount)}`}
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <button
-                  onClick={handleProceedToPayment}
-                  disabled={isProcessing}
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 animate-pulse"
-                >
-                  {isProcessing ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    '⚠️ Nhấn lần nữa để xác nhận đặt hàng'
-                  )}
-                </button>
-                <button
-                  onClick={() => setConfirmSubmit(false)}
-                  disabled={isProcessing}
-                  className="w-full py-2.5 border border-gray-200 text-gray-500 text-sm rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  Huỷ
-                </button>
-              </div>
-            )}
+            <button
+              onClick={handleProceedToPayment}
+              disabled={isProcessing || cartChanges.length > 0}
+              className="w-full py-4 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              {isProcessing ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Đang xử lý...
+                </>
+              ) : paymentMethod === 'cod' ? (
+                `Xác nhận đặt hàng (COD)`
+              ) : (
+                `Thanh toán ${fmt(previewData.totalAmount)}`
+              )}
+            </button>
           </div>
         )}
 
