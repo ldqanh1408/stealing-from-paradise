@@ -7,6 +7,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 
 @Data
 @Builder
@@ -22,6 +23,8 @@ public class OrderSummaryResponse {
     private BigDecimal finalAmt;
     private Boolean isFlashSale;
     private Integer itemCount;
+    /** Populated only when parent-order detail is fetched; null in list views. */
+    private List<OrderItemResponse> items;
     private Instant createdAt;
     private Instant updatedAt;
 

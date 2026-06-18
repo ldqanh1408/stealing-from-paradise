@@ -93,7 +93,13 @@ public class OrderQueryService {
                         "Đơn cha không tồn tại hoặc không thuộc về bạn"));
 
         List<OrderSummaryResponse> subOrders = parentOrder.getOrders().stream()
-                .map(OrderSummaryResponse::from)
+                .map(order -> {
+                    OrderSummaryResponse summary = OrderSummaryResponse.from(order);
+                    // Populate items so frontend refund modal can render selectable line items
+                    List<OrderItem> orderItems = orderItemRepository.findAllByOrderId(order.getId());
+                    summary.setItems(orderItems.stream().map(OrderItemResponse::from).collect(Collectors.toList()));
+                    return summary;
+                })
                 .collect(Collectors.toList());
 
         // Derive orderCode: use sessionId if available, else generate from parentOrderId
