@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCartStore } from '@shared/store/cartStore';
@@ -9,7 +9,7 @@ import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
 import { Skeleton } from '@shared/components/ui';
 import CheckoutStepper from '@/components/CheckoutStepper';
-import { getStripe } from '@/lib/stripe';
+import { getStripe, getStripeForAccount } from '@/lib/stripe';
 import { buildCheckoutPaymentData } from './checkoutPaymentData';
 
 const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
@@ -474,6 +474,14 @@ export default function OrderReviewPage() {
   const [orderData, setOrderData] = useState<Record<string, any> | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [stripeError, setStripeError] = useState<string | null>(null);
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+
+  const stripePromise = useMemo(() => {
+    if (stripeAccountId) {
+      return getStripeForAccount(stripeAccountId);
+    }
+    return getStripe();
+  }, [stripeAccountId]);
 
   // Checkout flow state
   const [previewData, setPreviewData] = useState<CheckoutPreviewResponse | null>(null);
@@ -712,6 +720,7 @@ export default function OrderReviewPage() {
         const { data } = await paymentApi.getClientSecret(poId);
         if (data.data?.clientSecret) {
           setClientSecret(data.data.clientSecret);
+          setStripeAccountId(data.data.paymentIntents?.[0]?.stripeAccountId || null);
           return;
         }
         // 202 Accepted means "still initializing" — wait and retry
@@ -1201,11 +1210,11 @@ export default function OrderReviewPage() {
               </div>
             ) : (
               <div>
-                <Elements stripe={getStripe()} options={{ clientSecret }}>
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
                   <InlineStripeForm />
                 </Elements>
                 <button
-                  onClick={() => { setPaymentStep('idle'); setClientSecret(null); }}
+                  onClick={() => { setPaymentStep('idle'); setClientSecret(null); setStripeAccountId(null); }}
                   className="mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
                 >
                   ← Quay lại

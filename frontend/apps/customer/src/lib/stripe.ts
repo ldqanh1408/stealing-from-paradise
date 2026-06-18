@@ -17,3 +17,9 @@ export function getStripe(): Promise<Stripe | null> {
   return stripePromise;
 }
 
+export function getStripeForAccount(stripeAccountId?: string): Promise<Stripe | null> {
+  return loadStripe(
+    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string,
+    stripeAccountId ? { stripeAccount: stripeAccountId } : undefined
+  );
+}

@@ -26,17 +26,31 @@ beforeEach(() => vi.clearAllMocks());
 describe('SellerPaymentsPage — earnings & transfer status', () => {
   it('renders transfer-status chips for each transfer state', async () => {
     setEarnings([
-      transfer({ id: 1, status: 'SUCCEEDED' }),
+      transfer({ id: 1, status: 'PAID_OUT' }),
+      transfer({ id: 5, status: 'SUCCEEDED' }),
       transfer({ id: 2, status: 'PENDING' }),
       transfer({ id: 3, status: 'FAILED' }),
       transfer({ id: 4, status: 'REVERSED' }),
     ]);
     renderWithProviders(<SellerPaymentsPage />, { route: '/payments' });
     // Status labels appear inside spans with icons - use getAllByText
+    expect(await screen.findByText(/Đã payout/)).toBeInTheDocument();
     expect(await screen.findByText(/Đã chuyển/)).toBeInTheDocument();
     expect(screen.getByText(/Đang chờ/)).toBeInTheDocument();
     expect(screen.getByText(/Thất bại/)).toBeInTheDocument();
     expect(screen.getByText(/Bị đảo ngược/)).toBeInTheDocument();
+  });
+
+  it('shows only paid out transfers in the paid-out tab', async () => {
+    setEarnings([
+      transfer({ id: 1, orderId: 900121, status: 'PAID_OUT', payoutAt: '2026-06-18T14:16:53Z' }),
+      transfer({ id: 2, orderId: 900122, status: 'RETURN_WINDOW' }),
+    ]);
+    renderWithProviders(<SellerPaymentsPage />, { route: '/payments' });
+    fireEvent.click(await screen.findByRole('button', { name: /Đã payout/i }));
+    expect(screen.getByText(/Đơn hàng đã payout thành công/)).toBeInTheDocument();
+    expect(screen.getByText('#900121')).toBeInTheDocument();
+    expect(screen.queryByText('#900122')).not.toBeInTheDocument();
   });
 
   it('shows the empty state when there are no transfers', async () => {

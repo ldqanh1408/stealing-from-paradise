@@ -1,6 +1,7 @@
 package com.flashsale.paymentservice.stripe.webhook.handler;
 
 import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.paymentservice.domain.model.Transaction;
 import com.flashsale.paymentservice.domain.repository.TransactionRepository;
 import com.flashsale.paymentservice.service.SellerTransferService;
 import com.flashsale.paymentservice.stripe.webhook.StripeEventHandler;
@@ -50,45 +51,87 @@ public class PaymentIntentEventHandler implements StripeEventHandler {
             return;
         }
 
-        transactionRepository.findByParentOrderId(parentOrderId).ifPresent(tx -> {
-            tx.setStatus("SUCCESS");
-            tx.setPayAt(LocalDateTime.now());
-            transactionRepository.save(tx);
+        Long sellerId = com.flashsale.paymentservice.support.StripeAmounts.toLong(pi.getMetadata().get("seller_id"));
+        if (sellerId == null) {
+            log.warn("payment_intent.succeeded: missing seller_id in metadata, piId={}", pi.getId());
+            return;
+        }
 
+        Transaction tx = transactionRepository.findByStripePaymentIntentId(pi.getId())
+                .orElseGet(() -> transactionRepository.findAllByParentOrderId(parentOrderId).stream()
+                        .filter(t -> sellerId.equals(t.getSellerId()))
+                        .findFirst().orElse(null));
+
+        if (tx == null) {
+            log.warn("payment_intent.succeeded: no transaction found for piId={}, parentOrderId={}, sellerId={}", 
+                     pi.getId(), parentOrderId, sellerId);
+            return;
+        }
+
+        if (!"PENDING".equals(tx.getStatus())) {
+            log.info("payment_intent.succeeded: transaction already processed, status={}, piId={}", tx.getStatus(), pi.getId());
+            return;
+        }
+
+        tx.setStatus("SUCCESS");
+        tx.setPayAt(LocalDateTime.now());
+        if (pi.getLatestCharge() != null) {
+            tx.setStripeChargeId(pi.getLatestCharge());
+        }
+        transactionRepository.save(tx);
+
+        log.info("Payment succeeded for seller {} under parentOrderId={}: piId={}", sellerId, parentOrderId, pi.getId());
+
+        // Update seller transfer record to AWAITING_DELIVERY for this specific seller
+        sellerTransferService.createSellerTransfersForSeller(parentOrderId, sellerId);
+
+        // Check if all transactions for this parent order have succeeded
+        java.util.List<Transaction> allTxs = transactionRepository.findAllByParentOrderId(parentOrderId);
+        boolean allSuccess = allTxs.stream().allMatch(t -> "SUCCESS".equals(t.getStatus()));
+        if (allSuccess) {
             Long userId = StripeMetadata.extractUserId(pi.getMetadata());
+            java.math.BigDecimal totalAmount = allTxs.stream()
+                    .map(Transaction::getAmount)
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
             java.util.Map<String, Object> payload = new java.util.HashMap<>();
-            payload.put("parent_order_id", tx.getParentOrderId());
+            payload.put("parent_order_id", parentOrderId);
             payload.put("transaction_id", tx.getId());
             payload.put("stripe_pi_id", pi.getId());
-            payload.put("amount", tx.getAmount());
+            payload.put("amount", totalAmount);
             if (userId != null) {
                 payload.put("customer_id", userId);
             }
 
-            kafkaPublisher.publish(KafkaTopics.PAYMENT_SUCCESS, String.valueOf(tx.getParentOrderId()), payload);
-            log.info("Payment succeeded: parentOrderId={}, piId={}", tx.getParentOrderId(), pi.getId());
-
-            // Create Stripe Connect transfers to each seller
-            sellerTransferService.createSellerTransfers(parentOrderId, pi);
-        });
+            kafkaPublisher.publish(KafkaTopics.PAYMENT_SUCCESS, String.valueOf(parentOrderId), payload);
+            log.info("All payments succeeded for parentOrderId={}. Published PAYMENT_SUCCESS.", parentOrderId);
+        }
     }
 
     private void handlePaymentIntentFailed(Event event) {
         StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof PaymentIntent pi)) return;
 
-        transactionRepository.findByParentOrderId(StripeMetadata.extractParentOrderId(pi.getMetadata()))
-                .ifPresent(tx -> {
-                    tx.setStatus("FAILED");
-                    transactionRepository.save(tx);
+        Long parentOrderId = StripeMetadata.extractParentOrderId(pi.getMetadata());
+        if (parentOrderId == null) return;
 
-                    kafkaPublisher.publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(tx.getParentOrderId()), Map.of(
-                            "parent_order_id", tx.getParentOrderId(),
-                            "transaction_id",  tx.getId(),
-                            "stripe_pi_id",    pi.getId()
-                    ));
-                    log.info("Payment failed: parentOrderId={}", tx.getParentOrderId());
-                });
+        Transaction tx = transactionRepository.findByStripePaymentIntentId(pi.getId()).orElse(null);
+        if (tx != null) {
+            if ("PENDING".equals(tx.getStatus())) {
+                tx.setStatus("FAILED");
+                transactionRepository.save(tx);
+            }
+        }
+
+        // Cancel/refund other payments of the parent order
+        cancelOrRefundOtherPayments(parentOrderId, pi.getId());
+
+        kafkaPublisher.publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(parentOrderId), Map.of(
+                "parent_order_id", parentOrderId,
+                "reason",          "Payment failed on a sub-payment",
+                "timestamp",       Instant.now().toString()
+        ));
+        log.info("Payment failed on sub-payment for parentOrderId={}, piId={}", parentOrderId, pi.getId());
     }
 
     private void handlePaymentIntentCanceled(Event event) {
@@ -96,23 +139,66 @@ public class PaymentIntentEventHandler implements StripeEventHandler {
         if (!(stripeObject instanceof PaymentIntent pi)) return;
 
         Long parentOrderId = StripeMetadata.extractParentOrderId(pi.getMetadata());
-        if (parentOrderId == null) {
-            log.warn("payment_intent.canceled: missing parent_order_id in metadata, piId={}", pi.getId());
-            return;
+        if (parentOrderId == null) return;
+
+        Transaction tx = transactionRepository.findByStripePaymentIntentId(pi.getId()).orElse(null);
+        if (tx != null) {
+            if ("PENDING".equals(tx.getStatus())) {
+                tx.setStatus("CANCELLED");
+                transactionRepository.save(tx);
+            }
         }
 
-        transactionRepository.findByParentOrderId(parentOrderId).ifPresent(tx -> {
-            if (!"PENDING".equals(tx.getStatus())) return;
-            tx.setStatus("CANCELLED");
-            transactionRepository.save(tx);
-            kafkaPublisher.publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(parentOrderId), Map.of(
-                    "parent_order_id", parentOrderId,
-                    "transaction_id",  tx.getId(),
-                    "stripe_pi_id",    pi.getId(),
-                    "reason",          "PaymentIntent canceled",
-                    "timestamp",       Instant.now().toString()
-            ));
-            log.info("PaymentIntent canceled → Transaction CANCELLED: parentOrderId={}, piId={}", parentOrderId, pi.getId());
-        });
+        // Cancel/refund other payments
+        cancelOrRefundOtherPayments(parentOrderId, pi.getId());
+
+        kafkaPublisher.publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(parentOrderId), Map.of(
+                "parent_order_id", parentOrderId,
+                "reason",          "Payment canceled on a sub-payment",
+                "timestamp",       Instant.now().toString()
+        ));
+        log.info("Payment canceled on sub-payment for parentOrderId={}, piId={}", parentOrderId, pi.getId());
+    }
+
+    private void cancelOrRefundOtherPayments(Long parentOrderId, String failedPiId) {
+        java.util.List<Transaction> allTxs = transactionRepository.findAllByParentOrderId(parentOrderId);
+        for (Transaction tx : allTxs) {
+            if (failedPiId.equals(tx.getStripePaymentIntentId())) {
+                continue;
+            }
+            if ("SUCCESS".equals(tx.getStatus()) && tx.getStripePaymentIntentId() != null) {
+                try {
+                    com.stripe.param.RefundCreateParams refundParams = com.stripe.param.RefundCreateParams.builder()
+                            .setPaymentIntent(tx.getStripePaymentIntentId())
+                            .setRefundApplicationFee(true)
+                            .build();
+                    com.stripe.net.RequestOptions requestOptions = com.stripe.net.RequestOptions.builder()
+                            .setStripeAccount(tx.getStripeAccountId())
+                            .build();
+                    com.stripe.model.Refund.create(refundParams, requestOptions);
+                    tx.setStatus("REFUNDED");
+                    transactionRepository.save(tx);
+                    log.info("Refunded successful payment {} of seller {} due to partial checkout failure in parent order {}", tx.getStripePaymentIntentId(), tx.getSellerId(), parentOrderId);
+                } catch (Exception e) {
+                    log.error("Failed to refund successful payment {} of seller {} for parent order {}: {}", tx.getStripePaymentIntentId(), tx.getSellerId(), parentOrderId, e.getMessage());
+                }
+            } else if ("PENDING".equals(tx.getStatus()) && tx.getStripePaymentIntentId() != null) {
+                try {
+                    com.stripe.net.RequestOptions requestOptions = com.stripe.net.RequestOptions.builder()
+                            .setStripeAccount(tx.getStripeAccountId())
+                            .build();
+                    PaymentIntent pi = PaymentIntent.retrieve(tx.getStripePaymentIntentId(), requestOptions);
+                    String piStatus = pi.getStatus();
+                    if (!"canceled".equals(piStatus) && !"succeeded".equals(piStatus)) {
+                        pi.cancel(requestOptions);
+                        log.info("Cancelled pending payment intent {} of seller {} for parent order {}", tx.getStripePaymentIntentId(), tx.getSellerId(), parentOrderId);
+                    }
+                    tx.setStatus("CANCELLED");
+                    transactionRepository.save(tx);
+                } catch (Exception e) {
+                    log.error("Failed to cancel pending payment intent {} of seller {} for parent order {}: {}", tx.getStripePaymentIntentId(), tx.getSellerId(), parentOrderId, e.getMessage());
+                }
+            }
+        }
     }
 }

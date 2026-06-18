@@ -41,6 +41,30 @@ public class Transaction {
     @Column(name = "stripe_connect_mode")
     private String stripeConnectMode;
 
+    @Column(name = "order_id")
+    private Long orderId;
+
+    @Column(name = "seller_id")
+    private Long sellerId;
+
+    @Column(name = "stripe_account_id")
+    private String stripeAccountId;
+
+    @Column(name = "stripe_payment_intent_id")
+    private String stripePaymentIntentId;
+
+    @Column(name = "stripe_charge_id")
+    private String stripeChargeId;
+
+    @Column(name = "gross_amount")
+    private BigDecimal grossAmount;
+
+    @Column(name = "seller_net_amount")
+    private BigDecimal sellerNetAmount;
+
+    @Column(name = "currency")
+    private String currency;
+
     @Column(nullable = false)
     private String status;
 

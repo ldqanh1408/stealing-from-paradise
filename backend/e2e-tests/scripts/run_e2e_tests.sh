@@ -87,20 +87,23 @@ if [ "$SCRIPT" = "--onboarding" ]; then
     echo ">>> Running Stripe Onboarding E2E Tests <<<"
     echo ""
     docker exec -e GATEWAY="$GATEWAY" -e WEBHOOK_SECRET="$WEBHOOK_SECRET" \
-        -e E2E_TIMEOUT="$TIMEOUT" e2e-runner python3 /scripts/e2e_stripe_onboarding.py "$@"
+        -e E2E_TIMEOUT="$TIMEOUT" e2e-runner python3 /scripts/e2e_backend.py --test e2e_stripe_onboarding_flow "$@"
 elif [ "$SCRIPT" = "--list" ]; then
     echo ""
     echo ">>> Available Tests (e2e_backend.py) <<<"
     docker exec -e GATEWAY="$GATEWAY" e2e-runner python3 /scripts/e2e_backend.py --list
     echo ""
-    echo ">>> Available Tests (e2e_stripe_onboarding.py) <<<"
-    docker exec -e GATEWAY="$GATEWAY" e2e-runner python3 /scripts/e2e_stripe_onboarding.py --list
 else
     echo ""
-    echo ">>> Running Full Backend E2E Tests <<<"
+    echo ">>> Running Backend E2E Tests <<<"
     echo ""
-    docker exec -e GATEWAY="$GATEWAY" -e WEBHOOK_SECRET="$WEBHOOK_SECRET" \
-        -e E2E_TIMEOUT="$TIMEOUT" e2e-runner python3 /scripts/e2e_backend.py "$SCRIPT" "$@" 2>&1
+    if [ -z "$SCRIPT" ]; then
+        docker exec -e GATEWAY="$GATEWAY" -e WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+            -e E2E_TIMEOUT="$TIMEOUT" e2e-runner python3 /scripts/e2e_backend.py 2>&1
+    else
+        docker exec -e GATEWAY="$GATEWAY" -e WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+            -e E2E_TIMEOUT="$TIMEOUT" e2e-runner python3 /scripts/e2e_backend.py "$SCRIPT" "$@" 2>&1
+    fi
     EXIT_CODE=$?
 
     echo ""

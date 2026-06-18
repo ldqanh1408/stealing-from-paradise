@@ -195,6 +195,7 @@ public class IdentityDevDataLoader implements CommandLineRunner {
             String fullName = (String) user.get("fullName");
             String role = (String) user.get("role");
             String status = (String) user.get("status");
+            String avatarUrl = "https://picsum.photos/seed/" + username + "-avatar/200/200";
 
             maxUserId = Math.max(maxUserId, id);
 
@@ -206,7 +207,7 @@ public class IdentityDevDataLoader implements CommandLineRunner {
                     username = EXCLUDED.username, email = EXCLUDED.email, phone = EXCLUDED.phone,
                     password = EXCLUDED.password, full_name = EXCLUDED.full_name,
                     status = EXCLUDED.status, role = EXCLUDED.role, updated_at = now()
-                """, id, username, email, phone, hashed, fullName, status, role);
+                """, id, username, email, phone, hashed, fullName, status, role, avatarUrl);
 
             // Insert role
             jdbcTemplate.update("""

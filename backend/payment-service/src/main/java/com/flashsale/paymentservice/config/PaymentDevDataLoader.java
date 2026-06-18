@@ -59,10 +59,16 @@ public class PaymentDevDataLoader implements CommandLineRunner {
             return;
         }
 
-        // FE Seller Stripe Accounts
+        // FE Seller Stripe Accounts.
+        // 900002 (fe_seller) is intentionally not seeded here so the seller can
+        // start Stripe onboarding from a clean state and get a real Stripe account.
         jdbcTemplate.update("INSERT INTO payment.seller_stripe_accounts (id, seller_id, stripe_account_id, account_status, charges_enabled, payouts_enabled, details_submitted, onboarding_url, onboarding_url_expires_at, express_dashboard_url, created_at, updated_at) VALUES " +
-            "(900002, 900002, 'acct_fe_seller_900002', 'ACTIVE', true, true, true, null, null, 'https://dashboard.stripe.com/test/connect/accounts/acct_fe_seller_900002', now() - interval '15 days', now()), " +
-            "(900003, 900003, 'acct_fe_admin_900003', 'REQUIREMENTS_DUE', false, false, false, 'https://connect.stripe.com/setup/e/acct_fe_admin_900003', now() + interval '7 days', null, now() - interval '1 day', now()) " +
+            "(900003, 900003, 'acct_fe_admin_900003', 'REQUIREMENTS_DUE', false, false, false, 'https://connect.stripe.com/setup/e/acct_fe_admin_900003', now() + interval '7 days', null, now() - interval '1 day', now()), " +
+            "(900004, 1, 'acct_test_SELLER001_AABBCC', 'ACTIVE', true, true, true, null, null, 'https://dashboard.stripe.com/acct_test_SELLER001_AABBCC', now() - interval '10 days', now()), " +
+            "(900005, 2, 'acct_test_SELLER002_DDEEFF', 'ACTIVE', true, true, true, null, null, 'https://dashboard.stripe.com/acct_test_SELLER002_DDEEFF', now() - interval '10 days', now()), " +
+            "(900006, 3, 'acct_test_SELLER003_GGHHII', 'ACTIVE', true, true, true, null, null, 'https://dashboard.stripe.com/acct_test_SELLER003_GGHHII', now() - interval '10 days', now()), " +
+            "(900007, 4, 'acct_test_SELLER004_JJKKLL', 'ACTIVE', true, true, true, null, null, 'https://dashboard.stripe.com/acct_test_SELLER004_JJKKLL', now() - interval '10 days', now()), " +
+            "(900008, 5, 'acct_test_SELLER005_MMNOPP', 'ACTIVE', true, true, true, null, null, 'https://dashboard.stripe.com/acct_test_SELLER005_MMNOPP', now() - interval '10 days', now()) " +
             "ON CONFLICT (seller_id) DO UPDATE SET stripe_account_id=EXCLUDED.stripe_account_id,account_status=EXCLUDED.account_status,charges_enabled=EXCLUDED.charges_enabled,payouts_enabled=EXCLUDED.payouts_enabled,details_submitted=EXCLUDED.details_submitted,onboarding_url=EXCLUDED.onboarding_url,onboarding_url_expires_at=EXCLUDED.onboarding_url_expires_at,express_dashboard_url=EXCLUDED.express_dashboard_url,updated_at=now()");
 
         // FE Transactions
@@ -104,7 +110,7 @@ public class PaymentDevDataLoader implements CommandLineRunner {
         jdbcTemplate.queryForObject("SELECT setval('payment.transactions_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.transactions), 900114))", Long.class);
         jdbcTemplate.queryForObject("SELECT setval('payment.seller_transfers_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM payment.seller_transfers), 900114))", Long.class);
 
-        log.info("[PaymentDevDataLoader] FE test-dataset seeded (2 stripe accounts, 14 transactions, 12 transfers).");
+        log.info("[PaymentDevDataLoader] FE test-dataset seeded (1 stripe account, 14 transactions, 12 transfers).");
     }
 
     /**
@@ -151,7 +157,7 @@ public class PaymentDevDataLoader implements CommandLineRunner {
             // Insert transaction
             jdbcTemplate.update("""
                 INSERT INTO payment.transactions (id, parent_order_id, amount, trans_ref, stripe_transfer_id, application_fee_amount, stripe_connect_mode, status, raw_response, pay_at, created_at, updated_at)
-                VALUES (?, ?, ?, ?, null, ?, ?, ?, '{"id":"' || ? || '","object":"payment_intent","status":"succeeded"}'::jsonb, now() - interval '2 hours', now(), now())
+                VALUES (?, ?, ?, ?, null, ?, ?, ?, jsonb_build_object('id', ?, 'object', 'payment_intent', 'status', 'succeeded'), now() - interval '2 hours', now(), now())
                 ON CONFLICT (id) DO UPDATE SET
                     parent_order_id = EXCLUDED.parent_order_id, amount = EXCLUDED.amount,
                     trans_ref = EXCLUDED.trans_ref, application_fee_amount = EXCLUDED.application_fee_amount,

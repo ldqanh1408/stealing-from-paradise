@@ -8,6 +8,10 @@ const fmt = (n: number) => n.toLocaleString('vi-VN', { style: 'currency', curren
 const fmtNum = (n: number) => n.toLocaleString('vi-VN');
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string; icon: string }> = {
+  PAID_OUT:        { bg: 'bg-emerald-50', color: 'text-emerald-700', label: 'Đã payout',       icon: '✓' },
+  READY_FOR_PAYOUT:{ bg: 'bg-blue-50',   color: 'text-blue-700',   label: 'Sẵn sàng payout',  icon: '↗' },
+  RETURN_WINDOW:   { bg: 'bg-amber-50',  color: 'text-amber-700',  label: 'Chờ hết hạn hoàn', icon: '⏳' },
+  AWAITING_DELIVERY:{ bg: 'bg-sky-50',   color: 'text-sky-700',    label: 'Chờ giao hàng',    icon: '→' },
   SUCCEEDED:       { bg: 'bg-green-50',  color: 'text-green-700',  label: 'Đã chuyển',         icon: '✓' },
   PENDING:         { bg: 'bg-yellow-50', color: 'text-yellow-700', label: 'Đang chờ',          icon: '⏳' },
   FAILED:          { bg: 'bg-red-50',    color: 'text-red-700',    label: 'Thất bại',          icon: '✗' },
@@ -23,7 +27,7 @@ function formatDate(iso?: string) {
   });
 }
 
-type Tab = 'earnings' | 'stripe';
+type Tab = 'earnings' | 'paidOut' | 'stripe';
 
 export default function SellerPaymentsPage() {
   const [tab, setTab] = useState<Tab>('earnings');
@@ -60,8 +64,11 @@ export default function SellerPaymentsPage() {
     : null;
 
   const allTransfers = data?.transfers ?? [];
-  const paginatedTransfers = allTransfers.slice(transferPage * PAGE_SIZE, (transferPage + 1) * PAGE_SIZE);
-  const totalTransferPages = Math.ceil(allTransfers.length / PAGE_SIZE);
+  const paidOutTransfers = allTransfers.filter(t => t.status === 'PAID_OUT');
+  const visibleTransfers = tab === 'paidOut' ? paidOutTransfers : allTransfers;
+  const paginatedTransfers = visibleTransfers.slice(transferPage * PAGE_SIZE, (transferPage + 1) * PAGE_SIZE);
+  const totalTransferPages = Math.ceil(visibleTransfers.length / PAGE_SIZE);
+  const isTransferTab = tab === 'earnings' || tab === 'paidOut';
 
   // Calculate monthly stats from transfers
   const monthlyStats = (() => {
@@ -158,11 +165,17 @@ export default function SellerPaymentsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
-        <button onClick={() => setTab('earnings')}
+        <button onClick={() => { setTransferPage(0); setTab('earnings'); }}
           className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
             tab === 'earnings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
           }`}>
           Lịch sử thu nhập
+        </button>
+        <button onClick={() => { setTransferPage(0); setTab('paidOut'); }}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+            tab === 'paidOut' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}>
+          Đã payout ({paidOutTransfers.length})
         </button>
         <button onClick={() => setTab('stripe')}
           className={`px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
@@ -180,11 +193,13 @@ export default function SellerPaymentsPage() {
       )}
 
       {/* Earnings table */}
-      {tab === 'earnings' && (
+      {isTransferTab && (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="font-bold text-gray-900">Lịch sử thu nhập</h2>
-            <span className="text-sm text-gray-400">{allTransfers.length} giao dịch</span>
+            <h2 className="font-bold text-gray-900">
+              {tab === 'paidOut' ? 'Đơn hàng đã payout thành công' : 'Lịch sử thu nhập'}
+            </h2>
+            <span className="text-sm text-gray-400">{visibleTransfers.length} giao dịch</span>
           </div>
 
           {isLoading ? (
@@ -197,12 +212,16 @@ export default function SellerPaymentsPage() {
                 </div>
               ))}
             </div>
-          ) : !allTransfers.length ? (
+          ) : !visibleTransfers.length ? (
             <div className="p-12 text-center">
               <div className="text-5xl mb-4">💸</div>
-              <h3 className="font-semibold text-gray-900 mb-2">Chưa có thu nhập nào</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">
+                {tab === 'paidOut' ? 'Chưa có đơn nào đã payout' : 'Chưa có thu nhập nào'}
+              </h3>
               <p className="text-sm text-gray-500 mb-6">
-                Khi khách hàng thanh toán đơn hàng của bạn, thu nhập sẽ xuất hiện tại đây.
+                {tab === 'paidOut'
+                  ? 'Các đơn đã qua thời gian hoàn tiền và được chuyển tiền cho seller sẽ xuất hiện tại đây.'
+                  : 'Khi khách hàng thanh toán đơn hàng của bạn, thu nhập sẽ xuất hiện tại đây.'}
               </p>
               <div className="flex justify-center gap-3">
                 <a href="/products" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors">Thêm sản phẩm</a>
@@ -219,7 +238,7 @@ export default function SellerPaymentsPage() {
                     <th className="px-4 py-3 text-right font-medium">Phí</th>
                     <th className="px-4 py-3 text-right font-medium">Thu nhập</th>
                     <th className="px-4 py-3 text-center font-medium">Trạng thái</th>
-                    <th className="px-5 py-3 text-left font-medium">Ngày</th>
+                    <th className="px-5 py-3 text-left font-medium">{tab === 'paidOut' ? 'Ngày payout' : 'Ngày'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -228,6 +247,7 @@ export default function SellerPaymentsPage() {
                     const transferAmt = t.transferAmount ?? 0;
                     const feeAmount = t.feeAmount ?? Math.round(transferAmt * ((data?.platformFeePercentage ?? 0) / 100));
                     const netAmount = t.netAmount ?? transferAmt - feeAmount;
+                    const displayDate = tab === 'paidOut' ? (t.payoutAt ?? t.updatedAt ?? t.createdAt) : t.createdAt;
                     return (
                       <tr key={t.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-4">
@@ -241,7 +261,7 @@ export default function SellerPaymentsPage() {
                             {cfg.icon} {cfg.label}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">{formatDate(t.createdAt)}</td>
+                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">{formatDate(displayDate)}</td>
                       </tr>
                     );
                   })}

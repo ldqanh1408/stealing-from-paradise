@@ -48,7 +48,10 @@ export interface SellerTransferItem {
   feeAmount: number;
   netAmount: number;
   stripeTransferId: string | null;
-  status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED' | 'REVERSED';
+  status: 'PENDING' | 'AWAITING_DELIVERY' | 'RETURN_WINDOW' | 'READY_FOR_PAYOUT' | 'PAID_OUT' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED' | 'REVERSED' | 'CANCELLED' | 'REFUNDED';
+  deliveredAt?: string | null;
+  payoutEligibleAt?: string | null;
+  payoutAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
