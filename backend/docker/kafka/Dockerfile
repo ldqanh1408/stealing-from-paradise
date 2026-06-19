@@ -4,10 +4,10 @@
 ARG KAFKA_VERSION=3.6.1
 FROM apache/kafka:${KAFKA_VERSION}
 
-# Pre-format KRaft storage (required before first start)
+# Pre-format KRaft storage with a fixed cluster ID
 RUN /opt/kafka/bin/kafka-storage.sh format \
     --ignore-formatted \
-    --cluster-id $(echo -n "flashsale-kafka" | md5sum | cut -c1-22) \
+    --cluster-id KQA0ZmQwS6yABCDEFGHIJQ \
     --config /opt/kafka/config/kraft/server.properties
 
 EXPOSE 9092

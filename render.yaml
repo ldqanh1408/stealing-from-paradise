@@ -8,6 +8,12 @@
 #   Group 2: identity, product, payment, order, flashsale,
 #            search, notification, refund, chat (parallel ok)
 #   Group 3: api-gateway LAST (depends on all above)
+#
+# DEPLOY STEPS:
+#   1. Upload this file to Render Dashboard > Blueprints
+#   2. Replace YOUR_GITHUB_USERNAME with your real GitHub username
+#   3. Replace ownerEmail@domain.com with your email
+#   4. Click "Apply"
 # ============================================================
 
 services:
@@ -15,7 +21,6 @@ services:
   # GROUP 1 — MUST DEPLOY FIRST
   # ─────────────────────────────────────────────────────
   - name: discovery-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -32,10 +37,9 @@ services:
         value: -Xms128m -Xmx256m
 
   # ─────────────────────────────────────────────────────
-  # GROUP 2 — BUSINESS MICROSERVICES (deploy after discovery)
+  # GROUP 2 — BUSINESS MICROSERVICES
   # ─────────────────────────────────────────────────────
   - name: identity-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -83,7 +87,6 @@ services:
         value: "604800000"
 
   - name: product-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -125,7 +128,6 @@ services:
           attr: port
 
   - name: payment-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -173,7 +175,6 @@ services:
         value: "5.0"
 
   - name: order-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -213,8 +214,6 @@ services:
         fromDatabase:
           name: flashsale-postgres
           attr: port
-      - key: AXON_SERVER
-        value: axonserver:8124
       - key: KAFKA_SERVER
         fromService:
           type: web
@@ -222,7 +221,6 @@ services:
           envVarKey: KAFKA_BROKER_URL
 
   - name: flashsale-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -269,7 +267,6 @@ services:
           envVarKey: KAFKA_BROKER_URL
 
   - name: search-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -316,7 +313,6 @@ services:
           envVarKey: ELASTICSEARCH_URL
 
   - name: notification-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -368,7 +364,6 @@ services:
         value: no-reply@yourdomain.com
 
   - name: refund-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -412,7 +407,6 @@ services:
         sync: false
 
   - name: chat-service
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -459,10 +453,9 @@ services:
           envVarKey: REDIS_URL
 
   # ─────────────────────────────────────────────────────
-  # GROUP 3 — API GATEWAY (LAST — depends on all above)
+  # GROUP 3 — API GATEWAY (LAST)
   # ─────────────────────────────────────────────────────
   - name: api-gateway
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -484,35 +477,31 @@ services:
         value: -Xms128m -Xmx256m
 
   # ─────────────────────────────────────────────────────
-  # MANAGED DATABASES (created by Render)
+  # MANAGED DATABASES
   # ─────────────────────────────────────────────────────
   - type: psync
     name: flashsale-postgres
-    owner: {{ .OWNER }}
     region: singapore
     plan: starter
     databaseName: flashsale_platform
 
   - type: psync
     name: flashsale-mongo
-    owner: {{ .OWNER }}
     region: singapore
     databaseName: flashsale_mongo
 
   # ─────────────────────────────────────────────────────
-  # MANAGED REDIS (render.com blueprint)
+  # MANAGED REDIS
   # ─────────────────────────────────────────────────────
   - type: redis
     name: redis
-    owner: {{ .OWNER }}
     region: singapore
     plan: starter
 
   # ─────────────────────────────────────────────────────
-  # SELF-HOSTED ELASTICSEARCH (Docker Web Service)
+  # SELF-HOSTED ELASTICSEARCH (Web Service)
   # ─────────────────────────────────────────────────────
   - name: elasticsearch
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -530,10 +519,9 @@ services:
         value: -Xms256m -Xmx384m
 
   # ─────────────────────────────────────────────────────
-  # SELF-HOSTED KAFKA (Docker Web Service)
+  # SELF-HOSTED KAFKA KRaft (Web Service)
   # ─────────────────────────────────────────────────────
   - name: kafka-broker
-    owner: {{ .OWNER }}
     region: singapore
     repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
     branch: main
@@ -543,8 +531,6 @@ services:
     envVars:
       - key: KAFKA_BROKER_URL
         value: localhost:9092
-      - key: KAFKA_ZOOKEEPER_CONNECT
-        value: localhost:2181
       - key: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
         value: "1"
       - key: KAFKA_AUTO_CREATE_TOPICS_ENABLE
