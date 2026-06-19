@@ -1,24 +1,10 @@
 # ============================================================
 # Render Blueprint — FlashSale Backend
-# Single file deploys ALL 11 microservices + managed infra.
-# Put this at the REPO ROOT (not inside backend/).
-#
-# IMPORTANT: Deploy in this ORDER:
-#   Group 1: discovery-service (Eureka) FIRST
-#   Group 2: identity, product, payment, order, flashsale,
-#            search, notification, refund, chat (parallel ok)
-#   Group 3: api-gateway LAST (depends on all above)
-#
-# DEPLOY STEPS:
-#   1. Push to GitHub — Render will auto-detect render.yaml
-#   2. Go to Render Dashboard > Blueprints > "New Blueprint"
-#   3. Click "Apply"
+# Deploy: Dashboard > Blueprints > New Blueprint > Apply
 # ============================================================
 
 services:
-  # ─────────────────────────────────────────────────────
-  # GROUP 1 — MUST DEPLOY FIRST
-  # ─────────────────────────────────────────────────────
+  # ── Group 1: Discovery (Eureka) — MUST be first ──────────
   - name: discovery-service
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
@@ -35,9 +21,7 @@ services:
       - key: JAVA_OPTS
         value: -Xms128m -Xmx256m
 
-  # ─────────────────────────────────────────────────────
-  # GROUP 2 — BUSINESS MICROSERVICES
-  # ─────────────────────────────────────────────────────
+  # ── Group 2: Business Microservices ──────────────────────
   - name: identity-service
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
@@ -60,22 +44,27 @@ services:
         value: -Xms128m -Xmx256m
       - key: POSTGRES_DB
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: database
       - key: POSTGRES_USER
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: username
       - key: POSTGRES_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: password
       - key: POSTGRES_HOST
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: hostname
       - key: POSTGRES_PORT
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: port
       - key: JWT_SECRET
@@ -107,22 +96,27 @@ services:
         value: -Xms128m -Xmx384m
       - key: POSTGRES_DB
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: database
       - key: POSTGRES_USER
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: username
       - key: POSTGRES_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: password
       - key: POSTGRES_HOST
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: hostname
       - key: POSTGRES_PORT
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: port
 
@@ -148,22 +142,27 @@ services:
         value: -Xms128m -Xmx256m
       - key: POSTGRES_DB
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: database
       - key: POSTGRES_USER
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: username
       - key: POSTGRES_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: password
       - key: POSTGRES_HOST
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: hostname
       - key: POSTGRES_PORT
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: port
       - key: STRIPE_SECRET_KEY
@@ -195,22 +194,27 @@ services:
         value: -Xms128m -Xmx384m
       - key: POSTGRES_DB
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: database
       - key: POSTGRES_USER
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: username
       - key: POSTGRES_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: password
       - key: POSTGRES_HOST
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: hostname
       - key: POSTGRES_PORT
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: port
       - key: KAFKA_SERVER
@@ -241,22 +245,27 @@ services:
         value: -Xms128m -Xmx384m
       - key: POSTGRES_DB
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: database
       - key: POSTGRES_USER
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: username
       - key: POSTGRES_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: password
       - key: POSTGRES_HOST
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: hostname
       - key: POSTGRES_PORT
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: port
       - key: KAFKA_SERVER
@@ -287,22 +296,27 @@ services:
         value: -Xms128m -Xmx384m
       - key: POSTGRES_DB
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: database
       - key: POSTGRES_USER
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: username
       - key: POSTGRES_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: password
       - key: POSTGRES_HOST
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: hostname
       - key: POSTGRES_PORT
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: port
       - key: ELASTIC_URI
@@ -333,22 +347,27 @@ services:
         value: -Xms96m -Xmx192m
       - key: MONGO_DB
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: database
       - key: MONGO_USERNAME
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: username
       - key: MONGO_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: password
       - key: MONGO_HOST
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: hostname
       - key: MONGO_PORT
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: port
       - key: MAIL_HOST
@@ -384,22 +403,27 @@ services:
         value: -Xms96m -Xmx256m
       - key: POSTGRES_DB
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: database
       - key: POSTGRES_USER
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: username
       - key: POSTGRES_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: password
       - key: POSTGRES_HOST
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: hostname
       - key: POSTGRES_PORT
         fromDatabase:
+          type: psync
           name: flashsale-postgres
           attr: port
       - key: STRIPE_SECRET_KEY
@@ -427,22 +451,27 @@ services:
         value: -Xms128m -Xmx256m
       - key: MONGO_DB
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: database
       - key: MONGO_USERNAME
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: username
       - key: MONGO_PASSWORD
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: password
       - key: MONGO_HOST
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: hostname
       - key: MONGO_PORT
         fromDatabase:
+          type: psync
           name: flashsale-mongo
           attr: port
       - key: REDIS_HOST
@@ -451,9 +480,7 @@ services:
           name: redis
           envVarKey: REDIS_URL
 
-  # ─────────────────────────────────────────────────────
-  # GROUP 3 — API GATEWAY (LAST)
-  # ─────────────────────────────────────────────────────
+  # ── Group 3: API Gateway — LAST ─────────────────────────
   - name: api-gateway
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
@@ -475,31 +502,7 @@ services:
       - key: JAVA_OPTS
         value: -Xms128m -Xmx256m
 
-  # ─────────────────────────────────────────────────────
-  # MANAGED DATABASES
-  # ─────────────────────────────────────────────────────
-  - type: psync
-    name: flashsale-postgres
-    region: singapore
-    plan: starter
-    databaseName: flashsale_platform
-
-  - type: psync
-    name: flashsale-mongo
-    region: singapore
-    databaseName: flashsale_mongo
-
-  # ─────────────────────────────────────────────────────
-  # MANAGED REDIS
-  # ─────────────────────────────────────────────────────
-  - type: redis
-    name: redis
-    region: singapore
-    plan: starter
-
-  # ─────────────────────────────────────────────────────
-  # SELF-HOSTED ELASTICSEARCH (Web Service)
-  # ─────────────────────────────────────────────────────
+  # ── Self-hosted: Elasticsearch ───────────────────────────
   - name: elasticsearch
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
@@ -517,9 +520,7 @@ services:
       - key: ES_JAVA_OPTS
         value: -Xms256m -Xmx384m
 
-  # ─────────────────────────────────────────────────────
-  # SELF-HOSTED KAFKA KRaft (Web Service)
-  # ─────────────────────────────────────────────────────
+  # ── Self-hosted: Kafka KRaft ─────────────────────────────
   - name: kafka-broker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
@@ -534,3 +535,25 @@ services:
         value: "1"
       - key: KAFKA_AUTO_CREATE_TOPICS_ENABLE
         value: "true"
+
+# ───────────────────────────────────────────────────────────
+# MANAGED DATABASES
+# ───────────────────────────────────────────────────────────
+databases:
+  - name: flashsale-postgres
+    region: singapore
+    plan: starter
+    databaseName: flashsale_platform
+
+  - name: flashsale-mongo
+    region: singapore
+    plan: starter
+    databaseName: flashsale_mongo
+
+# ───────────────────────────────────────────────────────────
+# MANAGED REDIS
+# ───────────────────────────────────────────────────────────
+redis:
+  - name: redis
+    region: singapore
+    plan: starter
