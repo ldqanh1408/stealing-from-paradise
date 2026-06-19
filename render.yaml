@@ -1,0 +1,551 @@
+# ============================================================
+# Render Blueprint — FlashSale Backend
+# Single file deploys ALL 11 microservices + managed infra.
+# Put this at the REPO ROOT (not inside backend/).
+#
+# IMPORTANT: Deploy in this ORDER:
+#   Group 1: discovery-service (Eureka) FIRST
+#   Group 2: identity, product, payment, order, flashsale,
+#            search, notification, refund, chat (parallel ok)
+#   Group 3: api-gateway LAST (depends on all above)
+# ============================================================
+
+services:
+  # ─────────────────────────────────────────────────────
+  # GROUP 1 — MUST DEPLOY FIRST
+  # ─────────────────────────────────────────────────────
+  - name: discovery-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/discovery-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx256m
+
+  # ─────────────────────────────────────────────────────
+  # GROUP 2 — BUSINESS MICROSERVICES (deploy after discovery)
+  # ─────────────────────────────────────────────────────
+  - name: identity-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/identity-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx256m
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          attr: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          attr: username
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          attr: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: flashsale-postgres
+          attr: hostname
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: flashsale-postgres
+          attr: port
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRATION_MS
+        value: "86400000"
+      - key: JWT_REFRESH_EXPIRATION_MS
+        value: "604800000"
+
+  - name: product-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/product-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx384m
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          attr: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          attr: username
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          attr: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: flashsale-postgres
+          attr: hostname
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: flashsale-postgres
+          attr: port
+
+  - name: payment-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/payment-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx256m
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          attr: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          attr: username
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          attr: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: flashsale-postgres
+          attr: hostname
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: flashsale-postgres
+          attr: port
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PLATFORM_FEE_PERCENTAGE
+        value: "5.0"
+
+  - name: order-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/order-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx384m
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          attr: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          attr: username
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          attr: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: flashsale-postgres
+          attr: hostname
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: flashsale-postgres
+          attr: port
+      - key: AXON_SERVER
+        value: axonserver:8124
+      - key: KAFKA_SERVER
+        fromService:
+          type: web
+          name: kafka-broker
+          envVarKey: KAFKA_BROKER_URL
+
+  - name: flashsale-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/flashsale-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx384m
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          attr: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          attr: username
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          attr: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: flashsale-postgres
+          attr: hostname
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: flashsale-postgres
+          attr: port
+      - key: KAFKA_SERVER
+        fromService:
+          type: web
+          name: kafka-broker
+          envVarKey: KAFKA_BROKER_URL
+
+  - name: search-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/search-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx384m
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          attr: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          attr: username
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          attr: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: flashsale-postgres
+          attr: hostname
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: flashsale-postgres
+          attr: port
+      - key: ELASTIC_URI
+        fromService:
+          type: web
+          name: elasticsearch
+          envVarKey: ELASTICSEARCH_URL
+
+  - name: notification-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/notification-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms96m -Xmx192m
+      - key: MONGO_DB
+        fromDatabase:
+          name: flashsale-mongo
+          attr: database
+      - key: MONGO_USERNAME
+        fromDatabase:
+          name: flashsale-mongo
+          attr: username
+      - key: MONGO_PASSWORD
+        fromDatabase:
+          name: flashsale-mongo
+          attr: password
+      - key: MONGO_HOST
+        fromDatabase:
+          name: flashsale-mongo
+          attr: hostname
+      - key: MONGO_PORT
+        fromDatabase:
+          name: flashsale-mongo
+          attr: port
+      - key: MAIL_HOST
+        value: smtp.sendgrid.net
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        value: apikey
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        value: no-reply@yourdomain.com
+
+  - name: refund-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/refund-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms96m -Xmx256m
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          attr: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          attr: username
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          attr: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: flashsale-postgres
+          attr: hostname
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: flashsale-postgres
+          attr: port
+      - key: STRIPE_SECRET_KEY
+        sync: false
+
+  - name: chat-service
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/chat-service
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx256m
+      - key: MONGO_DB
+        fromDatabase:
+          name: flashsale-mongo
+          attr: database
+      - key: MONGO_USERNAME
+        fromDatabase:
+          name: flashsale-mongo
+          attr: username
+      - key: MONGO_PASSWORD
+        fromDatabase:
+          name: flashsale-mongo
+          attr: password
+      - key: MONGO_HOST
+        fromDatabase:
+          name: flashsale-mongo
+          attr: hostname
+      - key: MONGO_PORT
+        fromDatabase:
+          name: flashsale-mongo
+          attr: port
+      - key: REDIS_HOST
+        fromService:
+          type: web
+          name: redis
+          envVarKey: REDIS_URL
+
+  # ─────────────────────────────────────────────────────
+  # GROUP 3 — API GATEWAY (LAST — depends on all above)
+  # ─────────────────────────────────────────────────────
+  - name: api-gateway
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    rootDir: backend/api-gateway
+    dockerfilePath: Dockerfile.build
+    plan: starter
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: RENDER
+        value: "true"
+      - key: EUREKA_URI
+        fromService:
+          type: web
+          name: discovery-service
+          envVarKey: RENDER_DISCOVERY_URL
+      - key: JAVA_OPTS
+        value: -Xms128m -Xmx256m
+
+  # ─────────────────────────────────────────────────────
+  # MANAGED DATABASES (created by Render)
+  # ─────────────────────────────────────────────────────
+  - type: psync
+    name: flashsale-postgres
+    owner: {{ .OWNER }}
+    region: singapore
+    plan: starter
+    databaseName: flashsale_platform
+
+  - type: psync
+    name: flashsale-mongo
+    owner: {{ .OWNER }}
+    region: singapore
+    databaseName: flashsale_mongo
+
+  # ─────────────────────────────────────────────────────
+  # MANAGED REDIS (render.com blueprint)
+  # ─────────────────────────────────────────────────────
+  - type: redis
+    name: redis
+    owner: {{ .OWNER }}
+    region: singapore
+    plan: starter
+
+  # ─────────────────────────────────────────────────────
+  # SELF-HOSTED ELASTICSEARCH (Docker Web Service)
+  # ─────────────────────────────────────────────────────
+  - name: elasticsearch
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    dockerfilePath: backend/docker/elasticsearch/Dockerfile
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: ELASTICSEARCH_URL
+        value: http://localhost:9200
+      - key: discovery.type
+        value: single-node
+      - key: xpack.security.enabled
+        value: "false"
+      - key: ES_JAVA_OPTS
+        value: -Xms256m -Xmx384m
+
+  # ─────────────────────────────────────────────────────
+  # SELF-HOSTED KAFKA (Docker Web Service)
+  # ─────────────────────────────────────────────────────
+  - name: kafka-broker
+    owner: {{ .OWNER }}
+    region: singapore
+    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    branch: main
+    dockerfilePath: backend/docker/kafka/Dockerfile
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: KAFKA_BROKER_URL
+        value: localhost:9092
+      - key: KAFKA_ZOOKEEPER_CONNECT
+        value: localhost:2181
+      - key: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+        value: "1"
+      - key: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+        value: "true"
