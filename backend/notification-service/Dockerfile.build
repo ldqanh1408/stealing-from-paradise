@@ -1,0 +1,32 @@
+# ============================================================
+# Build from source — for Render deployment
+# ============================================================
+FROM eclipse-temurin:25-jdk-alpine AS builder
+WORKDIR /build
+
+COPY mvnw ./
+COPY mvnw.cmd ./
+COPY pom.xml ./
+COPY .mvn .mvn
+
+RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+
+COPY src ./src
+COPY ../common-lib/src ../common-lib/src
+
+RUN ./mvnw package -DskipTests -B -pl . -am
+
+FROM eclipse-temurin:25-jre-alpine
+WORKDIR /app
+
+COPY --from=builder /build/target/notification-service-*.jar app.jar
+
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
+EXPOSE 8092
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=8 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8092/actuator/health || exit 1
+
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/app.jar"]

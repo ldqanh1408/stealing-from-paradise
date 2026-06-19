@@ -1,0 +1,773 @@
+BỘ KHOA HỌC VÀ CÔNG NGHỆ
+HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG
+----□🕮□----
+
+
+BÁO CÁO CUỐI KÌ
+Đề tài:
+Xây dựng hệ thống E-commerce chuyên biệt cho Flash Sale dựa trên kiến trúc Microservices.
+
+
+
+Môn học: Thực tập cơ sở
+Giảng viên: Nguyễn Anh Hào
+Sinh viên thực hiện, bao gồm:		
+Lê Đắc Quốc Anh			N23DCCN139	
+Thái Nguyễn Quang Dũng		N23DCCN149
+
+
+
+ 
+MỤC LỤC
+
+I. GIỚI THIỆU ĐỀ TÀI
+Thuyết minh tóm tắt và Mục tiêu phát triển đề tài 
+Bối cảnh thực tế phát sinh nhu cầu 
+Khảo sát nghiên cứu liên quan và Giới hạn giải pháp truyền thống 
+II. NỀN TẢNG LÝ THUYẾT & BÀI TOÁN
+Định nghĩa Bài toán và Yêu cầu cốt lõi 
+1.1 Bài toán 1: Concurrency trong TMĐT: Nghẽn cổ chai I/O-Bound 
+1.2 Bài toán 2: Race Condition — Bán lố hàng trong Flash Sale 
+1.3 Bài toán 3: Nhất quán Dữ liệu trong Giao dịch Phân tán 
+1.4 Bài toán 4: Phân chia Dòng tiền Đa người bán và Tuân thủ Pháp lý 
+1.5 Bài toán 5: Authorization Gap — Lỗ hổng Ủy quyền trong Trợ lý AI 
+1.6 Bài toán 6: Tìm kiếm Sản phẩm với Ngôn ngữ Tiếng Việt 
+Biện chứng Lựa chọn Công nghệ và Nền tảng Lý thuyết 
+2.1 Spring MVC + Java 25 Virtual Threads và Spring WebFlux → Bài toán 1 
+2.2 Redis Lua Script → Bài toán 2 
+2.3 Axon Framework (CQRS + Event Sourcing + Saga Orchestrator) → Bài toán 3 
+2.4 Stripe Connect Express + Delayed Transfer → Bài toán 4 
+2.5 Spring AI + Risk-Based Interceptor + Redis One-Time Token → Bài toán 5 
+2.6 Elasticsearch ICU Analyzer + Kafka Event-Driven Sync → Bài toán 6 
+Ma trận Ràng buộc Kỹ thuật khi Triển khai 
+III. GIẢI PHÁP & MÔ HÌNH VẬN HÀNH
+Nguyên tắc thiết kế giải pháp 
+Ma trận bài toán, use case và service triển khai 
+Ranh giới service trong mô hình vận hành 
+Flow triển khai theo từng bài toán nghiệp vụ 
+4.1 Bài toán Concurrency I/O-Bound trong TMĐT 
+4.2 Bài toán Flash Sale: mua nhanh nhưng không oversell 
+4.3 Bài toán Checkout nhiều seller và distributed transaction 
+4.4 Bài toán phân chia dòng tiền, refund và payout đa người bán 
+4.5 Bài toán Authorization Gap trong AI Tool Calling 
+4.6 Bài toán tìm kiếm tiếng Việt và đồng bộ read model 
+Luồng Phối Hợp Nền (Background Coordination Engine) 
+5.1. Trục Tích Hợp Sự Kiện Chịu Tải Cao (Event Backbone & CDC) 
+5.2. Cơ Chế Đảm Bảo Tính Bất Biến (Idempotency) Tại Consumer 
+5.3. Hệ Thống Thông Báo Đa Kênh Thời Gian Thực (Notification Service) 
+IV. CẢI TIẾN VÀ ĐỊNH HƯỚNG PHÁT TRIỂN TƯƠNG LAI
+Distributed Tracing — OpenTelemetry + Jaeger 
+GraalVM Native Image — Tối ưu hóa Khởi động và RAM 
+Tinh chỉnh Model AI chuyên biệt — LoRA On-Premise 
+Elasticsearch Index Lifecycle Management (ILM) 
+V. TÀI LIỆU THAM KHẢO / REFERENCES 
+
+
+
+I. GIỚI THIỆU ĐỀ TÀI
+1. Thuyết minh tóm tắt và Mục tiêu phát triển đề tài
+Đề tài tập trung nghiên cứu, thiết kế và xây dựng một nền tảng thương mại điện tử đa người bán phân tán (Multi-vendor E-Commerce Platform). Hệ thống này cho phép nhiều nhà bán hàng độc lập (sellers) tự đăng ký, quản lý danh mục sản phẩm , kiểm soát tồn kho riêng biệt và trực tiếp vận hành các gian hàng ảo của mình. Phía khách hàng được cung cấp khả năng duyệt tìm sản phẩm từ nhiều shop khác nhau trong cùng một giao diện, thêm vào một giỏ hàng (cart) chung duy nhất và tiến hành thanh toán trong một giao dịch tích hợp.
+Hạ tầng xử lý tài chính của nền tảng chịu trách nhiệm tự động hóa quá trình nhận tiền, áp dụng chính sách bảo vệ người mua 7 ngày trước khi giải ngân cho seller, phân chia doanh thu (revenue split) tự động khi hết thời hạn bảo vệ và đẩy dòng tiền về tài khoản ngân hàng của từng seller tương ứng thông qua Stripe Connect. Đồng thời, nền tảng tích hợp trợ lý đàm thoại thông minh (AI Assistant) phát triển trên mô hình ngôn ngữ lớn (LLM), có khả năng hiểu ngữ nghĩa người dùng để tìm kiếm sản phẩm nâng cao, tra cứu trạng thái đơn hàng, và trực tiếp gọi các dịch vụ nghiệp vụ nhạy cảm như hủy đơn hàng (cancel order) hoặc yêu cầu hoàn tiền (request refund) thông qua kỹ thuật Tool Calling.
+Tư duy kiến trúc và Phương pháp luận cốt lõi: Đề tài này đặt trọng tâm nghiên cứu vào phương pháp luận thiết kế hệ thống và thiết lập một Kiến trúc tham chiếu có độ tin cậy cao để giải quyết các thách thức kỹ thuật phân tán phức tạp. Đề tài không hướng đến việc tạo ra một ứng dụng e-commerce CRUD đơn giản — vốn đã có rất nhiều giải pháp có sẵn như WooCommerce hay Shopify. Mục tiêu nghiên cứu lớn nhất của đề tài là ứng dụng các học thuyết khoa học máy tính phù hợp để giải quyết 6 nhóm bài toán cốt lõi:
+1. Concurrency trong TMĐT và nghẽn cổ chai I/O-Bound: Giải quyết hiện tượng service bị chậm không phải vì thiếu CPU, mà vì phần lớn thời gian request phải chờ database, Redis, payment gateway, search index hoặc service khác phản hồi.
+2. High-Concurrency Flash Sale: Xây dựng cơ chế concurrency control cho thao tác kiểm tra và trừ tồn kho giới hạn, bảo đảm không xảy ra oversell khi nhiều khách hàng cùng tranh một SKU.
+3. Distributed Transaction Consistency: Giải quyết bài toán nhất quán dữ liệu trạng thái giữa các microservices độc lập mà không cần áp dụng các cơ chế lock chặn truyền thống làm suy giảm thông lượng hệ thống.
+4. Automated Revenue Split & Compliance: Tự động hóa chuỗi giao dịch phân chia dòng tiền đa người bán, áp dụng chính sách Delayed Transfer giữ tiền trong thời hạn bảo vệ người mua 7 ngày trước khi giải ngân, đáp ứng các quy định pháp lý về trung gian thanh toán.
+5. AI Agent Authorization Gap & Security: Giảm rủi ro bảo mật phát sinh khi cho phép mô hình AI đề xuất hoặc kích hoạt các tác vụ nghiệp vụ có tác động đến tài chính hoặc trạng thái đơn hàng của người dùng.
+6. Vietnamese Semantic Search: Tối ưu hóa bộ máy tìm kiếm cho đặc trưng ngữ nghĩa, dấu thanh và chuẩn Unicode của tiếng Việt nhằm nâng cao độ chính xác của kết quả truy vấn với độ trễ thấp.
+
+2. Bối cảnh thực tế phát sinh nhu cầu
+Sự chuyển dịch mạnh mẽ từ mô hình thương mại điện tử đơn người bán (Single-vendor) sang mô hình sàn thương mại điện tử đa người bán (Marketplace - Multi-vendor) như Amazon, Shopee hay Lazada đang tạo ra những giá trị kinh tế và hiệu ứng mạng lưới (Network Effects) vượt trội. Sellers được giảm thiểu chi phí tiếp thị và tiếp cận tập khách hàng sẵn có, trong khi nền tảng tối ưu hóa được danh mục sản phẩm và chi phí lưu kho. Tuy nhiên, sự dịch chuyển này đặt ra những thách thức công nghệ chưa từng có đối với các kỹ sư kiến trúc:
+· Tải xử lý tăng đột biến: Các chiến dịch khuyến mại quy mô lớn (Flash Sale) thu hút nhiều người dùng tranh chấp một vài mã sản phẩm giới hạn trong cùng một thời điểm. Việc cơ sở dữ liệu quá tải hoặc ghi nhận sai lệch tồn kho (oversell) làm giảm độ tin cậy của sàn.
+· Sự phân rã hệ thống: Chuyển đổi sang kiến trúc Microservices để scale hệ thống độc lập vô tình tạo ra bài toán phân mảnh dữ liệu. Một giao dịch đặt hàng thành công đòi hỏi sự thay đổi trạng thái đồng bộ giữa nhiều service (Order, Product, Payment, Shipping) có cơ sở dữ liệu riêng biệt.
+· Gánh nặng tài chính và Pháp lý: Quy trình đối soát thủ công dòng tiền cho hàng nghìn sellers vào cuối kỳ không chỉ tốn kém nhân lực mà còn gây rủi ro sai sót tài chính nghiêm trọng. Hơn thế nữa, theo Nghị định 101/2012/NĐ-CP và Nghị định 52/2024/NĐ-CP tại Việt Nam, việc sàn thương mại điện tử tự vận hành ví tiền nội bộ, thu hộ tiền của khách hàng rồi tạm giữ để phân phối sau cho sellers mà không được cấp phép dịch vụ trung gian thanh toán là hành vi vi phạm pháp luật. Do đó, việc tích hợp một giải pháp thanh toán tự động, tuân thủ pháp lý thông qua một cổng thanh toán được cấp phép là yêu cầu bắt buộc.
+· Nguy cơ bảo mật từ trí tuệ nhân tạo: Việc tích hợp trợ lý AI đàm thoại tự động gọi API (LLM Tool Calling) để phục vụ khách hàng đang trở thành xu hướng. Tuy nhiên, nếu thiếu một lớp bảo mật xác thực độc lập đứng giữa AI và hệ thống cốt lõi, hacker có thể dễ dàng sử dụng kỹ thuật Prompt Injection (chèn lệnh gián tiếp thông qua phần mô tả sản phẩm mà AI sẽ đọc) để ép AI tự động thực hiện các thao tác hủy đơn hàng hoặc hoàn tiền trái phép của người dùng khác.
+
+3. Khảo sát nghiên cứu liên quan và Giới hạn giải pháp truyền thống
+Để làm rõ tính khoa học và giá trị thực tiễn của đề tài, báo cáo thực hiện khảo sát chi tiết các hướng tiếp cận truyền thống và các giải pháp hiện có, phân tích sâu các giới hạn vật lý và failure modes của chúng.
+Bảng I.1: Khảo sát và so sánh các giải pháp truyền thống với giải pháp đề xuất
+Nghiệp vụ
+Giải pháp khảo sát
+Nguyên lý vận hành truyền thống
+Giới hạn kỹ thuật & Failure Modes
+Phương án đề xuất cải tiến
+Concurrency I/O-Bound trong TMĐT
+- Spring MVC với Platform Threads.- Thread-per-request mặc định trên servlet container.
+- Mỗi request chiếm một OS thread trong suốt thời gian xử lý.- Khi gọi database, Redis, Feign client, Stripe hoặc Elasticsearch, thread chờ I/O cho đến khi downstream phản hồi.
+- Thread Starvation: Nhiều thread bị giữ ở trạng thái chờ, làm request mới phải xếp hàng dù CPU chưa dùng hết.- Connection Pool Pressure: Khi downstream chậm, thread và connection cùng bị giữ lâu hơn.- Latency Amplification: Một service chậm có thể làm tăng p99 latency của toàn bộ chuỗi checkout hoặc tìm kiếm.
+- Dùng Spring MVC + Java 25 Virtual Threads cho service imperative có nhiều blocking I/O nhưng vẫn cần lập trình tuần tự dễ kiểm soát.- Dùng Spring WebFlux cho API Gateway, streaming, chat và luồng cần non-blocking/backpressure.- Áp dụng timeout, bulkhead và giới hạn connection pool theo từng downstream.
+Race Condition trong Flash Sale
+- Pessimistic Locking ở database.- Optimistic Locking với retry.
+- Database giữ khóa dòng tồn kho hoặc kiểm tra version khi cập nhật.- Request tranh cùng một SKU phải chờ hoặc retry nhiều lần.
+- Hot-row Contention: Một SKU hot trở thành điểm tranh chấp tại database.- Retry Storm: Optimistic locking kém hiệu quả khi tỷ lệ xung đột ghi rất cao.- Lock Queue Growth: Hàng đợi khóa tăng làm p99 latency khó kiểm soát.
+- Dùng Redis Lua Script để đóng gói Read-Check-Write thành thao tác nguyên tử trên Redis.- Dùng EVALSHA để giảm payload gửi script.- Ghi trạng thái hạ nguồn bất đồng bộ qua event sau khi đã xác định kết quả đặt mua.
+Distributed Transaction
+- Cam kết 2 pha (2-Phase Commit - 2PC / XA Transactions).- Gọi REST API đồng bộ liên tiếp.
+- Điều phối viên gửi lệnh biểu quyết đến các service tham gia, giữ khóa tài nguyên trên tất cả các node cho đến khi commit.
+- Blocking Protocol: Nếu Coordinator hoặc một node bị mất kết nối trong quá trình biểu quyết, các tài nguyên liên quan có thể bị giữ lâu.
+- Cascading Failures: Gọi REST API đồng bộ tạo liên kết chặt chẽ; một service chậm làm cả chuỗi xử lý chậm theo.
+- Áp dụng Eventual Consistency.- Sử dụng Axon Framework triển khai CQRS, Event Sourcing để lưu vết event bất biến.- Saga Orchestrator tự động hóa compensating transactions khi có sự cố.
+Dòng tiền đa người bán
+- Thu tiền tập trung (Merchant of Record).- Đối soát thủ công (Manual Split & Payouts).
+- Toàn bộ tiền khách hàng chuyển về tài khoản công ty của sàn.- Cuối kỳ, bộ phận kế toán thực hiện đối soát thủ công và chuyển khoản ngân hàng cho từng seller.
+- Scalability Limit: Khó mở rộng khi hệ thống đạt quy mô hàng vạn giao dịch mỗi ngày.- Legal Risk: Tự giữ và phân phối tiền khách hàng có thể vi phạm quy định về trung gian thanh toán nếu không có giấy phép phù hợp.- PCI Scope Expansion: Sàn phải đối mặt với yêu cầu PCI DSS khắt khe nếu tự lưu thông tin thẻ.
+- Tích hợp Stripe Connect Express API với cơ chế Delayed Transfer.- Buyer trả hàng trong 7 ngày → Stripe Refund trực tiếp về thẻ, không cần Transfer Reversal.- Sau 7 ngày không có trả hàng → Scheduled Job kích hoạt Stripe Transfer cho seller.
+An ninh trợ lý AI
+- Direct Tool Calling (Tích hợp AI trực tiếp).
+- Mô hình AI nhận diện câu lệnh của người dùng và trực tiếp sinh tool call để gọi API nghiệp vụ của hệ thống.
+- Authorization Gap: LLM không tự đại diện cho consent của người dùng.- Prompt Injection: Nội dung từ sản phẩm, trang web hoặc lịch sử chat có thể ảnh hưởng đến quyết định gọi tool.
+- Thiết lập Risk-Based Interceptor phân tier rủi ro.- Với tác vụ nhạy cảm, sinh confirmation token tạm thời có TTL 5 phút lưu trên Redis.- Xây dựng quy trình phê duyệt Human-in-the-loop qua kênh đẩy SSE.
+Tìm kiếm tiếng Việt
+- SQL LIKE %keyword%.- Elasticsearch Standard Analyzer mặc định.
+- Quét chuỗi ký tự trên cơ sở dữ liệu giao dịch.- Standard Analyzer phân tách văn bản dựa trên khoảng trắng đơn thuần.
+- Full Table Scan: Truy vấn LIKE không tận dụng index, gây tải lớn khi bảng sản phẩm tăng quy mô.- Tokenization Failure: Tiếng Việt dùng khoảng trắng để tách âm tiết chứ không phải luôn tách từ. Standard Analyzer chia "máy tính" thành "máy" và "tính", làm mất ngữ nghĩa từ ghép.
+- Elasticsearch ICU Analyzer kết hợp Unicode Normalization.- ICU Folding hỗ trợ tìm kiếm song song có dấu và không dấu.- Đồng bộ Near Real-Time thông qua Event-Driven Sync từ Product Service sang Search Service.
+
+II. NỀN TẢNG LÝ THUYẾT & BÀI TOÁN 
+1. Định nghĩa Bài toán và Yêu cầu cốt lõi
+Sáu bài toán kỹ thuật dưới đây được xác định trực tiếp từ bối cảnh vận hành thực tế của nền tảng TMĐT đa người bán. Mỗi bài toán được phân tích thành ba tầng: Vấn đề (tại sao phải giải quyết), Yêu cầu định lượng (tiêu chí kiểm chứng), và Tầm quan trọng (hệ quả nếu thất bại).
+1.1 Bài toán 1: Concurrency trong TMĐT: Nghẽn cổ chai I/O-Bound
+Vấn đề: Trong hệ thống TMĐT, nhiều request không tiêu tốn CPU liên tục mà chủ yếu chờ I/O: truy vấn database, gọi Redis, gọi payment gateway, gọi Feign client sang service khác, gửi Kafka event, hoặc truy vấn Elasticsearch. Với mô hình thread-per-request truyền thống, mỗi request giữ một platform thread trong suốt thời gian chờ. Khi downstream chậm hoặc số request đồng thời tăng, thread pool và connection pool bị chiếm giữ lâu hơn, làm request mới phải xếp hàng dù CPU chưa chắc đã quá tải.
+Tầm quan trọng: Nếu không xử lý đúng bài toán I/O-bound, hệ thống có thể chậm ở checkout, tìm kiếm, giỏ hàng hoặc thanh toán dù logic nghiệp vụ không phức tạp. Vấn đề không nằm ở một thuật toán tính toán nặng, mà ở cách tài nguyên thread, connection và event loop bị giữ trong thời gian chờ I/O.
+1.2 Bài toán 2: Race Condition — Bán lố hàng trong Flash Sale
+Vấn đề: Trong phiên Flash Sale, nhiều khách hàng đồng thời đặt mua một SKU có số lượng giới hạn. Quy trình Read-Check-Write (Đọc tồn kho → Kiểm tra đủ hàng → Trừ kho) nếu thực thi song song trên cùng một trạng thái tồn kho mà không có cơ chế nguyên tử hóa sẽ dẫn đến Oversell. Ví dụ, hai request cùng đọc tồn kho là 1, cùng đánh giá còn hàng, rồi cùng ghi nhận mua thành công.
+Tầm quan trọng: Flash sale là nơi một dòng dữ liệu tồn kho có thể trở thành điểm tranh chấp chính. Nếu thao tác trừ kho không nguyên tử, hệ thống mất tính đúng đắn. Nếu khóa đặt hoàn toàn ở database, độ trễ và hàng đợi khóa sẽ tăng nhanh khi nhiều request cùng tranh một SKU.
+
+1.3 Bài toán 3: Nhất quán Dữ liệu trong Giao dịch Phân tán
+Vấn đề: Kiến trúc Microservices phân tách database theo service. Một giao dịch đặt hàng thành công đòi hỏi thay đổi trạng thái đồng bộ trên nhiều service (Order → Product → Payment → Notification) với database riêng biệt. Cơ chế 2-Phase Commit (2PC) truyền thống chặn tất cả tài nguyên tham gia cho đến khi hoàn tất, làm giảm tính sẵn sàng của hệ thống. Nếu Coordinator mất kết nối giữa chừng, các tài nguyên có thể bị giữ trong trạng thái chờ.
+Yêu cầu định lượng:
+Chỉ tiêu
+Ngưỡng yêu cầu
+Tính nhất quán
+Eventual Consistency (≤ 5s)
+Khả năng Audit Trail
+100% thay đổi trạng thái được ghi vết bất biến
+Tự động bồi hoàn khi lỗi
+Compensating transaction tự động, không can thiệp thủ công
+Tính sẵn sàng
+Hệ thống vẫn phục vụ khi một service con gặp sự cố
+
+Tầm quan trọng: Mâu thuẫn dữ liệu giữa Order và Payment gây khó đối soát và xử lý khiếu nại. Không có audit trail, hệ thống khó xác định một đơn hàng đã đi qua những trạng thái nào và lỗi xảy ra ở bước nào.
+
+1.4 Bài toán 4: Phân chia Dòng tiền Đa người bán và Tuân thủ Pháp lý
+Vấn đề: Một giỏ hàng chứa sản phẩm của nhiều seller khác nhau, nhưng khách hàng chỉ thực hiện một giao dịch thanh toán duy nhất. Hệ thống phải phân tách và định tuyến dòng tiền chính xác về từng seller, đồng thời tuân thủ pháp luật về trung gian thanh toán. Nếu tự vận hành ví nội bộ để giữ và phân phối tiền khách hàng, nền tảng phải gánh thêm trách nhiệm pháp lý, đối soát và bảo mật dữ liệu thanh toán.
+Yêu cầu định lượng:
+Chỉ tiêu
+Ngưỡng yêu cầu
+Phân tách dòng tiền
+Tự động, chính xác đến từng seller trong cùng một giao dịch
+Tuân thủ pháp lý
+Không tự vận hành ví nội bộ nếu không có giấy phép phù hợp
+PCI DSS
+SAQ-A (không lưu trữ thông tin thẻ)
+Thời gian bảo vệ người mua
+7 ngày (Delayed Transfer)
+Xác thực webhook
+HMAC-SHA256, chống replay attack
+
+Tầm quan trọng: Khi quy mô giao dịch tăng, đối soát thủ công dễ tạo sai lệch và chậm xử lý hoàn tiền. Phân tách dòng tiền cần có primitive thanh toán phù hợp thay vì chỉ là nghiệp vụ ghi nhận trong database nội bộ.
+
+1.5 Bài toán 5: Authorization Gap — Lỗ hổng Ủy quyền trong Trợ lý AI
+Vấn đề: Khi tích hợp LLM Tool Calling, AI có khả năng đề xuất hoặc kích hoạt các API nghiệp vụ như hủy đơn, hoàn tiền, thay đổi địa chỉ. LLM chỉ phân tích ý định ngôn ngữ (intent), không tự đại diện cho sự đồng ý có ý thức (explicit consent) của người dùng. Prompt Injection có thể làm mô hình sinh tool call không phù hợp nếu hệ thống thiếu lớp kiểm tra độc lập.
+Yêu cầu định lượng:
+Chỉ tiêu
+Ngưỡng yêu cầu
+Phân loại rủi ro hành động
+3 tầng (Read-Only / State Change / Financial)
+Cơ chế xác nhận tác vụ nhạy cảm
+Human-in-the-loop bắt buộc
+Token xác nhận
+Dùng một lần, TTL 5 phút, chống Replay
+Chống Prompt Injection
+Interceptor kiểm tra trước khi thực thi
+
+Tầm quan trọng: Tác vụ AI liên quan đến đơn hàng và tiền cần được kiểm soát như một hành động có quyền, không chỉ như một câu trả lời ngôn ngữ. Lớp xác nhận độc lập giúp phân biệt ý định suy luận của mô hình với quyết định thật của người dùng.
+
+1.6 Bài toán 6: Tìm kiếm Sản phẩm với Ngôn ngữ Tiếng Việt
+Vấn đề: Tiếng Việt có đặc thù ngôn ngữ học: từ ghép đa âm tiết, hệ thống dấu thanh và khác biệt Unicode NFC/NFD giữa môi trường nhập liệu. SQL LIKE gây quét dữ liệu khi tập sản phẩm lớn. Elasticsearch Standard Analyzer mặc định phân tách theo khoảng trắng, nên dễ làm mất ngữ nghĩa của từ ghép tiếng Việt.
+Tầm quan trọng: Tìm kiếm là luồng đọc quan trọng của TMĐT. Nếu phân tích tiếng Việt không tốt, sản phẩm liên quan khó xuất hiện đúng thứ tự, làm trải nghiệm duyệt hàng và tỷ lệ chuyển đổi giảm.
+
+2. Biện chứng Lựa chọn Công nghệ và Nền tảng Lý thuyết
+Mục này trình bày mối liên hệ giữa bài toán học thuật, yêu cầu kỹ thuật và công nghệ được chọn. 
+2.1 Spring MVC + Java 25 Virtual Threads và Spring WebFlux → Bài toán 1
+Cơ sở học thuật của bài toán
+Concurrency I/O-bound là trường hợp nhiều tác vụ cùng tồn tại, nhưng phần lớn thời gian của chúng nằm ở trạng thái chờ I/O. Theo mô hình hàng đợi, độ trễ tăng mạnh khi tài nguyên phục vụ bị chiếm giữ lâu hơn tốc độ giải phóng. Với Platform Threads, request đang chờ database hoặc HTTP downstream vẫn giữ một OS thread. Khi số request tăng, hệ thống bị giới hạn bởi thread pool và connection pool trước khi CPU đạt ngưỡng bão hòa.
+Nền tảng lý thuyết công nghệ
+1. Spring MVC & Java 25 Virtual Threads: Tối Ưu Hóa Imperative Programming
+Bản chất của Spring MVC truyền thống
+Mô hình xử lý: Tuần tự (Imperative) – request đi qua Controller -> Service ->Repository ->Response. Dễ đọc, dễ debug và tương thích hoàn hảo với các transaction truyền thống (JPA/JDBC).
+Điểm nghẽn cũ: Cơ chế thread-per-request gắn chặt mỗi kết nối với một Platform Thread (OS thread). Khi gặp tác vụ blocking I/O (chờ Database, gọi bên thứ ba), Platform Thread bị giữ chân ở trạng thái chờ gây lãng phí tài nguyên hệ thống nghiêm trọng.
+Cách Virtual Threads (Java 25) giải quyết điểm nghẽn
+Cơ chế: Virtual Thread (VT) là luồng siêu nhẹ do JVM quản lý, không ánh xạ 1:1 với OS thread. Nhiều VT được lập lịch chạy trên một nhóm ít Platform Threads đóng vai trò carrier threads.
+Nguyên lý nhả luồng: Khi VT thực hiện blocking I/O, JVM tạm dừng VT đó, tháo nó khỏi carrier thread để nhường chỗ cho VT khác chạy. Khi I/O hoàn tất, VT được gắn lại vào một carrier thread tự do để tiếp tục tiến trình.
+2. Spring WebFlux & R2DBC: Sức Mạnh Reactive Toàn Diện
+Bản chất và cơ chế vận hành
+Mô hình xử lý: Reactive, xây dựng trên Reactive Streams, Project Reactor và chạy mặc định với Netty.
+Cơ chế Event Loop: Sử dụng một lượng rất ít luồng (thường bằng số core CPU) để xử lý bất đồng bộ, non-blocking I/O. Khi gặp I/O, event loop đăng ký một callback rồi chuyển sang xử lý sự kiện khác ngay lập tức, tránh lãng phí thời gian chờ.
+Ứng dụng tối ưu: Thích hợp cho API Gateway, Server-Sent Events (SSE), WebSocket, chat streaming, notification streaming và các kết nối thời gian thực kéo dài.
+Tầm quan trọng của Backpressure 
+Khái niệm: Cho phép bên nhận (subscriber) chủ động thông báo cho bên phát (publisher) biết lượng dữ liệu tối đa có thể tiêu thụ tại một thời điểm.
+Ý nghĩa: Tránh tình trạng tràn bộ nhớ (Out Of Memory) trong các luồng streaming (như token AI, SSE thông báo, proxy qua gateway) khi client hoặc downstream có tốc độ xử lý chậm hơn phía phát.
+R2DBC (Reactive Relational Database Connectivity) – Mảnh ghép cuối cùng
+Để ứng dụng WebFlux phát huy tối đa sức mạnh, toàn bộ chuỗi xử lý (pipeline) phải là non-blocking. Nếu sử dụng JDBC truyền thống, Event Loop của Netty sẽ bị nghẽn (blocked) ngay khi truy vấn cơ sở dữ liệu. R2DBC ra đời để giải quyết triệt để vấn đề này ở tầng dữ liệu quan hệ.
+Sự khác biệt cốt lõi giữa JDBC và R2DBC:
+JDBC: Thiết kế đồng bộ (Synchronous). Mỗi kết nối đến database sở hữu một thread riêng và thread này bị block hoàn toàn để chờ đợi phản hồi từ database thông qua I/O socket.
+R2DBC: Thiết kế bất đồng bộ (Asynchronous). Giao tiếp với database qua các socket non-blocking. Thay vì block thread để đợi kết quả, driver của R2DBC trả về một Publisher (Mono hoặc Flux) để thông báo khi có dữ liệu sẵn sàng.
+Sức mạnh của công nghệ được chọn
+Yêu cầu từ Mục 1.1
+Công nghệ đáp ứng
+Lý do phù hợp
+Nhiều request I/O-bound đồng thời
+Spring MVC + Java 25 Virtual Threads
+Giữ mô hình xử lý tuần tự dễ đọc cho nghiệp vụ, nhưng giảm chi phí giữ OS thread trong thời gian chờ I/O.
+Luồng streaming và kết nối dài
+Spring WebFlux + Netty
+Event loop và reactive stream phù hợp cho SSE, gateway, chat và endpoint cần backpressure.
+Kiểm soát downstream chậm
+Timeout, bulkhead, connection pool limit
+Concurrency chỉ hiệu quả nếu mỗi downstream có giới hạn rõ; nếu không, tải chờ sẽ dồn sang database hoặc service phụ thuộc.
+Dễ chọn mô hình theo service
+Kết hợp MVC và WebFlux theo workload
+Không ép toàn hệ thống theo một mô hình duy nhất; service imperative dùng MVC + Virtual Threads, service streaming/non-blocking dùng WebFlux.
+
+So sánh với hướng thay thế
+Hướng thay thế
+Hạn chế trong bài toán này
+Spring MVC với Platform Threads mặc định
+Dễ triển khai, nhưng mỗi request chờ I/O giữ một OS thread. Khi số request đồng thời tăng, thread pool trở thành điểm nghẽn.
+Dùng WebFlux cho mọi service
+Có thể xử lý non-blocking tốt, nhưng làm tăng độ phức tạp ở các service nghiệp vụ thuần database/transaction nếu toàn bộ hệ sinh thái chưa reactive.
+Chỉ tăng số lượng instance
+Có tác dụng ngắn hạn, nhưng không giải quyết nguyên nhân tài nguyên bị giữ lâu do I/O chờ và thiếu giới hạn downstream.
+
+
+2.2 Redis Lua Script → Bài toán 2
+Cơ sở học thuật của bài toán
+Race condition xuất hiện khi nhiều tiến trình cùng thao tác trên shared state mà không có critical section đủ rõ. Trong flash sale, shared state là tồn kho của một SKU. Yêu cầu chính là biến chuỗi Read-Check-Write thành một thao tác nguyên tử, để không request nào xen vào giữa bước đọc tồn kho và bước trừ tồn kho.
+Nền tảng lý thuyết công nghệ
+Redis xử lý command trên một luồng thực thi chính, còn tầng mạng dùng I/O multiplexing để tiếp nhận nhiều kết nối. Khi một Lua Script được thực thi, Redis chạy toàn bộ script liên tục trước khi xử lý command tiếp theo. Vì vậy, logic kiểm tra tồn kho, kiểm tra giới hạn mua và trừ kho có thể được đóng gói thành một critical section ngắn trên bộ nhớ.
+Lua Script cần được thiết kế nhỏ và có thời gian chạy ngắn, vì script đang chạy sẽ chặn các command khác trên Redis. Cơ chế SCRIPT LOAD và EVALSHA giúp tải script trước, sau đó request chỉ gửi mã SHA-1 để thực thi lại script đã cache. Ở phía client, Lettuce phù hợp hơn Jedis trong workload nhiều request vì hỗ trợ non-blocking I/O và multiplexing trên Netty.
+Sức mạnh của công nghệ được chọn
+Yêu cầu từ Mục 1.2
+Công nghệ đáp ứng
+Lý do phù hợp
+0% oversell
+Redis Lua Script
+Chuỗi kiểm tra và trừ kho được thực thi nguyên tử trên cùng một key, giảm khả năng xen ngang giữa các request.
+Độ trễ thấp tại SKU hot
+In-memory operation
+Dữ liệu flash sale đặt trên Redis giúp giảm I/O đĩa và giảm tranh chấp row lock ở database.
+Payload nhỏ khi gọi script nhiều lần
+EVALSHA
+Ứng dụng gửi mã hash của script đã load thay vì gửi toàn bộ script ở mỗi request.
+Client chịu tải tốt
+Lettuce / Netty-backed Redis client
+Multiplexing giúp giảm nhu cầu mở nhiều kết nối Redis khi số request tăng.
+
+So sánh với hướng thay thế
+Hướng thay thế
+Hạn chế trong bài toán này
+Pessimistic Locking tại PostgreSQL
+Bảo đảm đúng dữ liệu, nhưng đưa tranh chấp hot SKU vào hàng đợi khóa của database.
+Optimistic Locking
+Phù hợp khi xung đột thấp; với SKU hot, số lần retry tăng nhanh vì nhiều request cùng cập nhật một version.
+Distributed Lock
+Cần thêm thao tác lấy khóa, gia hạn khóa và nhả khóa. Với thao tác trừ kho ngắn, Lua Script đơn giản và ít vòng mạng hơn.
+
+
+2.3 Axon Framework (CQRS + Event Sourcing + Saga Orchestrator) → Bài toán 3
+Cơ sở học thuật của bài toán
+Bài toán nhất quán dữ liệu trong microservices xuất phát từ việc mỗi service sở hữu database riêng. Theo CAP theorem và lý thuyết distributed transaction, giữ strong consistency trên nhiều node thường làm giảm availability hoặc tăng độ trễ. Hướng phù hợp hơn cho luồng đặt hàng là eventual consistency: mỗi service hoàn tất transaction cục bộ, sau đó phát event để các service khác tiến tới trạng thái nhất quán.
+Nền tảng lý thuyết công nghệ
+Event Sourcing lưu thay đổi trạng thái thành chuỗi event bất biến thay vì chỉ lưu snapshot cuối cùng. Chuỗi event cho phép replay, audit và phân tích lỗi theo thời gian.
+CQRS tách command side và query side. Command side tập trung kiểm soát invariant khi ghi; query side dùng read model tối ưu cho truy vấn.
+Saga Orchestrator mô hình hóa quy trình nghiệp vụ thành state machine. Mỗi bước gửi command tới service liên quan; nếu một bước lỗi hoặc timeout, Saga gửi compensating command để đưa nghiệp vụ về trạng thái hợp lệ.
+Sức mạnh của công nghệ được chọn
+Yêu cầu từ Mục 1.3
+Công nghệ đáp ứng
+Lý do phù hợp
+Audit Trail
+Event Sourcing
+Lưu vết từng thay đổi trạng thái dưới dạng event bất biến.
+Bồi hoàn khi lỗi
+Saga Orchestrator
+Điều phối các bước nghiệp vụ và kích hoạt compensating transaction khi cần.
+Tách tải đọc/ghi
+CQRS
+Query side không làm ảnh hưởng trực tiếp đến command side của giao dịch đặt hàng.
+Giao tiếp liên service
+Kafka integration
+Event liên service được tiêu thụ bất đồng bộ và có thể xử lý idempotent.
+
+
+2.4 Stripe Connect Express + Delayed Transfer → Bài toán 4
+Cơ sở học thuật của bài toán
+Thanh toán đa người bán là bài toán settlement, reconciliation và risk allocation. Một payment từ buyer cần được ánh xạ thành nhiều khoản transfer cho seller, trong khi nền tảng vẫn cần xử lý refund, phí nền tảng, khiếu nại và đối soát.
+Nền tảng lý thuyết công nghệ
+Stripe Connect cung cấp mô hình platform và connected account. Với Separate Charges and Transfers, payment ban đầu được gắn với transfer_group, sau đó nền tảng tạo transfer riêng cho từng seller. Delayed Transfer trì hoãn payout theo chính sách bảo vệ buyer. Stripe Elements giúp thông tin thẻ đi trực tiếp qua thành phần do Stripe quản lý, giảm phạm vi dữ liệu nhạy cảm mà backend phải xử lý. Webhook được xác thực bằng chữ ký HMAC-SHA256 để bảo vệ trạng thái thanh toán bất đồng bộ.
+Sức mạnh của công nghệ được chọn
+Yêu cầu từ Mục 1.4
+Công nghệ đáp ứng
+Lý do phù hợp
+Split payment theo seller
+Connect + Separate Charges and Transfers
+Mỗi seller có transfer riêng, còn payment tổng vẫn gắn với một đơn hàng.
+Bảo vệ buyer
+Delayed Transfer
+Refund có thể xử lý trước khi transfer cho seller được phát hành.
+Giảm phạm vi dữ liệu thẻ
+Stripe Elements
+Backend không cần lưu thông tin thẻ thô.
+Tin cậy trạng thái thanh toán
+Webhook signature verification
+Chỉ xử lý webhook có chữ ký hợp lệ.
+
+
+2.5 Spring AI + Risk-Based Interceptor + Redis One-Time Token → Bài toán 5
+Cơ sở học thuật của bài toán
+Tool Calling tạo ra biến thể của confused deputy problem. Mô hình AI nhận nhiều nguồn ngữ cảnh, nhưng nếu được phép thực thi hành động trực tiếp, nó có thể trở thành tác nhân thực hiện yêu cầu không thật sự xuất phát từ người dùng hợp lệ. Prompt Injection là dạng thao túng ngữ cảnh đầu vào, nên kiểm soát an toàn không nên chỉ dựa vào prompt.
+Nền tảng lý thuyết công nghệ
+Spring AI cho phép khai báo tool trong cùng hệ sinh thái Spring, nhờ đó authorization, audit và validation có thể dùng lại các thành phần hiện có. Risk-Based Interceptor đứng giữa LLM và service nghiệp vụ để phân loại tool call theo mức rủi ro. Với tác vụ tài chính hoặc bảo mật, hệ thống tạo One-Time Token lưu trên Redis với TTL ngắn, đẩy yêu cầu xác nhận qua SSE và xóa token ngay sau khi dùng.
+Sức mạnh của công nghệ được chọn
+Yêu cầu từ Mục 1.5
+Công nghệ đáp ứng
+Lý do phù hợp
+Phân loại rủi ro hành động
+Risk-Based Interceptor
+Kiểm tra tool call trước khi tác động đến service nghiệp vụ.
+Xác nhận độc lập
+Human-in-the-loop qua SSE
+Quyết định của người dùng tách khỏi ngữ cảnh suy luận của mô hình.
+Chống replay
+Redis One-Time Token
+Token có TTL và bị xóa sau khi xác nhận.
+Tích hợp bảo mật hiện có
+Spring AI trong Spring Boot
+Dễ gắn với audit log, ownership check và session hiện tại.
+
+
+2.6 Elasticsearch ICU Analyzer + Kafka Event-Driven Sync → Bài toán 6
+Cơ sở học thuật của bài toán
+Tìm kiếm sản phẩm là bài toán Information Retrieval. Chất lượng kết quả phụ thuộc vào cách biểu diễn văn bản, tokenization, normalization và ranking. Với tiếng Việt, khoảng trắng thường tách âm tiết chứ không luôn tách từ hoàn chỉnh; ngoài ra, dữ liệu nhập từ nhiều thiết bị có thể khác chuẩn Unicode.
+Nền tảng lý thuyết công nghệ
+ICU Analyzer dựa trên chuẩn Unicode để xử lý ranh giới ký tự, dấu và biến thể Unicode tốt hơn analyzer chỉ dựa vào khoảng trắng. ICU Normalizer đưa dữ liệu về cùng dạng chuẩn, còn ICU Folding hỗ trợ truy vấn không dấu. BM25 là mô hình xếp hạng xác suất, cân bằng tần suất từ khóa, độ dài tài liệu và độ hiếm của từ trong tập tài liệu; cách này phù hợp với tiêu đề và mô tả sản phẩm có độ dài khác nhau. Kafka Event-Driven Sync giúp search-service cập nhật index bất đồng bộ từ event nghiệp vụ thay vì truy vấn trực tiếp database giao dịch.
+Sức mạnh của công nghệ được chọn
+Yêu cầu từ Mục 1.6
+Công nghệ đáp ứng
+Lý do phù hợp
+Phân tích tiếng Việt
+Elasticsearch ICU Analyzer
+Xử lý tốt hơn dấu, chuẩn Unicode và ranh giới token so với Standard Analyzer.
+Tìm kiếm có dấu/không dấu
+ICU Normalizer + ICU Folding
+Giảm sai lệch do cách nhập liệu khác nhau.
+Xếp hạng kết quả
+BM25
+Cân bằng tần suất từ khóa, độ dài nội dung và độ hiếm của từ.
+Đồng bộ search index
+Kafka Event-Driven Sync
+Tách tải search khỏi database chính và giữ read model gần thời gian thực.
+
+
+3. Ma trận Ràng buộc Kỹ thuật khi Triển khai
+Mỗi công nghệ được lựa chọn đều đi kèm các ràng buộc kỹ thuật phải tuân thủ trong quá trình thiết kế và vận hành:
+STT
+Công nghệ
+Ràng buộc kỹ thuật
+Hệ quả nếu vi phạm
+1
+Spring MVC + Java 25 Virtual Threads
+Tránh pinning kéo dài do synchronized hoặc native call; cấu hình timeout và giới hạn connection pool theo từng downstream.
+Virtual Threads không giúp được nếu downstream không có giới hạn hoặc carrier thread bị giữ lâu.
+2
+Spring WebFlux
+Không gọi JDBC/JPA blocking trong event loop; dùng WebClient, reactive driver hoặc chuyển phần blocking sang bounded scheduler riêng.
+Event loop bị giữ lâu làm nhiều kết nối khác cùng chậm theo.
+3
+Redis Lua Script
+Script phải hoàn thành trong lua-time-limit; không chứa vòng lặp quét lớn; dùng EVALSHA với script đã load trước.
+Redis phải chờ script hoàn tất trước khi xử lý command khác.
+4
+Axon Saga Orchestrator
+Command handler phải idempotent; Saga cần timeout/deadline rõ; Event Store cần snapshot policy khi aggregate dài.
+Dễ xử lý trùng lặp command hoặc làm thời gian rebuild aggregate tăng.
+5
+Stripe Connect
+Phải xác thực Webhook Signature; transfer chỉ thực hiện khi platform balance đủ; Delayed Transfer phải nằm trong giới hạn provider.
+Trạng thái thanh toán có thể bị cập nhật sai hoặc transfer thất bại.
+6
+Spring AI Interceptor
+Token xác nhận phải có TTL và bị xóa sau một lần đọc; phải kiểm tra user ownership của token.
+Có nguy cơ replay hoặc xác nhận thay người dùng khác.
+7
+Elasticsearch ICU
+Phải đồng bộ filter chain giữa index time và query time; mapping multi-field cần khai báo trước khi index.
+Query và index không cùng analyzer sẽ làm giảm khả năng match.
+8
+Kafka Event-Driven
+Producer phát event sau khi transaction nghiệp vụ thành công; consumer phải idempotent.
+Consumer có thể đọc event chưa phản ánh trạng thái thật hoặc xử lý trùng lặp.
+
+
+
+III. GIẢI PHÁP & MÔ HÌNH VẬN HÀNH 
+Mục III trình bày phần triển khai theo góc nhìn vận hành hệ thống, không đi vào mã nguồn. Mỗi bài toán được diễn giải theo cùng một trật tự: use case phát sinh từ nghiệp vụ, business flow người dùng và hệ thống đi qua, service chịu trách nhiệm, công nghệ được đặt ở service nào, và lý do lựa chọn công nghệ đó. Cách trình bày này giúp tách rõ phần lý thuyết của Mục II khỏi phần giải pháp thực tế của Mục III.
+1. Nguyên tắc thiết kế giải pháp
+Hệ thống được thiết kế theo mô hình microservices hướng sự kiện. Mỗi service sở hữu dữ liệu và quyết định nghiệp vụ trong domain của mình; các service khác chỉ nhận kết quả thông qua API hoặc event. Các thao tác cần phản hồi tức thời cho người dùng đi qua api-gateway bằng HTTP. Các thay đổi trạng thái cần lan truyền sang nhiều service, như đơn hàng đã thanh toán, sản phẩm đổi trạng thái, refund được duyệt hoặc flash sale bắt đầu, được phát qua Kafka để giảm phụ thuộc trực tiếp giữa các service.
+Các công nghệ cốt lõi được phân bổ theo bản chất của từng bài toán, không dùng đồng loạt cho mọi nơi. Axon/Event Store chỉ đặt ở những service có vòng đời trạng thái phức tạp và cần audit/replay như order-service, payment-service và flashsale-service. Kafka dùng cho integration event giữa service. Redis dùng cho dữ liệu tạm thời cần tốc độ cao như rate limit, preview token, confirmation token và quyết định tồn kho flash sale. Elasticsearch chỉ phục vụ read model tìm kiếm, không thay thế database giao dịch. Stripe Connect được đặt tại payment-service vì mọi quyết định tiền, KYC, payment, payout và refund cần gom về một biên nghiệp vụ tài chính duy nhất.
+2. Ma trận bài toán, use case và service triển khai
+Bài toán
+Use case nghiệp vụ chính
+Service triển khai chính
+Service phối hợp
+Công nghệ đặt vào hệ thống
+Kết quả cần đạt
+Concurrency I/O-Bound trong TMĐT
+Buyer duyệt sản phẩm, thêm giỏ hàng, checkout, thanh toán; nhiều request cùng chờ database, Redis, Stripe hoặc service khác
+api-gateway, product-service, order-service, payment-service, identity-service
+discovery-service, Redis, database từng service
+Spring WebFlux ở lớp biên và luồng streaming; Java 25 Virtual Threads ở service có flow tuần tự nhiều blocking I/O
+Không cạn thread khi request tăng; downstream chậm không kéo sập toàn bộ hệ thống
+Flash Sale và chống oversell
+Admin tạo phiên, seller đăng ký sản phẩm, buyer bấm mua khi phiên mở
+flashsale-service
+product-service, order-service, search-service, notification-service, Kafka, Redis
+Redis ZSET cho lịch phiên; Redis Lua cho quyết định trừ kho nguyên tử; Kafka cho lan truyền kết quả
+Mua nhanh, phản hồi rõ còn/hết hàng, không bán vượt tồn kho công bố
+Checkout và distributed transaction
+Buyer checkout giỏ hàng nhiều seller, hệ thống giữ kho, tạo đơn, tạo payment, xử lý success/failure
+product-service, order-service
+payment-service, notification-service, Kafka, Axon Server
+Axon CQRS/Event Sourcing + Saga ở order-service; Kafka cho event giữa Product, Order, Payment
+Một checkout tạo parent order và nhiều sub-order nhất quán; lỗi ở payment/kho có bồi hoàn
+Multi-seller payment, refund và payout
+Seller KYC, buyer thanh toán một đơn nhiều seller, buyer có thể refund trong 7 ngày, seller nhận payout sau cửa sổ bảo vệ
+payment-service
+order-service, refund-service, notification-service, Stripe, Kafka
+Stripe Connect Express, PaymentIntent, Delayed Transfer, webhook verification, Axon/Event Store cho trạng thái tài chính
+Không đối soát thủ công; giảm rủi ro giữ tiền trái phép; refund không làm seller âm số dư trước payout
+AI Authorization Gap
+Buyer hỏi AI về sản phẩm/đơn hàng hoặc yêu cầu hủy đơn, refund, thay đổi thông tin
+ai-chat-service
+order-service, product-service, identity-service, Redis, SSE
+Spring AI Tool Calling, Risk-Based Interceptor, Redis one-time confirmation token, SSE
+AI chỉ được tự động đọc dữ liệu an toàn; hành động nhạy cảm phải có xác nhận của người dùng
+Tìm kiếm tiếng Việt
+Buyer tìm bằng tiếng Việt có dấu/không dấu, filter theo giá, tồn kho, flash sale
+search-service
+product-service, Kafka, Elasticsearch
+Elasticsearch ICU Analyzer, ASCII/ICU folding, BM25, Kafka event-carried state transfer
+Search nhanh, đúng ngữ nghĩa tiếng Việt, không truy vấn trực tiếp database giao dịch
+
+3. Ranh giới service trong mô hình vận hành
+Service
+Vai trò nghiệp vụ
+Dữ liệu sở hữu
+Lý do tách riêng
+api-gateway
+Cửa vào duy nhất cho customer, seller, admin; xác thực JWT, route, rate limit
+Không sở hữu domain data
+Tách bảo vệ biên khỏi service nghiệp vụ; WebFlux phù hợp nhiều kết nối đồng thời
+identity-service
+Đăng ký, đăng nhập, người dùng, địa chỉ, vai trò buyer/seller/admin
+USERS, CUSTOMERS, SELLERS, ADMINS, ADDRESSES
+Dữ liệu định danh cần ACID, audit và phân quyền rõ
+product-service
+Catalog, variant, tồn kho, giỏ hàng, ảnh sản phẩm, checkout preview/submit
+Product, category, inventory, cart, image metadata
+Catalog có cấu trúc linh hoạt; checkout cần kiểm tra giá/kho gần nguồn dữ liệu nhất
+flashsale-service
+Phiên flash sale, sản phẩm tham gia, lịch mở/kết thúc.
+FS_SESSIONS, FS_ITEMS
+Flash sale có tải đột biến và trạng thái phiên riêng, cần tách khỏi catalog thường
+order-service
+Parent order, sub-order theo seller, vòng đời đơn, Saga checkout
+PARENT_ORDERS, ORDERS, ORDER_ITEMS
+Đơn hàng là trung tâm điều phối nghiệp vụ, cần Event Sourcing để audit và replay
+payment-service
+Stripe onboarding, PaymentIntent, transaction, seller transfer, payout
+SELLER_STRIPE_ACCOUNTS, TRANSACTIONS, SELLER_TRANSFERS
+Dòng tiền cần một biên trách nhiệm rõ, tránh logic thanh toán rải rác nhiều service
+refund-service
+Tạo, duyệt, từ chối refund; điều phối refund buyer/admin/RTS nếu tách module
+REFUNDS, REFUND_ITEMS
+Refund có quy trình xét duyệt riêng; Stripe execution vẫn liên kết với payment-service
+search-service
+Read model cho tìm kiếm sản phẩm
+Elasticsearch index
+Tách search khỏi database giao dịch để query không ảnh hưởng checkout/inventory
+notification-service
+Lưu và đẩy thông báo realtime qua SSE
+MG_NOTIFICATIONS
+Các service nghiệp vụ không cần giữ kết nối realtime với client
+ai-chat-service
+AI assistant, tool calling, human confirmation
+CHAT_SESSIONS, CHAT_MESSAGES, PENDING_CONFIRMATIONS, TOOL_CALL_LOGS
+Tách vùng rủi ro AI khỏi core service; mọi action nhạy cảm đi qua confirmation
+discovery-service
+Service registry và health discovery
+Không có database
+Cho phép scale/restart service mà không cấu hình cứng địa chỉ
+
+4. Flow triển khai theo từng bài toán nghiệp vụ
+4.1 Bài toán Concurrency I/O-Bound trong TMĐT
+Use case: Một buyer mở trang sản phẩm, lọc danh mục, thêm hàng vào cart, tạo checkout preview và thanh toán. Trong vài giây cao điểm, hàng nghìn buyer có thể cùng thực hiện các thao tác này. Mỗi request không chỉ chạy CPU mà còn chờ nhiều I/O: truy vấn database, gọi Redis, gọi Elasticsearch, gọi Stripe hoặc gọi service nội bộ.
+Business flow: Client gửi request vào api-gateway; gateway xác thực JWT và áp dụng rate limit. Request sau đó được route đến service domain. Với thao tác đọc nhiều như browse/search, hệ thống ưu tiên read model và cache để giảm tải database. Với thao tác ghi như checkout, service kiểm tra dữ liệu gần nguồn sở hữu nhất, tạo token tạm thời hoặc event để các bước tiếp theo xử lý bất đồng bộ.
+Triển khai công nghệ: api-gateway, notification-service và ai-chat-service dùng Spring WebFlux vì các service này phải giữ nhiều kết nối mở, stream SSE hoặc chờ downstream mà không nên chiếm nhiều thread. order-service, payment-service, identity-service và các phần nghiệp vụ tuần tự dùng Spring MVC kết hợp Java 25 Virtual Threads để giữ cách lập trình rõ ràng nhưng giảm chi phí thread khi request chờ I/O. Virtual Threads không thay thế timeout hay giới hạn connection; mỗi downstream vẫn cần connection pool, retry giới hạn và circuit-breaker/bulkhead theo nghiệp vụ.
+Input - Process - Output: Input là request HTTP từ buyer/seller/admin kèm JWT và dữ liệu nghiệp vụ. Process là xác thực, route, kiểm tra quyền, gọi service sở hữu dữ liệu, sau đó ghi hoặc phát event. Output là response tức thời cho người dùng và các event nền cho search, notification hoặc payment.
+4.2 Bài toán Flash Sale: mua nhanh nhưng không oversell
+Use case: Buyer nhìn thấy sản phẩm đang thuộc phiên Flash Sale, thêm sản phẩm vào giỏ hàng và thực hiện checkout khi phiên còn hiệu lực. Hệ thống phải đảm bảo buyer được áp đúng giá khuyến mại, không checkout với giá cũ, không tạo đơn vượt tồn kho thật và nếu thanh toán thất bại thì lượng hàng đã giữ phải được trả lại. 
+Nghiệp vụ đặt mua hàng Flash Sale 
+Bối cảnh sử dụng & Bài toán cụ thể: Khi diễn ra sự kiện Flash Sale, hàng vạn khách hàng gửi yêu cầu mua hàng đồng thời trong giây đầu tiên mở bán. Hệ thống phải xử lý trừ kho cực nhanh, ngăn chặn oversell và trả về phản hồi tức thì cho khách hàng mà không làm sập cơ sở dữ liệu chính.
+Mô hình vận hành:
+Đầu vào (Input): Phiên Flash Sale đang hoạt động, sản phẩm hoặc product variant đã được áp giá Flash Sale, thông tin giỏ hàng của buyer, số lượng mua, địa chỉ giao hàng và thông tin xác thực người dùng. 
+Quá trình xử lý:
+ flashsale-service kích hoạt phiên Flash Sale theo lịch và phát event bắt đầu phiên. product-service nhận event này để áp giá Flash Sale cho sản phẩm, sau đó đồng bộ giá mới sang search-service để buyer nhìn thấy đúng giá khuyến mại. 
+Khi buyer checkout, product-service tạo checkout preview để kiểm tra giá hiện tại, tồn kho và trạng thái sản phẩm. Nếu dữ liệu hợp lệ, hệ thống cấp preview token có thời hạn ngắn. 
+Khi buyer submit checkout, product-service kiểm tra lại token, kiểm tra lại giá và tồn kho lần cuối, sau đó giữ kho bằng StockReservation trên product variant. 
+Sau khi giữ kho thành công, product-service phát event order.checkout_submitted. order-service nhận event để tạo parent order và seller order ở trạng thái chờ thanh toán. payment-service xử lý thanh toán. 
+Nếu payment thành công, đơn hàng được chuyển sang trạng thái đã thanh toán và reservation được xác nhận. 
+Nếu payment thất bại, hết hạn hoặc buyer hủy, reservation được giải phóng để trả lại tồn kho. 
+Đầu ra (Output): Buyer nhận checkout session hoặc trạng thái thanh toán, đơn hàng được tạo ở trạng thái PENDING_PAYMENT rồi chuyển sang PAID hoặc CANCELLED, tồn kho được giữ bằng reservation và chỉ bị chốt khi thanh toán thành công. 
+
+
+Hình III.2: Sơ đồ tương tác nghiệp vụ đặt mua hàng Flash Sale
+(Nguồn: Tự thiết kế mô phỏng quy trình xử lý in-memory)
+Triển khai công nghệ: Redis ZSET được đặt tại flashsale-service để quản lý lịch chuyển trạng thái chính xác hơn cron theo phút. Redis Lua Script được dùng tại chính service này cho bước mua hàng vì thao tác kiểm tra giới hạn mua, kiểm tra tồn kho và trừ tồn kho phải là một giao dịch nguyên tử trong bộ nhớ. Kafka được dùng sau khi quyết định mua thành công để order-service, product-service, search-service và notification-service đồng bộ trạng thái mà không làm request mua phải chờ toàn bộ service hạ nguồn.
+Lý do chọn: Nếu dùng lock database, một SKU hot sẽ trở thành hot row và tạo lock queue. Nếu dùng optimistic retry, tỷ lệ xung đột quá cao sẽ tạo retry storm. Redis Lua phù hợp vì bài toán flash sale cần quyết định rất nhanh trên một tập khóa nhỏ, còn dữ liệu vật lý được đồng bộ nền sau đó.
+Input - Process - Output: Input là session, product đăng ký, request mua với buyerId/sessionId/itemId/quantity. Process là validate phiên, áp lịch Redis, chạy Lua Script, phát event. Output là SUCCESS/SOLD_OUT/LIMIT_EXCEEDED cho buyer, đơn PENDING_PAYMENT cho order, tồn kho cập nhật cho product và trạng thái hiển thị mới cho search/notification.
+4.3 Bài toán Checkout nhiều seller và distributed transaction
+Use case: Buyer chọn nhiều sản phẩm từ nhiều seller trong một cart và chỉ muốn thanh toán một lần. Về phía hệ thống, một checkout phải tách thành một parent order và nhiều sub-order theo seller, đồng thời phải giữ kho, tạo payment, cập nhật trạng thái đơn, xác nhận hoặc trả lại tồn kho khi payment thất bại.
+Nghiệp vụ Checkout và Điều phối distributed transaction (Saga Orchestrator)
+Bối cảnh sử dụng & Bài toán cụ thể: Khi khách hàng tiến hành thanh toán giỏ hàng chứa nhiều sản phẩm từ nhiều seller khác nhau. Hệ thống phải đảm bảo tính nhất quán dữ liệu xuyên suốt các dịch vụ. Nếu khách hàng không thanh toán hoặc thanh toán thất bại, toàn bộ tài nguyên kho đã giữ phải được hoàn trả tự động.
+Mô hình vận hành (Sơ đồ tương tác đầu vào -> đầu ra):
+Đầu vào (Input): Yêu cầu checkout của khách hàng (POST /api/v1/orders) kèm thông tin địa chỉ và các SKU sản phẩm.
+Quá trình xử lý:
+order-service tiếp nhận yêu cầu, tạo bản ghi đơn hàng ở trạng thái PENDING_PAYMENT và kích hoạt máy trạng thái Saga Orchestrator trên Axon Server.
+Saga gửi lệnh giữ chỗ kho vật lý sang product-service. Nếu kho không đủ, Saga hủy đơn và trả lỗi 409.
+Nếu giữ kho thành công, Saga gửi lệnh tạo phiên thanh toán sang payment-service. payment-service gọi Stripe Connect API tạo PaymentIntent và trả về client_secret.
+Khách hàng nhập thông tin thẻ qua Stripe Elements, xác nhận thanh toán trực tiếp trên hạ tầng Stripe.
+Stripe gửi webhook payment_intent.succeeded. payment-service xác thực chữ ký HMAC, phát sự kiện payment.success lên Kafka.
+Saga cập nhật đơn hàng sang PAID, xác nhận chốt kho vĩnh viễn. Tiền được giữ tại Platform Account — chưa chuyển cho seller.
+Nếu quá 15 phút không thanh toán: Saga kích hoạt compensating transaction, hủy đơn và giải phóng kho.
+Đầu ra (Output): Đơn hàng PAID, tiền được giữ tại Platform Account trong vòng 7 ngày bảo vệ người mua.
+
+Hình III.3: Sơ đồ điều phối giao dịch phân tán Saga tuần tự
+(Nguồn: Tự thiết kế dựa trên quy trình phối hợp Axon Saga & Stripe API)
+Triển khai công nghệ: Axon Framework được triển khai tại order-service để quản lý aggregate đơn hàng và Saga điều phối checkout. Event Store của Axon lưu lại các sự kiện như order created, payment requested, payment success, payment failed, order paid, order cancelled. payment-service cũng dùng Axon/Event Store cho transaction và trạng thái tài chính vì đây là domain cần audit và idempotency. Kafka được dùng cho integration event giữa Product, Order, Payment và Notification vì các service này độc lập database và không thể dùng một transaction ACID chung.
+Lý do chọn Axon/Event Store ở order-service, refund-service và payment-service: Checkout là bài toán có nhiều bước và nhiều trạng thái trung gian. Chỉ lưu trạng thái cuối cùng sẽ khó giải thích vì sao đơn bị hủy, payment đã yêu cầu chưa, kho đã được giữ hay release chưa. Event Store lưu chuỗi sự kiện bất biến, giúp replay lại trạng thái và phục vụ audit khi tranh chấp. Saga phù hợp hơn 2PC vì không giữ lock xuyên service; khi lỗi, hệ thống chạy compensating action thay vì chờ commit tập trung.
+Input - Process - Output: Input là cart items, địa chỉ, preview token và trạng thái tồn kho. Process là preview, reserve stock, create order, request payment, nhận webhook, confirm/release. Output là parent order, sub-order theo seller, transaction, trạng thái kho, event thông báo và lịch sử event có thể kiểm toán.
+4.4 Bài toán phân chia dòng tiền, refund và payout đa người bán
+Use case: Seller cần hoàn tất KYC trước khi nhận tiền; buyer thanh toán một đơn hàng nhiều seller; buyer được bảo vệ trong cửa sổ trả hàng 7 ngày; nếu không phát sinh refund, hệ thống tự động payout cho seller sau khi đủ điều kiện. Nếu buyer trả hàng hoặc admin duyệt refund, tiền phải hoàn lại đúng nguồn và trạng thái đơn phải cập nhật nhất quán.
+Bối cảnh sử dụng & Bài toán cụ thể
+Khi đơn hàng được giao thành công đến tay người mua, hệ thống sẽ kích hoạt cơ chế trì hoãn chuyển tiền tự động trên nền tảng thanh toán Stripe Connect.
+Nguyên tắc cốt lõi của dòng tiền
+Toàn bộ số tiền thanh toán từ người mua sẽ được giữ tạm thời tại tài khoản tổng của nền tảng (Platform Account) trong thời gian bảo vệ an toàn là bảy ngày kể từ thời điểm giao hàng thành công:
+
+Trong suốt khoảng thời gian này, dòng tiền hoàn toàn chưa được chuyển về ví của người bán (Connected Account). Cơ chế này tạo điều kiện để hệ thống vận hành tự động hai kịch bản phân nhánh dưới đây mà không cần can thiệp thủ công.
+Nhánh 1: Người mua trả hàng trong vòng 7 ngày (Hoàn tiền tự động)
+Áp dụng khi người mua phát sinh yêu cầu trả hàng và hoàn tiền trong thời gian bảo vệ hợp lệ. Do tiền chưa từng rời khỏi tài khoản nền tảng để chuyển cho người bán, hệ thống có thể hoàn trả trực tiếp cho người mua mà không cần thực hiện đảo ngược giao dịch chuyển khoản, giúp loại bỏ hoàn toàn rủi ro số dư âm trên tài khoản người bán và tránh được các khoản phí phạt từ Stripe.
+Luồng dữ liệu đầu vào
+Yêu cầu trả hàng từ người mua gửi đến hệ thống thông qua cổng API hoàn tiền đơn hàng.
+Các tài liệu đi kèm bao gồm lý do chi tiết và hình ảnh bằng chứng thực tế của sản phẩm.
+Trình tự xử lý hệ thống
+Xác thực điều kiện thời gian:
+Dịch vụ quản lý đơn hàng tiến hành kiểm tra trạng thái đơn hàng hiện tại.
+Hệ thống xác minh thời điểm yêu cầu phải nằm trong cửa sổ trả hàng cho phép:
+
+Trong trường hợp thời gian yêu cầu vượt quá ngưỡng quy định, hệ thống sẽ tự động từ chối yêu cầu và phản hồi thông báo lỗi hết hạn thời gian trả hàng.
+Khởi tạo hồ sơ hoàn tiền:
+Dịch vụ hoàn tiền tạo một bản ghi mới với trạng thái đang chờ xử lý.
+Hệ thống tự động tải toàn bộ hình ảnh bằng chứng lên dịch vụ lưu trữ đối tượng MinIO.
+Một sự kiện thông báo yêu cầu hoàn tiền mới được phát lên hàng đợi sự kiện Kafka để chuyển thông tin tới quản trị viên.
+Phê duyệt và thực hiện hoàn tiền:
+Quản trị viên đánh giá bằng chứng trên giao diện quản trị và thực hiện phê duyệt yêu cầu, chuyển trạng thái hồ sơ sang đã chấp thuận.
+Dịch vụ hoàn tiền gọi API hoàn trả của Stripe dựa trên mã định danh giao dịch gốc để hoàn tiền trực tiếp từ tài khoản nền tảng về thẻ của người mua.
+Cập nhật hệ thống và kho hàng:
+Dịch vụ quản lý sản phẩm thực hiện cộng trả lại số lượng hàng hóa vào cơ sở dữ liệu và đồng thời làm mới bộ nhớ đệm Redis để cập nhật số tồn kho tức thời trên ứng dụng.
+Dịch vụ quản lý đơn hàng cập nhật trạng thái đơn hàng sang đã hoàn tiền toàn bộ hoặc hoàn tiền một phần dựa trên thực tế xử lý.
+Luồng dữ liệu đầu ra
+Người mua nhận lại tiền trực tiếp vào tài khoản thẻ thanh toán ban đầu.
+Số lượng sản phẩm trong kho được khôi phục chính xác.
+Người bán không nhận được tiền từ đơn hàng này và không phát sinh bất kỳ khoản phí giao dịch phát sinh nào.
+Nhánh 2: Quá 7 ngày không phát sinh trả hàng (Giải ngân tự động cho Seller)
+Áp dụng khi đơn hàng đã vượt qua mốc thời gian bảo vệ an toàn mà không phát sinh bất kỳ khiếu nại hay yêu cầu trả hàng nào từ phía người mua.
+Luồng dữ liệu đầu vào
+Bộ lập lịch tác vụ tự động trong dịch vụ thanh toán được cấu hình chạy định kỳ mỗi năm phút một lần.
+Tác vụ tiến hành quét cơ sở dữ liệu để tìm kiếm tất cả các bản ghi giao dịch của người bán thỏa mãn điều kiện thời gian giải ngân đã đến hạn và đang ở trạng thái sẵn sàng chi trả:
+
+Trình tự xử lý hệ thống
+Kiểm tra tính hợp lệ của tài khoản người bán:
+Dịch vụ thanh toán kết nối với Stripe để kiểm tra xem tài khoản liên kết của người bán có đang ở trạng thái hoạt động và được phép nhận tiền hay không.
+Nếu tài khoản người bán đang bị khóa hoặc chưa hoàn tất xác thực thông tin tài chính, hệ thống sẽ tạm bỏ qua giao dịch này, chuyển trạng thái bản ghi sang dạng tạm hoãn và ghi nhận nhật ký lỗi hệ thống.
+Tính toán và thực hiện chuyển tiền:
+Hệ thống tính toán số tiền thực tế giải ngân cho người bán sau khi khấu trừ phí hoa hồng cố định của nền tảng theo công thức:
+
+Hệ thống gọi API chuyển tiền của Stripe Connect kết hợp với tham số giao dịch gốc để chuyển khoản an toàn từ tài khoản nền tảng sang tài khoản liên kết của người bán.
+Cập nhật trạng thái tài chính:
+Hệ thống cập nhật trạng thái bản ghi chuyển tiền sang đã chi trả thành công.
+Đơn hàng liên quan được đánh dấu đã quyết toán hoàn tất để đóng lại toàn bộ vòng đời tài chính của giao dịch.
+Luồng dữ liệu đầu ra
+Doanh thu sạch sau khi trừ hoa hồng được chuyển thẳng vào tài khoản của người bán trên Stripe Connect.
+Nền tảng ghi nhận doanh thu hoa hồng hợp lệ và lưu trữ lịch sử đối soát tài chính đầy đủ trên hệ thống.
+
+
+Hình III.4: Sơ đồ luồng đảo ngược dòng tiền tự động hai nhánh — Trả hàng trong 7 ngày (Stripe Refund về thẻ buyer) và Giải ngân sau 7 ngày (Stripe Transfer cho seller)
+(Nguồn: Tự thiết kế dựa trên quy trình bảo vệ người mua Stripe Connect và cơ chế Delayed Transfer)
+Triển khai công nghệ: Stripe Connect Express được đặt tại payment-service vì service này sở hữu tài khoản Stripe của seller, transaction, seller transfer và webhook tài chính. Webhook signature verification cũng nằm ở payment-service để chống giả mạo trạng thái thanh toán. Delayed Transfer được dùng để giữ tiền ở platform trong thời gian bảo vệ buyer, tránh trường hợp đã payout cho seller rồi mới phát sinh refund và phải đảo ngược dòng tiền. Với các hệ thống có refund-service tách riêng, service này quản lý hồ sơ yêu cầu, bằng chứng và duyệt/từ chối; phần thực thi Stripe vẫn phối hợp với payment-service để giữ một nguồn sự thật về dòng tiền.
+Lý do chọn Stripe Connect: Nền tảng không tự vận hành ví nội bộ và không tự giữ/thanh toán thủ công cho từng seller. Stripe xử lý phần KYC/AML, PCI DSS, connected account và transfer, giúp hệ thống giảm phạm vi pháp lý và vận hành. Về mặt nghiệp vụ, delayed payout bảo vệ buyer trước, đồng thời tạo niềm tin cho seller vì trạng thái tiền được tự động và minh bạch.
+Input - Process - Output: Input là seller account, parent order, transaction, trạng thái delivered, refund request và thời gian return window. Process là onboarding, create PaymentIntent, nhận webhook, giữ transfer, xử lý refund hoặc payout. Output là transaction SUCCESS/FAILED/REFUNDED, seller transfer AWAITING_DELIVERY/RETURN_WINDOW/PAID_OUT/REFUNDED, event cho order và notification.
+4.5 Bài toán Authorization Gap trong AI Tool Calling
+Use case: Buyer hỏi AI: “Đơn hàng này đang ở đâu?”, “Tìm giúp tôi áo thun trắng dưới 200k”, hoặc “Hủy đơn này giúp tôi”. Hai nhóm đầu chủ yếu đọc dữ liệu; nhóm cuối có tác động đến trạng thái đơn hàng hoặc tiền, nên không thể để mô hình tự thực thi chỉ vì nó sinh ra tool call.
+Bối cảnh sử dụng & Bài toán cụ thể
+Khi khách hàng sử dụng trợ lý ảo AI để thực hiện các yêu cầu thay đổi thông tin hoặc thực hiện hành động nghiệp vụ nhạy cảm như hủy đơn hàng đã thanh toán. Hệ thống phải đảm bảo AI không tự ý thực hiện hành động khi chưa được xác thực nhằm ngăn chặn lỗ hổng Prompt Injection gián tiếp từ hacker.
+Mô hình vận hành:
+Đầu vào (Input)
+Câu lệnh ngôn ngữ tự nhiên của khách hàng (ví dụ: "Hủy đơn hàng ORD-998 giúp tôi") gửi lên qua kết nối chat hỗ trợ.
+Quá trình xử lý
+ai-chat-service nhận yêu cầu, xác thực danh tính người dùng qua token JWT, kiểm tra rate limit và gửi tin nhắn đến LLM.
+LLM nhận diện ý định và quyết định gọi công cụ cancelOrder với tham số orderId = ORD-998.
+Bộ lọc bảo mật độc lập Risk-Based Interceptor chặn cuộc gọi của AI. Phát hiện đây là tác vụ có rủi ro cao (Tier 3 - Tác động tài chính).
+Interceptor dừng tiến trình tự động thực thi, sinh một mã xác thực ngẫu nhiên (One-time Confirmation Token) và lưu trữ ngữ cảnh lệnh (tên hàm, tham số) vào Redis với thời gian sống giới hạn 5 phút.
+Hệ thống gửi một sự kiện confirmation_required kèm token xác thực về trình duyệt khách hàng thông qua kênh truyền thời gian thực Server-Sent Events (SSE).
+Giao diện chat hiển thị hộp thoại xác nhận. Khách hàng bấm nút xác nhận.
+Trình duyệt gửi yêu cầu xác nhận (POST /api/v1/confirm) kèm theo token lên ai-chat-service.
+Dịch vụ đối chiếu token trên Redis, xác minh tính hợp lệ, xóa ngay token để chống replay attack, và tiến hành gọi API nội bộ của order-service để hủy đơn hàng vật lý.
+order-service phản hồi kết quả thành công. ai-chat-service nạp kết quả vào ngữ cảnh LLM để sinh câu phản hồi tự nhiên.
+Đầu ra (Output)
+Trả về luồng từ (streaming tokens) qua SSE giải thích đơn hàng đã được hủy thành công cho người dùng.
+
+Hình III.5: Sơ đồ luồng tương tác AI Chat Support & Human-in-the-loop
+(Nguồn: Tự thiết kế cơ chế bảo vệ AI nghiệp vụ)
+
+Triển khai công nghệ: Spring AI và Tool Calling nằm ở ai-chat-service. Redis lưu confirmation token với TTL ngắn để tránh dùng lại và tránh giữ trạng thái lâu. SSE được dùng để stream phản hồi AI, tool status, product cards, order cards và confirmation prompt theo thời gian thực. MongoDB lưu chat session, chat messages, pending confirmations và tool call logs để audit hành vi của AI.
+Lý do chọn Human-in-the-loop: LLM không phải chủ thể pháp lý đại diện cho ý chí người dùng. Prompt Injection có thể đến từ dữ liệu sản phẩm, lịch sử chat hoặc nội dung do người dùng đưa vào. Vì vậy mọi hành động có ảnh hưởng tài chính hoặc trạng thái đơn hàng phải có một bước xác nhận độc lập từ user đã đăng nhập. Cơ chế này biến AI thành người đề xuất và trợ lý thao tác, không phải người tự quyết định.
+Input - Process - Output: Input là message, JWT, sessionId và tool intent. Process là rate limit, lưu message, LLM reasoning, phân loại risk, gọi tool hoặc tạo confirmation. Output là SSE token stream, product/order card, confirmation request, kết quả hành động sau xác nhận và audit log.
+4.6 Bài toán tìm kiếm tiếng Việt và đồng bộ read model
+Use case: Buyer nhập “may tinh xach tay”, “áo thun nam”, hoặc lọc sản phẩm đang flash sale theo giá. Người dùng kỳ vọng kết quả nhanh, đúng ngữ nghĩa tiếng Việt, có sản phẩm còn hàng và giá đang áp dụng. Trong khi đó catalog, tồn kho, giá flash sale và trạng thái duyệt sản phẩm thay đổi liên tục.
+Mô hình vận hành:
+Đầu vào (Input)
+Từ khóa tìm kiếm của khách hàng (ví dụ: "may tinh xach tay") nhập trên thanh công cụ tìm kiếm.
+Quá trình xử lý
+Yêu cầu tìm kiếm được gửi thẳng đến search-service.
+ICU Tokenizer phân tách từ ghép dựa trên từ điển tiếng Việt. Bộ lọc chuẩn hóa Unicode quy đổi các biến thể viết dấu về dạng chuẩn.
+Trình tìm kiếm thực hiện truy vấn song song trên trường có dấu (độ ưu tiên cao) và trường không dấu qua ASCII Folding filter.
+Elasticsearch áp dụng thuật toán BM25 kết hợp các tín hiệu kinh doanh để xếp hạng độ phù hợp.
+Cơ chế đồng bộ hóa nền: Khi có sự kiện cập nhật sản phẩm tại product-service, Kafka Consumer tại search-service lắng nghe và cập nhật Elasticsearch index phi đồng bộ.
+Đầu ra (Output)
+Danh sách sản phẩm được xếp hạng theo thứ tự relevance, phản hồi cho khách hàng dưới 50ms.
+
+Hình III.6: Sơ đồ luồng tìm kiếm tiếng Việt và đồng bộ dữ liệu nền
+(Nguồn: Tự thiết kế dựa trên kiến trúc CQRS Read-Model) 
+Triển khai công nghệ: Elasticsearch ICU Analyzer và ICU Folding được đặt trong search-service để xử lý Unicode, dấu tiếng Việt và truy vấn không dấu. BM25 dùng để xếp hạng độ liên quan, sau đó kết hợp tín hiệu business như còn hàng, giá và trạng thái active. Kafka event-carried state transfer đảm bảo search index nhận đủ dữ liệu cần hiển thị mà không phải join nhiều database runtime.
+Lý do chọn: SQL LIKE không đáp ứng khi dữ liệu sản phẩm tăng lớn vì dễ tạo full table scan và không hiểu ngữ nghĩa tiếng Việt. Standard Analyzer của Elasticsearch cũng chưa đủ vì tiếng Việt dùng khoảng trắng giữa âm tiết, không phải lúc nào cũng là ranh giới từ. Tách read model giúp search scale riêng và bảo vệ database giao dịch khỏi traffic browse/search lớn.
+Input - Process - Output: Input là product events và query của buyer. Process là consume event, normalize, index document, phân tích keyword, ranking và filter. Output là danh sách product card, tổng số kết quả, phân trang và trạng thái hiển thị phù hợp với dữ liệu mới nhất gần thời gian thực.
+5. Luồng Phối Hợp Nền (Background Coordination Engine)
+Hệ thống vận hành nền đóng vai trò là "hệ thần kinh" trung ương điều phối dữ liệu không đồng bộ, duy trì tính nhất quán cuối cùng (Eventual Consistency), thông báo thời gian thực và tự động hóa các chu kỳ nghiệp vụ dài ngày (Long-running processes).
+5.1. Trục Tích Hợp Sự Kiện Chịu Tải Cao (Event Backbone & CDC)
+Áp dụng ở refund service, payment service, order service để mọi event được gửi đi luôn thành công.
+Để đảm bảo tính nhất quán giữa cơ sở dữ liệu và hệ thống tin nhắn (Message Broker), tránh lỗi Dual-Write (ghi DB thành công nhưng push event thất bại hoặc ngược lại), hệ thống áp dụng Transactional Outbox Pattern kết hợp với Change Data Capture (CDC).
+
+
+Cơ chế hoạt động: Mỗi thay đổi trạng thái nghiệp vụ (Order Created, Payment Completed,...) được ghi đồng thời vào bảng nghiệp vụ chính và bảng outbox trong cùng một Database Transaction (ACID bảo toàn). Công cụ CDC (ví dụ: Debezium) sẽ liên tục đọc Transaction Log (WAL) của DB và chuyển đổi các bản ghi trong bảng outbox thành các Event đẩy vào các topic tương ứng trên Kafka với cơ chế At-least-once delivery.
+Cấu trúc Event Tiêu Chuẩn (Event Envelope Schema): Tất cả các integration event lưu chuyển trong hệ thống phải tuân thủ một schema cấu trúc chặt chẽ (được quản lý bởi Schema Registry).
+5.2. Cơ Chế Đảm Bảo Tính Bất Biến (Idempotency) Tại Consumer
+Do Kafka sử dụng cơ chế truyền tin At-least-once, các Event có thể bị gửi trùng lặp (due to network partition, consumer crash trước khi commit offset,...). Tất cả các Consumer trong hệ thống bắt buộc phải triển khai cơ chế Idempotent Consumer để bảo vệ tính nhất quán dữ liệu.
+
+
+Giải pháp (Bảng Uniqueness DB): Với các Consumer thao tác trên cơ sở dữ liệu quan hệ (RDBMS), tạo một bảng lưu vết processed_events (event_id làm khóa chính). Thao tác chèn vào bảng này phải nằm cùng Transaction với logic cập nhật dữ liệu nghiệp vụ. Nếu xảy ra lỗi trùng lặp, lỗi DuplicateKeyException sẽ kích hoạt rollback và bỏ qua event (hoặc Ack).e.
+5.3. Hệ Thống Thông Báo Đa Kênh Thời Gian Thực (Notification Service)
+notification-service đảm nhận nhiệm vụ tiêu thụ (consume) các event từ đa dạng nguồn dịch vụ (order, payment, refund, flash sale, product review), biến đổi chúng thành các cấu trúc thông báo thân thiện với người dùng và truyền tải đa kênh.
+Đẩy Tin Real-Time Qua Server-Sent Events (SSE) và Scale-Out
+Hệ thống ưu tiên sử dụng SSE (Server-Sent Events) thay vì WebSocket vì thông báo là luồng giao tiếp một chiều (Một-Nhiều từ Server về Client), giúp giảm chi phí duy trì kết nối và tận dụng giao thức HTTP/2.
+
+
+Vấn đề trạng thái (Stateful SSE): Khi scale-out notification-service ra nhiều instance đứng sau API Gateway, Client-A kết nối SSE đến Instance-1 nhưng Event thông báo cho Client-A lại được consume bởi Instance-2 từ Kafka.
+Giải pháp Redis Pub/Sub Backplane: Khi một instance của notification-service nhận được event từ Kafka:
+Nó lưu thông báo vào MongoDB.
+Nó gửi thông báo đó lên một kênh Redis Pub/Sub chung (topic: user-notifications).
+Tất cả các instance của notification-service đang lắng nghe kênh Redis này. Instance nào đang giữ kết nối SSE đang mở của user_id đích sẽ thực hiện đẩy (push) gói tin trực tiếp xuống thiết bị của client.
+Chế độ Offline-Fallback: Nếu client đang ngoại tuyến (offline), kết nối SSE bị ngắt, tin nhắn vẫn được lưu an toàn trong MongoDB. Khi client trực tuyến trở lại (online), client sẽ gửi request lấy danh sách thông báo chưa đọc (is_read: false) để hiển thị lên Notification Center.
+IV. CẢI TIẾN VÀ ĐỊNH HƯỚNG PHÁT TRIỂN TƯƠNG LAI
+1. Distributed Tracing — OpenTelemetry + Jaeger
+a) Hiện trạng và Vấn đề vận hành distributed
+Trong kiến trúc Microservices của đề tài, một hành động duy nhất của khách hàng (ví dụ: bấm nút thanh toán đơn hàng) sẽ kích hoạt một chuỗi các cuộc gọi API đồng bộ và các sự kiện phi đồng bộ đi qua nhiều dịch vụ độc lập:
+API Gateway → order-service → product-service → payment-service → Kafka → notification-service.
+Nếu bước cuối cùng gửi thông báo cho khách hàng bị thất bại hoặc bị chậm trễ kéo dài tới 5 giây, quản trị viên rất khó có thể xác định lỗi phát sinh từ phân đoạn nào nếu chỉ dựa vào log đơn lẻ của từng dịch vụ.
+b) Giải pháp tích hợp OpenTelemetry và Jaeger
+Hệ thống triển khai cơ chế Context Propagation (Lan truyền ngữ cảnh) để theo dõi hành trình của yêu cầu:
+1. Khi request HTTP chạm vào api-gateway, Gateway sinh ra một mã Trace ID duy nhất và tiêm (inject) vào HTTP Header theo tiêu chuẩn W3C Trace Context.
+2. Tiêu đề ngữ cảnh này có dạng cấu trúc chuẩn.
+3. Khi order-service phát sự kiện lên Kafka, OpenTelemetry Interceptor sẽ trích xuất context hiện tại và tiêm Trace ID vào thuộc tính Record Headers của Kafka Message.
+4. notification-service khi nhận tin nhắn từ Kafka sẽ trích xuất (extract) header này để tiếp tục ghi nhận vết log xử lý dưới cùng một mã Trace ID duy nhất.
+5. Toàn bộ dữ liệu trace được gửi phi đồng bộ về Jaeger Collector qua giao thức gRPC (cổng 4317). Quản trị viên sử dụng giao diện Jaeger UI để quan sát trực quan sơ đồ Waterfall (thác nước), xác định chính xác dịch vụ nào bị lỗi hoặc bị nghẽn hiệu năng.
+ 
+2. GraalVM Native Image — Tối ưu hóa Khởi động và RAM
+a) Vấn đề thời gian khởi động chậm và tiêu tốn tài nguyên của JVM truyền thống
+Mặc dù Java 25 mang lại hiệu năng chạy cực tốt nhờ trình biên dịch JIT, các ứng dụng Spring Boot chạy trên máy ảo JVM truyền thống vẫn gặp phải hai nhược điểm lớn trong môi trường Cloud Native:
+ Thời gian khởi động chậm (Cold Start): Một dịch vụ Spring Boot có thể mất từ 15 đến 25 giây để khởi động. Điều này làm cơ chế auto-scaling của Kubernetes phản ứng chậm trước các đợt bùng nổ tải Flash Sale.
+ Tiêu tốn bộ nhớ cơ sở lớn: Mỗi dịch vụ khi chạy không tải đã tiêu tốn từ 400MB đến 600MB RAM, tạo ra gánh nặng chi phí hạ tầng lớn.
+b) Giải pháp AOT Compilation bằng GraalVM Native Image
+Định hướng cải tiến của hệ thống là áp dụng công nghệ GraalVM Native Image để biên dịch mã nguồn Java Ahead-Of-Time (AOT) thành tệp thực thi mã máy trực tiếp cho hệ điều hành đích, loại bỏ sự phụ thuộc vào JVM runtime.
+Bảng IV.1: So sánh hiệu số thực tế sau tối ưu hóa GraalVM Native Image
+Tiêu chí so sánh
+Spring Boot trên JVM truyền thống
+Spring Boot GraalVM Native Image
+Mức độ cải thiện thực tế
+Thời gian khởi động (Startup Time)
+18.20 giây
+0.08 giây
+Nhanh hơn 220 lần (Khởi động tức thì)
+Dung lượng RAM cơ sở (Idle RAM)
+~520 MB
+~48 MB
+Tiết kiệm 90% bộ nhớ
+Kích thước Docker Image
+~280 MB
+~35 MB
+Giảm 87% dung lượng lưu trữ
+Trình biên dịch sử dụng
+JIT (Just-In-Time) Compiler
+AOT (Ahead-Of-Time) Compiler
+Loại bỏ overhead khởi động
+Thời gian biên dịch dự án (Build time)
+~45 giây
+~7 phút
+Đánh đổi thời gian build lâu hơn
+
+ 
+ 
+3. Tinh chỉnh Model AI chuyên biệt — LoRA On-Premise
+a) Nhược điểm khi sử dụng các model AI thương mại qua API bên thứ ba
+Trong giai đoạn MVP, service ai-chat-service sử dụng API của các provider bên thứ ba (như OpenAI GPT-4o) qua Internet, gặp phải ba rào cản lớn: chi phí vận hành cao (tính theo token), latency lớn (1.5-3 giây qua Internet quốc tế) và rủi ro pháp lý khi gửi dữ liệu khách hàng ra nước ngoài (Nghị định 13/2023/NĐ-CP).
+b) Giải pháp Fine-tuning LoRA model nguồn mở cục bộ (On-Premise)
+Hệ thống đề xuất định hướng chuyển đổi sang các LLM nguồn mở cỡ nhỏ (như Qwen-2.5-7B) chạy On-Premise, được tinh chỉnh bằng phương pháp LoRA.
+4. Elasticsearch Index Lifecycle Management (ILM)
+Hệ thống áp dụng chính sách ILM tự động chuyển dịch dữ liệu qua 4 giai đoạn vòng đời:
+1. Hot Phase: Nhận dữ liệu ghi mới trên SSD hiệu năng cao. Rollover khi đạt 50GB hoặc sau 30 ngày.
+2. Warm Phase: Index chuyển sang Read-Only. Shrink về 1 shard. Force Merge gộp các Lucene Segments về 1 segment, loại bỏ Tombstones.
+3. Cold Phase: Di chuyển sang HDD dung lượng lớn. Tạo Searchable Snapshot lên cloud storage.
+4. Delete Phase: Tự động xóa index sau 180 ngày theo retention policy.
+ 
+V. TÀI LIỆU THAM KHẢO / REFERENCES
+1. Apache Kafka. (n.d.). Apache Kafka Documentation. 
+2. AxonIQ. (n.d.). Axon Framework Reference Guide.
+3. Chính phủ Việt Nam. (2012). Nghị định số 101/2012/NĐ-CP về thanh toán không dùng tiền mặt.
+4. Chính phủ Việt Nam. (2023). Nghị định số 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân. 
+5. Chính phủ Việt Nam. (2024). Nghị định số 52/2024/NĐ-CP quy định về thanh toán không dùng tiền mặt. 
+6. Debezium. (n.d.). Outbox Event Router. 
+7. Elastic. (n.d.). ICU Analyzer Plugin. 
+8. Elastic. (n.d.). Index Lifecycle Management (ILM). 
+9. Gilbert, S., & Lynch, N. (2002). Brewer's Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services. ACM SIGACT News. 
+10. GraalVM. (n.d.). Native Image Reference Manual. 
+11. Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y., Wang, S., Wang, L., & Chen, W. (2021). LoRA: Low-Rank Adaptation of Large Language Models. 
+12. OpenJDK. (2023). JEP 444: Virtual Threads. 
+13. OWASP. (2025). OWASP Top 10 for Large Language Model Applications. 
+14. Reactive Streams. (n.d.). Reactive Streams Specification. 
+15. Redis. (n.d.). Scripting with Lua / Eval Introduction. 
+16. Spring AI. (n.d.). Tool Calling Reference. 
+17. Spring Framework. (n.d.). Spring WebFlux Reference Documentation. 
+18. Stripe. (n.d.). Understand how charges work in a Connect integration. 
+19. Stripe. (n.d.). Transfer Reversals API Reference. 
+20. Unicode Consortium. (2025). Unicode Standard Annex #15: Unicode Normalization Forms.
+

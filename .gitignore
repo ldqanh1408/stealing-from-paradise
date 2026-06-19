@@ -121,6 +121,7 @@ out/
 
 # Docker
 docker-compose.override.yml
+render.yaml
 .dockerignore
 
 # Logs
