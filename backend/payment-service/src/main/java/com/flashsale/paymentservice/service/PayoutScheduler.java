@@ -14,6 +14,7 @@ import com.stripe.param.TransferCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -50,6 +52,12 @@ public class PayoutScheduler {
     private final StripeConfig stripeConfig;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+
+    @Value("${payout.transfer.currency:vnd}")
+    private String payoutTransferCurrency;
+
+    @Value("${payout.transfer.amount-scale:1.0}")
+    private BigDecimal payoutTransferAmountScale;
 
     /**
      * Processes eligible payouts every 5 minutes.
@@ -110,7 +118,11 @@ public class PayoutScheduler {
                     .multiply(BigDecimal.valueOf(feePct / 100.0))
                     .setScale(0, RoundingMode.HALF_UP);
             BigDecimal netAmount = transferAmount.subtract(commission);
-            long netStripeAmount = netAmount.setScale(0, RoundingMode.HALF_UP).longValueExact();
+            long netStripeAmount = netAmount
+                    .multiply(payoutTransferAmountScale)
+                    .setScale(0, RoundingMode.HALF_UP)
+                    .longValueExact();
+            String stripeCurrency = payoutTransferCurrency.toLowerCase(Locale.ROOT);
 
             // Execute the Stripe Connect transfer to the seller's connected account
             Map<String, String> metadata = new HashMap<>();
@@ -118,25 +130,35 @@ public class PayoutScheduler {
             metadata.put("seller_id", String.valueOf(st.getSellerId()));
             metadata.put("commission", commission.toString());
             metadata.put("payout_type", "delayed");
+            metadata.put("source_amount_vnd", transferAmount.toString());
+            metadata.put("source_net_vnd", netAmount.toString());
+            metadata.put("stripe_amount", String.valueOf(netStripeAmount));
+            metadata.put("stripe_currency", stripeCurrency);
 
-            TransferCreateParams params = TransferCreateParams.builder()
+            com.stripe.param.PayoutCreateParams params = com.stripe.param.PayoutCreateParams.builder()
                     .setAmount(netStripeAmount)
-                    .setCurrency("vnd")
-                    .setDestination(sellerAccount.getStripeAccountId())
+                    .setCurrency(stripeCurrency)
                     .putAllMetadata(metadata)
                     .build();
 
-            Transfer transfer = Transfer.create(params);
+            com.stripe.net.RequestOptions requestOptions = com.stripe.net.RequestOptions.builder()
+                    .setStripeAccount(sellerAccount.getStripeAccountId())
+                    .build();
+
+            com.stripe.model.Payout payout = com.stripe.model.Payout.create(params, requestOptions);
 
             // Persist payout result
-            st.setStripeTransferId(transfer.getId());
+            st.setStripePayoutId(payout.getId());
+            st.setPayoutStatus(payout.getStatus());
+            st.setStripeTransferId(payout.getId());
             st.setPlatformCommissionAmount(commission);
             st.setPayoutAt(LocalDateTime.now());
             st.setStatus("PAID_OUT");
             sellerTransferRepository.save(st);
 
-            log.info("Payout succeeded: orderId={}, sellerId={}, stripeTransferId={}, gross={}, commission={}, net={}",
-                    st.getOrderId(), st.getSellerId(), transfer.getId(), transferAmount, commission, netAmount);
+            log.info("Payout succeeded: orderId={}, sellerId={}, stripePayoutId={}, gross={}, commission={}, net={}, stripeAmount={}, stripeCurrency={}",
+                    st.getOrderId(), st.getSellerId(), payout.getId(),
+                    transferAmount, commission, netAmount, netStripeAmount, stripeCurrency);
 
             // Publish seller.transfer.paid_out event
             publishPayoutEvent(st, "SELLER_TRANSFER_PAID_OUT", Map.of(
@@ -144,7 +166,9 @@ public class PayoutScheduler {
                     "seller_id", st.getSellerId(),
                     "order_id", st.getOrderId(),
                     "amount", transferAmount,
-                    "stripe_payout_id", transfer.getId(),
+                    "stripe_payout_id", payout.getId(),
+                    "stripe_amount", netStripeAmount,
+                    "stripe_currency", stripeCurrency,
                     "paid_at", Instant.now().toString()
             ));
 
@@ -155,7 +179,9 @@ public class PayoutScheduler {
                     "transfer_amount", transferAmount,
                     "commission", commission,
                     "net_amount", netAmount,
-                    "stripe_transfer_id", transfer.getId(),
+                    "stripe_transfer_id", payout.getId(),
+                    "stripe_amount", netStripeAmount,
+                    "stripe_currency", stripeCurrency,
                     "payout_at", Instant.now().toString()
             ));
 
@@ -166,7 +192,9 @@ public class PayoutScheduler {
                     "transfer_amount", transferAmount,
                     "commission", commission,
                     "net_amount", netAmount,
-                    "stripe_transfer_id", transfer.getId(),
+                    "stripe_transfer_id", payout.getId(),
+                    "stripe_amount", netStripeAmount,
+                    "stripe_currency", stripeCurrency,
                     "payout_at", Instant.now().toString()
             ));
 

@@ -83,14 +83,14 @@ public class SellerTransferService {
      * Actual payout happens after the return window expires (see PayoutScheduler).
      */
     @Transactional
-    public void createSellerTransfers(Long parentOrderId, PaymentIntent pi) {
+    public void createSellerTransfersForSeller(Long parentOrderId, Long sellerId) {
         List<SellerTransfer> pendingTransfers = sellerTransferRepository.findAllByParentOrderId(parentOrderId)
                 .stream()
-                .filter(t -> "PENDING".equals(t.getStatus()))
+                .filter(t -> "PENDING".equals(t.getStatus()) && sellerId.equals(t.getSellerId()))
                 .toList();
 
         if (pendingTransfers.isEmpty()) {
-            log.warn("No pending seller transfers for parentOrderId={}", parentOrderId);
+            log.warn("No pending seller transfers for parentOrderId={} and sellerId={}", parentOrderId, sellerId);
             return;
         }
 
@@ -108,7 +108,7 @@ public class SellerTransferService {
             sellerTransferRepository.save(st);
         }
 
-        log.info("SellerTransitions transitioned to AWAITING_DELIVERY for parentOrderId={}", parentOrderId);
+        log.info("SellerTransfers transitioned to AWAITING_DELIVERY for parentOrderId={} and sellerId={}", parentOrderId, sellerId);
     }
 
     /**

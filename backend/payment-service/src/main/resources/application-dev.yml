@@ -50,3 +50,8 @@ management:
 payout:
   schedule:
     cron: "*/5 * * * * *"
+  transfer:
+    # Stripe test platform in this workspace is SG, so VND charges settle into SGD balance.
+    # Keep business amounts in VND, but execute Connect transfers in SGD minor units in dev.
+    currency: ${PAYOUT_TRANSFER_CURRENCY:sgd}
+    amount-scale: ${PAYOUT_TRANSFER_AMOUNT_SCALE:0.004608}

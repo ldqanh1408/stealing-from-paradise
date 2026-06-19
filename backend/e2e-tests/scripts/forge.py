@@ -89,14 +89,19 @@ def _base(event_type):
 
 # ── Event Builders ───────────────────────────────────────────────────────────
 
-def payment_intent_event(event_type, parent_order_id):
+def payment_intent_event(event_type, parent_order_id, seller_id=None, user_id=None):
+    metadata = {"parent_order_id": str(parent_order_id)}
+    if seller_id is not None:
+        metadata["seller_id"] = str(seller_id)
+    if user_id is not None:
+        metadata["user_id"] = str(user_id)
     pi = {
         "id": f"pi_e2e_{_suffix()}",
         "object": "payment_intent",
         "amount": 100000,
         "currency": "vnd",
         "status": "succeeded" if event_type == "payment_intent.succeeded" else "requires_payment_method",
-        "metadata": {"parent_order_id": str(parent_order_id)},  # snake_case!
+        "metadata": metadata,
         "latest_charge": f"ch_e2e_{_suffix()}",
     }
     e = _base(event_type)
@@ -211,8 +216,18 @@ def main():
     cmd = sys.argv[1]
 
     if cmd == "pi":
+        # python3 forge.py pi payment_intent.succeeded 170 [--seller-id=900002] [--user-id=6]
+        ev_type = sys.argv[2]
+        po_id = int(sys.argv[3])
+        sid = None
+        uid = None
+        for a in sys.argv[4:]:
+            if a.startswith("--seller-id="):
+                sid = int(a.split("=", 1)[1])
+            elif a.startswith("--user-id="):
+                uid = int(a.split("=", 1)[1])
         code, body = sign_and_send(
-            payment_intent_event(sys.argv[2], int(sys.argv[3]))
+            payment_intent_event(ev_type, po_id, seller_id=sid, user_id=uid)
         )
     elif cmd == "charge_refund":
         code, body = sign_and_send(

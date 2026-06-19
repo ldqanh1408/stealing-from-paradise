@@ -45,8 +45,12 @@ public class TransferEventHandler implements StripeEventHandler {
         if (orderId == null) return;
 
         sellerTransferRepository.findByOrderId(orderId).ifPresent(st -> {
-            st.setStripeTransferId(transfer.getId());
-            st.setStatus("SUCCEEDED");
+            if (st.getStripeTransferId() == null) {
+                st.setStripeTransferId(transfer.getId());
+            }
+            if (!"PAID_OUT".equals(st.getStatus())) {
+                st.setStatus("SUCCEEDED");
+            }
             sellerTransferRepository.save(st);
             log.info("Seller transfer recorded: orderId={}, transferId={}", orderId, transfer.getId());
         });

@@ -162,26 +162,43 @@ public class SellerPaymentsService {
     }
 
     private SellerTransferItem toTransferItem(SellerTransfer t) {
+        BigDecimal feeAmount = feeAmount(t);
+        BigDecimal netAmount = netAmount(t);
+
         return SellerTransferItem.builder()
                 .id(t.getId())
                 .orderId(t.getOrderId())
                 .transferAmount(t.getTransferAmount())
+                .feeAmount(feeAmount)
+                .netAmount(netAmount)
                 .stripeTransferId(t.getStripeTransferId())
                 .status(t.getStatus())
-                .createdAt(t.getCreatedAt() != null ? t.getCreatedAt().atOffset(ZoneOffset.UTC).format(ISO_FMT) : null)
-                .updatedAt(t.getUpdatedAt() != null ? t.getUpdatedAt().atOffset(ZoneOffset.UTC).format(ISO_FMT) : null)
+                .deliveredAt(formatTime(t.getDeliveredAt()))
+                .payoutEligibleAt(formatTime(t.getPayoutEligibleAt()))
+                .payoutAt(formatTime(t.getPayoutAt()))
+                .createdAt(formatTime(t.getCreatedAt()))
+                .updatedAt(formatTime(t.getUpdatedAt()))
                 .build();
     }
 
     private BigDecimal netAmount(SellerTransfer transfer) {
         BigDecimal gross = transfer.getTransferAmount() != null ? transfer.getTransferAmount() : BigDecimal.ZERO;
-        BigDecimal commission = transfer.getPlatformCommissionAmount();
-        if (commission == null) {
-            commission = gross
-                    .multiply(BigDecimal.valueOf(stripeConfig.getPlatformFeePercentage() / 100.0))
-                    .setScale(0, RoundingMode.HALF_UP);
+        return gross.subtract(feeAmount(transfer));
+    }
+
+    private BigDecimal feeAmount(SellerTransfer transfer) {
+        if (transfer.getPlatformCommissionAmount() != null) {
+            return transfer.getPlatformCommissionAmount();
         }
-        return gross.subtract(commission);
+
+        BigDecimal gross = transfer.getTransferAmount() != null ? transfer.getTransferAmount() : BigDecimal.ZERO;
+        return gross
+                .multiply(BigDecimal.valueOf(stripeConfig.getPlatformFeePercentage() / 100.0))
+                .setScale(0, RoundingMode.HALF_UP);
+    }
+
+    private String formatTime(LocalDateTime value) {
+        return value != null ? value.atOffset(ZoneOffset.UTC).format(ISO_FMT) : null;
     }
 
     private String statusOf(SellerTransfer transfer) {

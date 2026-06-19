@@ -28,13 +28,49 @@ public class PaymentQueryService {
 
     private final TransactionRepository transactionRepository;
     private final SellerTransferRepository sellerTransferRepository;
+    private final com.flashsale.paymentservice.config.StripeConfig stripeConfig;
 
     @Transactional(readOnly = true)
     public TransactionDetailResponse getTransactionByParentOrder(Long parentOrderId) {
-        Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
-                        "Không tìm thấy giao dịch cho parent order: " + parentOrderId));
-        return buildTransactionDetailResponse(tx);
+        List<Transaction> txs = transactionRepository.findAllByParentOrderId(parentOrderId);
+        if (txs.isEmpty()) {
+            throw new AppException(ErrorCode.NOT_FOUND,
+                    "Không tìm thấy giao dịch cho parent order: " + parentOrderId);
+        }
+
+        Transaction primaryTx = txs.get(0);
+        BigDecimal totalAmount = txs.stream()
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalAppFee = txs.stream()
+                .map(Transaction::getApplicationFeeAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        String overallStatus = "PENDING";
+        boolean anyFailed = txs.stream().anyMatch(t -> "FAILED".equals(t.getStatus()));
+        boolean anyPending = txs.stream().anyMatch(t -> "PENDING".equals(t.getStatus()));
+        boolean allSuccess = txs.stream().allMatch(t -> "SUCCESS".equals(t.getStatus()));
+        boolean allCancelled = txs.stream().allMatch(t -> "CANCELLED".equals(t.getStatus()));
+
+        if (anyFailed) {
+            overallStatus = "FAILED";
+        } else if (anyPending) {
+            overallStatus = "PENDING";
+        } else if (allSuccess) {
+            overallStatus = "SUCCESS";
+        } else if (allCancelled) {
+            overallStatus = "CANCELLED";
+        } else {
+            overallStatus = primaryTx.getStatus();
+        }
+
+        TransactionDetailResponse response = buildTransactionDetailResponse(primaryTx);
+        response.setAmount(totalAmount);
+        response.setApplicationFee(totalAppFee);
+        response.setStatus(overallStatus);
+
+        return response;
     }
 
     /**
@@ -44,27 +80,48 @@ public class PaymentQueryService {
      */
     @Transactional(readOnly = true)
     public ClientSecretResponse getClientSecret(Long parentOrderId) {
-        Transaction tx = transactionRepository.findByParentOrderId(parentOrderId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND,
-                        "Không tìm thấy giao dịch cho parent order: " + parentOrderId));
-
-        if (!"PENDING".equals(tx.getStatus())) {
-            throw new AppException(ErrorCode.BAD_REQUEST,
-                    "Giao dịch không ở trạng thái chờ thanh toán: " + tx.getStatus());
+        List<Transaction> txs = transactionRepository.findAllByParentOrderId(parentOrderId);
+        if (txs.isEmpty()) {
+            throw new AppException(ErrorCode.NOT_FOUND,
+                    "Không tìm thấy giao dịch cho parent order: " + parentOrderId);
         }
 
-        String clientSecret = StripeClientSecretExtractor.extract(tx.getRawResponse());
-        if (clientSecret == null) {
-            throw new AppException(ErrorCode.INTERNAL_ERROR,
-                    "Chưa có PaymentIntent cho giao dịch này. Vui lòng thử lại.");
+        boolean allPending = txs.stream().allMatch(tx -> "PENDING".equals(tx.getStatus()));
+        if (!allPending) {
+            Transaction nonPending = txs.stream().filter(tx -> !"PENDING".equals(tx.getStatus())).findFirst().orElse(txs.get(0));
+            throw new AppException(ErrorCode.BAD_REQUEST,
+                    "Giao dịch không ở trạng thái chờ thanh toán: " + nonPending.getStatus());
+        }
+
+        List<ClientSecretResponse.PaymentIntentItem> items = new java.util.ArrayList<>();
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        String firstClientSecret = null;
+
+        for (Transaction tx : txs) {
+            String clientSecret = StripeClientSecretExtractor.extract(tx.getRawResponse());
+            if (clientSecret == null) {
+                throw new AppException(ErrorCode.INTERNAL_ERROR,
+                        "Chưa có PaymentIntent cho giao dịch này. Vui lòng thử lại.");
+            }
+            if (firstClientSecret == null) {
+                firstClientSecret = clientSecret;
+            }
+            items.add(ClientSecretResponse.PaymentIntentItem.builder()
+                    .clientSecret(clientSecret)
+                    .stripeAccountId(tx.getStripeAccountId())
+                    .sellerId(tx.getSellerId())
+                    .amount(tx.getAmount())
+                    .build());
+            totalAmount = totalAmount.add(tx.getAmount());
         }
 
         return ClientSecretResponse.builder()
-                .clientSecret(clientSecret)
-                .parentOrderId(tx.getParentOrderId())
-                .transactionId(tx.getId())
-                .amount(tx.getAmount())
+                .clientSecret(firstClientSecret)
+                .parentOrderId(parentOrderId)
+                .transactionId(txs.get(0).getId())
+                .amount(totalAmount)
                 .currency("vnd")
+                .paymentIntents(items)
                 .build();
     }
 
@@ -72,14 +129,22 @@ public class PaymentQueryService {
         List<SellerTransfer> transfers = sellerTransferRepository.findAllByParentOrderId(tx.getParentOrderId());
 
         List<SellerTransferInfo> sellerInfos = transfers.stream()
-                .map(t -> SellerTransferInfo.builder()
-                        .sellerId(t.getSellerId())
-                        .orderId(t.getOrderId())
-                        .amount(t.getTransferAmount())
-                        .fee(BigDecimal.ZERO)
-                        .stripeTransferId(t.getStripeTransferId())
-                        .transferStatus(t.getStatus())
-                        .build())
+                .map(t -> {
+                    BigDecimal fee = t.getPlatformCommissionAmount();
+                    if (fee == null) {
+                        double feePct = stripeConfig.getPlatformFeePercentage();
+                        BigDecimal gross = t.getTransferAmount() != null ? t.getTransferAmount() : BigDecimal.ZERO;
+                        fee = gross.multiply(BigDecimal.valueOf(feePct / 100.0)).setScale(0, java.math.RoundingMode.HALF_UP);
+                    }
+                    return SellerTransferInfo.builder()
+                            .sellerId(t.getSellerId())
+                            .orderId(t.getOrderId())
+                            .amount(t.getTransferAmount())
+                            .fee(fee)
+                            .stripeTransferId(t.getStripeTransferId() != null ? t.getStripeTransferId() : t.getStripePayoutId())
+                            .transferStatus(t.getStatus())
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         Long remainingSeconds = null;

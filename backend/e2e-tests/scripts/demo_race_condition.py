@@ -5,17 +5,18 @@ Race Condition Demo — Full Checkout → Payment Flow
  🔗  http://localhost:3000/products/90000000-0000-4000-8001-000000000103
      AirPods Pro 2 (USB-C) Combo — 4.990.000 ₫
 
- FLOW USER THẬT:
-   Cart → Preview (thấy stock) → Submit (reserve stock) → Form thẻ VISA → Thanh toán
-
- RACE POINT: Submit đồng loạt.
-   - Winners: submit 200 → poll parent order → forge payment webhook → PAID ✅
-   - Losers:  submit 409 → INSUFFICIENT_STOCK ❌ (không bao giờ thấy form thẻ)
-
- MÔ PHỎNG FORM THẺ:
-   Bước "form thẻ" là Stripe PaymentElement (frontend). Trong demo này,
-   sau khi find được parent_order_id, ta forge webhook payment_intent.succeeded
-   để mô phỏng user nhập thẻ test 4242... → thanh toán thành công.
+# FLOW USER THẬT:
+#   Chọn địa chỉ → Review sản phẩm (Preview) → Nhấn thanh toán lần 1 (Submit, reserve stock) → Hiện form điền thanh toán Stripe → Điền xong ấn thanh toán lần 2 → Mua hàng thành công
+# 
+#  RACE POINT: Submit đồng loạt (khi ấn nút Thanh toán lần 1).
+#    - Winners: submit 200 → hiện form thanh toán Stripe (PENDING) → nhập thẻ & ấn thanh toán lần 2 → webhook payment_intent.succeeded → PAID ✅
+#    - Losers:  submit 409 → INSUFFICIENT_STOCK ❌ (không bao giờ thấy form thẻ)
+# 
+#  MÔ PHỎNG FORM THẺ:
+#    Sau khi nhấn nút thanh toán lần 1 và submit thành công, parent order được tạo.
+#    Hệ thống sẽ hiển thị form thanh toán Stripe (PaymentIntent ở trạng thái PENDING).
+#    Ta mô phỏng điền thẻ & ấn nút thanh toán lần 2 bằng cách gửi webhook
+#    payment_intent.succeeded để cập nhật đơn hàng thành công (PAID).
 
 USAGE:
    GATEWAY=http://localhost:8080 python demo_race_condition.py
@@ -35,7 +36,7 @@ if not WHS:
         for levels in range(1, 5):
             env_path = os.path.normpath(os.path.join(script_dir, *([".."] * levels), ".env"))
             if os.path.isfile(env_path):
-                with open(env_path) as f:
+                with open(env_path, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if line.startswith("STRIPE_WEBHOOK_SECRET=") or line.startswith("WEBHOOK_SECRET="):
@@ -196,16 +197,63 @@ def get_stock(seller_tok):
     return None
 
 def set_stock(seller_tok, target):
+    """
+    Reset stock về đúng giá trị `target`.
+
+    Lưu ý quan trọng:
+      - restock() trên server là += quantity, KHÔNG phải SET tuyệt đối.
+      - Vì vậy phải trừ hết stock về 0 trước, verify, rồi mới cộng target.
+      - get_stock() trả về stockAvailable = DB.stockQuantity (raw), KHÔNG trừ
+        reserved.  Sau khi race kết thúc và orders được PAID, reserved = 0
+        nên stockAvailable phản ánh đúng DB.
+    """
     cur = get_stock(seller_tok)
     if cur is None: return False
     if cur == target: return True
+
+    # ── Bước 1: reset về 0 nếu đang > 0 ─────────────────────────────────────
     if cur > 0:
-        api("POST", f"/api/v1/seller/inventory/adjust?skuCode={SKU}",
-            seller_tok, body={"delta": -cur})
-        time.sleep(0.3)
+        s, r = api("POST", f"/api/v1/seller/inventory/adjust?skuCode={SKU}",
+                   seller_tok, body={"delta": -cur})
+        if s != 200:
+            print(f"  ⚠️  adjust -{cur} failed (HTTP {s}): {r}")
+            return False
+        # Poll đến khi DB xác nhận về 0
+        for _ in range(10):
+            time.sleep(0.5)
+            check = get_stock(seller_tok)
+            if check == 0:
+                break
+        else:
+            actual = get_stock(seller_tok)
+            print(f"  ⚠️  Stock vẫn còn {actual} sau reset (expected 0) — abort.")
+            return False
+
+    if target == 0:
+        return True
+
+    # ── Bước 2: cộng đúng target vào 0 (restock += target) ──────────────────
     s, _ = api("PUT", f"/api/v1/inventory/{SKU}/restock",
                seller_tok, body={"quantity": target})
-    return s == 200
+    if s != 200:
+        return False
+
+    # ── Bước 3: verify kết quả cuối ─────────────────────────────────────────
+    time.sleep(0.3)
+    final = get_stock(seller_tok)
+    if final != target:
+        print(f"  ⚠️  Stock sau set = {final}, expected {target}. Có thể drift — retry...")
+        # Một lần retry: trừ chênh lệch
+        drift = final - target
+        if drift > 0:
+            api("POST", f"/api/v1/seller/inventory/adjust?skuCode={SKU}",
+                seller_tok, body={"delta": -drift})
+            time.sleep(0.5)
+            final = get_stock(seller_tok)
+        if final != target:
+            print(f"  ❌ Không thể set stock về {target} (actual={final}).")
+            return False
+    return True
 
 # ═══ INPUT ═════════════════════════════════════════════════════════════════
 
@@ -310,40 +358,44 @@ def run_race(n_users, stock):
             tid = w["tid"]
             print(f"  ── racer{tid} ──")
 
-            # Bước này mô phỏng "user nhập thẻ VISA 4242..."
-            print(f"     1️⃣  Đang tìm parent_order (Kafka async)...")
+            print(f"     1️⃣  Đã chọn địa chỉ (addressId={w['addr']}) & Review sản phẩm (previewToken={w['pt'][:8]}...)")
+
+            print(f"     2️⃣  Nhấn \"Thanh toán\" lần 1 -> Submit checkout (Đặt trước sản phẩm & Khởi tạo Stripe PaymentIntent)")
+
+            # Bước này tìm parent_order từ submit trước đó
             try:
                 pid = poll(f"parent_order racer{tid}", lambda: _find_new_parent(w["token"], w["pre_max"]), timeout=60)
                 w["parent_order_id"] = pid
-                print(f"     2️⃣  Parent Order: {pid}")
             except TimeoutError:
-                print(f"     2️⃣  ❌ Không tìm thấy parent order sau 60s")
+                print(f"     ❌ Lỗi: Không tìm thấy parent order sau 60s")
                 continue
 
-            # Poll payment PENDING
+            # Poll payment PENDING (Stripe Payment form hiển thị khi PaymentIntent PENDING)
             try:
                 poll("payment PENDING", lambda: _check_payment_status(w["token"], pid, "PENDING"), timeout=30)
-                print(f"     3️⃣  Payment: PENDING")
+                print(f"     3️⃣  Hiển thị form thanh toán Stripe (Đơn hàng {pid} - Stripe PaymentIntent ở trạng thái PENDING)")
             except TimeoutError:
-                print(f"     3️⃣  ⚠️  Payment chưa PENDING (có thể đã SUCCESS)")
+                print(f"     3️⃣  ⚠️  Đơn hàng {pid} - Stripe PaymentIntent chưa PENDING (hoặc đã SUCCESS)")
 
-            # Forge webhook (mô phỏng Stripe confirm payment thành công)
+            # User điền xong thẻ test 4242... -> click button Pay lần 2 -> webhook payment_intent.succeeded gửi về backend
+            print(f"     4️⃣  User điền thông tin thẻ Stripe & Ấn nút \"Thanh toán\" lần 2 (Mô phỏng confirm -> Gửi webhook payment_intent.succeeded)")
             code, _ = send_webhook(forge_pi(pid))
-            print(f"     4️⃣  Webhook payment_intent.succeeded → {code}")
+            if code != 200:
+                print(f"        ⚠️  Webhook Stripe trả về status code: {code}")
 
             # Verify payment SUCCESS
             try:
                 poll("payment SUCCESS", lambda: _check_payment_status(w["token"], pid, "SUCCESS"), timeout=30)
-                print(f"     5️⃣  Payment: SUCCESS ✅")
+                print(f"     5️⃣  Stripe xác nhận thanh toán thành công (Stripe PaymentIntent: SUCCESS ✅)")
             except TimeoutError:
-                print(f"     5️⃣  ⚠️  Payment chưa SUCCESS")
+                print(f"     5️⃣  ⚠️  Lỗi: Thanh toán chưa được xác nhận SUCCESS")
 
             # Verify orders PAID
             try:
                 poll("orders PAID", lambda: _check_orders_paid(w["token"], pid), timeout=30)
-                print(f"     6️⃣  Orders: PAID ✅")
+                print(f"     6️⃣  Mua hàng thành công (Trạng thái đơn hàng: PAID ✅)")
             except TimeoutError:
-                print(f"     6️⃣  ⚠️  Orders chưa PAID")
+                print(f"     6️⃣  ⚠️  Cảnh báo: Đơn hàng chưa cập nhật thành PAID")
 
             print()
 
@@ -359,7 +411,7 @@ def run_race(n_users, stock):
     print(f"        └─ Hết hàng:     {sum(1 for e in losers if 'INSUFFICIENT' in e.get('submit_body','').upper() or 'không đủ' in e.get('submit_body','').lower())}")
 
     # Stock after
-    seller = login("techworld")
+    seller = login("fe_seller")
     final = get_stock(seller)
     winners_paid = [w for w in winners if w.get("parent_order_id")]
     print(f"\n     📦 Stock cuối:        {final}")
@@ -386,9 +438,9 @@ def run_race(n_users, stock):
     print("      → TOCTOU giữa 2 lần check stock.")
     print()
     print("  💳  PAYMENT FLOW (winners only):")
-    print("      Cart → Preview → SUBMIT (race) → Kafka → OrderCreated →")
-    print("      PaymentIntent (Stripe) → Form thẻ VISA →")
-    print("      confirmPayment → webhook → PAID → CONFIRMED reservation")
+    print("      Chọn địa chỉ → Review sản phẩm (Preview) → Nhấn thanh toán lần 1 (SUBMIT, race) →")
+    print("      Hiện form Stripe (PENDING) → Nhập thẻ VISA & Ấn thanh toán lần 2 →")
+    print("      Stripe Webhook (payment_intent.succeeded) → PAID (Mua hàng thành công)")
 
 
 def _find_new_parent(tok, pre_max):
@@ -428,7 +480,7 @@ def main():
     print()
 
     print("⏳ Check connection...")
-    try: seller_tok = login("techworld")
+    try: seller_tok = login("fe_seller")
     except Exception as e:
         print(f"  ❌ {e}"); sys.exit(1)
     cur = get_stock(seller_tok)
@@ -444,7 +496,7 @@ def main():
     print("  ⚙️   CONFIG")
     print("─" * 70)
     stock = ask_int("Set stock to", min(cur, 3))
-    n = ask_int("Number of racers", stock + 7)
+    n = ask_int("Number of racers", 100)
     if n <= stock:
         n = stock + 7; print(f"      → Auto-corrected to {n}")
     print()
