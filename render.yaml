@@ -10,10 +10,9 @@
 #   Group 3: api-gateway LAST (depends on all above)
 #
 # DEPLOY STEPS:
-#   1. Upload this file to Render Dashboard > Blueprints
-#   2. Replace YOUR_GITHUB_USERNAME with your real GitHub username
-#   3. Replace ownerEmail@domain.com with your email
-#   4. Click "Apply"
+#   1. Push to GitHub — Render will auto-detect render.yaml
+#   2. Go to Render Dashboard > Blueprints > "New Blueprint"
+#   3. Click "Apply"
 # ============================================================
 
 services:
@@ -22,7 +21,7 @@ services:
   # ─────────────────────────────────────────────────────
   - name: discovery-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/discovery-service
     dockerfilePath: Dockerfile.build
@@ -41,7 +40,7 @@ services:
   # ─────────────────────────────────────────────────────
   - name: identity-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/identity-service
     dockerfilePath: Dockerfile.build
@@ -88,7 +87,7 @@ services:
 
   - name: product-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/product-service
     dockerfilePath: Dockerfile.build
@@ -129,7 +128,7 @@ services:
 
   - name: payment-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/payment-service
     dockerfilePath: Dockerfile.build
@@ -176,7 +175,7 @@ services:
 
   - name: order-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/order-service
     dockerfilePath: Dockerfile.build
@@ -222,7 +221,7 @@ services:
 
   - name: flashsale-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/flashsale-service
     dockerfilePath: Dockerfile.build
@@ -268,7 +267,7 @@ services:
 
   - name: search-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/search-service
     dockerfilePath: Dockerfile.build
@@ -314,7 +313,7 @@ services:
 
   - name: notification-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/notification-service
     dockerfilePath: Dockerfile.build
@@ -365,7 +364,7 @@ services:
 
   - name: refund-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/refund-service
     dockerfilePath: Dockerfile.build
@@ -408,7 +407,7 @@ services:
 
   - name: chat-service
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/chat-service
     dockerfilePath: Dockerfile.build
@@ -457,7 +456,7 @@ services:
   # ─────────────────────────────────────────────────────
   - name: api-gateway
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     rootDir: backend/api-gateway
     dockerfilePath: Dockerfile.build
@@ -503,7 +502,7 @@ services:
   # ─────────────────────────────────────────────────────
   - name: elasticsearch
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     dockerfilePath: backend/docker/elasticsearch/Dockerfile
     plan: starter
@@ -523,7 +522,7 @@ services:
   # ─────────────────────────────────────────────────────
   - name: kafka-broker
     region: singapore
-    repo: https://github.com/YOUR_GITHUB_USERNAME/stealing-from-paradise.git
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     dockerfilePath: backend/docker/kafka/Dockerfile
     plan: starter
