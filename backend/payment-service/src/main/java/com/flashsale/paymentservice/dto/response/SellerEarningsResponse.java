@@ -24,8 +24,13 @@ public class SellerEarningsResponse {
         private Long orderId;
         private String orderCode;
         private BigDecimal transferAmount;
+        private BigDecimal feeAmount;
+        private BigDecimal netAmount;
         private String stripeTransferId;
         private String status;
+        private String deliveredAt;
+        private String payoutEligibleAt;
+        private String payoutAt;
         private String createdAt;
         private String updatedAt;
     }

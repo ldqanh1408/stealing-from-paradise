@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
+import com.flashsale.paymentservice.domain.repository.SellerStripeAccountRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +30,8 @@ public class PaymentCommandService {
     private final SellerTransferService sellerTransferService;
     private final KafkaPublisher kafkaPublisher;
     private final ObjectMapper objectMapper;
+    private final SellerStripeAccountRepository sellerStripeAccountRepository;
+    private final com.flashsale.paymentservice.config.StripeConfig stripeConfig;
 
     @Transactional
     public void onPaymentRequested(String message) {
@@ -43,50 +47,106 @@ public class PaymentCommandService {
                 return;
             }
 
-            // Idempotency: skip if transaction already exists and is usable
-            Transaction existing = transactionRepository.findByParentOrderId(parentOrderId).orElse(null);
-            if (existing != null && ("PENDING".equals(existing.getStatus()) || "SUCCESS".equals(existing.getStatus()))) {
-                log.info("Skip payment.requested — transaction already exists: parentOrderId={}, status={}",
-                        parentOrderId, existing.getStatus());
+            // Idempotency: skip if transactions already exist
+            java.util.List<Transaction> existingList = transactionRepository.findAllByParentOrderId(parentOrderId);
+            if (!existingList.isEmpty()) {
+                log.info("Skip payment.requested — transaction already exists: parentOrderId={}", parentOrderId);
                 return;
             }
 
-            // Create Stripe PaymentIntent
-            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-                    .setAmount(StripeAmounts.toStripeAmount(totalAmount))
-                    .setCurrency("vnd")
-                    .setAutomaticPaymentMethods(
-                            PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
-                                    .setEnabled(true)
-                                    .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
-                                    .build()
-                    )
-                    .putMetadata("parent_order_id", String.valueOf(parentOrderId))
-                    .putMetadata("user_id", userId != null ? String.valueOf(userId) : "")
-                    .build();
+            List<?> orders = (List<?>) payload.get("orders");
+            if (orders == null || orders.isEmpty()) {
+                log.warn("payment.requested for parentOrderId={} has no orders array", parentOrderId);
+                return;
+            }
 
-            PaymentIntent pi = PaymentIntent.create(params);
+            // Map sellerId -> list of orders
+            Map<Long, java.util.List<Map<String, Object>>> ordersBySeller = new java.util.HashMap<>();
+            for (Object raw : orders) {
+                Map<String, Object> order = (Map<String, Object>) raw;
+                Long sellerId = StripeAmounts.toLong(order.get("seller_id"));
+                if (sellerId != null) {
+                    ordersBySeller.computeIfAbsent(sellerId, k -> new java.util.ArrayList<>()).add(order);
+                }
+            }
 
-            // Persist transaction
-            Transaction tx = existing != null ? existing : new Transaction();
-            tx.setParentOrderId(parentOrderId);
-            tx.setAmount(totalAmount);
-            tx.setStatus("PENDING");
-            tx.setTransRef(StripeAmounts.buildTransRef(parentOrderId));
-            tx.setRawResponse(pi.toJson());
-            transactionRepository.save(tx);
+            double feePct = stripeConfig.getPlatformFeePercentage();
 
-            log.info("Payment initialized: parentOrderId={}, txId={}, piId={}", parentOrderId, tx.getId(), pi.getId());
+            for (Map.Entry<Long, java.util.List<Map<String, Object>>> entry : ordersBySeller.entrySet()) {
+                Long sellerId = entry.getKey();
+                java.util.List<Map<String, Object>> sellerOrders = entry.getValue();
 
-            // Create SellerTransfer records from sub-order breakdown in payload
-            sellerTransferService.createSellerTransferRecords(parentOrderId, payload, tx.getId());
+                BigDecimal sellerTotalAmount = BigDecimal.ZERO;
+                for (Map<String, Object> o : sellerOrders) {
+                    BigDecimal amount = StripeAmounts.toBigDecimal(o.get("amount"));
+                    if (amount != null) {
+                        sellerTotalAmount = sellerTotalAmount.add(amount);
+                    }
+                }
+
+                BigDecimal commission = sellerTotalAmount.multiply(BigDecimal.valueOf(feePct / 100.0)).setScale(0, java.math.RoundingMode.HALF_UP);
+
+                com.flashsale.paymentservice.domain.model.SellerStripeAccount sellerAccount = sellerStripeAccountRepository
+                        .findBySellerId(sellerId)
+                        .orElseThrow(() -> new RuntimeException("Seller " + sellerId + " has no Stripe account linked"));
+
+                if (!Boolean.TRUE.equals(sellerAccount.getChargesEnabled())) {
+                    throw new RuntimeException("Seller " + sellerId + " has Stripe account charges disabled");
+                }
+
+                String stripeAccountId = sellerAccount.getStripeAccountId();
+
+                PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                        .setAmount(StripeAmounts.toStripeAmount(sellerTotalAmount))
+                        .setCurrency("vnd")
+                        .setApplicationFeeAmount(StripeAmounts.toStripeAmount(commission))
+                        .setAutomaticPaymentMethods(
+                                PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
+                                        .setEnabled(true)
+                                        .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
+                                        .build()
+                        )
+                        .putMetadata("parent_order_id", String.valueOf(parentOrderId))
+                        .putMetadata("seller_id", String.valueOf(sellerId))
+                        .putMetadata("user_id", userId != null ? String.valueOf(userId) : "")
+                        .putMetadata("order_ids", sellerOrders.stream().map(o -> String.valueOf(o.get("order_id"))).collect(java.util.stream.Collectors.joining(",")))
+                        .build();
+
+                com.stripe.net.RequestOptions requestOptions = com.stripe.net.RequestOptions.builder()
+                        .setStripeAccount(stripeAccountId)
+                        .build();
+
+                PaymentIntent pi = PaymentIntent.create(params, requestOptions);
+
+                Transaction tx = new Transaction();
+                tx.setParentOrderId(parentOrderId);
+                tx.setOrderId(StripeAmounts.toLong(sellerOrders.get(0).get("order_id")));
+                tx.setSellerId(sellerId);
+                tx.setStripeAccountId(stripeAccountId);
+                tx.setStripePaymentIntentId(pi.getId());
+                tx.setAmount(sellerTotalAmount);
+                tx.setGrossAmount(sellerTotalAmount);
+                tx.setApplicationFeeAmount(commission);
+                tx.setSellerNetAmount(sellerTotalAmount.subtract(commission));
+                tx.setCurrency("vnd");
+                tx.setStatus("PENDING");
+                tx.setStripeConnectMode("DIRECT_CHARGE");
+                tx.setTransRef(StripeAmounts.buildTransRef(parentOrderId) + "-" + sellerId);
+                tx.setRawResponse(pi.toJson());
+                transactionRepository.save(tx);
+
+                log.info("Payment initialized for seller: parentOrderId={}, sellerId={}, txId={}, piId={}", 
+                         parentOrderId, sellerId, tx.getId(), pi.getId());
+            }
+
+            sellerTransferService.createSellerTransferRecords(parentOrderId, payload, 0L);
 
         } catch (Exception e) {
             log.error("Failed to initialize payment from payment.requested: {}", e.getMessage(), e);
             if (parentOrderId != null) {
                 kafkaPublisher.publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(parentOrderId), Map.of(
                         "parent_order_id", parentOrderId,
-                        "reason", "Khoi tao thanh toan that bai",
+                        "reason", "Khoi tao thanh toan that bai: " + e.getMessage(),
                         "timestamp", Instant.now().toString()
                 ));
             }
@@ -111,11 +171,9 @@ public class PaymentCommandService {
             }
 
             final Long finalParentOrderId = parentOrderId;
-            Transaction tx = transactionRepository.findByParentOrderId(parentOrderId).orElse(null);
+            List<Transaction> txs = transactionRepository.findAllByParentOrderId(parentOrderId);
 
-            if (tx == null) {
-                // Đơn bị hủy trước khi payment-service xử lý payment.requested —
-                // vẫn publish payment.failed để Saga có thể kết thúc sạch sẽ.
+            if (txs.isEmpty()) {
                 log.warn("onOrderCancelled: no transaction for parentOrderId={} — publishing payment.failed for saga cleanup", parentOrderId);
                 kafkaPublisher.publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(finalParentOrderId), Map.of(
                         "parent_order_id", finalParentOrderId,
@@ -125,39 +183,40 @@ public class PaymentCommandService {
                 return;
             }
 
-            if (!"PENDING".equals(tx.getStatus())) {
-                log.debug("onOrderCancelled: skip — transaction not PENDING: parentOrderId={}, status={}",
-                        parentOrderId, tx.getStatus());
-                return;
-            }
-
-            // Hủy Stripe PaymentIntent nếu vẫn còn khả dụng
-            // (PI ID được lưu trong rawResponse dưới dạng JSON của Stripe PaymentIntent)
-            String stripePiId = extractPiIdFromRawResponse(tx.getRawResponse());
-            if (stripePiId != null) {
-                try {
-                    PaymentIntent pi = PaymentIntent.retrieve(stripePiId);
-                    String piStatus = pi.getStatus();
-                    if (!"canceled".equals(piStatus) && !"succeeded".equals(piStatus)) {
-                        pi.cancel();
-                        log.info("Stripe PI cancelled: parentOrderId={}, piId={}", parentOrderId, stripePiId);
-                    }
-                } catch (StripeException e) {
-                    // PI không hủy được (đã expired hoặc lỗi Stripe) — vẫn tiếp tục cập nhật DB
-                    log.error("Could not cancel Stripe PI {}: {}", stripePiId, e.getMessage());
+            for (Transaction tx : txs) {
+                if (!"PENDING".equals(tx.getStatus())) {
+                    log.debug("onOrderCancelled: skip — transaction not PENDING: parentOrderId={}, status={}",
+                            parentOrderId, tx.getStatus());
+                    continue;
                 }
-            }
 
-            tx.setStatus("CANCELLED");
-            transactionRepository.save(tx);
+                String stripePiId = tx.getStripePaymentIntentId();
+                if (stripePiId != null) {
+                    try {
+                        com.stripe.net.RequestOptions requestOptions = com.stripe.net.RequestOptions.builder()
+                                .setStripeAccount(tx.getStripeAccountId())
+                                .build();
+                        PaymentIntent pi = PaymentIntent.retrieve(stripePiId, requestOptions);
+                        String piStatus = pi.getStatus();
+                        if (!"canceled".equals(piStatus) && !"succeeded".equals(piStatus)) {
+                            pi.cancel(requestOptions);
+                            log.info("Stripe PI cancelled: parentOrderId={}, piId={}", parentOrderId, stripePiId);
+                        }
+                    } catch (StripeException e) {
+                        log.error("Could not cancel Stripe PI {}: {}", stripePiId, e.getMessage());
+                    }
+                }
+
+                tx.setStatus("CANCELLED");
+                transactionRepository.save(tx);
+            }
 
             kafkaPublisher.publish(KafkaTopics.PAYMENT_FAILED, String.valueOf(parentOrderId), Map.of(
                     "parent_order_id", parentOrderId,
-                    "transaction_id",  tx.getId(),
                     "reason",          "Order cancelled",
                     "timestamp",       Instant.now().toString()
             ));
-            log.info("Transaction cancelled after order cancellation: parentOrderId={}, txId={}", parentOrderId, tx.getId());
+            log.info("Transactions cancelled after order cancellation for parentOrderId={}", parentOrderId);
 
         } catch (Exception e) {
             log.error("Error processing order.cancelled for parentOrderId={}: {}", parentOrderId, e.getMessage(), e);

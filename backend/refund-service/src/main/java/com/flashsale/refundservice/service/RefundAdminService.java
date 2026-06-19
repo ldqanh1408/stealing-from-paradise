@@ -49,6 +49,16 @@ public class RefundAdminService {
         }
 
         BigDecimal finalAmount = refund.getAmount();
+        if ("PARTIAL".equals(refund.getType())) {
+            List<RefundItem> items = refundItemRepository.findAllByRefundId(refundId);
+            BigDecimal itemsTotal = items.stream()
+                    .map(RefundItem::getRefundAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (itemsTotal.compareTo(BigDecimal.ZERO) > 0) {
+                finalAmount = itemsTotal;
+                refund.setAmount(finalAmount);
+            }
+        }
         String stripeRefundId = stripeRefundClient.executeStripeRefund(refund.getTransactionId(), finalAmount);
 
         // Reverse phần transfer tới Seller tương ứng với khoản hoàn tiền

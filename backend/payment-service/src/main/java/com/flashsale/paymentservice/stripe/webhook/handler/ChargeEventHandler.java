@@ -1,6 +1,7 @@
 package com.flashsale.paymentservice.stripe.webhook.handler;
 
 import com.flashsale.commonlib.event.KafkaTopics;
+import com.flashsale.paymentservice.domain.model.Transaction;
 import com.flashsale.paymentservice.domain.repository.TransactionRepository;
 import com.flashsale.paymentservice.stripe.webhook.StripeEventHandler;
 import com.flashsale.paymentservice.support.KafkaPublisher;
@@ -42,13 +43,14 @@ public class ChargeEventHandler implements StripeEventHandler {
         StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Charge charge)) return;
 
-        Long parentOrderId = StripeMetadata.extractParentOrderId(charge.getMetadata());
-        if (parentOrderId == null) return;
+        String paymentIntentId = charge.getPaymentIntent();
+        if (paymentIntentId == null) return;
 
-        transactionRepository.findByParentOrderId(parentOrderId).ifPresent(tx -> {
+        transactionRepository.findByStripePaymentIntentId(paymentIntentId).ifPresent(tx -> {
             if ("SUCCESS".equals(tx.getStatus())) return; // already processed by payment_intent.succeeded
             tx.setStatus("SUCCESS");
             tx.setPayAt(LocalDateTime.now());
+            tx.setStripeChargeId(charge.getId());
             transactionRepository.save(tx);
             log.info("Charge succeeded (sync fallback): chargeId={}, txId={}", charge.getId(), tx.getId());
         });
@@ -58,10 +60,10 @@ public class ChargeEventHandler implements StripeEventHandler {
         StripeObject stripeObject = StripeEvents.deserialize(event);
         if (!(stripeObject instanceof Charge charge)) return;
 
-        Long parentOrderId = StripeMetadata.extractParentOrderId(charge.getMetadata());
-        if (parentOrderId == null) return;
+        String paymentIntentId = charge.getPaymentIntent();
+        if (paymentIntentId == null) return;
 
-        transactionRepository.findByParentOrderId(parentOrderId).ifPresent(tx -> {
+        transactionRepository.findByStripePaymentIntentId(paymentIntentId).ifPresent(tx -> {
             if (!"PENDING".equals(tx.getStatus())) return;
             tx.setStatus("FAILED");
             transactionRepository.save(tx);

@@ -95,7 +95,30 @@ public class FlashSaleDevDataLoader implements CommandLineRunner {
             (900007, 900002, 900002, 'FE-SKU-CHARGER-PAD', 390000, 50, 3, 0, 'APPROVED', 0, now() - interval '1 day', now()),
             (900008, 900003, 900002, 'FE-SKU-PHONE-15PRO', 19990000, 8, 1, 8, 'SOLD_OUT', 0, now() - interval '3 days', now()),
             (900009, 900001, 900002, 'FE-SKU-YOGA-MAT', 250000, 30, 2, 12, 'LIVE', 0, now() - interval '1 day', now()),
-            (900010, 900002, 900002, 'FE-SKU-TRAVEL-BACKPACK', 750000, 20, 1, 0, 'APPROVED', 0, now() - interval '1 day', now())
+            (900010, 900002, 900002, 'FE-SKU-TRAVEL-BACKPACK', 750000, 20, 1, 0, 'APPROVED', 0, now() - interval '1 day', now()),
+            -- Session 900001 (+6 → 10 items)
+            (900011, 900001, 900002, 'FE-SKU-AIRPODS-LIGHTNING', 3190000, 22, 2, 4, 'LIVE', 0, now() - interval '1 day', now()),
+            (900012, 900001, 900002, 'FE-SKU-HUB-BLACK', 550000, 60, 3, 10, 'LIVE', 0, now() - interval '1 day', now()),
+            (900013, 900001, 900002, 'FE-SKU-TSHIRT-M', 99000, 40, 3, 15, 'LIVE', 0, now() - interval '1 day', now()),
+            (900014, 900001, 900002, 'FE-SKU-CHARGER-BLACK', 290000, 35, 2, 7, 'LIVE', 0, now() - interval '1 day', now()),
+            (900015, 900001, 900002, 'FE-SKU-VACUUM-PRO', 3990000, 12, 1, 1, 'LIVE', 0, now() - interval '1 day', now()),
+            (900016, 900001, 900002, 'FE-SKU-EARBUDS-WHITE', 1190000, 28, 2, 5, 'LIVE', 0, now() - interval '1 day', now()),
+            -- Session 900002 (+6 → 10 items)
+            (900017, 900002, 900002, 'FE-SKU-PHONE-SILVER', 24990000, 6, 1, 0, 'APPROVED', 0, now() - interval '1 day', now()),
+            (900018, 900002, 900002, 'FE-SKU-AIRPODS-PROMAX', 5490000, 18, 2, 0, 'APPROVED', 0, now() - interval '1 day', now()),
+            (900019, 900002, 900002, 'FE-SKU-TSHIRT-L', 99000, 30, 2, 0, 'APPROVED', 0, now() - interval '1 day', now()),
+            (900020, 900002, 900002, 'FE-SKU-YOGA-BLUE', 280000, 40, 3, 0, 'APPROVED', 0, now() - interval '1 day', now()),
+            (900021, 900002, 900002, 'FE-SKU-DESK-OAK', 1690000, 10, 1, 0, 'APPROVED', 0, now() - interval '1 day', now()),
+            (900022, 900002, 900002, 'FE-SKU-LAMP-COOL', 350000, 22, 2, 0, 'APPROVED', 0, now() - interval '1 day', now()),
+            -- Session 900003 (+8 → 10 items)
+            (900023, 900003, 900002, 'FE-SKU-LAPTOP-SILVER', 22990000, 4, 1, 4, 'SOLD_OUT', 0, now() - interval '3 days', now()),
+            (900024, 900003, 900002, 'FE-SKU-HUB-WHITE', 790000, 40, 3, 40, 'SOLD_OUT', 0, now() - interval '3 days', now()),
+            (900025, 900003, 900002, 'FE-SKU-TSHIRT-S', 99000, 25, 3, 25, 'SOLD_OUT', 0, now() - interval '3 days', now()),
+            (900026, 900003, 900002, 'FE-SKU-YOGA-GREEN', 350000, 20, 2, 20, 'SOLD_OUT', 0, now() - interval '3 days', now()),
+            (900027, 900003, 900002, 'FE-SKU-CHARGER-BLUE', 390000, 25, 2, 25, 'SOLD_OUT', 0, now() - interval '3 days', now()),
+            (900028, 900003, 900002, 'FE-SKU-EARBUDS-RED', 790000, 20, 2, 20, 'SOLD_OUT', 0, now() - interval '3 days', now()),
+            (900029, 900003, 900002, 'FE-SKU-BAG-BLACK', 490000, 18, 2, 18, 'SOLD_OUT', 0, now() - interval '3 days', now()),
+            (900030, 900003, 900002, 'FE-SKU-DESK-WALNUT', 1790000, 6, 1, 6, 'SOLD_OUT', 0, now() - interval '3 days', now())
             ON CONFLICT (id) DO UPDATE SET
                 session_id=EXCLUDED.session_id, seller_id=EXCLUDED.seller_id, sku_code=EXCLUDED.sku_code,
                 flash_price=EXCLUDED.flash_price, flash_stock=EXCLUDED.flash_stock,
@@ -114,7 +137,7 @@ public class FlashSaleDevDataLoader implements CommandLineRunner {
             ON CONFLICT (customer_id, session_id) DO NOTHING
             """).then().block();
 
-        log.info("[FlashSaleDevDataLoader] FE test-dataset seeded (3 sessions, 10 items, 6 reminders).");
+        log.info("[FlashSaleDevDataLoader] FE test-dataset seeded (3 sessions, 30 items, 6 reminders).");
     }
 
     /**
@@ -146,7 +169,7 @@ public class FlashSaleDevDataLoader implements CommandLineRunner {
         }
 
         int maxId = 0;
-        int itemSeq = 900011;
+        int itemSeq = 900031;
         int reminderSeq = 900007;
 
         for (Map<String, Object> session : sessions) {

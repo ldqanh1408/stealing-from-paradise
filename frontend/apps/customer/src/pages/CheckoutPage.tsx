@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import CheckoutStepper from '@/components/CheckoutStepper';
-import { getStripe } from '@/lib/stripe';
+import { getStripe, getStripeForAccount } from '@/lib/stripe';
 import { paymentApi } from '@shared/api/payment.api';
 import { orderApi } from '@shared/api/order.api';
 import { Skeleton } from '@shared/components/ui';
@@ -20,9 +20,11 @@ const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
 
 function PaymentForm({
   amount,
+  paymentIntents,
   onSuccess,
 }: {
   amount: number;
+  paymentIntents: Array<{ clientSecret: string; stripeAccountId: string; sellerId: number; amount: number }>;
   onSuccess: (piId: string) => void;
 }) {
   const stripe = useStripe();
@@ -36,19 +38,51 @@ function PaymentForm({
     setIsProcessing(true);
     setStripeError(null);
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
+    // 1. Create PaymentMethod on the platform Stripe instance
+    const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
       elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/checkout/result`,
-      },
-      redirect: 'if_required',
     });
 
-    if (error) {
-      setStripeError(error.message ?? 'Thanh toán thất bại');
+    if (pmError) {
+      setStripeError(pmError.message ?? 'Không thể tạo phương thức thanh toán');
       setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      onSuccess(paymentIntent.id);
+      return;
+    }
+
+    const paymentMethodId = paymentMethod.id;
+
+    // 2. Loop through all payment intents and confirm them sequentially
+    try {
+      let lastPiId = '';
+      for (const piItem of paymentIntents) {
+        const { clientSecret, stripeAccountId, sellerId } = piItem;
+
+        // Retrieve Stripe instance for this connected account
+        const sellerStripe = await getStripeForAccount(stripeAccountId || undefined);
+        if (!sellerStripe) {
+          throw new Error(`Không thể khởi tạo Stripe cho seller ${sellerId}`);
+        }
+
+        const { error: confirmError, paymentIntent } = await sellerStripe.confirmCardPayment(
+          clientSecret,
+          {
+            payment_method: paymentMethodId,
+          }
+        );
+
+        if (confirmError) {
+          throw new Error(confirmError.message ?? `Thanh toán thất bại cho seller ${sellerId}`);
+        }
+
+        if (paymentIntent) {
+          lastPiId = paymentIntent.id;
+        }
+      }
+
+      onSuccess(lastPiId);
+    } catch (err: any) {
+      setStripeError(err.message ?? 'Thanh toán thất bại');
+      setIsProcessing(false);
     }
   };
 
@@ -149,6 +183,14 @@ export default function CheckoutPage() {
     refetchInterval: query => shouldPollClientSecret(query.state.data, query.state.error),
   });
 
+  const stripePromise = useMemo(() => {
+    const accountId = clientSecretData?.paymentIntents?.[0]?.stripeAccountId;
+    if (accountId) {
+      return getStripeForAccount(accountId);
+    }
+    return getStripe();
+  }, [clientSecretData?.paymentIntents?.[0]?.stripeAccountId]);
+
   const handleStripeSuccess = (paymentIntentId: string) => {
     navigate('/checkout/result?status=success', {
       state: { parentOrderId, paymentIntentId },
@@ -234,9 +276,12 @@ export default function CheckoutPage() {
             </div>
           )}
           {clientSecretPanelState === 'ready' && clientSecretData?.clientSecret && (
-            <Elements stripe={getStripe()} options={{ clientSecret: clientSecretData.clientSecret }}>
+            <Elements stripe={stripePromise} options={{ clientSecret: clientSecretData.clientSecret }}>
               <PaymentForm
                 amount={finalAmount}
+                paymentIntents={clientSecretData.paymentIntents || [
+                  { clientSecret: clientSecretData.clientSecret, stripeAccountId: '', sellerId: 0, amount: finalAmount }
+                ]}
                 onSuccess={handleStripeSuccess}
               />
             </Elements>

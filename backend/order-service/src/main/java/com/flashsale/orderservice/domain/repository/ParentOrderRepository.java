@@ -5,7 +5,6 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -13,10 +12,9 @@ import java.util.Optional;
 @Repository
 public interface ParentOrderRepository extends JpaRepository<ParentOrder, Long> {
 
+    // NOTE: DO NOT add @PostAuthorize to findById() — it is called from
+    // Kafka consumer threads where SecurityContext is absent.
     @Override
-    @PostAuthorize("authentication == null || !authentication.authenticated || returnObject.isEmpty() || (" +
-            "(hasRole('BUYER') && returnObject.get().customerId.toString() == authentication.name) || " +
-            "hasRole('ADMIN'))")
     Optional<ParentOrder> findById(Long id);
 
     Optional<ParentOrder> findByIdAndCustomerId(Long id, Long customerId);

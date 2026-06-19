@@ -36,6 +36,12 @@ public class SellerTransfer {
     @Column(name = "stripe_transfer_id")
     private String stripeTransferId;
 
+    @Column(name = "stripe_payout_id")
+    private String stripePayoutId;
+
+    @Column(name = "payout_status")
+    private String payoutStatus;
+
     @Column(nullable = false)
     private String status = "PENDING";
 

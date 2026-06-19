@@ -1,7 +1,6 @@
 package com.flashsale.refundservice.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -14,6 +13,5 @@ public class AdminRefundApproveRequest {
 
     private String causedBy;   // SELLER | BUYER
 
-    @Pattern(regexp = "^[A-Z]{2}[0-9]{9}$", message = "trackingNumber must match [A-Z]{2}[0-9]{9}")
-    private String trackingNumber;
+    private String trackingNumber;   // optional free-form tracking code
 }

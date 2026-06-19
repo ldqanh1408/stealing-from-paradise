@@ -32,6 +32,13 @@ export default function ProductDetailPage() {
   const navTimerRef = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current); }, []);
 
+  useEffect(() => {
+    setSelectedImage(0);
+    setQuantity(1);
+    setAddError(null);
+    setSuccessMsg(null);
+  }, [productId]);
+
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', productId],
     queryFn: () => productApi.getProductById(productId!).then(r => r.data.data),
@@ -90,6 +97,10 @@ export default function ProductDetailPage() {
   const isOutOfStock = !selectedVariant || maxQty <= 0;
 
   const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/products/${productId}` } });
+      return;
+    }
     if (!product || !selectedVariant) {
       setAddError('Vui lòng chọn phân loại sản phẩm trước khi thêm vào giỏ hàng.');
       return;
@@ -109,6 +120,10 @@ export default function ProductDetailPage() {
   };
 
   const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/products/${productId}` } });
+      return;
+    }
     if (!product || !selectedVariant) {
       setAddError('Vui lòng chọn phân loại sản phẩm trước khi mua ngay.');
       return;

@@ -22,8 +22,12 @@ public class MinioConfig {
 
     @Bean
     public MinioClient minioClient() {
+        // Use internal URL (http://minio:9000) so putObject() can actually
+        // reach MinIO from within the Docker network.  publicUrl
+        // (http://localhost:9000) is only for building browser-facing URLs
+        // and presigned-URL signatures — it is NOT reachable from containers.
         return MinioClient.builder()
-                .endpoint(publicUrl)
+                .endpoint(url)
                 .credentials(accessKey, secretKey)
                 .region("us-east-1")
                 .build();
