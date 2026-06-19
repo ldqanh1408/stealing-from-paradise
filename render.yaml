@@ -4,8 +4,10 @@
 # ============================================================
 
 services:
-  # ── Group 1: Discovery (Eureka) — MUST be first ──────────
+  # Discovery (Eureka)
   - name: discovery-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -20,9 +22,13 @@ services:
         value: "true"
       - key: JAVA_OPTS
         value: -Xms128m -Xmx256m
+      - key: RENDER_SERVICE_URL
+        value: http://discovery-service:8761
 
-  # ── Group 2: Business Microservices ──────────────────────
+  # Business microservices
   - name: identity-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -36,37 +42,29 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx256m
-      - key: POSTGRES_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: database
-      - key: POSTGRES_USER
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: username
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: password
       - key: POSTGRES_HOST
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: hostname
+          property: host
       - key: POSTGRES_PORT
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: port
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          property: password
       - key: JWT_SECRET
         sync: false
       - key: JWT_EXPIRATION_MS
@@ -75,6 +73,8 @@ services:
         value: "604800000"
 
   - name: product-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -88,39 +88,33 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx384m
-      - key: POSTGRES_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: database
-      - key: POSTGRES_USER
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: username
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: password
       - key: POSTGRES_HOST
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: hostname
+          property: host
       - key: POSTGRES_PORT
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: port
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          property: password
 
   - name: payment-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -134,37 +128,29 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx256m
-      - key: POSTGRES_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: database
-      - key: POSTGRES_USER
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: username
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: password
       - key: POSTGRES_HOST
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: hostname
+          property: host
       - key: POSTGRES_PORT
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: port
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          property: password
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
@@ -173,6 +159,8 @@ services:
         value: "5.0"
 
   - name: order-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -186,44 +174,35 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx384m
-      - key: POSTGRES_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: database
-      - key: POSTGRES_USER
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: username
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: password
       - key: POSTGRES_HOST
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: hostname
+          property: host
       - key: POSTGRES_PORT
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: port
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          property: password
       - key: KAFKA_SERVER
-        fromService:
-          type: web
-          name: kafka-broker
-          envVarKey: KAFKA_BROKER_URL
+        value: kafka-broker:9092
 
   - name: flashsale-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -237,44 +216,35 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx384m
-      - key: POSTGRES_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: database
-      - key: POSTGRES_USER
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: username
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: password
       - key: POSTGRES_HOST
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: hostname
+          property: host
       - key: POSTGRES_PORT
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: port
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          property: password
       - key: KAFKA_SERVER
-        fromService:
-          type: web
-          name: kafka-broker
-          envVarKey: KAFKA_BROKER_URL
+        value: kafka-broker:9092
 
   - name: search-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -288,44 +258,35 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx384m
-      - key: POSTGRES_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: database
-      - key: POSTGRES_USER
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: username
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: password
       - key: POSTGRES_HOST
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: hostname
+          property: host
       - key: POSTGRES_PORT
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: port
-      - key: ELASTIC_URI
-        fromService:
-          type: web
-          name: elasticsearch
-          envVarKey: ELASTICSEARCH_URL
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          property: password
+      - key: ELASTICSEARCH_URL
+        value: http://elasticsearch:9200
 
   - name: notification-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -339,37 +300,23 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms96m -Xmx192m
+      - key: MONGO_HOST
+        value: flashsale-mongo
+      - key: MONGO_PORT
+        value: "27017"
       - key: MONGO_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-mongo
-          attr: database
+        value: notification_db
       - key: MONGO_USERNAME
         fromDatabase:
-          type: psync
           name: flashsale-mongo
-          attr: username
+          property: user
       - key: MONGO_PASSWORD
         fromDatabase:
-          type: psync
           name: flashsale-mongo
-          attr: password
-      - key: MONGO_HOST
-        fromDatabase:
-          type: psync
-          name: flashsale-mongo
-          attr: hostname
-      - key: MONGO_PORT
-        fromDatabase:
-          type: psync
-          name: flashsale-mongo
-          attr: port
+          property: password
       - key: MAIL_HOST
         value: smtp.sendgrid.net
       - key: MAIL_PORT
@@ -382,6 +329,8 @@ services:
         value: no-reply@yourdomain.com
 
   - name: refund-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -395,41 +344,35 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms96m -Xmx256m
-      - key: POSTGRES_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: database
-      - key: POSTGRES_USER
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: username
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          type: psync
-          name: flashsale-postgres
-          attr: password
       - key: POSTGRES_HOST
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: hostname
+          property: host
       - key: POSTGRES_PORT
         fromDatabase:
-          type: psync
           name: flashsale-postgres
-          attr: port
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: flashsale-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: flashsale-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: flashsale-postgres
+          property: password
       - key: STRIPE_SECRET_KEY
         sync: false
 
   - name: chat-service
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -443,45 +386,37 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx256m
+      - key: MONGO_HOST
+        value: flashsale-mongo
+      - key: MONGO_PORT
+        value: "27017"
       - key: MONGO_DB
-        fromDatabase:
-          type: psync
-          name: flashsale-mongo
-          attr: database
+        value: chat_db
       - key: MONGO_USERNAME
         fromDatabase:
-          type: psync
           name: flashsale-mongo
-          attr: username
+          property: user
       - key: MONGO_PASSWORD
         fromDatabase:
-          type: psync
           name: flashsale-mongo
-          attr: password
-      - key: MONGO_HOST
-        fromDatabase:
-          type: psync
-          name: flashsale-mongo
-          attr: hostname
-      - key: MONGO_PORT
-        fromDatabase:
-          type: psync
-          name: flashsale-mongo
-          attr: port
+          property: password
       - key: REDIS_HOST
         fromService:
-          type: web
+          type: keyvalue
           name: redis
-          envVarKey: REDIS_URL
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: keyvalue
+          name: redis
+          property: port
 
-  # ── Group 3: API Gateway — LAST ─────────────────────────
   - name: api-gateway
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
@@ -495,65 +430,48 @@ services:
       - key: RENDER
         value: "true"
       - key: EUREKA_URI
-        fromService:
-          type: web
-          name: discovery-service
-          envVarKey: RENDER_DISCOVERY_URL
+        value: http://discovery-service:8761/eureka
       - key: JAVA_OPTS
         value: -Xms128m -Xmx256m
 
-  # ── Self-hosted: Elasticsearch ───────────────────────────
-  - name: elasticsearch
-    region: singapore
-    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
-    branch: main
-    dockerfilePath: backend/docker/elasticsearch/Dockerfile
+  # Redis (Key Value)
+  - name: redis
+    type: keyvalue
     plan: starter
-    healthCheckPath: /
-    envVars:
-      - key: ELASTICSEARCH_URL
-        value: http://localhost:9200
-      - key: discovery.type
-        value: single-node
-      - key: xpack.security.enabled
-        value: "false"
-      - key: ES_JAVA_OPTS
-        value: -Xms256m -Xmx384m
+    region: singapore
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: allow all
 
-  # ── Self-hosted: Kafka KRaft ─────────────────────────────
+  # Self-hosted Kafka KRaft
   - name: kafka-broker
+    type: web
+    runtime: docker
     region: singapore
     repo: https://github.com/ldqanh1408/stealing-from-paradise.git
     branch: main
     dockerfilePath: backend/docker/kafka/Dockerfile
     plan: starter
     healthCheckPath: /
-    envVars:
-      - key: KAFKA_BROKER_URL
-        value: localhost:9092
-      - key: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
-        value: "1"
-      - key: KAFKA_AUTO_CREATE_TOPICS_ENABLE
-        value: "true"
 
-# ───────────────────────────────────────────────────────────
-# MANAGED DATABASES
-# ───────────────────────────────────────────────────────────
+  # Self-hosted Elasticsearch
+  - name: elasticsearch
+    type: web
+    runtime: docker
+    region: singapore
+    repo: https://github.com/ldqanh1408/stealing-from-paradise.git
+    branch: main
+    dockerfilePath: backend/docker/elasticsearch/Dockerfile
+    plan: starter
+    healthCheckPath: /
+
 databases:
   - name: flashsale-postgres
-    region: singapore
     plan: starter
+    region: singapore
     databaseName: flashsale_platform
 
   - name: flashsale-mongo
-    region: singapore
     plan: starter
+    region: singapore
     databaseName: flashsale_mongo
-
-# ───────────────────────────────────────────────────────────
-# MANAGED REDIS
-# ───────────────────────────────────────────────────────────
-redis:
-  - name: redis
-    region: singapore
-    plan: starter
